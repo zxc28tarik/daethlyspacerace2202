@@ -661,6 +661,13 @@
                     Math.sin(angle) * rad,
                     state.pos.z - 120 - i * 85
                 );
+
+                // Başlangıç noktasından makul ölçüde farklı ve koridor sınırları içinde hedef koordinat belirle
+                const targetAngle = angle + (0.65 + Math.random() * 1.1) * (i % 2 === 0 ? 1 : -1);
+                const targetRad = Math.min(state.tubeRadius * 0.78, Math.max(45, 75 + ((i * 37) % 115)));
+                const targetX = Math.cos(targetAngle) * targetRad;
+                const targetY = Math.sin(targetAngle) * targetRad;
+
                 scene.add(mesh);
                 racers.push({
                     name: racerNames[i],
@@ -673,8 +680,11 @@
                     currentSpeed: 168,
                     weavePhase: Math.random() * Math.PI * 2,
                     weaveSpeed: 0.9 + Math.random() * 0.8,
-                    targetX: mesh.position.x,
-                    targetY: mesh.position.y,
+                    targetX,
+                    targetY,
+                    vx: 0,
+                    vy: 0,
+                    bankAngle: 0,
                     fireTimer: 2.2 + Math.random() * 2.5
                 });
             }
@@ -1227,7 +1237,6 @@
             // 6. Rakip Yarışçılar (Boru İçinde Yarış + Çatışma + Sıralama Hesabı)
             let aheadCount = 0;
             racers.forEach(r => {
-                r.weavePhase += r.weaveSpeed * dt;
                 // Lastik bant (Rubber-banding) dengesiyle heyecanlı yarış
                 const zDiff = r.mesh.position.z - state.pos.z; // Negatifse oyuncunun önünde
                 let desiredSpeed = r.baseSpeed;
@@ -1237,18 +1246,60 @@
                 r.currentSpeed += (desiredSpeed - r.currentSpeed) * 2.5 * dt;
                 r.mesh.position.z -= r.currentSpeed * dt;
 
-                // Boru içinde kıvrılarak uçuş
-                r.mesh.position.x += Math.cos(r.weavePhase) * 42 * dt;
-                r.mesh.position.y += Math.sin(r.weavePhase * 1.2) * 38 * dt;
-                const rDist = Math.hypot(r.mesh.position.x, r.mesh.position.y);
-                if (rDist > state.tubeRadius * 0.85) {
-                    const ang = Math.atan2(r.mesh.position.y, r.mesh.position.x);
-                    r.mesh.position.x = Math.cos(ang) * state.tubeRadius * 0.85;
-                    r.mesh.position.y = Math.sin(ang) * state.tubeRadius * 0.85;
+                // Hedef koordinatın koridor sınırları içerisinde olduğundan emin ol
+                const maxSafeRadius = state.tubeRadius * 0.85;
+                const targetDist = Math.hypot(r.targetX, r.targetY);
+                if (targetDist > maxSafeRadius) {
+                    const tAng = Math.atan2(r.targetY, r.targetX);
+                    r.targetX = Math.cos(tAng) * maxSafeRadius;
+                    r.targetY = Math.sin(tAng) * maxSafeRadius;
                 }
 
-                r.mesh.rotation.z = -Math.cos(r.weavePhase) * 0.35;
-                r.mesh.lookAt(r.mesh.position.x + Math.cos(r.weavePhase) * 8, r.mesh.position.y + Math.sin(r.weavePhase) * 8, r.mesh.position.z - 60);
+                // Mevcut pozisyondan targetX ve targetY koordinatlarına yumuşak ve kademeli yönelim (dt tabanlı)
+                const dx = r.targetX - r.mesh.position.x;
+                const dy = r.targetY - r.mesh.position.y;
+                const distToTarget = Math.hypot(dx, dy);
+
+                const maxLateralSpeed = 58;
+                let desiredVx = 0;
+                let desiredVy = 0;
+
+                if (distToTarget > 0.5) {
+                    // Hedefe yaklaştıkça yumuşakça yavaşlayarak uçuş çizgisine oturur
+                    const approachFactor = Math.min(1, distToTarget / 42);
+                    const moveSpeed = maxLateralSpeed * approachFactor;
+                    desiredVx = (dx / distToTarget) * moveSpeed;
+                    desiredVy = (dy / distToTarget) * moveSpeed;
+                }
+
+                const prevVx = r.vx || 0;
+                const prevVy = r.vy || 0;
+                const steerFollow = Math.min(1, 3.2 * dt);
+                r.vx = prevVx + (desiredVx - prevVx) * steerFollow;
+                r.vy = prevVy + (desiredVy - prevVy) * steerFollow;
+
+                r.mesh.position.x += r.vx * dt;
+                r.mesh.position.y += r.vy * dt;
+
+                // Görünmez koridor sınır koruması
+                const rDist = Math.hypot(r.mesh.position.x, r.mesh.position.y);
+                if (rDist > maxSafeRadius) {
+                    const ang = Math.atan2(r.mesh.position.y, r.mesh.position.x);
+                    r.mesh.position.x = Math.cos(ang) * maxSafeRadius;
+                    r.mesh.position.y = Math.sin(ang) * maxSafeRadius;
+                    r.vx = 0;
+                    r.vy = 0;
+                }
+
+                // Gerçek hareket yönüne uygun bakış açısı ve yumuşak yana yatış (bank angle)
+                r.mesh.lookAt(
+                    r.mesh.position.x + r.vx * 0.35,
+                    r.mesh.position.y + r.vy * 0.35,
+                    r.mesh.position.z - 60
+                );
+                const desiredBank = -THREE.MathUtils.clamp(r.vx / maxLateralSpeed, -1, 1) * 0.42;
+                r.bankAngle = (r.bankAngle || 0) + (desiredBank - (r.bankAngle || 0)) * Math.min(1, 6.0 * dt);
+                r.mesh.rotation.z = r.bankAngle;
 
                 // Rakipler de birbirine veya oyuncuya ateş edebilir
                 r.fireTimer -= dt;
