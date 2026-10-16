@@ -121,6 +121,7 @@
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
                         <span id="boundary-alert" class="ml-2 text-emerald-300">CORRIDOR SAFE</span>
+                        <span id="bonus-status" class="ml-2 text-emerald-300">BONUS READY</span>
                     </div>
                 </div>
 
@@ -200,7 +201,7 @@
                 </div>
                 <div class="flex justify-between items-center mt-1 text-xs sm:text-sm font-bold text-emerald-400">
                     <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST</span>
-                    <span id="stage-text">STAGE 1</span>
+                    <span id="stage-text">SECTOR 1 / 4</span>
                 </div>
             </div>
         </div>
@@ -224,6 +225,10 @@
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-emerald-400 font-bold mb-1">>> SAF HIZ YARIŞI (HARİTA 1)</div>
                     <p class="text-slate-300">Bu koridorda silahlar devre dışıdır! <strong>SHIFT / W</strong> ile maksimum hıza çıkın, 5 rakip yarışçıyı sollayarak <strong>1. sıraya</strong> yükselin ve bitiş halkasına ilk ulaşan olun.</p>
+                </div>
+                <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
+                    <div class="text-yellow-300 font-bold mb-1">>> BONUS KAPILARI & YAKIN GEÇİŞLER</div>
+                    <p class="text-slate-300">Pembe halka: 2.25 sn <strong>ücretsiz boost</strong>. Yeşil halka: <strong>+28 enerji</strong>. Asteroitlere tehlikeli ama temiz yakın geçişlerle bonus ve enerji kazanın. Q/E ile barrel roll yapın.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-yellow-300 font-bold mb-1">>> BARREL ROLL & ENERJİ YÖNETİMİ</div>
@@ -251,6 +256,7 @@
                 PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
             </div>
 
+            <div id="race-bonus-summary" class="mb-3 text-xs text-fuchsia-300 font-['Share_Tech_Mono'] tracking-wide">BOOST GATES 0 • ENERGY 0 • NEAR MISSES 0</div>
             <!-- 6 Yarışçılı Sonuç Tablosu -->
             <div id="race-standings-container" class="bg-slate-900/85 border border-cyan-500/40 p-3 sm:p-4 mb-5 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="grid grid-cols-12 text-cyan-400/80 border-b border-cyan-500/30 pb-1.5 mb-2 font-bold text-left">
@@ -457,6 +463,14 @@
             asteroidHits: 0,
             shipContacts: 0,
             wallContacts: 0,
+
+            // AI-14: Parkur içeriği, bölge zamanları ve yakın geçiş ödülleri
+            gateBoostTimer: 0,
+            gatesCollected: 0,
+            energyCollected: 0,
+            nearMisses: 0,
+            checkpointTimes: [],
+            currentSector: 1,
 
             // Barrel Roll
             barrelRollTimer: 0,
@@ -684,6 +698,158 @@
         }
 
 
+        // AI-14 — Virajlı rota üzerindeki tek kullanımlık (yarışçı başına) yarış bonusları.
+        // Bütün yarışçılara aynı motor üst sınırı (330) ve aynı kapı yarıçapı uygulanır.
+        const speedGateDistances = [920, 2480, 4100, 5850, 7600, 9300];
+        const energyGateDistances = [1610, 3260, 4920, 6800, 8550];
+        const checkpointDistances = [2500, 5000, 7500];
+        const dangerBands = [[2050, 2850], [5600, 6550], [8100, 8850]];
+        const courseFeatures = [];
+        const courseFeatureGroup = new THREE.Group();
+        scene.add(courseFeatureGroup);
+
+        function buildCourseFeatures() {
+            const speedMaterial = new THREE.MeshBasicMaterial({ color: 0xff49d6, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
+            const energyMaterial = new THREE.MeshBasicMaterial({ color: 0x26ff98, transparent: true, opacity: 0.94, side: THREE.DoubleSide });
+            const checkpointMaterial = new THREE.MeshBasicMaterial({ color: 0x83cfff, transparent: true, opacity: 0.64 });
+            const dangerMaterial = new THREE.MeshBasicMaterial({ color: 0xffad32, transparent: true, opacity: 0.7 });
+            const locations = [
+                ...speedGateDistances.map((progress, i) => ({ type: 'SPEED', progress, laneX: ((i % 3) - 1) * 62, laneY: i % 2 ? 35 : -30, radius: 82 })),
+                ...energyGateDistances.map((progress, i) => ({ type: 'ENERGY', progress, laneX: (i % 2 ? -1 : 1) * 78, laneY: i % 3 === 0 ? 60 : -45, radius: 58 }))
+            ];
+            locations.forEach((cfg, i) => {
+                const f = getRaceFrameAtDistance(cfg.progress);
+                const group = new THREE.Group();
+                const mat = cfg.type === 'SPEED' ? speedMaterial : energyMaterial;
+                const outer = new THREE.Mesh(new THREE.TorusGeometry(cfg.radius, 4.4, 9, 56), mat);
+                const inner = new THREE.Mesh(new THREE.TorusGeometry(cfg.radius * 0.82, 1.6, 6, 44), mat);
+                group.add(outer, inner);
+                // Tek çizgi ile hız kapısı, üçgen işaret ile enerji halkası ayrışır.
+                const geom = new THREE.BufferGeometry().setFromPoints(cfg.type === 'SPEED'
+                    ? [new THREE.Vector3(-19, -8, 0), new THREE.Vector3(0, 22, 0), new THREE.Vector3(19, -8, 0)]
+                    : [new THREE.Vector3(0, -24, 0), new THREE.Vector3(17, 0, 0), new THREE.Vector3(0, 24, 0), new THREE.Vector3(-17, 0, 0), new THREE.Vector3(0, -24, 0)]);
+                group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-cfg.radius * 0.45, -cfg.radius * 0.55, 0), new THREE.Vector3(cfg.radius * 0.45, -cfg.radius * 0.55, 0)]), new THREE.LineBasicMaterial({ color: cfg.type === 'SPEED' ? 0xff7eee : 0x55ffb0 })));
+                group.add(new THREE.Line(geom, new THREE.LineBasicMaterial({ color: cfg.type === 'SPEED' ? 0xff7eee : 0x55ffb0 })));
+                group.position.copy(f.center).addScaledVector(f.right, cfg.laneX).addScaledVector(f.up, cfg.laneY);
+                const basis = new THREE.Matrix4().makeBasis(f.right, f.up, f.tangent.clone().negate());
+                group.quaternion.setFromRotationMatrix(basis);
+                courseFeatureGroup.add(group);
+                courseFeatures.push({ ...cfg, id: `F${i}`, mesh: group, claimed: new Set(), worldCenter: group.position.clone() });
+            });
+            checkpointDistances.forEach((progress) => {
+                const f = getRaceFrameAtDistance(progress);
+                const group = new THREE.Group();
+                group.position.copy(f.center);
+                group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.right, f.up, f.tangent.clone().negate()));
+                group.add(new THREE.Mesh(new THREE.TorusGeometry(state.tubeRadius - 13, 2.2, 8, 72), checkpointMaterial));
+                courseFeatureGroup.add(group);
+            });
+            dangerBands.forEach(([from, to]) => {
+                for (const progress of [from, to]) {
+                    const f = getRaceFrameAtDistance(progress);
+                    const group = new THREE.Group();
+                    group.position.copy(f.center);
+                    group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.right, f.up, f.tangent.clone().negate()));
+                    group.add(new THREE.Mesh(new THREE.TorusGeometry(state.tubeRadius - 6, 3.5, 8, 68), dangerMaterial));
+                    courseFeatureGroup.add(group);
+                }
+            });
+        }
+        buildCourseFeatures();
+
+        function updateCourseFeatures(dt) {
+            const t = state.raceTime;
+            courseFeatures.forEach(f => {
+                const phase = t * (f.type === 'SPEED' ? 1.5 : -1.2);
+                f.mesh.children[0].rotation.z = phase;
+                f.mesh.children[1].rotation.z = -phase * 0.72;
+                f.mesh.scale.setScalar(1 + 0.045 * Math.sin(t * 4 + f.progress * 0.01));
+            });
+        }
+
+        function getNextCourseFeature(progress) {
+            return courseFeatures.filter(f => f.progress > progress + 1).sort((a, b) => a.progress - b.progress)[0] || null;
+        }
+
+        function findAiPickupTarget(r) {
+            // Rakipler yalnızca makul mesafedeki, henüz almadıkları bonuslara yönelir.
+            // Asteroit kaçınma / sollama her zaman daha yüksek öncelikte kalır.
+            let nearest = null;
+            for (const feature of courseFeatures) {
+                const ahead = feature.progress - r.routeProgress;
+                if (ahead < 30 || ahead > 265 || feature.claimed.has(r.name)) continue;
+                if (!nearest || ahead < nearest.distance) nearest = { feature, distance: ahead };
+            }
+            return nearest ? nearest.feature : null;
+        }
+
+        function awardFeatureForShip(feature, shipId, ship, isPlayer) {
+            if (feature.type === 'SPEED') {
+                ship.gateBoostTimer = Math.max(ship.gateBoostTimer || 0, 2.25);
+                if (isPlayer) {
+                    state.gatesCollected++;
+                    state.score += 450;
+                    spawnFloatingText(feature.worldCenter, 'OVERDRIVE GATE +450', '#ff82ea');
+                }
+            } else {
+                ship.energy = Math.min(100, ship.energy + 28);
+                if (isPlayer) {
+                    state.energyCollected++;
+                    state.score += 250;
+                    spawnFloatingText(feature.worldCenter, 'ENERGY +28 / +250', '#55ffac');
+                }
+            }
+        }
+
+        function applyCoursePickupsForShip(shipId, ship, previousProgress, isPlayer) {
+            if (ship.dnf || (isPlayer && state.playerDNF)) return;
+            for (const feature of courseFeatures) {
+                if (feature.claimed.has(shipId)) continue;
+                // Geçiş kontrolü: hız yüksek olsa da iki kare arasında kapı atlanamaz.
+                if (previousProgress < feature.progress && ship.routeProgress >= feature.progress) {
+                    feature.claimed.add(shipId);
+                    const dx = ship.laneX - feature.laneX;
+                    const dy = ship.laneY - feature.laneY;
+                    if (Math.hypot(dx, dy) <= feature.radius - 7) {
+                        awardFeatureForShip(feature, shipId, ship, isPlayer);
+                    }
+                }
+            }
+        }
+
+        function updatePlayerNearMisses(previousProgress) {
+            if (state.finished || state.playerDNF) return;
+            for (const a of asteroids) {
+                if (!a.active || a.nearMissClaimed) continue;
+                if (previousProgress < a.routeProgress && state.routeProgress >= a.routeProgress) {
+                    a.nearMissClaimed = true;
+                    if (a.hitTimes.PLAYER !== undefined) continue;
+                    const clearance = Math.hypot(state.laneX - a.laneX, state.laneY - a.laneY) - a.radius - 10;
+                    if (clearance >= 7 && clearance <= 46) {
+                        state.nearMisses++;
+                        state.score += 300;
+                        state.energy = Math.min(100, state.energy + 5);
+                        spawnFloatingText(a.mesh.position, 'NEAR MISS +300 / +5 ENERGY', '#ffdc61');
+                    }
+                }
+            }
+        }
+
+        function updatePlayerCheckpoints(previousProgress, previousTime, dt) {
+            checkpointDistances.forEach((distance, idx) => {
+                if (state.checkpointTimes[idx] !== undefined) return;
+                if (previousProgress < distance && state.routeProgress >= distance) {
+                    const delta = state.routeProgress - previousProgress;
+                    const fraction = delta > 0 ? THREE.MathUtils.clamp((distance - previousProgress) / delta, 0, 1) : 1;
+                    state.checkpointTimes[idx] = previousTime + fraction * dt;
+                    state.currentSector = idx + 2;
+                    state.score += 150;
+                    const frame = getRaceFrameAtDistance(distance);
+                    spawnFloatingText(frame.center, `SECTOR ${idx + 1} CLEAR +150`, '#b1e7ff');
+                }
+            });
+        }
+
         // Harita 1 — görünür fakat uçuşu engellemeyen neon koridor sınırları.
         // Gerçek sınır yarıçapı ile birebir eşleşir (tubeRadius = 260).
         const corridorGuideGroup = new THREE.Group();
@@ -860,6 +1026,7 @@
                 a.mesh.visible = true;
                 a.touchingShips.clear();
                 a.hitTimes = Object.create(null);
+                a.nearMissClaimed = false;
                 updateAsteroidMotion(a, 0);
             }
         }
@@ -1018,6 +1185,7 @@
                     isBoosting: false,
                     isBraking: false,
                     boostDecisionTimer: 0.25 + (i * 0.12),
+                    gateBoostTimer: 0,
                     routeProgress: 0,
                     finished: false,
                     finishTime: null,
@@ -1406,7 +1574,12 @@
 
         function updateGame(dt) {
             const prevRaceTime = state.raceTime;
+            const prevPlayerFrameProgress = state.routeProgress;
+            const prevRacerFrameProgress = racers.map(r => r.routeProgress);
             state.raceTime += dt;
+            state.gateBoostTimer = Math.max(0, state.gateBoostTimer - dt);
+            racers.forEach(r => { r.gateBoostTimer = Math.max(0, (r.gateBoostTimer || 0) - dt); });
+            updateCourseFeatures(dt);
             state.wallCooldown = Math.max(0, state.wallCooldown - dt);
             state.wallFlash = Math.max(0, state.wallFlash - dt);
             updateVisibleCorridor();
@@ -1420,14 +1593,19 @@
             if (!state.finished && !state.playerDNF) {
                 const boosting = (keys['ShiftLeft'] || keys['KeyW']) && state.energy > 4;
                 const braking = keys['KeyS'];
+                const gateBoost = state.gateBoostTimer > 0;
 
                 let targetSpeed = state.baseSpeed;
-                if (boosting) {
-                    targetSpeed = 330;
-                    state.energy = Math.max(0, state.energy - dt * 16);
-                } else if (braking) {
+                if (braking) {
                     targetSpeed = 90;
                     state.energy = Math.min(100, state.energy + dt * 14);
+                } else if (gateBoost) {
+                    // Ücretsiz geçici boost, mevcut 330 üst sınırını geçemez.
+                    targetSpeed = 330;
+                    state.energy = Math.min(100, state.energy + dt * 10);
+                } else if (boosting) {
+                    targetSpeed = 330;
+                    state.energy = Math.max(0, state.energy - dt * 16);
                 } else {
                     state.energy = Math.min(100, state.energy + dt * 10);
                 }
@@ -2115,12 +2293,15 @@
 
                 // A — Oyuncuyla Birebir Aynı Motor, Boost, Fren ve Enerji Fiziği
                 let desiredSpeed = r.baseSpeed; // 175
-                if (r.isBoosting && r.energy > 4) {
-                    desiredSpeed = 330;
-                    r.energy = Math.max(0, r.energy - dt * 16);
-                } else if (r.isBraking) {
+                if (r.isBraking) {
                     desiredSpeed = 90;
                     r.energy = Math.min(100, r.energy + dt * 14);
+                } else if (r.gateBoostTimer > 0) {
+                    desiredSpeed = 330;
+                    r.energy = Math.min(100, r.energy + dt * 10);
+                } else if (r.isBoosting && r.energy > 4) {
+                    desiredSpeed = 330;
+                    r.energy = Math.max(0, r.energy - dt * 16);
                 } else {
                     r.isBoosting = false;
                     r.energy = Math.min(100, r.energy + dt * 10);
@@ -2140,6 +2321,12 @@
                 } else if (r.overtakeTarget) {
                     activeTargetX = r.overtakeTargetX;
                     activeTargetY = r.overtakeTargetY;
+                } else {
+                    const pickup = findAiPickupTarget(r);
+                    if (pickup) {
+                        activeTargetX = pickup.laneX;
+                        activeTargetY = pickup.laneY;
+                    }
                 }
 
                 // Mevcut yerel pozisyondan (laneX, laneY) aktif hedef koordinatlarına yumuşak ve kademeli yönelim
@@ -2252,6 +2439,16 @@
 
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts();
+
+            // AI-14: Tek karede atlanan kapılar dâhil yarışçı başına geçiş, near-miss ve checkpoint.
+            if (!state.playerDNF) {
+                applyCoursePickupsForShip('PLAYER', state, prevPlayerFrameProgress, true);
+                updatePlayerNearMisses(prevPlayerFrameProgress);
+                updatePlayerCheckpoints(prevPlayerFrameProgress, prevRaceTime, dt);
+            }
+            racers.forEach((r, idx) => {
+                if (!r.dnf) applyCoursePickupsForShip(r.name, r, prevRacerFrameProgress[idx], false);
+            });
 
             // Gerçek Zamanlı Sıralama Hesabı (Bitirenler finishTime'a, yarışanlar routeProgress'e göre)
             const liveStandings = computeLiveRaceStandings();
@@ -2631,7 +2828,7 @@
 
         function updateHUD(incomingDanger) {
             document.getElementById('score-text').textContent = state.score.toLocaleString('en-US').padStart(7, '0');
-            document.getElementById('stage-text').textContent = `STAGE ${state.stage}`;
+            document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 4`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * 3.5);
             const border = document.getElementById('boundary-alert');
@@ -2650,6 +2847,21 @@
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
             document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * 3.5) : '—';
+            const bonus = document.getElementById('bonus-status');
+            const next = getNextCourseFeature(state.routeProgress);
+            const inDanger = dangerBands.some(([from, to]) => state.routeProgress >= from && state.routeProgress <= to);
+            if (state.gateBoostTimer > 0) {
+                bonus.textContent = `GATE BOOST ${state.gateBoostTimer.toFixed(1)}s`;
+                bonus.className = 'ml-2 text-fuchsia-300 font-black';
+            } else if (inDanger) {
+                bonus.textContent = '⚠ DEBRIS ZONE';
+                bonus.className = 'ml-2 text-amber-300 font-black';
+            } else if (next) {
+                bonus.textContent = `${next.type === 'SPEED' ? 'BOOST' : 'ENERGY'} +${Math.ceil(next.progress - state.routeProgress)}m`;
+                bonus.className = 'ml-2 text-emerald-300';
+            } else {
+                bonus.textContent = 'FINAL APPROACH';
+            }
             document.getElementById('rank-text').textContent = `POS ${state.rank} / ${state.totalRacers}`;
             const remainingDist = Math.max(0, Math.round(10000 - state.routeProgress));
             document.getElementById('distance-text').textContent = `${remainingDist}m`;
@@ -2762,6 +2974,13 @@
             state.asteroidHits = 0;
             state.shipContacts = 0;
             state.wallContacts = 0;
+            state.gateBoostTimer = 0;
+            state.gatesCollected = 0;
+            state.energyCollected = 0;
+            state.nearMisses = 0;
+            state.checkpointTimes = [];
+            state.currentSector = 1;
+            courseFeatures.forEach(f => f.claimed.clear());
             state.pos.set(0, 0, 0);
             camera.position.set(0, 0, 0);
             camera.fov = 68;
@@ -2832,6 +3051,11 @@
                 gapText = playerRank === 1 ? 'GAP TO LEADER: +0.00s (LEADER)' : `GAP TO LEADER: +${diff.toFixed(2)}s`;
             }
             summaryBanner.textContent = `YOUR RANK: ${ state.playerDNF ? 'DNF' : `POS ${playerRank} / ${state.totalRacers}` } | ${gapText}`;
+            const bonusResult = document.getElementById('race-bonus-summary');
+            if (bonusResult) {
+                const splits = state.checkpointTimes.map((t, idx) => `S${idx + 1} ${formatRaceTime(t - (idx ? state.checkpointTimes[idx - 1] : 0))}`).join(' • ');
+                bonusResult.textContent = `BOOST GATES ${state.gatesCollected}  •  ENERGY ${state.energyCollected}  •  NEAR MISSES ${state.nearMisses}  •  ${splits || 'NO SPLITS'}`;
+            }
 
             // 6 Yarışçılı Sonuç Listesini Oluştur
             const listEl = document.getElementById('race-standings-list');
