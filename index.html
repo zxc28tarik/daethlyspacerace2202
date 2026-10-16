@@ -398,6 +398,9 @@
             // Dev Görünmez Boru (Tünel) Yarış Durumu
             tubeRadius: 260,
             finishZ: -10000,
+            routeProgress: 0,
+            laneX: 0,
+            laneY: 0,
             pos: new THREE.Vector3(0, 0, 0),
             vel: new THREE.Vector3(0, 0, 0),
             yaw: 0,
@@ -1056,23 +1059,29 @@
             if (keys['ArrowUp']) moveY += 135;
             if (keys['ArrowDown']) moveY -= 135;
 
-            state.pos.x += moveX * dt;
-            state.pos.y += moveY * dt;
-            state.pos.z -= state.currentSpeed * dt;
-
-            // Bitiş halkası animasyonu ve bitiş çizgisi kontrolü (z <= -10000)
-            finishGateGroup.rotation.z += dt * 0.8;
-            if (state.pos.z <= state.finishZ) {
-                endGame(true);
-                return;
-            }
+            state.laneX += moveX * dt;
+            state.laneY += moveY * dt;
+            state.routeProgress += state.currentSpeed * dt;
 
             // Görünmez Büyük Boru Sınır Kontrolü (Silindirik Yarıçap: state.tubeRadius)
-            const distFromCenter = Math.hypot(state.pos.x, state.pos.y);
+            const distFromCenter = Math.hypot(state.laneX, state.laneY);
             if (distFromCenter > state.tubeRadius) {
-                const clampAngle = Math.atan2(state.pos.y, state.pos.x);
-                state.pos.x = Math.cos(clampAngle) * state.tubeRadius;
-                state.pos.y = Math.sin(clampAngle) * state.tubeRadius;
+                const clampAngle = Math.atan2(state.laneY, state.laneX);
+                state.laneX = Math.cos(clampAngle) * state.tubeRadius;
+                state.laneY = Math.sin(clampAngle) * state.tubeRadius;
+            }
+
+            // Rota Çerçevesi Üzerinden Dünya Konumu Hesabı
+            const routeFrame = getRaceFrameAtDistance(state.routeProgress);
+            state.pos.copy(routeFrame.center)
+                .addScaledVector(routeFrame.right, state.laneX)
+                .addScaledVector(routeFrame.up, state.laneY);
+
+            // Bitiş halkası animasyonu ve bitiş çizgisi kontrolü (routeProgress >= 10000)
+            finishGateGroup.rotation.z += dt * 0.8;
+            if (state.routeProgress >= 10000) {
+                endGame(true);
+                return;
             }
 
             // Geminin ve Kameranın Boru İçindeki Hafif Eğimi (Pitch / Yaw / Roll)
@@ -1090,8 +1099,18 @@
             if (state.barrelRollCooldown > 0) state.barrelRollCooldown -= dt;
             state.roll += (targetRoll - state.roll) * 10 * dt;
 
-            const euler = new THREE.Euler(state.pitch, state.yaw, state.roll, 'YXZ');
-            playerRig.quaternion.setFromEuler(euler);
+            // Rotanın temel yönelim matrisi (Yerel -Z ekseni routeFrame.tangent yönüne bakar)
+            const routeBasisMatrix = new THREE.Matrix4().makeBasis(
+                routeFrame.right,
+                routeFrame.up,
+                routeFrame.tangent.clone().negate()
+            );
+            const routeQuat = new THREE.Quaternion().setFromRotationMatrix(routeBasisMatrix);
+
+            const localEuler = new THREE.Euler(state.pitch, state.yaw, state.roll, 'YXZ');
+            const localQuat = new THREE.Quaternion().setFromEuler(localEuler);
+
+            playerRig.quaternion.copy(routeQuat).multiply(localQuat);
             playerRig.position.copy(state.pos);
 
             // Arka plan istasyonunun oyuncunun önünde kalmasını sağla
@@ -1683,7 +1702,7 @@
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * 3.5);
             document.getElementById('rank-text').textContent = `POS ${state.rank} / ${state.totalRacers}`;
-            const remainingDist = Math.max(0, Math.round(state.pos.z - state.finishZ));
+            const remainingDist = Math.max(0, Math.round(10000 - state.routeProgress));
             document.getElementById('distance-text').textContent = `${remainingDist}m`;
 
             const shieldPct = Math.round(state.shield);
@@ -1770,11 +1789,14 @@
             state.energy = 100;
             state.combo = 1.0;
             state.bossActive = false;
+            state.routeProgress = 0;
+            state.laneX = 0;
+            state.laneY = 0;
             state.pos.set(0, 0, 0);
             state.yaw = 0;
             state.pitch = 0;
             state.roll = 0;
-            document.getElementById('distance-text').textContent = `${Math.abs(state.finishZ)}m`;
+            document.getElementById('distance-text').textContent = '10000m';
 
             document.getElementById('boss-hud').classList.add('hidden');
             document.getElementById('start-screen').classList.add('hidden');
