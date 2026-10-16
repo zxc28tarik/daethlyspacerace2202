@@ -117,7 +117,7 @@
             <div class="w-full flex justify-between items-start">
                 <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
-                    <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span></div>
+                    <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">10000m</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S
                     </div>
@@ -396,6 +396,7 @@
 
             // Dev Görünmez Boru (Tünel) Yarış Durumu
             tubeRadius: 260,
+            finishZ: -10000,
             pos: new THREE.Vector3(0, 0, 0),
             vel: new THREE.Vector3(0, 0, 0),
             yaw: 0,
@@ -529,6 +530,20 @@
         stationGroup.rotation.z = 0.18;
         stationGroup.rotation.y = 0.35;
         scene.add(stationGroup);
+
+        // Bitiş Çizgisi Neon Halkası (z = -10000)
+        const finishGateGroup = new THREE.Group();
+        const finishRingOuter = new THREE.Mesh(
+            new THREE.TorusGeometry(state.tubeRadius * 1.05, 6, 16, 64),
+            new THREE.MeshBasicMaterial({ color: 0x00f3ff })
+        );
+        const finishRingInner = new THREE.Mesh(
+            new THREE.TorusGeometry(state.tubeRadius * 0.96, 3, 16, 64),
+            new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+        );
+        finishGateGroup.add(finishRingOuter, finishRingInner);
+        finishGateGroup.position.set(0, 0, state.finishZ);
+        scene.add(finishGateGroup);
 
         const playerRig = new THREE.Group();
         scene.add(playerRig);
@@ -990,6 +1005,13 @@
             state.pos.x += moveX * dt;
             state.pos.y += moveY * dt;
             state.pos.z -= state.currentSpeed * dt;
+
+            // Bitiş halkası animasyonu ve bitiş çizgisi kontrolü (z <= -10000)
+            finishGateGroup.rotation.z += dt * 0.8;
+            if (state.pos.z <= state.finishZ) {
+                endGame(true);
+                return;
+            }
 
             // Görünmez Büyük Boru Sınır Kontrolü (Silindirik Yarıçap: state.tubeRadius)
             const distFromCenter = Math.hypot(state.pos.x, state.pos.y);
@@ -1565,6 +1587,8 @@
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * 3.5);
             document.getElementById('rank-text').textContent = `POS ${state.rank} / ${state.totalRacers}`;
+            const remainingDist = Math.max(0, Math.round(state.pos.z - state.finishZ));
+            document.getElementById('distance-text').textContent = `${remainingDist}m`;
 
             const shieldPct = Math.round(state.shield);
             document.getElementById('shield-text').textContent = `${shieldPct}%`;
@@ -1654,6 +1678,7 @@
             state.yaw = 0;
             state.pitch = 0;
             state.roll = 0;
+            document.getElementById('distance-text').textContent = `${Math.abs(state.finishZ)}m`;
 
             document.getElementById('boss-hud').classList.add('hidden');
             document.getElementById('start-screen').classList.add('hidden');
@@ -1666,6 +1691,16 @@
 
         function endGame(victory = false) {
             state.running = false;
+            const titleEl = document.getElementById('gameover-title');
+            if (victory) {
+                titleEl.textContent = 'CORRIDOR RACE COMPLETED // VICTORY!';
+                titleEl.className = 'text-3xl sm:text-4xl font-black text-emerald-400 tracking-widest uppercase mb-4';
+                titleEl.style.textShadow = '0 0 20px #00ff88';
+            } else {
+                titleEl.textContent = 'SHIELD CRITICAL // DOWN';
+                titleEl.className = 'text-3xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-4';
+                titleEl.style.textShadow = '0 0 20px #ff0044';
+            }
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('final-score').textContent = state.score.toLocaleString('en-US');
             document.getElementById('final-kills').textContent = state.kills;
