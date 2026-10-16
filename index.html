@@ -119,7 +119,7 @@
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
                     <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">10000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
-                        CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S
+                        CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
                     </div>
                 </div>
 
@@ -526,7 +526,14 @@
 
         // Uzay İstasyonu Silüetleri ve Asteroit Kuşağı (Boru İçi Engeller)
         const asteroids = [];
-        const astMat = new THREE.MeshStandardMaterial({ color: 0x3a3248, roughness: 0.85, metalness: 0.2, flatShading: true });
+        const asteroidMaterials = {
+            SMALL: new THREE.MeshStandardMaterial({ color: 0x84839d, roughness: 0.79, metalness: 0.16, flatShading: true, emissive: 0x0b1622 }),
+            MEDIUM: new THREE.MeshStandardMaterial({ color: 0x81748d, roughness: 0.80, metalness: 0.19, flatShading: true, emissive: 0x120c26 }),
+            LARGE: new THREE.MeshStandardMaterial({ color: 0x8e7280, roughness: 0.84, metalness: 0.2, flatShading: true, emissive: 0x220d1a })
+        };
+        const asteroidEdgeMat = new THREE.LineBasicMaterial({ color: 0x5ccddb, transparent: true, opacity: 0.24, depthWrite: false });
+        const driftTailMat = new THREE.LineBasicMaterial({ color: 0x63e9ff, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false });
+        const approachTailMat = new THREE.LineBasicMaterial({ color: 0xffac66, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
         for (let i = 0; i < 55; i++) {
             // Boyut sınıfları: ~%40 Küçük (10–20), ~%40 Orta (21–38), ~%20 Büyük (39–62)
             let sizeClass = 'SMALL';
@@ -543,10 +550,17 @@
                 radius = 39 + Math.random() * 23;
             }
 
-            const ast = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), astMat);
+            const ast = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), asteroidMaterials[sizeClass]);
             ast.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+            const edgeGlow = new THREE.LineSegments(new THREE.EdgesGeometry(ast.geometry, 25), asteroidEdgeMat);
+            ast.add(edgeGlow);
             scene.add(ast);
+            const movementTail = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), driftTailMat);
+            movementTail.frustumCulled = false;
+            movementTail.visible = false;
+            scene.add(movementTail);
             asteroids.push({
+                movementTail,
                 mesh: ast,
                 sizeClass,
                 radius,
@@ -558,6 +572,13 @@
                 driftVx: 0,
                 driftVy: 0,
                 approachSpeed: 0,
+                baseLaneX: 0,
+                baseLaneY: 0,
+                motionAxisX: 1,
+                motionAxisY: 0,
+                motionAmplitude: 0,
+                motionPhase: 0,
+                motionRate: 0,
                 active: true
             });
         }
@@ -634,6 +655,43 @@
             return { center, tangent, right, up };
         }
 
+
+        // Harita 1 — görünür fakat uçuşu engellemeyen neon koridor sınırları.
+        // Gerçek sınır yarıçapı ile birebir eşleşir (tubeRadius = 260).
+        const corridorGuideGroup = new THREE.Group();
+        scene.add(corridorGuideGroup);
+        function buildVisibleCorridor() {
+            corridorGuideGroup.clear();
+            const r = state.tubeRadius;
+            const railMaterial = new THREE.LineBasicMaterial({ color: 0x17adcf, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false });
+            const ringMaterial = new THREE.LineBasicMaterial({ color: 0x406dff, transparent: true, opacity: 0.36, blending: THREE.AdditiveBlending, depthWrite: false });
+            const majorRingMaterial = new THREE.LineBasicMaterial({ color: 0x00e7ed, transparent: true, opacity: 0.67, blending: THREE.AdditiveBlending, depthWrite: false });
+            // Rota boyunca 12 boyuna ışık rayı: virajlar da gözle takip edilebilir.
+            for (let k = 0; k < 12; k++) {
+                const theta = k * Math.PI * 2 / 12;
+                const points = [];
+                for (let d = 0; d <= RACE_ROUTE_NOMINAL_DISTANCE; d += 70) {
+                    const f = getRaceFrameAtDistance(d);
+                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(theta) * r).addScaledVector(f.up, Math.sin(theta) * r));
+                }
+                const end = getRaceFrameAtDistance(RACE_ROUTE_NOMINAL_DISTANCE);
+                points.push(end.center.clone().addScaledVector(end.right, Math.cos(theta) * r).addScaledVector(end.up, Math.sin(theta) * r));
+                corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), railMaterial));
+            }
+            // Aralıklı dairesel kesitler koridorun çapını ve dönüşlerini gösterir.
+            for (let d = 180; d < RACE_ROUTE_NOMINAL_DISTANCE; d += 220) {
+                const f = getRaceFrameAtDistance(d);
+                const points = [];
+                for (let k = 0; k < 48; k++) {
+                    const a = k * Math.PI * 2 / 48;
+                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(a) * r).addScaledVector(f.up, Math.sin(a) * r));
+                }
+                const major = Math.round((d - 180) / 220) % 5 === 0;
+                corridorGuideGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), major ? majorRingMaterial : ringMaterial));
+            }
+        }
+        buildVisibleCorridor();
+
         function formatRaceTime(seconds) {
             if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
                 return '00:00.00';
@@ -691,62 +749,77 @@
             return entries;
         }
 
+        function updateAsteroidMotion(a, dt) {
+            if (!a.active) return;
+            const safe = state.tubeRadius - a.radius - 12;
+            if (a.moveType !== 'STATIC') {
+                a.motionPhase += a.motionRate * dt;
+                const offset = Math.sin(a.motionPhase) * a.motionAmplitude;
+                a.laneX = a.baseLaneX + a.motionAxisX * offset;
+                a.laneY = a.baseLaneY + a.motionAxisY * offset;
+                a.driftVx = a.motionAxisX * Math.cos(a.motionPhase) * a.motionAmplitude * a.motionRate;
+                a.driftVy = a.motionAxisY * Math.cos(a.motionPhase) * a.motionAmplitude * a.motionRate;
+                const mag = Math.hypot(a.laneX, a.laneY);
+                if (mag > safe) {
+                    a.laneX *= safe / mag;
+                    a.laneY *= safe / mag;
+                }
+                if (a.moveType === 'APPROACH' && dt > 0) {
+                    a.routeProgress = Math.max(120, a.routeProgress - a.approachSpeed * dt);
+                }
+            }
+            const f = getRaceFrameAtDistance(a.routeProgress);
+            a.mesh.position.copy(f.center).addScaledVector(f.right, a.laneX).addScaledVector(f.up, a.laneY);
+            if (a.movementTail) {
+                a.movementTail.visible = a.active && a.moveType !== 'STATIC';
+                a.movementTail.material = a.moveType === 'APPROACH' ? approachTailMat : driftTailMat;
+                const end = a.mesh.position.clone()
+                    .addScaledVector(f.tangent, a.moveType === 'APPROACH' ? 90 : 0)
+                    .addScaledVector(f.right, -a.driftVx * 0.75)
+                    .addScaledVector(f.up, -a.driftVy * 0.75);
+                const p = a.movementTail.geometry.attributes.position;
+                p.setXYZ(0, a.mesh.position.x, a.mesh.position.y, a.mesh.position.z);
+                p.setXYZ(1, end.x, end.y, end.z);
+                p.needsUpdate = true;
+            }
+        }
+
         function resetAsteroidField() {
             const count = asteroids.length;
-            const minDist = 250;
-            const maxDist = 9800;
+            const minDist = 230;
+            const maxDist = 9750;
             const step = (maxDist - minDist) / count;
-            const goldenAngle = 2.399963229728653; // Ardışık asteroitlerin aynı açısal bölgede kümelenmesini önler
+            const goldenAngle = 2.399963229728653;
             const basePhase = Math.random() * Math.PI * 2;
-
             for (let i = 0; i < count; i++) {
                 const a = asteroids[i];
-                const jitter = (Math.random() - 0.5) * step * 0.65;
-                a.routeProgress = THREE.MathUtils.clamp(
-                    minDist + (i + 0.5) * step + jitter,
-                    minDist,
-                    maxDist
-                );
-
-                // Asteroidin boyutunu ve güvenlik payını hesaba katarak koridor içinde tut
-                const maxAllowedRadius = Math.max(20, state.tubeRadius - a.radius - 10);
-                // Dairesel kesit üzerinde merkez, orta ve dış bölgelere dengeli dağılım
-                const r = Math.sqrt(Math.random()) * maxAllowedRadius;
-                const angle = basePhase + i * goldenAngle + (Math.random() - 0.5) * 0.85;
-
-                a.laneX = Math.cos(angle) * r;
-                a.laneY = Math.sin(angle) * r;
-
-                // Üç hareket davranışı: STATIC, DRIFT, APPROACH
-                const behaviorRoll = (i + Math.floor(Math.random() * 3)) % 3;
-                if (behaviorRoll === 0) {
-                    a.moveType = 'STATIC';
-                    a.driftVx = 0;
-                    a.driftVy = 0;
-                    a.approachSpeed = 0;
-                } else if (behaviorRoll === 1) {
-                    a.moveType = 'DRIFT';
-                    const driftSpeed = 3 + Math.random() * 11; // 3–14 birim/sn yanal sürüklenme
-                    const driftAngle = Math.random() * Math.PI * 2;
-                    a.driftVx = Math.cos(driftAngle) * driftSpeed;
-                    a.driftVy = Math.sin(driftAngle) * driftSpeed;
-                    a.approachSpeed = 0;
-                } else {
-                    a.moveType = 'APPROACH';
-                    a.approachSpeed = 8 + Math.random() * 20; // 8–28 birim/sn karşıdan yaklaşma
-                    const subDrift = Math.random() < 0.5 ? (3 + Math.random() * 6) : 0;
-                    const driftAngle = Math.random() * Math.PI * 2;
-                    a.driftVx = Math.cos(driftAngle) * subDrift;
-                    a.driftVy = Math.sin(driftAngle) * subDrift;
-                }
-
+                const jitter = (Math.random() - 0.5) * step * 0.62;
+                a.routeProgress = THREE.MathUtils.clamp(minDist + (i + 0.5) * step + jitter, minDist, maxDist);
+                const angle = basePhase + i * goldenAngle + (Math.random() - 0.5) * 0.35;
+                const safeRadius = state.tubeRadius - a.radius - 12;
+                // Merkezde %20, orta kuşakta %35, dış kuşakta %45: merkeze yığılmayı önler.
+                const band = i % 20;
+                let radialFraction;
+                if (band < 4) radialFraction = 0.18 + Math.random() * 0.24;
+                else if (band < 11) radialFraction = 0.48 + Math.random() * 0.20;
+                else radialFraction = 0.75 + Math.random() * 0.20;
+                const radial = safeRadius * radialFraction;
+                a.baseLaneX = Math.cos(angle) * radial;
+                a.baseLaneY = Math.sin(angle) * radial;
+                a.laneX = a.baseLaneX;
+                a.laneY = a.baseLaneY;
+                // Asteroitlerin çoğu hareketli; her birinin hareketi gözle görülebilir.
+                const mode = i % 9;
+                a.moveType = mode < 2 ? 'STATIC' : (mode < 6 ? 'DRIFT' : 'APPROACH');
+                a.motionAxisX = -Math.sin(angle);
+                a.motionAxisY = Math.cos(angle);
+                a.motionAmplitude = a.moveType === 'STATIC' ? 0 : (a.moveType === 'DRIFT' ? 40 + Math.random() * 35 : 55 + Math.random() * 45);
+                a.motionRate = a.moveType === 'STATIC' ? 0 : 0.85 + Math.random() * 0.85;
+                a.motionPhase = Math.random() * Math.PI * 2;
+                a.approachSpeed = a.moveType === 'APPROACH' ? 38 + Math.random() * 44 : 0;
                 a.active = true;
                 a.mesh.visible = true;
-
-                const frame = getRaceFrameAtDistance(a.routeProgress);
-                a.mesh.position.copy(frame.center)
-                    .addScaledVector(frame.right, a.laneX)
-                    .addScaledVector(frame.up, a.laneY);
+                updateAsteroidMotion(a, 0);
             }
         }
         resetAsteroidField();
@@ -878,8 +951,19 @@
                 const targetX = Math.cos(targetAngle) * targetRad;
                 const targetY = Math.sin(targetAngle) * targetRad;
 
+                // Ölçeği değiştirmeden rakiplerin gerçek hızını görselleştiren çift egzoz izi.
+                const speedTrailGroup = new THREE.Group();
+                const trailColors = [0x00f3ff, 0x80e7ff, 0x00ffc8, 0xffad6c, 0x9c9bff];
+                const speedTrailMaterial = new THREE.MeshBasicMaterial({ color: trailColors[i], transparent: true, opacity: 0.74, blending: THREE.AdditiveBlending, depthWrite: false });
+                for (const side of [-1, 1]) {
+                    const streak = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.35, 17), speedTrailMaterial);
+                    streak.position.set(side * 1.6, 0, -14.5);
+                    speedTrailGroup.add(streak);
+                }
+                mesh.add(speedTrailGroup);
                 scene.add(mesh);
                 racers.push({
+                    speedTrailGroup,
                     name: racerNames[i],
                     profile: racerProfiles[i],
                     mesh,
@@ -1369,39 +1453,8 @@
                 a.mesh.rotation.x += a.rotSpeed * dt;
                 a.mesh.rotation.y += a.rotSpeed * dt;
 
-                // Hareketli asteroitlerin dt tabanlı yerel koridor ve rota ilerlemesi güncellemesi
-                if (a.moveType === 'DRIFT' || a.moveType === 'APPROACH') {
-                    a.laneX += a.driftVx * dt;
-                    a.laneY += a.driftVy * dt;
-
-                    const maxSafeAstRad = Math.max(20, state.tubeRadius - a.radius - 10);
-                    const astRadialDist = Math.hypot(a.laneX, a.laneY);
-                    if (astRadialDist > maxSafeAstRad && astRadialDist > 0.001) {
-                        const nx = a.laneX / astRadialDist;
-                        const ny = a.laneY / astRadialDist;
-                        a.laneX = nx * maxSafeAstRad;
-                        a.laneY = ny * maxSafeAstRad;
-                        // Sınırda dışa doğru olan hız bileşenini yumuşakça içe çevir
-                        const radialVel = a.driftVx * nx + a.driftVy * ny;
-                        if (radialVel > 0) {
-                            a.driftVx -= 2 * radialVel * nx;
-                            a.driftVy -= 2 * radialVel * ny;
-                        }
-                    }
-
-                    if (a.moveType === 'APPROACH') {
-                        a.routeProgress -= a.approachSpeed * dt;
-                        if (a.routeProgress < 120) {
-                            a.routeProgress = 120;
-                            a.approachSpeed = 0;
-                        }
-                    }
-
-                    const aFrame = getRaceFrameAtDistance(a.routeProgress);
-                    a.mesh.position.copy(aFrame.center)
-                        .addScaledVector(aFrame.right, a.laneX)
-                        .addScaledVector(aFrame.up, a.laneY);
-                }
+                // Yerel koridor boyunca fark edilir yanal salınım ve karşı akış.
+                updateAsteroidMotion(a, dt);
 
                 // Oyuncu ile Asteroit Çarpışma Kontrolü
                 if (!state.finished && !state.playerDNF && a.mesh.position.distanceTo(state.pos) < a.radius + 10) {
@@ -1410,6 +1463,7 @@
                     createExplosion(a.mesh.position, 0xff5500, 16, 1.4);
                     a.active = false;
                     a.mesh.visible = false;
+                    if (a.movementTail) a.movementTail.visible = false;
                     return;
                 }
 
@@ -1422,6 +1476,7 @@
                         createExplosion(a.mesh.position, 0xff5500, 16, 1.3);
                         a.active = false;
                         a.mesh.visible = false;
+                        if (a.movementTail) a.movementTail.visible = false;
                         if (r.avoidAsteroid === a) {
                             r.avoidAsteroid = null;
                         }
@@ -1564,6 +1619,7 @@
                     r.currentSpeed = 0;
                     r.isBoosting = false;
                     r.isBraking = false;
+                    if (r.speedTrailGroup) r.speedTrailGroup.visible = false;
                     r.vx = 0;
                     r.vy = 0;
                     const finFrame = getRaceFrameAtDistance(r.routeProgress);
@@ -1583,8 +1639,8 @@
                 let safetyMargin = r.radius + 18;
                 let overtakeDetectDist = 145;
                 let competitorClearance = 34;
-                let boostStartEnergy = 45;
-                let boostStopEnergy = 12;
+                let boostStartEnergy = 42;
+                let boostStopEnergy = 8;
                 let maxLateralSpeed = 58;
 
                 if (r.profile === 'SPEED') {
@@ -1592,24 +1648,24 @@
                     safetyMargin = r.radius + 16;
                     overtakeDetectDist = 155;
                     competitorClearance = 32;
-                    boostStartEnergy = 30; // Düzlüklerde boost'u erken açar ve uzun sürdürür
-                    boostStopEnergy = 6;
+                    boostStartEnergy = 24; // Düzlüklerde boost'u erken açar ve uzun sürdürür
+                    boostStopEnergy = 5;
                     maxLateralSpeed = 60;
                 } else if (r.profile === 'CAUTIOUS') {
                     lookAheadDist = 350;
                     safetyMargin = r.radius + 28; // Asteroitlere ve gemilere daha geniş güvenlik boşluğu bırakır
                     overtakeDetectDist = 175;
                     competitorClearance = 44;
-                    boostStartEnergy = 68;
-                    boostStopEnergy = 28;
+                    boostStartEnergy = 58;
+                    boostStopEnergy = 18;
                     maxLateralSpeed = 54;
                 } else if (r.profile === 'AGGRESSIVE') {
                     lookAheadDist = 280;
                     safetyMargin = r.radius + 15;
                     overtakeDetectDist = 125; // Daha yakın mesafeden sollama fırsatı kollar
                     competitorClearance = 30;
-                    boostStartEnergy = 36;
-                    boostStopEnergy = 10;
+                    boostStartEnergy = 30;
+                    boostStopEnergy = 7;
                     maxLateralSpeed = 64;
                 } else {
                     // BALANCED
@@ -1617,8 +1673,8 @@
                     safetyMargin = r.radius + 20;
                     overtakeDetectDist = 150;
                     competitorClearance = 36;
-                    boostStartEnergy = 48;
-                    boostStopEnergy = 16;
+                    boostStartEnergy = 42;
+                    boostStopEnergy = 8;
                     maxLateralSpeed = 58;
                 }
 
@@ -1644,8 +1700,16 @@
                     const closingSpeed = Math.max(40, r.currentSpeed + (a.moveType === 'APPROACH' ? a.approachSpeed : 0));
                     const tti = Math.max(0, relDist) / closingSpeed;
 
-                    const predAstX = a.laneX + a.driftVx * tti;
-                    const predAstY = a.laneY + a.driftVy * tti;
+                    // Salınım yapan hareketli asteroidin gerçek gelecekteki yanal konumu.
+                    const predictedOffset = Math.sin(a.motionPhase + a.motionRate * tti) * a.motionAmplitude;
+                    let predAstX = a.baseLaneX + a.motionAxisX * predictedOffset;
+                    let predAstY = a.baseLaneY + a.motionAxisY * predictedOffset;
+                    const predictedRad = Math.hypot(predAstX, predAstY);
+                    const maxPredictedRad = state.tubeRadius - a.radius - 12;
+                    if (predictedRad > maxPredictedRad) {
+                        predAstX *= maxPredictedRad / predictedRad;
+                        predAstY *= maxPredictedRad / predictedRad;
+                    }
 
                     const refX = (r.avoidAsteroid === a) ? r.laneX : (r.laneX + r.vx * Math.min(tti, 0.45));
                     const refY = (r.avoidAsteroid === a) ? r.laneY : (r.laneY + r.vy * Math.min(tti, 0.45));
@@ -1875,12 +1939,12 @@
                         r.boostDecisionTimer = 0.45;
                     } else if (r.profile === 'BALANCED') {
                         // Sollama fırsatlarında veya yüksek enerjili açık koridorda boost kullanır
-                        if (clearAhead && ((hasOvertakeOpportunity && r.energy >= 38) || r.energy >= 68 || (r.isBoosting && r.energy >= boostStopEnergy))) {
+                        if (clearAhead && ((hasOvertakeOpportunity && r.energy >= 30) || r.energy >= boostStartEnergy || (r.isBoosting && r.energy >= boostStopEnergy))) {
                             r.isBoosting = true;
                         } else {
                             r.isBoosting = false;
                         }
-                        r.boostDecisionTimer = 0.40;
+                        r.boostDecisionTimer = 0.28;
                     } else if (r.profile === 'CAUTIOUS') {
                         // Yalnızca tamamen güvenli, geniş alanda ve yüksek enerji rezervinde boost açar
                         const verySafe = !r.avoidAsteroid && minTimeToImpact > 1.6 && !nearWall;
@@ -1889,15 +1953,15 @@
                         } else {
                             r.isBoosting = false;
                         }
-                        r.boostDecisionTimer = 0.42;
+                        r.boostDecisionTimer = 0.34;
                     } else if (r.profile === 'AGGRESSIVE') {
                         // Sollama anında veya önü açıkken agresif şekilde boost açar
-                        if (!severeAsteroidDanger && ((hasOvertakeOpportunity && r.energy >= 26) || (clearAhead && r.energy >= boostStartEnergy) || (r.isBoosting && r.energy >= boostStopEnergy))) {
+                        if (!severeAsteroidDanger && ((hasOvertakeOpportunity && r.energy >= 23) || (clearAhead && r.energy >= boostStartEnergy) || (r.isBoosting && r.energy >= boostStopEnergy))) {
                             r.isBoosting = true;
                         } else {
                             r.isBoosting = false;
                         }
-                        r.boostDecisionTimer = 0.35;
+                        r.boostDecisionTimer = 0.27;
                     }
                 }
 
@@ -2010,6 +2074,11 @@
                 r.mesh.position.copy(rFrame.center)
                     .addScaledVector(rFrame.right, r.laneX)
                     .addScaledVector(rFrame.up, r.laneY);
+
+                if (r.speedTrailGroup) {
+                    r.speedTrailGroup.visible = !r.finished;
+                    r.speedTrailGroup.scale.z = r.isBoosting ? 2.8 : Math.max(0.75, r.currentSpeed / 175);
+                }
 
                 // Geminin yönelimi: Rotanın tangent ileri yönü + vx/vy yanal sapması + bankAngle yana yatışı
                 const lookTarget = r.mesh.position.clone()
@@ -2275,7 +2344,7 @@
                     fxCtx.font = 'bold 10px Orbitron, monospace';
                     fxCtx.fillStyle = '#00f3ff';
                     fxCtx.textAlign = 'center';
-                    fxCtx.fillText(r.name, 0, -20);
+                    fxCtx.fillText(`${r.name} • ${Math.round(r.currentSpeed * 3.5)}${r.isBoosting ? ' BOOST' : ''}`, 0, -20);
                     fxCtx.restore();
                 }
             });
@@ -2392,6 +2461,8 @@
             document.getElementById('stage-text').textContent = `STAGE ${state.stage}`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * 3.5);
+            const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
+            document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * 3.5) : '—';
             document.getElementById('rank-text').textContent = `POS ${state.rank} / ${state.totalRacers}`;
             const remainingDist = Math.max(0, Math.round(10000 - state.routeProgress));
             document.getElementById('distance-text').textContent = `${remainingDist}m`;
