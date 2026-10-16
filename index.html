@@ -506,17 +506,36 @@
         const asteroids = [];
         const astMat = new THREE.MeshStandardMaterial({ color: 0x3a3248, roughness: 0.85, metalness: 0.2, flatShading: true });
         for (let i = 0; i < 55; i++) {
-            const radius = 14 + Math.random() * 28;
+            // Boyut sınıfları: ~%40 Küçük (10–20), ~%40 Orta (21–38), ~%20 Büyük (39–62)
+            let sizeClass = 'SMALL';
+            let radius = 15;
+            const mod = i % 5;
+            if (mod === 0 || mod === 1) {
+                sizeClass = 'SMALL';
+                radius = 10 + Math.random() * 10;
+            } else if (mod === 2 || mod === 3) {
+                sizeClass = 'MEDIUM';
+                radius = 21 + Math.random() * 17;
+            } else {
+                sizeClass = 'LARGE';
+                radius = 39 + Math.random() * 23;
+            }
+
             const ast = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), astMat);
             ast.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
             scene.add(ast);
             asteroids.push({
                 mesh: ast,
+                sizeClass,
                 radius,
                 rotSpeed: (Math.random() - 0.5) * 0.8,
                 routeProgress: 0,
                 laneX: 0,
                 laneY: 0,
+                moveType: 'STATIC',
+                driftVx: 0,
+                driftVy: 0,
+                approachSpeed: 0,
                 active: true
             });
         }
@@ -611,13 +630,37 @@
                 );
 
                 // Asteroidin boyutunu ve güvenlik payını hesaba katarak koridor içinde tut
-                const maxAllowedRadius = Math.max(20, state.tubeRadius - a.radius - 8);
+                const maxAllowedRadius = Math.max(20, state.tubeRadius - a.radius - 10);
                 // Dairesel kesit üzerinde merkez, orta ve dış bölgelere dengeli dağılım
                 const r = Math.sqrt(Math.random()) * maxAllowedRadius;
                 const angle = basePhase + i * goldenAngle + (Math.random() - 0.5) * 0.85;
 
                 a.laneX = Math.cos(angle) * r;
                 a.laneY = Math.sin(angle) * r;
+
+                // Üç hareket davranışı: STATIC, DRIFT, APPROACH
+                const behaviorRoll = (i + Math.floor(Math.random() * 3)) % 3;
+                if (behaviorRoll === 0) {
+                    a.moveType = 'STATIC';
+                    a.driftVx = 0;
+                    a.driftVy = 0;
+                    a.approachSpeed = 0;
+                } else if (behaviorRoll === 1) {
+                    a.moveType = 'DRIFT';
+                    const driftSpeed = 3 + Math.random() * 11; // 3–14 birim/sn yanal sürüklenme
+                    const driftAngle = Math.random() * Math.PI * 2;
+                    a.driftVx = Math.cos(driftAngle) * driftSpeed;
+                    a.driftVy = Math.sin(driftAngle) * driftSpeed;
+                    a.approachSpeed = 0;
+                } else {
+                    a.moveType = 'APPROACH';
+                    a.approachSpeed = 8 + Math.random() * 20; // 8–28 birim/sn karşıdan yaklaşma
+                    const subDrift = Math.random() < 0.5 ? (3 + Math.random() * 6) : 0;
+                    const driftAngle = Math.random() * Math.PI * 2;
+                    a.driftVx = Math.cos(driftAngle) * subDrift;
+                    a.driftVy = Math.sin(driftAngle) * subDrift;
+                }
+
                 a.active = true;
                 a.mesh.visible = true;
 
@@ -771,6 +814,9 @@
                     weaveSpeed: 0.9 + Math.random() * 0.8,
                     targetX,
                     targetY,
+                    avoidAsteroid: null,
+                    avoidTargetX: targetX,
+                    avoidTargetY: targetY,
                     vx: 0,
                     vy: 0,
                     bankAngle: 0,
@@ -1193,18 +1239,69 @@
                 }
             });
 
-            // Boru İçi Asteroit Engelleri Dönüşü ve Çarpışma
+            // Boru İçi Asteroit Engelleri Dönüşü, Hareketi ve Çarpışma (Oyuncu + Rakip Yarışçılar)
             asteroids.forEach(a => {
                 if (!a.active) return;
                 a.mesh.rotation.x += a.rotSpeed * dt;
                 a.mesh.rotation.y += a.rotSpeed * dt;
 
+                // Hareketli asteroitlerin dt tabanlı yerel koridor ve rota ilerlemesi güncellemesi
+                if (a.moveType === 'DRIFT' || a.moveType === 'APPROACH') {
+                    a.laneX += a.driftVx * dt;
+                    a.laneY += a.driftVy * dt;
+
+                    const maxSafeAstRad = Math.max(20, state.tubeRadius - a.radius - 10);
+                    const astRadialDist = Math.hypot(a.laneX, a.laneY);
+                    if (astRadialDist > maxSafeAstRad && astRadialDist > 0.001) {
+                        const nx = a.laneX / astRadialDist;
+                        const ny = a.laneY / astRadialDist;
+                        a.laneX = nx * maxSafeAstRad;
+                        a.laneY = ny * maxSafeAstRad;
+                        // Sınırda dışa doğru olan hız bileşenini yumuşakça içe çevir
+                        const radialVel = a.driftVx * nx + a.driftVy * ny;
+                        if (radialVel > 0) {
+                            a.driftVx -= 2 * radialVel * nx;
+                            a.driftVy -= 2 * radialVel * ny;
+                        }
+                    }
+
+                    if (a.moveType === 'APPROACH') {
+                        a.routeProgress -= a.approachSpeed * dt;
+                        if (a.routeProgress < 120) {
+                            a.routeProgress = 120;
+                            a.approachSpeed = 0;
+                        }
+                    }
+
+                    const aFrame = getRaceFrameAtDistance(a.routeProgress);
+                    a.mesh.position.copy(aFrame.center)
+                        .addScaledVector(aFrame.right, a.laneX)
+                        .addScaledVector(aFrame.up, a.laneY);
+                }
+
+                // Oyuncu ile Asteroit Çarpışma Kontrolü
                 if (a.mesh.position.distanceTo(state.pos) < a.radius + 10) {
                     applyPlayerDamage(16);
                     state.currentSpeed *= 0.45; // Çarpınca hız düşer
                     createExplosion(a.mesh.position, 0xff5500, 16, 1.4);
                     a.active = false;
                     a.mesh.visible = false;
+                    return;
+                }
+
+                // Rakip Yarışçılar ile Asteroit Çarpışma Kontrolü
+                for (let j = 0; j < racers.length; j++) {
+                    const r = racers[j];
+                    if (a.mesh.position.distanceTo(r.mesh.position) < a.radius + r.radius) {
+                        r.currentSpeed *= 0.45; // Rakip de oyuncuyla aynı hız cezasını alır
+                        createExplosion(a.mesh.position, 0xff5500, 16, 1.3);
+                        a.active = false;
+                        a.mesh.visible = false;
+                        if (r.avoidAsteroid === a) {
+                            r.avoidAsteroid = null;
+                        }
+                        break;
+                    }
                 }
             });
 
@@ -1333,7 +1430,7 @@
                 }
             }
 
-            // 6. Rakip Yarışçılar (Boru İçinde Yarış + Çatışma + Sıralama Hesabı)
+            // 6. Rakip Yarışçılar (Boru İçinde Yarış + Asteroitten Kaçınma + Sıralama Hesabı)
             let aheadCount = 0;
             racers.forEach(r => {
                 const zDiff = r.mesh.position.z - state.pos.z; // Negatifse oyuncunun önünde
@@ -1351,9 +1448,118 @@
                     r.targetY = Math.sin(tAng) * maxSafeRadius;
                 }
 
-                // Mevcut yerel pozisyondan (laneX, laneY) targetX ve targetY koordinatlarına yumuşak ve kademeli yönelim
-                const dx = r.targetX - r.laneX;
-                const dy = r.targetY - r.laneY;
+                // C — Önündeki Aktif Asteroitleri Algılama ve Bilinçli Kaçınma Kararı
+                const lookAheadDist = 290;
+                const safetyMargin = r.radius + 18;
+                let mostUrgentThreat = null;
+                let minTimeToImpact = Infinity;
+
+                for (let i = 0; i < asteroids.length; i++) {
+                    const a = asteroids[i];
+                    if (!a.active) continue;
+
+                    const relDist = a.routeProgress - r.routeProgress;
+                    if (relDist <= -a.radius || relDist > lookAheadDist) continue;
+
+                    const closingSpeed = Math.max(40, r.currentSpeed + (a.moveType === 'APPROACH' ? a.approachSpeed : 0));
+                    const tti = Math.max(0, relDist) / closingSpeed;
+
+                    // Çarpışma anında asteroidin tahmini yerel konumu
+                    const predAstX = a.laneX + a.driftVx * tti;
+                    const predAstY = a.laneY + a.driftVy * tti;
+
+                    // Mevcut hedefe veya kaçınma çizgisine göre tehlike değerlendirmesi
+                    const refX = (r.avoidAsteroid === a) ? r.laneX : (r.laneX + r.vx * Math.min(tti, 0.45));
+                    const refY = (r.avoidAsteroid === a) ? r.laneY : (r.laneY + r.vy * Math.min(tti, 0.45));
+                    const clearance = Math.hypot(refX - predAstX, refY - predAstY);
+                    const dangerRadius = a.radius + safetyMargin;
+
+                    if (clearance < dangerRadius && tti < minTimeToImpact) {
+                        minTimeToImpact = tti;
+                        mostUrgentThreat = {
+                            asteroid: a,
+                            predX: predAstX,
+                            predY: predAstY,
+                            dangerRadius
+                        };
+                    }
+                }
+
+                // Mevcut kaçınılan asteroit geride kaldıysa veya devre dışıysa kaçınma durumunu sonlandır
+                if (r.avoidAsteroid) {
+                    if (!r.avoidAsteroid.active || (r.avoidAsteroid.routeProgress - r.routeProgress) < -(r.avoidAsteroid.radius + r.radius + 10)) {
+                        r.avoidAsteroid = null;
+                    }
+                }
+
+                // Daha yakın veya yeni bir çarpışma tehlikesi varsa kaçınma yönü seç ve tehlike geçene kadar koru
+                if (mostUrgentThreat && mostUrgentThreat.asteroid !== r.avoidAsteroid) {
+                    const currentAvoidStillUrgent = r.avoidAsteroid &&
+                        r.avoidAsteroid.active &&
+                        (r.avoidAsteroid.routeProgress > r.routeProgress) &&
+                        ((r.avoidAsteroid.routeProgress - r.routeProgress) < (mostUrgentThreat.asteroid.routeProgress - r.routeProgress) + 25);
+
+                    if (!currentAvoidStillUrgent) {
+                        const a = mostUrgentThreat.asteroid;
+                        const ax = mostUrgentThreat.predX;
+                        const ay = mostUrgentThreat.predY;
+                        const evadeRadius = mostUrgentThreat.dangerRadius + 24;
+
+                        // Sağa, sola, yukarı, aşağı ve diyagonal aday kaçış yönlerini değerlendir
+                        const candidateDirs = [
+                            { x: 1, y: 0 },
+                            { x: -1, y: 0 },
+                            { x: 0, y: 1 },
+                            { x: 0, y: -1 },
+                            { x: 0.707, y: 0.707 },
+                            { x: -0.707, y: 0.707 },
+                            { x: 0.707, y: -0.707 },
+                            { x: -0.707, y: -0.707 }
+                        ];
+
+                        let bestX = r.targetX;
+                        let bestY = r.targetY;
+                        let bestScore = -Infinity;
+
+                        for (let d = 0; d < candidateDirs.length; d++) {
+                            const dir = candidateDirs[d];
+                            let candX = ax + dir.x * evadeRadius;
+                            let candY = ay + dir.y * evadeRadius;
+
+                            // Koridor sınırı kontrolü
+                            const candCenterDist = Math.hypot(candX, candY);
+                            if (candCenterDist > maxSafeRadius) {
+                                const scale = (maxSafeRadius - 6) / candCenterDist;
+                                candX *= scale;
+                                candY *= scale;
+                            }
+
+                            const actualClearance = Math.hypot(candX - ax, candY - ay);
+                            const travelCost = Math.hypot(candX - r.laneX, candY - r.laneY);
+                            const lineDeviation = Math.hypot(candX - r.targetX, candY - r.targetY);
+
+                            // Güvenli açıklığı maksimize et, gereksiz savrulmayı minimize et
+                            const score = (actualClearance * 2.4) - (travelCost * 0.65) - (lineDeviation * 0.25);
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestX = candX;
+                                bestY = candY;
+                            }
+                        }
+
+                        r.avoidAsteroid = a;
+                        r.avoidTargetX = bestX;
+                        r.avoidTargetY = bestY;
+                    }
+                }
+
+                // Aktif kaçınma varsa kaçınma koordinatına, tehlike bittiyse asıl uçuş çizgisine (targetX, targetY) yönel
+                const activeTargetX = r.avoidAsteroid ? r.avoidTargetX : r.targetX;
+                const activeTargetY = r.avoidAsteroid ? r.avoidTargetY : r.targetY;
+
+                // Mevcut yerel pozisyondan (laneX, laneY) aktif hedef koordinatlarına yumuşak ve kademeli yönelim
+                const dx = activeTargetX - r.laneX;
+                const dy = activeTargetY - r.laneY;
                 const distToTarget = Math.hypot(dx, dy);
 
                 const maxLateralSpeed = 58;
