@@ -699,15 +699,17 @@
             racers.forEach(r => scene.remove(r.mesh));
             racers.length = 0;
             const racerNames = ["VIPER-01", "NOVA-X", "CYBER-7", "BLAZE-9", "ZERO-G"];
+            const startFrame = getRaceFrameAtDistance(0);
             for (let i = 0; i < 5; i++) {
                 const mesh = createEnemyFighterMesh(false, true);
                 const angle = (i / 5) * Math.PI * 2;
                 const rad = 50 + Math.random() * 110;
-                mesh.position.set(
-                    Math.cos(angle) * rad,
-                    Math.sin(angle) * rad,
-                    state.pos.z
-                );
+                const startLaneX = Math.cos(angle) * rad;
+                const startLaneY = Math.sin(angle) * rad;
+
+                mesh.position.copy(startFrame.center)
+                    .addScaledVector(startFrame.right, startLaneX)
+                    .addScaledVector(startFrame.up, startLaneY);
 
                 // Başlangıç noktasından makul ölçüde farklı ve koridor sınırları içinde hedef koordinat belirle
                 const targetAngle = angle + (0.65 + Math.random() * 1.1) * (i % 2 === 0 ? 1 : -1);
@@ -725,6 +727,9 @@
                     radius: 12.5,
                     baseSpeed: state.baseSpeed,
                     currentSpeed: state.baseSpeed,
+                    routeProgress: 0,
+                    laneX: startLaneX,
+                    laneY: startLaneY,
                     weavePhase: Math.random() * Math.PI * 2,
                     weaveSpeed: 0.9 + Math.random() * 0.8,
                     targetX,
@@ -1304,7 +1309,7 @@
                 let desiredSpeed = r.baseSpeed;
 
                 r.currentSpeed += (desiredSpeed - r.currentSpeed) * 2.5 * dt;
-                r.mesh.position.z -= r.currentSpeed * dt;
+                r.routeProgress += r.currentSpeed * dt;
 
                 // Hedef koordinatın koridor sınırları içerisinde olduğundan emin ol
                 const maxSafeRadius = state.tubeRadius * 0.85;
@@ -1315,9 +1320,9 @@
                     r.targetY = Math.sin(tAng) * maxSafeRadius;
                 }
 
-                // Mevcut pozisyondan targetX ve targetY koordinatlarına yumuşak ve kademeli yönelim (dt tabanlı)
-                const dx = r.targetX - r.mesh.position.x;
-                const dy = r.targetY - r.mesh.position.y;
+                // Mevcut yerel pozisyondan (laneX, laneY) targetX ve targetY koordinatlarına yumuşak ve kademeli yönelim
+                const dx = r.targetX - r.laneX;
+                const dy = r.targetY - r.laneY;
                 const distToTarget = Math.hypot(dx, dy);
 
                 const maxLateralSpeed = 58;
@@ -1338,28 +1343,36 @@
                 r.vx = prevVx + (desiredVx - prevVx) * steerFollow;
                 r.vy = prevVy + (desiredVy - prevVy) * steerFollow;
 
-                r.mesh.position.x += r.vx * dt;
-                r.mesh.position.y += r.vy * dt;
+                r.laneX += r.vx * dt;
+                r.laneY += r.vy * dt;
 
-                // Görünmez koridor sınır koruması
-                const rDist = Math.hypot(r.mesh.position.x, r.mesh.position.y);
+                // Görünmez koridor sınır koruması (yerel laneX / laneY üzerinden)
+                const rDist = Math.hypot(r.laneX, r.laneY);
                 if (rDist > maxSafeRadius) {
-                    const ang = Math.atan2(r.mesh.position.y, r.mesh.position.x);
-                    r.mesh.position.x = Math.cos(ang) * maxSafeRadius;
-                    r.mesh.position.y = Math.sin(ang) * maxSafeRadius;
+                    const ang = Math.atan2(r.laneY, r.laneX);
+                    r.laneX = Math.cos(ang) * maxSafeRadius;
+                    r.laneY = Math.sin(ang) * maxSafeRadius;
                     r.vx = 0;
                     r.vy = 0;
                 }
 
-                // Gerçek hareket yönüne uygun bakış açısı ve yumuşak yana yatış (bank angle)
-                r.mesh.lookAt(
-                    r.mesh.position.x + r.vx * 0.35,
-                    r.mesh.position.y + r.vy * 0.35,
-                    r.mesh.position.z - 60
-                );
+                // Rota çerçevesini al ve rakibin dünya konumunu hesapla: center + right * laneX + up * laneY
+                const rFrame = getRaceFrameAtDistance(r.routeProgress);
+                r.mesh.position.copy(rFrame.center)
+                    .addScaledVector(rFrame.right, r.laneX)
+                    .addScaledVector(rFrame.up, r.laneY);
+
+                // Geminin yönelimi: Rotanın tangent ileri yönü + vx/vy yanal sapması + bankAngle yana yatışı
+                const lookTarget = r.mesh.position.clone()
+                    .addScaledVector(rFrame.tangent, 60)
+                    .addScaledVector(rFrame.right, r.vx * 0.35)
+                    .addScaledVector(rFrame.up, r.vy * 0.35);
+                r.mesh.up.copy(rFrame.up);
+                r.mesh.lookAt(lookTarget);
+
                 const desiredBank = -THREE.MathUtils.clamp(r.vx / maxLateralSpeed, -1, 1) * 0.42;
                 r.bankAngle = (r.bankAngle || 0) + (desiredBank - (r.bankAngle || 0)) * Math.min(1, 6.0 * dt);
-                r.mesh.rotation.z = r.bankAngle;
+                r.mesh.rotateZ(r.bankAngle);
 
                 // Rakipler de birbirine veya oyuncuya ateş edebilir (yalnızca combatEnabled açıkken)
                 if (state.combatEnabled) {
