@@ -117,7 +117,7 @@
             <div class="w-full flex justify-between items-start">
                 <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
-                    <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">10000m</span></div>
+                    <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">10000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S
                     </div>
@@ -242,11 +242,27 @@
 
     <!-- OYUN SONU EKRANI -->
     <div id="gameover-screen" class="ScreenOverlay hidden">
-        <div class="hud-box max-w-md w-full mx-4 p-8 text-center">
-            <h2 id="gameover-title" class="text-3xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-4" style="text-shadow: 0 0 20px #ff0044;">
+        <div class="hud-box max-w-2xl w-full mx-4 p-6 sm:p-8 text-center">
+            <h2 id="gameover-title" class="text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2" style="text-shadow: 0 0 20px #ff0044;">
                 SHIELD CRITICAL // DOWN
             </h2>
-            <div class="bg-slate-900/80 border border-cyan-500/30 p-4 mb-6 font-['Share_Tech_Mono'] space-y-2 text-base">
+            <div id="race-summary-banner" class="text-xs sm:text-sm font-['Share_Tech_Mono'] text-cyan-300 tracking-widest uppercase mb-4">
+                PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
+            </div>
+
+            <!-- 6 Yarışçılı Sonuç Tablosu -->
+            <div id="race-standings-container" class="bg-slate-900/85 border border-cyan-500/40 p-3 sm:p-4 mb-5 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+                <div class="grid grid-cols-12 text-cyan-400/80 border-b border-cyan-500/30 pb-1.5 mb-2 font-bold text-left">
+                    <div class="col-span-2">POS</div>
+                    <div class="col-span-4">PILOT</div>
+                    <div class="col-span-3">PROFILE</div>
+                    <div class="col-span-3 text-right">FINISH TIME</div>
+                </div>
+                <div id="race-standings-list" class="space-y-1.5 text-left"></div>
+            </div>
+
+            <!-- Gelecekteki Silahlı Haritalar İçin Korunan Savaş İstatistikleri -->
+            <div id="combat-stats-box" class="hidden bg-slate-900/80 border border-cyan-500/30 p-4 mb-6 font-['Share_Tech_Mono'] space-y-2 text-base">
                 <div class="flex justify-between">
                     <span class="text-slate-400">FINAL SCORE:</span>
                     <span id="final-score" class="text-cyan-300 font-bold">000,000</span>
@@ -401,6 +417,12 @@
             routeProgress: 0,
             laneX: 0,
             laneY: 0,
+            raceTime: 0,
+            finished: false,
+            finishTime: null,
+            playerDNF: false,
+            postFinishWaitTimer: 0,
+            maxPostFinishWait: 12.0,
             pos: new THREE.Vector3(0, 0, 0),
             vel: new THREE.Vector3(0, 0, 0),
             yaw: 0,
@@ -612,6 +634,63 @@
             return { center, tangent, right, up };
         }
 
+        function formatRaceTime(seconds) {
+            if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
+                return '00:00.00';
+            }
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const hundredths = Math.floor((seconds - Math.floor(seconds)) * 100);
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
+        }
+
+        function computeLiveRaceStandings() {
+            const entries = [
+                {
+                    id: 'PLAYER',
+                    name: 'YOU',
+                    profile: 'PLAYER',
+                    isPlayer: true,
+                    finished: state.finished,
+                    finishTime: state.finishTime,
+                    dnf: state.playerDNF,
+                    routeProgress: state.routeProgress
+                },
+                ...racers.map(r => ({
+                    id: r.name,
+                    name: r.name,
+                    profile: r.profile,
+                    isPlayer: false,
+                    finished: !!r.finished,
+                    finishTime: r.finishTime,
+                    dnf: !!r.dnf,
+                    routeProgress: r.routeProgress
+                }))
+            ];
+
+            entries.sort((a, b) => {
+                // 1. Bitirmiş olanlar her zaman bitirmemişlerden öndedir ve kendi aralarında finishTime'a göre sıralanır
+                if (a.finished && b.finished) {
+                    if (a.finishTime !== b.finishTime) return a.finishTime - b.finishTime;
+                    return a.isPlayer !== b.isPlayer ? (a.isPlayer ? -1 : 1) : a.id.localeCompare(b.id);
+                }
+                if (a.finished !== b.finished) {
+                    return a.finished ? -1 : 1;
+                }
+                // 2. DNF olanlar aktif yarışanların gerisinde yer alır
+                if (a.dnf !== b.dnf) {
+                    return a.dnf ? 1 : -1;
+                }
+                // 3. İkisi de yarışa devam ediyorsa (veya ikisi de DNF ise) routeProgress'e göre sıralanır (Eşitlikte oyuncu önde sayılır)
+                if (b.routeProgress !== a.routeProgress) {
+                    return b.routeProgress - a.routeProgress;
+                }
+                return a.isPlayer !== b.isPlayer ? (a.isPlayer ? -1 : 1) : a.id.localeCompare(b.id);
+            });
+
+            return entries;
+        }
+
         function resetAsteroidField() {
             const count = asteroids.length;
             const minDist = 250;
@@ -815,6 +894,9 @@
                     isBraking: false,
                     boostDecisionTimer: 0.25 + (i * 0.12),
                     routeProgress: 0,
+                    finished: false,
+                    finishTime: null,
+                    dnf: false,
                     laneX: startLaneX,
                     laneY: startLaneY,
                     weavePhase: Math.random() * Math.PI * 2,
@@ -1083,6 +1165,7 @@
         }
 
         function triggerBarrelRoll(dir) {
+            if (!state.running || state.finished || state.playerDNF) return;
             if (state.barrelRollCooldown > 0 || state.barrelRollTimer > 0) return;
             state.barrelRollDir = dir;
             state.barrelRollTimer = 0.55;
@@ -1091,6 +1174,7 @@
         }
 
         function applyPlayerDamage(amount) {
+            if (state.finished || state.playerDNF) return;
             // Barrel Roll sırasında mermilerden sıyrılma (Invulnerability)
             if (state.barrelRollTimer > 0) {
                 spawnFloatingText(
@@ -1109,6 +1193,8 @@
             setTimeout(() => (flash.style.opacity = '0'), 120);
 
             if (state.shield <= 0) {
+                state.playerDNF = true;
+                state.currentSpeed = 0;
                 endGame(false);
             }
         }
@@ -1126,48 +1212,79 @@
         }
 
         function updateGame(dt) {
-            // 1. Hız & Boost Kontrolü (Boru İçinde Yarış Hızı)
-            const boosting = (keys['ShiftLeft'] || keys['KeyW']) && state.energy > 4;
-            const braking = keys['KeyS'];
+            const prevRaceTime = state.raceTime;
+            state.raceTime += dt;
 
-            let targetSpeed = state.baseSpeed;
-            if (boosting) {
-                targetSpeed = 330;
-                state.energy = Math.max(0, state.energy - dt * 16);
-            } else if (braking) {
-                targetSpeed = 90;
-                state.energy = Math.min(100, state.energy + dt * 14);
-            } else {
-                state.energy = Math.min(100, state.energy + dt * 10);
-            }
-            state.currentSpeed += (targetSpeed - state.currentSpeed) * 5 * dt;
-
-            // Dinamik Kamera FOV (Boost Hissi)
-            const targetFov = boosting ? 78 : braking ? 62 : 68;
-            camera.fov += (targetFov - camera.fov) * 6 * dt;
-            camera.updateProjectionMatrix();
-
-            // 2. Görünmez Dev Boru İçinde Serbest Manevra (Sağ/Sol/Aşağı/Yukarı)
+            // 1. Hız, Boost ve Oyuncu Hareketi (Bitirmiş veya DNF olmuş oyuncu hareket etmez ve kontrol almaz)
+            let moveX = 0;
+            let moveY = 0;
             const normMouseX = (state.mouseX / W) * 2 - 1;
             const normMouseY = (state.mouseY / H) * 2 - 1;
 
-            let moveX = normMouseX * 165;
-            let moveY = -normMouseY * 145;
-            if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 155;
-            if (keys['KeyD'] || keys['ArrowRight']) moveX += 155;
-            if (keys['ArrowUp']) moveY += 135;
-            if (keys['ArrowDown']) moveY -= 135;
+            if (!state.finished && !state.playerDNF) {
+                const boosting = (keys['ShiftLeft'] || keys['KeyW']) && state.energy > 4;
+                const braking = keys['KeyS'];
 
-            state.laneX += moveX * dt;
-            state.laneY += moveY * dt;
-            state.routeProgress += state.currentSpeed * dt;
+                let targetSpeed = state.baseSpeed;
+                if (boosting) {
+                    targetSpeed = 330;
+                    state.energy = Math.max(0, state.energy - dt * 16);
+                } else if (braking) {
+                    targetSpeed = 90;
+                    state.energy = Math.min(100, state.energy + dt * 14);
+                } else {
+                    state.energy = Math.min(100, state.energy + dt * 10);
+                }
+                state.currentSpeed += (targetSpeed - state.currentSpeed) * 5 * dt;
 
-            // Görünmez Büyük Boru Sınır Kontrolü (Silindirik Yarıçap: state.tubeRadius)
-            const distFromCenter = Math.hypot(state.laneX, state.laneY);
-            if (distFromCenter > state.tubeRadius) {
-                const clampAngle = Math.atan2(state.laneY, state.laneX);
-                state.laneX = Math.cos(clampAngle) * state.tubeRadius;
-                state.laneY = Math.sin(clampAngle) * state.tubeRadius;
+                // Dinamik Kamera FOV (Boost Hissi)
+                const targetFov = boosting ? 78 : braking ? 62 : 68;
+                camera.fov += (targetFov - camera.fov) * 6 * dt;
+                camera.updateProjectionMatrix();
+
+                // 2. Görünmez Dev Boru İçinde Serbest Manevra (Sağ/Sol/Aşağı/Yukarı)
+                moveX = normMouseX * 165;
+                moveY = -normMouseY * 145;
+                if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 155;
+                if (keys['KeyD'] || keys['ArrowRight']) moveX += 155;
+                if (keys['ArrowUp']) moveY += 135;
+                if (keys['ArrowDown']) moveY -= 135;
+
+                state.laneX += moveX * dt;
+                state.laneY += moveY * dt;
+
+                const prevPlayerProgress = state.routeProgress;
+                const nextPlayerProgress = prevPlayerProgress + state.currentSpeed * dt;
+
+                // Görünmez Büyük Boru Sınır Kontrolü (Silindirik Yarıçap: state.tubeRadius)
+                const distFromCenter = Math.hypot(state.laneX, state.laneY);
+                if (distFromCenter > state.tubeRadius) {
+                    const clampAngle = Math.atan2(state.laneY, state.laneX);
+                    state.laneX = Math.cos(clampAngle) * state.tubeRadius;
+                    state.laneY = Math.sin(clampAngle) * state.tubeRadius;
+                }
+
+                // Oyuncu Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
+                if (nextPlayerProgress >= 10000) {
+                    const progressDelta = nextPlayerProgress - prevPlayerProgress;
+                    const fraction = progressDelta > 1e-6
+                        ? THREE.MathUtils.clamp((10000 - prevPlayerProgress) / progressDelta, 0, 1)
+                        : 1;
+                    state.finished = true;
+                    state.finishTime = Math.max(0, prevRaceTime + fraction * dt);
+                    state.routeProgress = 10000;
+                    state.currentSpeed = 0;
+                    state.isFiring = false;
+                    state.barrelRollTimer = 0;
+                    state.postFinishWaitTimer = 0;
+                } else {
+                    state.routeProgress = nextPlayerProgress;
+                }
+            } else {
+                // Bitirmiş oyuncu sabit kalır, FOV yumuşakça normale döner
+                state.currentSpeed = 0;
+                camera.fov += (68 - camera.fov) * 6 * dt;
+                camera.updateProjectionMatrix();
             }
 
             // Rota Çerçevesi Üzerinden Dünya Konumu Hesabı
@@ -1176,22 +1293,18 @@
                 .addScaledVector(routeFrame.right, state.laneX)
                 .addScaledVector(routeFrame.up, state.laneY);
 
-            // Bitiş halkası animasyonu ve bitiş çizgisi kontrolü (routeProgress >= 10000)
+            // Bitiş halkası animasyonu
             finishGateGroup.rotation.z += dt * 0.8;
-            if (state.routeProgress >= 10000) {
-                endGame(true);
-                return;
-            }
 
             // Geminin ve Kameranın Boru İçindeki Hafif Eğimi (Pitch / Yaw / Roll)
-            const targetYaw = -normMouseX * 0.32;
-            const targetPitch = -normMouseY * 0.28;
+            const targetYaw = state.finished ? 0 : -normMouseX * 0.32;
+            const targetPitch = state.finished ? 0 : -normMouseY * 0.28;
             state.yaw += (targetYaw - state.yaw) * 8 * dt;
             state.pitch += (targetPitch - state.pitch) * 8 * dt;
 
             // Yana yatış (Bank angle) ve Barrel Roll
-            let targetRoll = -(moveX / 180) * 0.48;
-            if (state.barrelRollTimer > 0) {
+            let targetRoll = state.finished ? 0 : -(moveX / 180) * 0.48;
+            if (!state.finished && state.barrelRollTimer > 0) {
                 state.barrelRollTimer -= dt;
                 targetRoll += state.barrelRollDir * (1 - state.barrelRollTimer / 0.55) * Math.PI * 2;
             }
@@ -1291,7 +1404,7 @@
                 }
 
                 // Oyuncu ile Asteroit Çarpışma Kontrolü
-                if (a.mesh.position.distanceTo(state.pos) < a.radius + 10) {
+                if (!state.finished && !state.playerDNF && a.mesh.position.distanceTo(state.pos) < a.radius + 10) {
                     applyPlayerDamage(16);
                     state.currentSpeed *= 0.45; // Çarpınca hız düşer
                     createExplosion(a.mesh.position, 0xff5500, 16, 1.4);
@@ -1303,6 +1416,7 @@
                 // Rakip Yarışçılar ile Asteroit Çarpışma Kontrolü
                 for (let j = 0; j < racers.length; j++) {
                     const r = racers[j];
+                    if (r.finished || r.dnf) continue;
                     if (a.mesh.position.distanceTo(r.mesh.position) < a.radius + r.radius) {
                         r.currentSpeed *= 0.45; // Rakip de oyuncuyla aynı hız cezasını alır
                         createExplosion(a.mesh.position, 0xff5500, 16, 1.3);
@@ -1320,7 +1434,7 @@
             findMagneticLockTarget();
 
             // 4. Oyuncu Ateşleme
-            if (state.combatEnabled && state.isFiring && state.fireCooldown <= 0) {
+            if (!state.finished && !state.playerDNF && state.combatEnabled && state.isFiring && state.fireCooldown <= 0) {
                 firePlayerLasers();
                 state.fireCooldown = 0.11;
             }
@@ -1441,11 +1555,27 @@
                 }
             }
 
-            // 6. Rakip Yarışçılar (Eşit Motor/Boost + 4 Pilot Profili + Asteroit Kaçınma + Gerçek Sollama + Sıralama)
-            let aheadCount = 0;
+            // 6. Rakip Yarışçılar (Eşit Motor/Boost + 4 Pilot Profili + Asteroit Kaçınma + Gerçek Sollama + Bitiş Kontrolü)
             const maxSafeRadius = state.tubeRadius * 0.85;
 
             racers.forEach((r, rIdx) => {
+                // Bitirmiş veya DNF olmuş rakip artık hızlanmaz, frenlemez, boost kullanmaz ve parkur sonunda hareket etmez
+                if (r.finished || r.dnf) {
+                    r.currentSpeed = 0;
+                    r.isBoosting = false;
+                    r.isBraking = false;
+                    r.vx = 0;
+                    r.vy = 0;
+                    const finFrame = getRaceFrameAtDistance(r.routeProgress);
+                    r.mesh.position.copy(finFrame.center)
+                        .addScaledVector(finFrame.right, r.laneX)
+                        .addScaledVector(finFrame.up, r.laneY);
+                    const finLookTarget = r.mesh.position.clone().addScaledVector(finFrame.tangent, 60);
+                    r.mesh.up.copy(finFrame.up);
+                    r.mesh.lookAt(finLookTarget);
+                    return;
+                }
+
                 const zDiff = r.mesh.position.z - state.pos.z;
 
                 // B — Pilot Profil Parametreleri (Motor kapasitesi eşit, yalnızca karar eşikleri farklı)
@@ -1626,13 +1756,16 @@
                     }
                 };
 
-                // Oyuncuyu kontrol et
-                checkCompetitor('PLAYER', state.routeProgress, state.laneX, state.laneY, state.currentSpeed);
+                // Oyuncuyu kontrol et (Oyuncu bitirmediyse)
+                if (!state.finished && !state.playerDNF) {
+                    checkCompetitor('PLAYER', state.routeProgress, state.laneX, state.laneY, state.currentSpeed);
+                }
 
-                // Diğer 4 rakibi kontrol et
+                // Diğer 4 rakibi kontrol et (Bitirmemiş olanları)
                 for (let j = 0; j < racers.length; j++) {
                     if (j === rIdx) continue;
                     const other = racers[j];
+                    if (other.finished || other.dnf) continue;
                     checkCompetitor(other.name, other.routeProgress, other.laneX, other.laneY, other.currentSpeed);
                 }
 
@@ -1782,7 +1915,9 @@
                 }
                 // Oyuncuyla aynı hız takip katsayısı (5 * dt)
                 r.currentSpeed += (desiredSpeed - r.currentSpeed) * 5 * dt;
-                r.routeProgress += r.currentSpeed * dt;
+
+                const prevRacerProgress = r.routeProgress;
+                const nextRacerProgress = prevRacerProgress + r.currentSpeed * dt;
 
                 // Hedef Öncelik Sırası: 1. Asteroit Kaçınma > 2. Sollama Şeridi > 3. Normal Uçuş Çizgisi
                 let activeTargetX = r.targetX;
@@ -1825,9 +1960,11 @@
                     }
                 };
 
-                applySeparation(state.routeProgress, state.laneX, state.laneY);
+                if (!state.finished && !state.playerDNF) {
+                    applySeparation(state.routeProgress, state.laneX, state.laneY);
+                }
                 for (let j = 0; j < racers.length; j++) {
-                    if (j === rIdx) continue;
+                    if (j === rIdx || racers[j].finished || racers[j].dnf) continue;
                     applySeparation(racers[j].routeProgress, racers[j].laneX, racers[j].laneY);
                 }
 
@@ -1850,6 +1987,24 @@
                     r.vy = 0;
                 }
 
+                // Rakip Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
+                if (nextRacerProgress >= 10000) {
+                    const progressDelta = nextRacerProgress - prevRacerProgress;
+                    const fraction = progressDelta > 1e-6
+                        ? THREE.MathUtils.clamp((10000 - prevRacerProgress) / progressDelta, 0, 1)
+                        : 1;
+                    r.finished = true;
+                    r.finishTime = Math.max(0, prevRaceTime + fraction * dt);
+                    r.routeProgress = 10000;
+                    r.currentSpeed = 0;
+                    r.isBoosting = false;
+                    r.isBraking = false;
+                    r.vx = 0;
+                    r.vy = 0;
+                } else {
+                    r.routeProgress = nextRacerProgress;
+                }
+
                 // Rota çerçevesini al ve rakibin dünya konumunu hesapla: center + right * laneX + up * laneY
                 const rFrame = getRaceFrameAtDistance(r.routeProgress);
                 r.mesh.position.copy(rFrame.center)
@@ -1869,19 +2024,48 @@
                 r.mesh.rotateZ(r.bankAngle);
 
                 // Rakipler de birbirine veya oyuncuya ateş edebilir (yalnızca combatEnabled açıkken)
-                if (state.combatEnabled) {
+                if (state.combatEnabled && !r.finished) {
                     r.fireTimer -= dt;
                     if (r.fireTimer <= 0 && Math.abs(zDiff) < 420) {
                         fireEnemyAttack(r.mesh.position, false);
                         r.fireTimer = 2.6 + Math.random() * 2.5;
                     }
                 }
-
-                if (r.routeProgress > state.routeProgress) {
-                    aheadCount++;
-                }
             });
-            state.rank = 1 + aheadCount;
+
+            // Gerçek Zamanlı Sıralama Hesabı (Bitirenler finishTime'a, yarışanlar routeProgress'e göre)
+            const liveStandings = computeLiveRaceStandings();
+            const playerStandingIdx = liveStandings.findIndex(e => e.isPlayer);
+            state.rank = playerStandingIdx >= 0 ? (playerStandingIdx + 1) : 1;
+
+            // Oyuncu Bitişi Geçtikten Sonra Kalan Rakiplerin Bitişini Bekleme Akışı
+            if (state.finished && state.running) {
+                const unfinishedRacers = racers.filter(r => !r.finished && !r.dnf);
+                if (unfinishedRacers.length === 0) {
+                    endGame(true);
+                    return;
+                }
+
+                state.postFinishWaitTimer += dt;
+                const centerBox = document.getElementById('center-msg');
+                const remainingWait = Math.max(0, state.maxPostFinishWait - state.postFinishWaitTimer);
+                document.getElementById('center-msg-sub').textContent = `FINISH TIME: ${formatRaceTime(state.finishTime)} // CURRENT POS ${state.rank} / ${state.totalRacers}`;
+                document.getElementById('center-msg-title').textContent = `AWAITING RACERS (${unfinishedRacers.length}) - ${remainingWait.toFixed(1)}s`;
+                centerBox.style.opacity = '1';
+                centerBox.style.transform = 'scale(1)';
+
+                if (state.postFinishWaitTimer >= state.maxPostFinishWait) {
+                    unfinishedRacers.forEach(r => {
+                        r.dnf = true;
+                        r.currentSpeed = 0;
+                        r.isBoosting = false;
+                        r.isBraking = false;
+                    });
+                    centerBox.style.opacity = '0';
+                    endGame(true);
+                    return;
+                }
+            }
 
             // 7. Yavaşlatılmış Düşman Gemileri Yapay Zekası (Boru İçinde Süzülme + Saldırı)
             if (state.combatEnabled && enemies.length < 4 && !state.bossActive) {
@@ -1987,7 +2171,7 @@
                     incomingDanger = true;
                 }
 
-                if (distToPlayer < 14) {
+                if (!state.finished && !state.playerDNF && distToPlayer < 14) {
                     applyPlayerDamage(ep.isMissile ? 14 : 8);
                     createExplosion(ep.mesh.position, 0xff2244, 12, 0.8);
                     scene.remove(ep.mesh);
@@ -2211,6 +2395,8 @@
             document.getElementById('rank-text').textContent = `POS ${state.rank} / ${state.totalRacers}`;
             const remainingDist = Math.max(0, Math.round(10000 - state.routeProgress));
             document.getElementById('distance-text').textContent = `${remainingDist}m`;
+            const displayedTime = state.finished && state.finishTime !== null ? state.finishTime : state.raceTime;
+            document.getElementById('race-time-text').textContent = formatRaceTime(displayedTime);
 
             const shieldPct = Math.round(state.shield);
             document.getElementById('shield-text').textContent = `${shieldPct}%`;
@@ -2299,11 +2485,25 @@
             state.routeProgress = 0;
             state.laneX = 0;
             state.laneY = 0;
+            state.raceTime = 0;
+            state.finished = false;
+            state.finishTime = null;
+            state.playerDNF = false;
+            state.postFinishWaitTimer = 0;
+            state.currentSpeed = state.baseSpeed;
+            state.isFiring = false;
+            state.barrelRollTimer = 0;
+            state.barrelRollCooldown = 0;
+            state.rank = 1;
             state.pos.set(0, 0, 0);
             state.yaw = 0;
             state.pitch = 0;
             state.roll = 0;
             document.getElementById('distance-text').textContent = '10000m';
+            document.getElementById('race-time-text').textContent = '00:00.00';
+
+            const centerBox = document.getElementById('center-msg');
+            centerBox.style.opacity = '0';
 
             document.getElementById('boss-hud').classList.add('hidden');
             document.getElementById('start-screen').classList.add('hidden');
@@ -2317,18 +2517,91 @@
             showCenterAnnouncement("CORRIDOR RACE ENGAGED", "STAGE 1: NEBULA FRONT");
         }
 
-        function endGame(victory = false) {
+        function endGame(completedRoute = false) {
             state.running = false;
+            const centerBox = document.getElementById('center-msg');
+            centerBox.style.opacity = '0';
+
+            // Oyuncu DNF olduysa veya bitiş ekranına geçildiyse, henüz bitirmemiş yarışçılara uydurma zaman yazılmaz (DNF işaretlenir)
+            racers.forEach(r => {
+                if (!r.finished) {
+                    r.dnf = true;
+                }
+            });
+            if (!state.finished) {
+                state.playerDNF = true;
+            }
+
+            const standings = computeLiveRaceStandings();
+            const playerIndex = standings.findIndex(e => e.isPlayer);
+            const playerRank = playerIndex >= 0 ? (playerIndex + 1) : 6;
+            state.rank = playerRank;
+            const leader = standings[0];
+
             const titleEl = document.getElementById('gameover-title');
-            if (victory) {
-                titleEl.textContent = 'CORRIDOR RACE COMPLETED // VICTORY!';
-                titleEl.className = 'text-3xl sm:text-4xl font-black text-emerald-400 tracking-widest uppercase mb-4';
+            if (state.playerDNF || !completedRoute || !state.finished) {
+                titleEl.textContent = 'SHIELD CRITICAL // DNF (ELIMINATED)';
+                titleEl.className = 'text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2';
+                titleEl.style.textShadow = '0 0 20px #ff0044';
+            } else if (playerRank === 1) {
+                titleEl.textContent = 'VICTORY // 1ST PLACE CHAMPION!';
+                titleEl.className = 'text-2xl sm:text-4xl font-black text-emerald-400 tracking-widest uppercase mb-2';
                 titleEl.style.textShadow = '0 0 20px #00ff88';
             } else {
-                titleEl.textContent = 'SHIELD CRITICAL // DOWN';
-                titleEl.className = 'text-3xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-4';
-                titleEl.style.textShadow = '0 0 20px #ff0044';
+                titleEl.textContent = `RACE COMPLETED // FINISHED POS ${playerRank} / ${state.totalRacers}`;
+                titleEl.className = 'text-2xl sm:text-4xl font-black text-cyan-300 tracking-widest uppercase mb-2';
+                titleEl.style.textShadow = '0 0 20px #00f3ff';
             }
+
+            // Oyuncu derecesi ve 1. ile zaman farkı özeti
+            const summaryBanner = document.getElementById('race-summary-banner');
+            let gapText = 'GAP TO LEADER: N/A (DNF)';
+            if (state.finished && state.finishTime !== null && leader && leader.finished && leader.finishTime !== null) {
+                const diff = Math.max(0, state.finishTime - leader.finishTime);
+                gapText = playerRank === 1 ? 'GAP TO LEADER: +0.00s (LEADER)' : `GAP TO LEADER: +${diff.toFixed(2)}s`;
+            }
+            summaryBanner.textContent = `YOUR RANK: ${ state.playerDNF ? 'DNF' : `POS ${playerRank} / ${state.totalRacers}` } | ${gapText}`;
+
+            // 6 Yarışçılı Sonuç Listesini Oluştur
+            const listEl = document.getElementById('race-standings-list');
+            if (listEl) {
+                listEl.innerHTML = '';
+                standings.forEach((entry, idx) => {
+                    const posNum = idx + 1;
+                    const row = document.createElement('div');
+                    const isPlayerRow = entry.isPlayer;
+                    row.className = `grid grid-cols-12 items-center py-1.5 px-2 rounded ${
+                        isPlayerRow
+                            ? 'bg-cyan-500/20 border border-cyan-300/70 text-white font-bold shadow-[0_0_12px_rgba(0,243,255,0.25)]'
+                            : 'bg-slate-950/60 border border-slate-800 text-slate-300'
+                    }`;
+
+                    let timeLabel = 'DNF';
+                    let timeColor = 'text-red-400';
+                    if (entry.finished && entry.finishTime !== null) {
+                        timeLabel = formatRaceTime(entry.finishTime);
+                        timeColor = posNum === 1 ? 'text-emerald-400' : (isPlayerRow ? 'text-cyan-200' : 'text-cyan-300');
+                    }
+
+                    const posColor = posNum === 1 ? 'text-yellow-300 font-black' : (isPlayerRow ? 'text-cyan-300' : 'text-slate-400');
+
+                    row.innerHTML = `
+                        <div class="col-span-2 ${posColor}">#${posNum}</div>
+                        <div class="col-span-4 truncate ${isPlayerRow ? 'text-yellow-300' : 'text-white'}">${entry.name}</div>
+                        <div class="col-span-3 text-[11px] text-cyan-400/90">${entry.profile}</div>
+                        <div class="col-span-3 text-right ${timeColor}">${timeLabel}</div>
+                    `;
+                    listEl.appendChild(row);
+                });
+            }
+
+            // Savaş istatistiklerini gelecekteki silahlı haritalar için koru ve yalnızca combatEnabled açıkken göster
+            const combatStatsBox = document.getElementById('combat-stats-box');
+            if (combatStatsBox) {
+                if (state.combatEnabled) combatStatsBox.classList.remove('hidden');
+                else combatStatsBox.classList.add('hidden');
+            }
+
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('final-score').textContent = state.score.toLocaleString('en-US');
             document.getElementById('final-kills').textContent = state.kills;
