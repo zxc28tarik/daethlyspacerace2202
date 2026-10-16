@@ -546,6 +546,49 @@
         finishGateGroup.position.set(0, 0, state.finishZ);
         scene.add(finishGateGroup);
 
+        // Harita 1 Virajlı Yarış Rotası Altyapısı (AI-05)
+        const raceRouteControlPoints = [
+            new THREE.Vector3(0, 0, 0),          // Başlangıç merkezi
+            new THREE.Vector3(0, 0, -900),       // Başlangıç düzlüğü
+            new THREE.Vector3(360, 65, -2300),   // Sağa doğru geniş dönüş ve hafif yükselme
+            new THREE.Vector3(460, 125, -3600),  // Sağ viraj tepe noktası
+            new THREE.Vector3(120, -45, -4900),  // Alçalma ve sola geçiş
+            new THREE.Vector3(-440, -115, -6200),// Sola doğru belirgin dönüş
+            new THREE.Vector3(340, 85, -7450),   // Birbirini takip eden 1. viraj (sağa)
+            new THREE.Vector3(-280, -60, -8550), // Birbirini takip eden 2. viraj (sola)
+            new THREE.Vector3(0, 0, -9350),      // Son bitiş düzlüğüne giriş
+            new THREE.Vector3(0, 0, -10000)      // Bitiş merkezi
+        ];
+
+        const raceRouteCurve = new THREE.CatmullRomCurve3(raceRouteControlPoints, false, 'centripetal', 0.5);
+        raceRouteCurve.arcLengthDivisions = 2000;
+        raceRouteCurve.updateArcLengths();
+        const RACE_ROUTE_NOMINAL_DISTANCE = 10000;
+        const RACE_ROUTE_TOTAL_ARC_LENGTH = raceRouteCurve.getLength();
+        const WORLD_UP_VECTOR = new THREE.Vector3(0, 1, 0);
+
+        function getRaceFrameAtDistance(distance) {
+            const clampedDist = THREE.MathUtils.clamp(Number(distance) || 0, 0, RACE_ROUTE_NOMINAL_DISTANCE);
+            const u = clampedDist / RACE_ROUTE_NOMINAL_DISTANCE;
+
+            // Gerçek eğri uzunluğu (arc-length) parametresi üzerinden örnekleme
+            const center = raceRouteCurve.getPointAt(u);
+            const tangent = raceRouteCurve.getTangentAt(u).normalize();
+
+            // İleri yöne ve dünya yukarı yönüne dik normalize sağ vektör (tangent x worldUp)
+            const right = new THREE.Vector3().crossVectors(tangent, WORLD_UP_VECTOR);
+            if (right.lengthSq() < 1e-6) {
+                right.set(1, 0, 0);
+            } else {
+                right.normalize();
+            }
+
+            // İleri yöne ve sağ yöne dik normalize yukarı vektör (right x tangent)
+            const up = new THREE.Vector3().crossVectors(right, tangent).normalize();
+
+            return { center, tangent, right, up };
+        }
+
         const playerRig = new THREE.Group();
         scene.add(playerRig);
 
