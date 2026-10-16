@@ -120,6 +120,7 @@
                     <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">10000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
+                        <span id="boundary-alert" class="ml-2 text-emerald-300">CORRIDOR SAFE</span>
                     </div>
                 </div>
 
@@ -286,12 +287,32 @@
         class OverdriveSound {
             constructor() {
                 this.ctx = null;
+                this.engineOsc = null;
+                this.engineGain = null;
             }
             init() {
                 if (!this.ctx) {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 }
                 if (this.ctx.state === 'suspended') this.ctx.resume();
+                if (!this.engineOsc) {
+                    // Tek sefer kurulan düşük seviyeli motor sesi; restart'ta osilatör birikmez.
+                    this.engineOsc = this.ctx.createOscillator();
+                    this.engineGain = this.ctx.createGain();
+                    this.engineOsc.type = 'triangle';
+                    this.engineOsc.frequency.value = 95;
+                    this.engineGain.gain.value = 0;
+                    this.engineOsc.connect(this.engineGain);
+                    this.engineGain.connect(this.ctx.destination);
+                    this.engineOsc.start();
+                }
+            }
+            updateEngine(speed, active) {
+                if (!this.ctx || !this.engineOsc || !this.engineGain) return;
+                const now = this.ctx.currentTime;
+                const level = active ? THREE.MathUtils.clamp((speed - 90) / 240, 0, 1) : 0;
+                this.engineOsc.frequency.setTargetAtTime(75 + Math.max(0, speed) * 0.38, now, 0.10);
+                this.engineGain.gain.setTargetAtTime(active ? 0.012 + 0.025 * level : 0, now, 0.12);
             }
             playLaser() {
                 if (!this.ctx) return;
@@ -431,6 +452,11 @@
             baseSpeed: 175,
             currentSpeed: 175,
             cameraMode: 'TURRET', // 'TURRET' (Köşe Silahlar) veya 'CHASE' (3. Şahıs GeoSword)
+            wallCooldown: 0,
+            wallFlash: 0,
+            asteroidHits: 0,
+            shipContacts: 0,
+            wallContacts: 0,
 
             // Barrel Roll
             barrelRollTimer: 0,
@@ -579,7 +605,9 @@
                 motionAmplitude: 0,
                 motionPhase: 0,
                 motionRate: 0,
-                active: true
+                active: true,
+                touchingShips: new Set(),
+                hitTimes: Object.create(null)
             });
         }
 
@@ -663,12 +691,13 @@
         function buildVisibleCorridor() {
             corridorGuideGroup.clear();
             const r = state.tubeRadius;
-            const railMaterial = new THREE.LineBasicMaterial({ color: 0x17adcf, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false });
-            const ringMaterial = new THREE.LineBasicMaterial({ color: 0x406dff, transparent: true, opacity: 0.36, blending: THREE.AdditiveBlending, depthWrite: false });
-            const majorRingMaterial = new THREE.LineBasicMaterial({ color: 0x00e7ed, transparent: true, opacity: 0.67, blending: THREE.AdditiveBlending, depthWrite: false });
-            // Rota boyunca 12 boyuna ışık rayı: virajlar da gözle takip edilebilir.
-            for (let k = 0; k < 12; k++) {
-                const theta = k * Math.PI * 2 / 12;
+            const railMaterial = new THREE.LineBasicMaterial({ color: 0x17adcf, transparent: true, opacity: 0.58, blending: THREE.AdditiveBlending, depthWrite: false });
+            const ringMaterial = new THREE.LineBasicMaterial({ color: 0x406dff, transparent: true, opacity: 0.43, blending: THREE.AdditiveBlending, depthWrite: false });
+            const majorRingMaterial = new THREE.LineBasicMaterial({ color: 0x00e7ed, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+            corridorGuideGroup.userData = { railMaterial, ringMaterial, majorRingMaterial };
+            // Rota boyunca 16 boyuna ışık rayı: virajlar ve geçiş alanı gözle takip edilir.
+            for (let k = 0; k < 16; k++) {
+                const theta = k * Math.PI * 2 / 16;
                 const points = [];
                 for (let d = 0; d <= RACE_ROUTE_NOMINAL_DISTANCE; d += 70) {
                     const f = getRaceFrameAtDistance(d);
@@ -679,18 +708,28 @@
                 corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), railMaterial));
             }
             // Aralıklı dairesel kesitler koridorun çapını ve dönüşlerini gösterir.
-            for (let d = 180; d < RACE_ROUTE_NOMINAL_DISTANCE; d += 220) {
+            for (let d = 160; d < RACE_ROUTE_NOMINAL_DISTANCE; d += 165) {
                 const f = getRaceFrameAtDistance(d);
                 const points = [];
                 for (let k = 0; k < 48; k++) {
                     const a = k * Math.PI * 2 / 48;
                     points.push(f.center.clone().addScaledVector(f.right, Math.cos(a) * r).addScaledVector(f.up, Math.sin(a) * r));
                 }
-                const major = Math.round((d - 180) / 220) % 5 === 0;
+                const major = Math.round((d - 160) / 165) % 5 === 0;
                 corridorGuideGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), major ? majorRingMaterial : ringMaterial));
             }
         }
         buildVisibleCorridor();
+
+        function updateVisibleCorridor() {
+            // Işık darbeleri sabit geometri üzerinde; rota matematiği değişmez.
+            const m = corridorGuideGroup.userData;
+            const pulse = 0.5 + 0.5 * Math.sin(state.raceTime * 3.2);
+            const speed = THREE.MathUtils.clamp((state.currentSpeed - 90) / 240, 0, 1);
+            m.railMaterial.opacity = 0.45 + 0.18 * pulse + 0.07 * speed;
+            m.ringMaterial.opacity = 0.33 + 0.17 * pulse;
+            m.majorRingMaterial.opacity = 0.70 + 0.22 * pulse;
+        }
 
         function formatRaceTime(seconds) {
             if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
@@ -819,6 +858,8 @@
                 a.approachSpeed = a.moveType === 'APPROACH' ? 38 + Math.random() * 44 : 0;
                 a.active = true;
                 a.mesh.visible = true;
+                a.touchingShips.clear();
+                a.hitTimes = Object.create(null);
                 updateAsteroidMotion(a, 0);
             }
         }
@@ -1204,6 +1245,74 @@
             }
         }
 
+        // AI-13: Taşıtların birbirine temas etmesi. Motor üst sınırları değiştirilmez.
+        const shipContactTimes = new Map();
+        function positionRacerOnRoute(r) {
+            const f = getRaceFrameAtDistance(r.routeProgress);
+            r.mesh.position.copy(f.center)
+                .addScaledVector(f.right, r.laneX)
+                .addScaledVector(f.up, r.laneY);
+        }
+        function resolveShipContacts() {
+            if (state.playerDNF) return;
+            const ships = [];
+            if (!state.finished) ships.push({ id: 'PLAYER', radius: 10, player: true, routeProgress: state.routeProgress, laneX: state.laneX, laneY: state.laneY, pos: state.pos });
+            racers.forEach(r => {
+                if (!r.finished && !r.dnf) ships.push({ id: r.name, radius: r.radius, player: false, racer: r, routeProgress: r.routeProgress, laneX: r.laneX, laneY: r.laneY, pos: r.mesh.position });
+            });
+            for (let i = 0; i < ships.length; i++) {
+                for (let j = i + 1; j < ships.length; j++) {
+                    const a = ships[i], b = ships[j];
+                    const distanceAlong = Math.abs(a.routeProgress - b.routeProgress);
+                    const minContact = a.radius + b.radius + 3;
+                    if (distanceAlong > minContact + 8) continue;
+                    const distanceWorld = a.pos.distanceTo(b.pos);
+                    if (distanceWorld >= minContact) continue;
+                    let dx = a.laneX - b.laneX, dy = a.laneY - b.laneY;
+                    let sideDistance = Math.hypot(dx, dy);
+                    if (sideDistance < 0.01) {
+                        const angle = (i * 3 + j * 7) * 1.618;
+                        dx = Math.cos(angle); dy = Math.sin(angle); sideDistance = 1;
+                    }
+                    const nx = dx / sideDistance, ny = dy / sideDistance;
+                    const push = Math.min(12, Math.max(1.5, (minContact - distanceWorld) * 0.4));
+                    for (const [ship, sign] of [[a, 1], [b, -1]]) {
+                        const limit = ship.player ? state.tubeRadius - ship.radius : state.tubeRadius * 0.85;
+                        const xx = ship.laneX + nx * push * sign;
+                        const yy = ship.laneY + ny * push * sign;
+                        const mag = Math.hypot(xx, yy);
+                        ship.laneX = mag > limit ? xx * limit / mag : xx;
+                        ship.laneY = mag > limit ? yy * limit / mag : yy;
+                        if (ship.player) {
+                            state.laneX = ship.laneX; state.laneY = ship.laneY;
+                            const f = getRaceFrameAtDistance(state.routeProgress);
+                            state.pos.copy(f.center).addScaledVector(f.right, state.laneX).addScaledVector(f.up, state.laneY);
+                            playerRig.position.copy(state.pos);
+                        } else {
+                            ship.racer.laneX = ship.laneX; ship.racer.laneY = ship.laneY;
+                            positionRacerOnRoute(ship.racer);
+                        }
+                    }
+                    const key = [a.id, b.id].sort().join('|');
+                    const previousHit = shipContactTimes.get(key);
+                    if (previousHit === undefined || state.raceTime - previousHit > 1.25) {
+                        shipContactTimes.set(key, state.raceTime);
+                        state.shipContacts++;
+                        for (const ship of [a, b]) {
+                            if (ship.player) {
+                                state.currentSpeed *= 0.84;
+                                state.shake = Math.max(state.shake, 0.6);
+                                applyPlayerDamage(4);
+                            } else {
+                                ship.racer.currentSpeed *= 0.84;
+                            }
+                        }
+                        createExplosion(a.pos.clone().lerp(b.pos, 0.5), 0x55ccff, 8, 0.6);
+                    }
+                }
+            }
+        }
+
         function spawnFloatingText(worldPos, text, color = '#00f3ff') {
             floatingTexts.push({
                 pos: worldPos.clone(),
@@ -1298,6 +1407,9 @@
         function updateGame(dt) {
             const prevRaceTime = state.raceTime;
             state.raceTime += dt;
+            state.wallCooldown = Math.max(0, state.wallCooldown - dt);
+            state.wallFlash = Math.max(0, state.wallFlash - dt);
+            updateVisibleCorridor();
 
             // 1. Hız, Boost ve Oyuncu Hareketi (Bitirmiş veya DNF olmuş oyuncu hareket etmez ve kontrol almaz)
             let moveX = 0;
@@ -1322,8 +1434,9 @@
                 state.currentSpeed += (targetSpeed - state.currentSpeed) * 5 * dt;
 
                 // Dinamik Kamera FOV (Boost Hissi)
-                const targetFov = boosting ? 78 : braking ? 62 : 68;
-                camera.fov += (targetFov - camera.fov) * 6 * dt;
+                const speedRatio = THREE.MathUtils.clamp((state.currentSpeed - 90) / 240, 0, 1);
+                const targetFov = braking ? 64 : 65 + speedRatio * 18;
+                camera.fov += (targetFov - camera.fov) * Math.min(1, 6 * dt);
                 camera.updateProjectionMatrix();
 
                 // 2. Görünmez Dev Boru İçinde Serbest Manevra (Sağ/Sol/Aşağı/Yukarı)
@@ -1342,10 +1455,18 @@
 
                 // Görünmez Büyük Boru Sınır Kontrolü (Silindirik Yarıçap: state.tubeRadius)
                 const distFromCenter = Math.hypot(state.laneX, state.laneY);
-                if (distFromCenter > state.tubeRadius) {
+                const playerMaxRadius = state.tubeRadius - 10;
+                if (distFromCenter > playerMaxRadius) {
                     const clampAngle = Math.atan2(state.laneY, state.laneX);
-                    state.laneX = Math.cos(clampAngle) * state.tubeRadius;
-                    state.laneY = Math.sin(clampAngle) * state.tubeRadius;
+                    state.laneX = Math.cos(clampAngle) * playerMaxRadius;
+                    state.laneY = Math.sin(clampAngle) * playerMaxRadius;
+                    if (state.wallCooldown <= 0) {
+                        state.wallCooldown = 1.2;
+                        state.wallFlash = 0.9;
+                        state.wallContacts++;
+                        state.currentSpeed *= 0.96;
+                        state.shake = Math.max(state.shake, 0.24);
+                    }
                 }
 
                 // Oyuncu Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
@@ -1371,6 +1492,7 @@
                 camera.updateProjectionMatrix();
             }
 
+            sound.updateEngine(state.currentSpeed, state.running && !state.finished);
             // Rota Çerçevesi Üzerinden Dünya Konumu Hesabı
             const routeFrame = getRaceFrameAtDistance(state.routeProgress);
             state.pos.copy(routeFrame.center)
@@ -1409,15 +1531,28 @@
             playerRig.quaternion.copy(routeQuat).multiply(localQuat);
             playerRig.position.copy(state.pos);
 
-            // Arka plan istasyonunun oyuncunun önünde kalmasını sağla
-            stationGroup.position.z = state.pos.z - 1450;
+            // İstasyon virajlı rotanın ilerisine taşınır, ancak sürüş koridorunun dışında kalır.
+            const stationFrame = getRaceFrameAtDistance(Math.min(10000, state.routeProgress + 1450));
+            stationGroup.position.copy(stationFrame.center)
+                .addScaledVector(stationFrame.right, -220)
+                .addScaledVector(stationFrame.up, 180);
 
-            // Kamera Konumlandırma
-            camera.position.copy(state.pos);
-            camera.quaternion.copy(playerRig.quaternion);
+            // Kamera: FPS sabit ve temiz, CHASE ise geminin arkasından yumuşak takip eder.
+            if (state.cameraMode === 'CHASE') {
+                const speedExtra = THREE.MathUtils.clamp((state.currentSpeed - 175) / 155, 0, 1);
+                const desiredCamPos = state.pos.clone().add(
+                    new THREE.Vector3(-state.roll * 1.2, 4 + speedExtra * 1.5, 14 + speedExtra * 7)
+                        .applyQuaternion(playerRig.quaternion)
+                );
+                camera.position.lerp(desiredCamPos, Math.min(1, 7 * dt));
+                camera.quaternion.slerp(playerRig.quaternion, Math.min(1, 9 * dt));
+            } else {
+                camera.position.copy(state.pos);
+                camera.quaternion.copy(playerRig.quaternion);
+            }
             if (state.shake > 0) {
-                camera.position.x += (Math.random() - 0.5) * state.shake * 2.5;
-                camera.position.y += (Math.random() - 0.5) * state.shake * 2.5;
+                camera.position.addScaledVector(routeFrame.right, (Math.random() - 0.5) * state.shake * 2.2);
+                camera.position.addScaledVector(routeFrame.up, (Math.random() - 0.5) * state.shake * 2.2);
                 state.shake = Math.max(0, state.shake - dt * 4.5);
             }
 
@@ -1456,33 +1591,46 @@
                 // Yerel koridor boyunca fark edilir yanal salınım ve karşı akış.
                 updateAsteroidMotion(a, dt);
 
-                // Oyuncu ile Asteroit Çarpışma Kontrolü
-                if (!state.finished && !state.playerDNF && a.mesh.position.distanceTo(state.pos) < a.radius + 10) {
-                    applyPlayerDamage(16);
-                    state.currentSpeed *= 0.45; // Çarpınca hız düşer
-                    createExplosion(a.mesh.position, 0xff5500, 16, 1.4);
-                    a.active = false;
-                    a.mesh.visible = false;
-                    if (a.movementTail) a.movementTail.visible = false;
-                    return;
-                }
-
-                // Rakip Yarışçılar ile Asteroit Çarpışma Kontrolü
-                for (let j = 0; j < racers.length; j++) {
-                    const r = racers[j];
-                    if (r.finished || r.dnf) continue;
-                    if (a.mesh.position.distanceTo(r.mesh.position) < a.radius + r.radius) {
-                        r.currentSpeed *= 0.45; // Rakip de oyuncuyla aynı hız cezasını alır
-                        createExplosion(a.mesh.position, 0xff5500, 16, 1.3);
-                        a.active = false;
-                        a.mesh.visible = false;
-                        if (a.movementTail) a.movementTail.visible = false;
-                        if (r.avoidAsteroid === a) {
-                            r.avoidAsteroid = null;
-                        }
-                        break;
+                // Her gemi için bağımsız çarpışma: kaya kaybolmaz, aynı temas her karede tekrar işlemez.
+                // Temas kesilmeden yeniden darbe yok; ayrılıp tekrar gelirse 1.3 sn güvenlik payı var.
+                const tryAsteroidHit = (id, pos, radius, onHit) => {
+                    const touching = a.mesh.position.distanceTo(pos) < a.radius + radius;
+                    if (!touching) {
+                        a.touchingShips.delete(id);
+                        return;
                     }
+                    if (a.touchingShips.has(id)) return;
+                    a.touchingShips.add(id);
+                    const prior = a.hitTimes[id];
+                    if (prior !== undefined && state.raceTime - prior < 1.3) return;
+                    a.hitTimes[id] = state.raceTime;
+                    onHit();
+                };
+                if (!state.finished && !state.playerDNF) {
+                    tryAsteroidHit('PLAYER', state.pos, 10, () => {
+                        if (state.barrelRollTimer > 0) {
+                            applyPlayerDamage(16); // Mevcut barrel-roll EVADED efekti.
+                            return;
+                        }
+                        applyPlayerDamage(16);
+                        if (!state.playerDNF) state.currentSpeed *= 0.45;
+                        state.asteroidHits++;
+                        createExplosion(a.mesh.position, 0xff5500, 14, 1.1);
+                    });
+                } else {
+                    a.touchingShips.delete('PLAYER');
                 }
+                racers.forEach(r => {
+                    if (r.finished || r.dnf) {
+                        a.touchingShips.delete(r.name);
+                        return;
+                    }
+                    tryAsteroidHit(r.name, r.mesh.position, r.radius, () => {
+                        r.currentSpeed *= 0.45;
+                        state.asteroidHits++;
+                        createExplosion(a.mesh.position, 0xff5500, 12, 0.9);
+                    });
+                });
             });
 
             // 3. Manyetik LOCK-ON Tarama (Düşmanlar + Rakip Yarışçılar + Füzeler)
@@ -2102,6 +2250,9 @@
                 }
             });
 
+            // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
+            resolveShipContacts();
+
             // Gerçek Zamanlı Sıralama Hesabı (Bitirenler finishTime'a, yarışanlar routeProgress'e göre)
             const liveStandings = computeLiveRaceStandings();
             const playerStandingIdx = liveStandings.findIndex(e => e.isPlayer);
@@ -2323,6 +2474,28 @@
         function render2DTacticalReticle(dt) {
             if (!fxCtx) return;
             fxCtx.clearRect(0, 0, W, H);
+            if (state.running && !state.finished) {
+                const intensity = THREE.MathUtils.clamp((state.currentSpeed - 175) / 155, 0, 1);
+                if (intensity > 0.08) {
+                    fxCtx.save();
+                    fxCtx.strokeStyle = 'rgba(70,235,255,' + (0.12 + intensity * 0.26).toFixed(3) + ')';
+                    fxCtx.lineWidth = 0.8 + intensity * 1.5;
+                    const t = state.raceTime * (180 + 240 * intensity);
+                    const baseR = Math.min(W, H) * 0.10;
+                    const maxR = Math.hypot(W, H) * 0.51;
+                    for (let k = 0; k < 34; k++) {
+                        const angle = k * 2.399963229728653;
+                        const radius = baseR + ((k * 67.31 + t) % Math.max(1, maxR - baseR));
+                        const length = 9 + intensity * 32;
+                        const ux = Math.cos(angle), uy = Math.sin(angle);
+                        fxCtx.beginPath();
+                        fxCtx.moveTo(W / 2 + ux * radius, H / 2 + uy * radius);
+                        fxCtx.lineTo(W / 2 + ux * (radius + length), H / 2 + uy * (radius + length));
+                        fxCtx.stroke();
+                    }
+                    fxCtx.restore();
+                }
+            }
 
             state.reticleAngle += dt * (state.lockedTarget ? 3.2 : 1.1);
 
@@ -2461,6 +2634,20 @@
             document.getElementById('stage-text').textContent = `STAGE ${state.stage}`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * 3.5);
+            const border = document.getElementById('boundary-alert');
+            if (border) {
+                const clearance = state.tubeRadius - 10 - Math.hypot(state.laneX, state.laneY);
+                if (state.wallFlash > 0 || clearance < 22) {
+                    border.textContent = '⚠ BORDER ' + Math.max(0, Math.round(clearance)) + 'm';
+                    border.className = 'ml-2 text-red-400 font-black';
+                } else if (clearance < 64) {
+                    border.textContent = 'EDGE ' + Math.round(clearance) + 'm';
+                    border.className = 'ml-2 text-yellow-300';
+                } else {
+                    border.textContent = 'CORRIDOR SAFE';
+                    border.className = 'ml-2 text-emerald-300';
+                }
+            }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
             document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * 3.5) : '—';
             document.getElementById('rank-text').textContent = `POS ${state.rank} / ${state.totalRacers}`;
@@ -2540,6 +2727,10 @@
             playerLasers.length = 0;
             enemyProjectiles.forEach(ep => scene.remove(ep.mesh));
             enemyProjectiles.length = 0;
+            particles.forEach(p => scene.remove(p.mesh));
+            particles.length = 0;
+            floatingTexts.length = 0;
+            shipContactTimes.clear();
             if (state.boss) {
                 scene.remove(state.boss.mesh);
                 state.boss = null;
@@ -2566,7 +2757,15 @@
             state.barrelRollTimer = 0;
             state.barrelRollCooldown = 0;
             state.rank = 1;
+            state.wallCooldown = 0;
+            state.wallFlash = 0;
+            state.asteroidHits = 0;
+            state.shipContacts = 0;
+            state.wallContacts = 0;
             state.pos.set(0, 0, 0);
+            camera.position.set(0, 0, 0);
+            camera.fov = 68;
+            camera.updateProjectionMatrix();
             state.yaw = 0;
             state.pitch = 0;
             state.roll = 0;
@@ -2590,6 +2789,7 @@
 
         function endGame(completedRoute = false) {
             state.running = false;
+            sound.updateEngine(0, false);
             const centerBox = document.getElementById('center-msg');
             centerBox.style.opacity = '0';
 
