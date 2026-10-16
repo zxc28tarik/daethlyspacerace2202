@@ -221,12 +221,12 @@
                     <p class="text-slate-300">Devasa bir görünmez boru hattı içinde ileri doğru yarışıyorsunuz! <strong>Fare</strong> veya <strong>WASD</strong> ile boru içinde sağa-sola, aşağı-yukarı serbestçe manevra yapın ve asteroitlerden kaçın.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
-                    <div class="text-emerald-400 font-bold mb-1">>> RAKİPLERİ VE DÜŞMANLARI PATLAT</div>
-                    <p class="text-slate-300"><strong>Sol Tık</strong> ile hem yavaşlatılmış düşman avcılarını hem de sizinle yarışan <strong>rakip yarışçıları</strong> vurup patlatabilir, sıralamada 1. sıraya yükselebilirsiniz!</p>
+                    <div class="text-emerald-400 font-bold mb-1">>> SAF HIZ YARIŞI (HARİTA 1)</div>
+                    <p class="text-slate-300">Bu koridorda silahlar devre dışıdır! <strong>SHIFT / W</strong> ile maksimum hıza çıkın, 5 rakip yarışçıyı sollayarak <strong>1. sıraya</strong> yükselin ve bitiş halkasına ilk ulaşan olun.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
-                    <div class="text-yellow-300 font-bold mb-1">>> BARREL ROLL & EMP KALKAN</div>
-                    <p class="text-slate-300"><strong>Q / E</strong> tuşlarıyla 360° tonoz atarak mermilerden sıyrılın. <strong>SPACE / Sağ Tık</strong> ile mavi enerji kalkanını patlatıp tüm mermileri silin.</p>
+                    <div class="text-yellow-300 font-bold mb-1">>> BARREL ROLL & ENERJİ YÖNETİMİ</div>
+                    <p class="text-slate-300"><strong>Q / E</strong> tuşlarıyla 360° tonoz atarak engellerden çevikçe sıyrılın ve enerjinizi <strong>SHIFT / W</strong> yüksek hız iticileri için verimli kullanın.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-pink-400 font-bold mb-1">>> KAMERA GEÇİŞİ (C TUŞU)</div>
@@ -384,6 +384,7 @@
 
         const state = {
             running: false,
+            combatEnabled: false,
             score: 0,
             kills: 0,
             stage: 1,
@@ -721,7 +722,7 @@
         }
 
         function spawnBossCruiser() {
-            if (state.bossActive) return;
+            if (!state.combatEnabled || state.bossActive) return;
             state.bossActive = true;
             showCenterAnnouncement("WARNING // CAPITAL SHIP DETECTED", "COMMAND CRUISER 'RED EYE'");
             document.getElementById('boss-hud').classList.remove('hidden');
@@ -902,7 +903,7 @@
         }
 
         function triggerEMPShield() {
-            if (!state.running || state.energy < 35) return;
+            if (!state.running || !state.combatEnabled || state.energy < 35) return;
             state.energy -= 35;
             sound.playEMP();
 
@@ -1113,7 +1114,7 @@
             findMagneticLockTarget();
 
             // 4. Oyuncu Ateşleme
-            if (state.isFiring && state.fireCooldown <= 0) {
+            if (state.combatEnabled && state.isFiring && state.fireCooldown <= 0) {
                 firePlayerLasers();
                 state.fireCooldown = 0.11;
             }
@@ -1301,11 +1302,13 @@
                 r.bankAngle = (r.bankAngle || 0) + (desiredBank - (r.bankAngle || 0)) * Math.min(1, 6.0 * dt);
                 r.mesh.rotation.z = r.bankAngle;
 
-                // Rakipler de birbirine veya oyuncuya ateş edebilir
-                r.fireTimer -= dt;
-                if (r.fireTimer <= 0 && Math.abs(zDiff) < 420) {
-                    fireEnemyAttack(r.mesh.position, false);
-                    r.fireTimer = 2.6 + Math.random() * 2.5;
+                // Rakipler de birbirine veya oyuncuya ateş edebilir (yalnızca combatEnabled açıkken)
+                if (state.combatEnabled) {
+                    r.fireTimer -= dt;
+                    if (r.fireTimer <= 0 && Math.abs(zDiff) < 420) {
+                        fireEnemyAttack(r.mesh.position, false);
+                        r.fireTimer = 2.6 + Math.random() * 2.5;
+                    }
                 }
 
                 if (r.mesh.position.z < state.pos.z) {
@@ -1315,7 +1318,7 @@
             state.rank = 1 + aheadCount;
 
             // 7. Yavaşlatılmış Düşman Gemileri Yapay Zekası (Boru İçinde Süzülme + Saldırı)
-            if (enemies.length < 4 && !state.bossActive) {
+            if (state.combatEnabled && enemies.length < 4 && !state.bossActive) {
                 if (state.kills > 0 && state.kills % 20 === 0) {
                     spawnBossCruiser();
                 } else {
@@ -1355,16 +1358,18 @@
 
                 // Düşman Saldırısı (Kırmızı Lazer veya Burgulu Füze)
                 const dist = e.mesh.position.distanceTo(state.pos);
-                e.fireTimer -= dt;
-                if (e.fireTimer <= 0 && dist < 580 && e.mesh.position.z < state.pos.z) {
-                    const shootMissile = e.isElite || Math.random() < 0.3;
-                    fireEnemyAttack(e.mesh.position, shootMissile);
-                    e.fireTimer = 2.4 + Math.random() * 2.5;
+                if (state.combatEnabled) {
+                    e.fireTimer -= dt;
+                    if (e.fireTimer <= 0 && dist < 580 && e.mesh.position.z < state.pos.z) {
+                        const shootMissile = e.isElite || Math.random() < 0.3;
+                        fireEnemyAttack(e.mesh.position, shootMissile);
+                        e.fireTimer = 2.4 + Math.random() * 2.5;
+                    }
                 }
             });
 
             // 8. Boss Hareketi (Boru İçinde Oyuncunun Önünde)
-            if (state.bossActive && state.boss) {
+            if (state.combatEnabled && state.bossActive && state.boss) {
                 const b = state.boss;
                 b.angle += dt * 0.35;
                 const desiredPos = new THREE.Vector3(
@@ -1736,8 +1741,10 @@
             document.getElementById('gameover-screen').classList.add('hidden');
 
             spawnRacerFleet();
-            spawnEnemyWave(7);
-            showCenterAnnouncement("CORRIDOR RACE & COMBAT ENGAGED", "STAGE 1: NEBULA FRONT");
+            if (state.combatEnabled) {
+                spawnEnemyWave(7);
+            }
+            showCenterAnnouncement("CORRIDOR RACE ENGAGED", "STAGE 1: NEBULA FRONT");
         }
 
         function endGame(victory = false) {
