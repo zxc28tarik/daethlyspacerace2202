@@ -122,6 +122,7 @@
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
                         <span id="boundary-alert" class="ml-2 text-emerald-300">CORRIDOR SAFE</span>
                         <span id="bonus-status" class="ml-2 text-emerald-300">BONUS READY</span>
+                        <span id="item-status" class="ml-2 text-fuchsia-300">ITEM BOX: READY</span>
                     </div>
                 </div>
 
@@ -468,6 +469,12 @@
             gateBoostTimer: 0,
             gatesCollected: 0,
             energyCollected: 0,
+            itemTurboTimer: 0,
+            powerShieldTimer: 0,
+            powerUpsCollected: 0,
+            barrierHits: 0,
+            lastPowerUp: '',
+            lastPowerUpTimer: 0,
             nearMisses: 0,
             checkpointTimes: [],
             currentSector: 1,
@@ -850,6 +857,138 @@
             });
         }
 
+        // AI-15: Sabit tehlikeler (yerinden oynamazlar) ve özgün neon güçlendirme kutuları.
+        // Sabit engeller hareketli asteroidlerden ayrıdır; AI her iki türü de önceden görür.
+        const staticObstacleGroup = new THREE.Group();
+        const itemBoxGroup = new THREE.Group();
+        scene.add(staticObstacleGroup, itemBoxGroup);
+        const staticObstacles = [];
+        const itemBoxes = [];
+        const obstacleBlueprints = [
+            [510, -118, 26, 44], [1360, 128, -75, 42], [2110, -64, 28, 40],
+            [3060, 24, 48, 47], [3710, 144, 13, 40], [4460, -133, -62, 43],
+            [5400, 112, 118, 44], [6280, -92, 74, 42], [7110, -18, -45, 49],
+            [7860, -84, -132, 39], [8750, 135, 72, 47], [9560, -143, -12, 45]
+        ];
+        const itemBlueprints = [
+            [745, 8, -10], [1880, 90, 15], [2795, -80, -25], [3935, 58, 64],
+            [5070, -45, 60], [6050, 20, -95], [7475, 72, 48], [8370, -92, -18], [9400, 5, 18]
+        ];
+        function makeCourseLocalGroup(progress, laneX, laneY) {
+            const frame = getRaceFrameAtDistance(progress);
+            const group = new THREE.Group();
+            group.position.copy(frame.center).addScaledVector(frame.right, laneX).addScaledVector(frame.up, laneY);
+            group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(frame.right, frame.up, frame.tangent.clone().negate()));
+            return group;
+        }
+        function buildItemAndBarrierCourse() {
+            const obstacleHull = new THREE.MeshStandardMaterial({ color: 0x493943, metalness: 0.72, roughness: 0.38, flatShading: true });
+            const obstacleGlow = new THREE.MeshBasicMaterial({ color: 0xff623e, side: THREE.DoubleSide });
+            const obstacleLine = new THREE.LineBasicMaterial({ color: 0xffc07a, transparent: true, opacity: 0.9 });
+            obstacleBlueprints.forEach(([routeProgress, laneX, laneY, radius], i) => {
+                const g = makeCourseLocalGroup(routeProgress, laneX, laneY);
+                // Koyu metal çekirdek + uyarıcı sarı/turuncu çerçeve: asteroidle karışmasın.
+                const core = new THREE.Mesh(i % 2 === 0 ? new THREE.OctahedronGeometry(radius * 0.85, 0) : new THREE.IcosahedronGeometry(radius * 0.82, 0), obstacleHull);
+                const front = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.02, 3.5, 7, 40), obstacleGlow);
+                const back = front.clone(); back.position.z = 10;
+                const spokes = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(-radius * 0.5, -radius * 0.5, 4),new THREE.Vector3(radius * 0.5, radius * 0.5, 4),
+                    new THREE.Vector3(radius * 0.5, -radius * 0.5, 4),new THREE.Vector3(-radius * 0.5, radius * 0.5, 4)
+                ]);
+                g.add(core, front, back, new THREE.LineSegments(spokes, obstacleLine));
+                staticObstacleGroup.add(g);
+                staticObstacles.push({ routeProgress, laneX, laneY, radius, mesh:g, active:true,
+                    moveType:'STATIC', driftVx:0, driftVy:0, approachSpeed:0,
+                    touchingShips:new Set(),hitTimes:Object.create(null) });
+            });
+            const cubeMat = new THREE.MeshStandardMaterial({ color: 0x5a39b8, metalness:0.35, roughness:0.3, emissive:0x331e85, emissiveIntensity:0.9, transparent:true, opacity:0.9 });
+            const cubeEdgeMat = new THREE.LineBasicMaterial({color:0xffeaff});
+            const coreMat = new THREE.MeshBasicMaterial({color:0x60eeff});
+            itemBlueprints.forEach(([routeProgress, laneX, laneY],i)=>{
+                const g = makeCourseLocalGroup(routeProgress,laneX,laneY);
+                const cube = new THREE.Mesh(new THREE.BoxGeometry(27,27,27),cubeMat);
+                cube.rotation.set(0.15,0.15,0.1);
+                const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(29,29,29)), cubeEdgeMat);
+                const core = new THREE.Mesh(new THREE.OctahedronGeometry(9,0),coreMat);
+                cube.add(core);g.add(cube,edge);
+                itemBoxGroup.add(g);
+                itemBoxes.push({id:`ITEM-${i}`,routeProgress,laneX,laneY,radius:39,mesh:g,claimed:new Set(),spin:cube,edge});
+            });
+        }
+        buildItemAndBarrierCourse();
+
+        function resetItemAndBarrierCourse() {
+            staticObstacles.forEach(o=>{o.touchingShips.clear();o.hitTimes=Object.create(null);});
+            itemBoxes.forEach(b=>b.claimed.clear());
+        }
+
+        function animateItemBoxes(dt) {
+            itemBoxes.forEach((box,i)=>{
+                box.spin.rotation.x += dt * 0.67;
+                box.spin.rotation.y += dt * 1.15;
+                box.mesh.scale.setScalar(1 + Math.sin(state.raceTime*3+i)*0.09);
+            });
+        }
+
+        // En yakın rota izdüşümü: bir karede kutu veya engel atlanmasın.
+        function courseSegmentTouch(o, prev, current, shipRadius) {
+            const dx=current.routeProgress-prev.routeProgress,dy=current.laneX-prev.laneX,dz=current.laneY-prev.laneY;
+            const lenSq=dx*dx+dy*dy+dz*dz;
+            const t=lenSq>1e-8 ? THREE.MathUtils.clamp(((o.routeProgress-prev.routeProgress)*dx+(o.laneX-prev.laneX)*dy+(o.laneY-prev.laneY)*dz)/lenSq,0,1):0;
+            const along=prev.routeProgress+dx*t-o.routeProgress;
+            const x=prev.laneX+dy*t-o.laneX, y=prev.laneY+dz*t-o.laneY;
+            return (along*along+x*x+y*y)<=Math.pow(o.radius+shipRadius,2);
+        }
+        function grantRandomItem(box, ship, isPlayer) {
+            // Tek yarış içinde her gemi adil ağırlıklarla aynı havuzdan ödül alır.
+            const roll=Math.random();
+            const item=roll<0.45?'HYPER_TURBO':roll<0.72?'SHIELD':'ENERGY';
+            if(item==='HYPER_TURBO') ship.itemTurboTimer=Math.max(ship.itemTurboTimer||0,3.1);
+            if(item==='SHIELD') ship.powerShieldTimer=Math.max(ship.powerShieldTimer||0,5);
+            if(item==='ENERGY') ship.energy=Math.min(100,ship.energy+42);
+            if(isPlayer) {
+                state.powerUpsCollected++;
+                state.lastPowerUp=item;
+                state.lastPowerUpTimer=2.4;
+                state.score+=350;
+                const name=item==='HYPER_TURBO'?'HYPER TURBO 3.1s':item==='SHIELD'?'ENERGY SHIELD 5s':'ENERGY +42';
+                spawnFloatingText(box.mesh.position,`${name} / +350`,'#ffb8ff');
+            }
+            return item;
+        }
+        function collectItemBoxesForShip(shipId, ship, previousState, isPlayer) {
+            if(ship.dnf || (isPlayer && (state.playerDNF || state.finished && previousState.routeProgress>=10000)))return;
+            for(const b of itemBoxes){
+                if(b.claimed.has(shipId))continue;
+                if(previousState.routeProgress > b.routeProgress + b.radius || ship.routeProgress < b.routeProgress - b.radius)continue;
+                if(courseSegmentTouch(b,previousState,ship,isPlayer?10:(ship.radius||12.5))){
+                    b.claimed.add(shipId);grantRandomItem(b,ship,isPlayer);
+                }else if(ship.routeProgress>b.routeProgress+b.radius){
+                    b.claimed.add(shipId); // İkinci kez geri dönüp kutu alınamaz.
+                }
+            }
+        }
+        function applyStaticObstacleContact(shipId,ship,previousState,isPlayer) {
+            if(ship.finished||ship.dnf||(isPlayer&&state.playerDNF))return;
+            const shipRadius=isPlayer?10:(ship.radius||12.5);
+            for(const o of staticObstacles){
+                const touching=courseSegmentTouch(o,previousState,ship,shipRadius);
+                if(!touching){o.touchingShips.delete(shipId);continue;}
+                if(o.touchingShips.has(shipId))continue;
+                o.touchingShips.add(shipId);
+                const last=o.hitTimes[shipId];
+                if(last!==undefined&&state.raceTime-last<1.2)continue;
+                o.hitTimes[shipId]=state.raceTime;
+                if(ship.powerShieldTimer>0){if(isPlayer)spawnFloatingText(o.mesh.position,'SHIELD DEFLECTED','#5bfffa');continue;}
+                if(isPlayer){
+                    applyPlayerDamage(13);
+                    if(!state.playerDNF){ship.currentSpeed*=0.55;state.shake=Math.max(state.shake,0.85);}
+                    state.barrierHits++;
+                }else{ship.currentSpeed*=0.55;}
+                createExplosion(o.mesh.position,0xff9344,10,0.8);
+            }
+        }
+
         // Harita 1 — görünür fakat uçuşu engellemeyen neon koridor sınırları.
         // Gerçek sınır yarıçapı ile birebir eşleşir (tubeRadius = 260).
         const corridorGuideGroup = new THREE.Group();
@@ -1186,6 +1325,8 @@
                     isBraking: false,
                     boostDecisionTimer: 0.25 + (i * 0.12),
                     gateBoostTimer: 0,
+                    itemTurboTimer: 0,
+                    powerShieldTimer: 0,
                     routeProgress: 0,
                     finished: false,
                     finishTime: null,
@@ -1468,10 +1609,12 @@
                         state.shipContacts++;
                         for (const ship of [a, b]) {
                             if (ship.player) {
+                                if(state.powerShieldTimer>0)continue;
                                 state.currentSpeed *= 0.84;
                                 state.shake = Math.max(state.shake, 0.6);
                                 applyPlayerDamage(4);
                             } else {
+                                if(ship.racer.powerShieldTimer>0)continue;
                                 ship.racer.currentSpeed *= 0.84;
                             }
                         }
@@ -1536,6 +1679,7 @@
 
         function applyPlayerDamage(amount) {
             if (state.finished || state.playerDNF) return;
+            if(state.powerShieldTimer>0) return;
             // Barrel Roll sırasında mermilerden sıyrılma (Invulnerability)
             if (state.barrelRollTimer > 0) {
                 spawnFloatingText(
@@ -1576,9 +1720,19 @@
             const prevRaceTime = state.raceTime;
             const prevPlayerFrameProgress = state.routeProgress;
             const prevRacerFrameProgress = racers.map(r => r.routeProgress);
+            const prevPlayerCourse = {routeProgress:state.routeProgress,laneX:state.laneX,laneY:state.laneY};
+            const prevRacerCourse = racers.map(r=>({routeProgress:r.routeProgress,laneX:r.laneX,laneY:r.laneY}));
             state.raceTime += dt;
             state.gateBoostTimer = Math.max(0, state.gateBoostTimer - dt);
-            racers.forEach(r => { r.gateBoostTimer = Math.max(0, (r.gateBoostTimer || 0) - dt); });
+            state.itemTurboTimer = Math.max(0, state.itemTurboTimer - dt);
+            state.powerShieldTimer = Math.max(0, state.powerShieldTimer - dt);
+            state.lastPowerUpTimer = Math.max(0, state.lastPowerUpTimer - dt);
+            racers.forEach(r => {
+                r.gateBoostTimer = Math.max(0, (r.gateBoostTimer || 0) - dt);
+                r.itemTurboTimer = Math.max(0, (r.itemTurboTimer || 0) - dt);
+                r.powerShieldTimer = Math.max(0, (r.powerShieldTimer || 0) - dt);
+            });
+            animateItemBoxes(dt);
             updateCourseFeatures(dt);
             state.wallCooldown = Math.max(0, state.wallCooldown - dt);
             state.wallFlash = Math.max(0, state.wallFlash - dt);
@@ -1594,13 +1748,18 @@
                 const boosting = (keys['ShiftLeft'] || keys['KeyW']) && state.energy > 4;
                 const braking = keys['KeyS'];
                 const gateBoost = state.gateBoostTimer > 0;
+                const itemTurbo = state.itemTurboTimer > 0;
 
                 let targetSpeed = state.baseSpeed;
                 if (braking) {
                     targetSpeed = 90;
                     state.energy = Math.min(100, state.energy + dt * 14);
+                } else if (itemTurbo) {
+                    // Mario Kart esintili Hyper Turbo; oyuncu ve AI için aynı 365 üst sınırı.
+                    targetSpeed = 365;
+                    state.energy = Math.min(100, state.energy + dt * 10);
                 } else if (gateBoost) {
-                    // Ücretsiz geçici boost, mevcut 330 üst sınırını geçemez.
+                    // Eski geçiş kapısı 330 üst sınırını korur.
                     targetSpeed = 330;
                     state.energy = Math.min(100, state.energy + dt * 10);
                 } else if (boosting) {
@@ -1786,6 +1945,10 @@
                 };
                 if (!state.finished && !state.playerDNF) {
                     tryAsteroidHit('PLAYER', state.pos, 10, () => {
+                        if (state.powerShieldTimer>0){
+                            spawnFloatingText(a.mesh.position,'SHIELD BLOCK','#5bfffa');
+                            return;
+                        }
                         if (state.barrelRollTimer > 0) {
                             applyPlayerDamage(16); // Mevcut barrel-roll EVADED efekti.
                             return;
@@ -1804,6 +1967,7 @@
                         return;
                     }
                     tryAsteroidHit(r.name, r.mesh.position, r.radius, () => {
+                        if(r.powerShieldTimer>0)return;
                         r.currentSpeed *= 0.45;
                         state.asteroidHits++;
                         createExplosion(a.mesh.position, 0xff5500, 12, 0.9);
@@ -1938,6 +2102,7 @@
 
             // 6. Rakip Yarışçılar (Eşit Motor/Boost + 4 Pilot Profili + Asteroit Kaçınma + Gerçek Sollama + Bitiş Kontrolü)
             const maxSafeRadius = state.tubeRadius * 0.85;
+            const raceHazards = asteroids.concat(staticObstacles);
 
             racers.forEach((r, rIdx) => {
                 // Bitirmiş veya DNF olmuş rakip artık hızlanmaz, frenlemez, boost kullanmaz ve parkur sonunda hareket etmez
@@ -2016,8 +2181,7 @@
                 let mostUrgentThreat = null;
                 let minTimeToImpact = Infinity;
 
-                for (let i = 0; i < asteroids.length; i++) {
-                    const a = asteroids[i];
+                for (const a of raceHazards) {
                     if (!a.active) continue;
 
                     const relDist = a.routeProgress - r.routeProgress;
@@ -2026,10 +2190,10 @@
                     const closingSpeed = Math.max(40, r.currentSpeed + (a.moveType === 'APPROACH' ? a.approachSpeed : 0));
                     const tti = Math.max(0, relDist) / closingSpeed;
 
-                    // Salınım yapan hareketli asteroidin gerçek gelecekteki yanal konumu.
-                    const predictedOffset = Math.sin(a.motionPhase + a.motionRate * tti) * a.motionAmplitude;
-                    let predAstX = a.baseLaneX + a.motionAxisX * predictedOffset;
-                    let predAstY = a.baseLaneY + a.motionAxisY * predictedOffset;
+                    // Hareketli asteroit salınır; sabit engel aynı konumda kalır.
+                    const predictedOffset = a.moveType==='STATIC'?0:Math.sin(a.motionPhase + a.motionRate * tti) * a.motionAmplitude;
+                    let predAstX = a.moveType==='STATIC'?a.laneX:a.baseLaneX + a.motionAxisX * predictedOffset;
+                    let predAstY = a.moveType==='STATIC'?a.laneY:a.baseLaneY + a.motionAxisY * predictedOffset;
                     const predictedRad = Math.hypot(predAstX, predAstY);
                     const maxPredictedRad = state.tubeRadius - a.radius - 12;
                     if (predictedRad > maxPredictedRad) {
@@ -2201,8 +2365,7 @@
 
                         // Aday sollama şeridinin yakındaki asteroitlere güvenli uzaklığı
                         let astPenalty = 0;
-                        for (let k = 0; k < asteroids.length; k++) {
-                            const ast = asteroids[k];
+                        for (const ast of raceHazards) {
                             if (!ast.active) continue;
                             const aGap = ast.routeProgress - r.routeProgress;
                             if (aGap > -20 && aGap < 220) {
@@ -2296,6 +2459,9 @@
                 if (r.isBraking) {
                     desiredSpeed = 90;
                     r.energy = Math.min(100, r.energy + dt * 14);
+                } else if (r.itemTurboTimer > 0) {
+                    desiredSpeed = 365;
+                    r.energy = Math.min(100, r.energy + dt * 10);
                 } else if (r.gateBoostTimer > 0) {
                     desiredSpeed = 330;
                     r.energy = Math.min(100, r.energy + dt * 10);
@@ -2322,7 +2488,9 @@
                     activeTargetX = r.overtakeTargetX;
                     activeTargetY = r.overtakeTargetY;
                 } else {
-                    const pickup = findAiPickupTarget(r);
+                    const gate = findAiPickupTarget(r);
+                    const box = itemBoxes.find(b=>!b.claimed.has(r.name)&&b.routeProgress-r.routeProgress>=30&&b.routeProgress-r.routeProgress<245);
+                    const pickup = (box && (!gate || box.routeProgress < gate.progress))?box:gate;
                     if (pickup) {
                         activeTargetX = pickup.laneX;
                         activeTargetY = pickup.laneY;
@@ -2439,6 +2607,18 @@
 
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts();
+
+            // AI-15: sabit engel ve item kutusu kontrolleri; her gemiye ayrı hak ve temas kaydı.
+            if(!state.playerDNF && !state.finished){
+                applyStaticObstacleContact('PLAYER',state,prevPlayerCourse,true);
+                if(!state.playerDNF)collectItemBoxesForShip('PLAYER',state,prevPlayerCourse,true);
+            }
+            racers.forEach((r,idx)=>{
+                if(!r.finished&&!r.dnf){
+                    applyStaticObstacleContact(r.name,r,prevRacerCourse[idx],false);
+                    collectItemBoxesForShip(r.name,r,prevRacerCourse[idx],false);
+                }
+            });
 
             // AI-14: Tek karede atlanan kapılar dâhil yarışçı başına geçiş, near-miss ve checkpoint.
             if (!state.playerDNF) {
@@ -2847,6 +3027,13 @@
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
             document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * 3.5) : '—';
+            const itemStatus = document.getElementById('item-status');
+            if(itemStatus){
+                if(state.itemTurboTimer>0)itemStatus.textContent=`HYPER TURBO ${state.itemTurboTimer.toFixed(1)}s`;
+                else if(state.powerShieldTimer>0)itemStatus.textContent=`SHIELD ${state.powerShieldTimer.toFixed(1)}s`;
+                else if(state.lastPowerUpTimer>0)itemStatus.textContent=`ITEM: ${state.lastPowerUp.replace('_',' ')}`;
+                else itemStatus.textContent=`ITEMS ${state.powerUpsCollected}`;
+            }
             const bonus = document.getElementById('bonus-status');
             const next = getNextCourseFeature(state.routeProgress);
             const inDanger = dangerBands.some(([from, to]) => state.routeProgress >= from && state.routeProgress <= to);
@@ -2975,6 +3162,13 @@
             state.shipContacts = 0;
             state.wallContacts = 0;
             state.gateBoostTimer = 0;
+            state.itemTurboTimer = 0;
+            state.powerShieldTimer = 0;
+            state.powerUpsCollected = 0;
+            state.barrierHits = 0;
+            state.lastPowerUp = '';
+            state.lastPowerUpTimer = 0;
+            resetItemAndBarrierCourse();
             state.gatesCollected = 0;
             state.energyCollected = 0;
             state.nearMisses = 0;
