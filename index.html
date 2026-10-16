@@ -508,16 +508,17 @@
         for (let i = 0; i < 55; i++) {
             const radius = 14 + Math.random() * 28;
             const ast = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), astMat);
-            const angle = Math.random() * Math.PI * 2;
-            const r = Math.random() * 240;
-            ast.position.set(
-                Math.cos(angle) * r,
-                Math.sin(angle) * r,
-                -i * 75 - 200
-            );
             ast.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
             scene.add(ast);
-            asteroids.push({ mesh: ast, radius, rotSpeed: (Math.random() - 0.5) * 0.8 });
+            asteroids.push({
+                mesh: ast,
+                radius,
+                rotSpeed: (Math.random() - 0.5) * 0.8,
+                routeProgress: 0,
+                laneX: 0,
+                laneY: 0,
+                active: true
+            });
         }
 
         // Arka Plandaki Dev Uzay Kalesi / İstasyonu (Görseldeki Silüet)
@@ -591,6 +592,42 @@
 
             return { center, tangent, right, up };
         }
+
+        function resetAsteroidField() {
+            const count = asteroids.length;
+            const minDist = 250;
+            const maxDist = 9800;
+            const step = (maxDist - minDist) / count;
+            const goldenAngle = 2.399963229728653; // Ardışık asteroitlerin aynı açısal bölgede kümelenmesini önler
+            const basePhase = Math.random() * Math.PI * 2;
+
+            for (let i = 0; i < count; i++) {
+                const a = asteroids[i];
+                const jitter = (Math.random() - 0.5) * step * 0.65;
+                a.routeProgress = THREE.MathUtils.clamp(
+                    minDist + (i + 0.5) * step + jitter,
+                    minDist,
+                    maxDist
+                );
+
+                // Asteroidin boyutunu ve güvenlik payını hesaba katarak koridor içinde tut
+                const maxAllowedRadius = Math.max(20, state.tubeRadius - a.radius - 8);
+                // Dairesel kesit üzerinde merkez, orta ve dış bölgelere dengeli dağılım
+                const r = Math.sqrt(Math.random()) * maxAllowedRadius;
+                const angle = basePhase + i * goldenAngle + (Math.random() - 0.5) * 0.85;
+
+                a.laneX = Math.cos(angle) * r;
+                a.laneY = Math.sin(angle) * r;
+                a.active = true;
+                a.mesh.visible = true;
+
+                const frame = getRaceFrameAtDistance(a.routeProgress);
+                a.mesh.position.copy(frame.center)
+                    .addScaledVector(frame.right, a.laneX)
+                    .addScaledVector(frame.up, a.laneY);
+            }
+        }
+        resetAsteroidField();
 
         const playerRig = new THREE.Group();
         scene.add(playerRig);
@@ -1158,22 +1195,16 @@
 
             // Boru İçi Asteroit Engelleri Dönüşü ve Çarpışma
             asteroids.forEach(a => {
+                if (!a.active) return;
                 a.mesh.rotation.x += a.rotSpeed * dt;
                 a.mesh.rotation.y += a.rotSpeed * dt;
-                if (a.mesh.position.z > state.pos.z + 80) {
-                    const ang = Math.random() * Math.PI * 2;
-                    const rad = Math.random() * (state.tubeRadius * 0.9);
-                    a.mesh.position.set(
-                        Math.cos(ang) * rad,
-                        Math.sin(ang) * rad,
-                        state.pos.z - 1600 - Math.random() * 800
-                    );
-                }
+
                 if (a.mesh.position.distanceTo(state.pos) < a.radius + 10) {
                     applyPlayerDamage(16);
                     state.currentSpeed *= 0.45; // Çarpınca hız düşer
                     createExplosion(a.mesh.position, 0xff5500, 16, 1.4);
-                    a.mesh.position.z = state.pos.z - 1800;
+                    a.active = false;
+                    a.mesh.visible = false;
                 }
             });
 
@@ -1815,6 +1846,7 @@
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('gameover-screen').classList.add('hidden');
 
+            resetAsteroidField();
             spawnRacerFleet();
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
