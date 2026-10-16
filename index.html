@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starblade Tekken 5 Overdrive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Orbitron', 'Share Tech Mono', sans-serif;
+            background-color: #03030a;
+            color: #00f3ff;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            cursor: none;
+        }
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #game-canvas { z-index: 1; }
+        #fx-canvas { z-index: 25; pointer-events: none; }
+
+        /* Enerji Kalkanı Çemberi (Görsel Tasarımdaki Mavi Kalkan Halkası) */
+        .shield-ring-overlay {
+            position: absolute;
+            inset: -4vh -4vw;
+            border-radius: 50%;
+            border: 4px solid rgba(0, 210, 255, 0.35);
+            box-shadow:
+                inset 0 0 65px rgba(0, 195, 255, 0.35),
+                0 0 50px rgba(0, 195, 255, 0.25);
+            pointer-events: none;
+            z-index: 20;
+            transition: all 0.2s ease;
+        }
+        .shield-ring-active {
+            border-color: rgba(0, 255, 255, 0.95);
+            box-shadow:
+                inset 0 0 130px rgba(0, 255, 255, 0.8),
+                0 0 90px rgba(0, 255, 255, 0.9);
+        }
+
+        .hud-box {
+            background: linear-gradient(135deg, rgba(4, 18, 36, 0.82) 0%, rgba(2, 8, 20, 0.9) 100%);
+            border: 1.5px solid rgba(0, 243, 255, 0.55);
+            box-shadow: 0 0 18px rgba(0, 243, 255, 0.25), inset 0 0 12px rgba(0, 243, 255, 0.12);
+            backdrop-filter: blur(4px);
+            clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+        }
+
+        .danger-banner {
+            background: linear-gradient(90deg, transparent, rgba(220, 20, 40, 0.85), transparent);
+            border-top: 1px solid #ff2a4b;
+            border-bottom: 1px solid #ff2a4b;
+            text-shadow: 0 0 10px #ff2a4b;
+            animation: pulseDanger 0.55s infinite alternate;
+        }
+
+        @keyframes pulseDanger {
+            from { opacity: 0.45; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1.02); }
+        }
+
+        .cyber-btn {
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.18), rgba(0, 255, 136, 0.18));
+            border: 2px solid #00f3ff;
+            color: #ffffff;
+            text-shadow: 0 0 8px #00f3ff;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.35);
+            transition: all 0.18s ease;
+            cursor: pointer;
+        }
+        .cyber-btn:hover {
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.45), rgba(0, 255, 136, 0.45));
+            box-shadow: 0 0 35px rgba(0, 243, 255, 0.85);
+            transform: translateY(-2px) scale(1.03);
+        }
+
+        .ScreenOverlay {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, rgba(6, 12, 34, 0.78) 0%, rgba(2, 4, 12, 0.94) 100%);
+            cursor: default;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative">
+
+    <canvas id="game-canvas"></canvas>
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- Ekran Çevresi Enerji Kalkanı Çemberi -->
+    <div id="shield-ring" class="shield-ring-overlay"></div>
+
+    <!-- Hasar ve EMP Ekran Efektleri -->
+    <div id="damage-flash" class="absolute inset-0 bg-red-600/40 pointer-events-none z-30 opacity-0 transition-opacity duration-100"></div>
+    <div id="emp-flash" class="absolute inset-0 bg-cyan-400/50 pointer-events-none z-30 opacity-0 transition-opacity duration-300"></div>
+
+    <div class="absolute inset-0 z-40 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+        
+        <!-- ÜST BÖLÜM: Tehlike Uyarısı, Kamera Modu & Boss Can Barı -->
+        <div class="flex flex-col items-center w-full gap-2">
+            <div class="w-full flex justify-between items-start">
+                <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
+                <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
+                    <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span></div>
+                    <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
+                        CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S
+                    </div>
+                </div>
+
+                <!-- Orta Üst: DANGER Uyarısı -->
+                <div id="danger-banner" class="danger-banner hidden px-8 py-1.5 text-red-100 font-black tracking-[0.25em] text-xs sm:text-base uppercase">
+                    &lt;&lt; DANGER / INCOMING PROJECTILES! &gt;&gt;
+                </div>
+
+                <!-- Sağ Üst: Kombo & Dalga -->
+                <div class="hud-box px-4 py-2 text-right pointer-events-auto">
+                    <div class="text-xs text-cyan-300 tracking-widest">COMBO MULTIPLIER</div>
+                    <div id="combo-text" class="text-xl sm:text-2xl font-black text-emerald-400">x1.0</div>
+                </div>
+            </div>
+
+            <!-- Boss Can Barı -->
+            <div id="boss-hud" class="hidden w-full max-w-xl hud-box px-4 py-2 border-red-500/80">
+                <div class="flex justify-between text-xs font-bold text-red-400 tracking-widest mb-1">
+                    <span>COMMAND CRUISER "RED EYE"</span>
+                    <span id="boss-hp-text">100%</span>
+                </div>
+                <div class="w-full h-2.5 bg-red-950/90 border border-red-500/60 p-0.5">
+                    <div id="boss-hp-bar" class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 transition-all duration-150" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ORTA BÖLÜM: Sektör / Dalga Bildirimi -->
+        <div id="center-msg" class="self-center text-center pointer-events-none transition-all duration-300 opacity-0 transform scale-90">
+            <div id="center-msg-sub" class="text-xs sm:text-sm tracking-[0.35em] text-cyan-300 uppercase mb-1">ALL-RANGE COMBAT ENGAGED</div>
+            <div id="center-msg-title" class="text-3xl sm:text-5xl font-black text-white tracking-widest uppercase" style="text-shadow: 0 0 20px #00f3ff;">STAGE 1: NEBULA FRONT</div>
+        </div>
+
+        <!-- ALT BÖLÜM: Kalkan, Enerji, 360 Radar ve Skor (Görseldeki Tasarım) -->
+        <div class="flex items-end justify-between w-full gap-4">
+            <!-- Sol Alt: Shield & Energy -->
+            <div class="hud-box px-5 py-3 w-64 sm:w-80 pointer-events-auto">
+                <div class="flex justify-between items-center text-sm sm:text-base font-bold tracking-wider mb-1">
+                    <span class="text-cyan-300">SHIELD: <span id="shield-text" class="text-white">100%</span></span>
+                    <span id="roll-status" class="text-[10px] text-emerald-400 font-['Share_Tech_Mono']">BARREL ROLL: READY (Q/E)</span>
+                </div>
+                <div class="w-full h-3 bg-slate-900/90 border border-cyan-400/60 p-0.5 mb-2.5">
+                    <div id="shield-bar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-150" style="width: 100%;"></div>
+                </div>
+
+                <div class="flex justify-between items-center text-xs font-bold tracking-wider text-cyan-300 mb-1">
+                    <span>ENERGY (BOOST / EMP)</span>
+                    <span class="text-[10px] text-cyan-200/80">SPACE / SAĞ TIK: EMP KALKAN</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-900/90 border border-cyan-400/50 p-0.5">
+                    <div id="energy-bar" class="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-white transition-all duration-100" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Orta Alt: 360° Serbest Uçuş Radarı -->
+            <div class="hidden md:flex flex-col items-center">
+                <div class="text-[10px] text-cyan-300/80 tracking-[0.25em] mb-1">360° TACTICAL RADAR</div>
+                <div class="w-28 h-28 rounded-full border-2 border-cyan-400/60 bg-slate-950/80 relative shadow-[0_0_20px_rgba(0,243,255,0.25)] overflow-hidden">
+                    <div class="absolute inset-3 rounded-full border border-cyan-500/25"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="w-full h-px bg-cyan-500/25"></div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="h-full w-px bg-cyan-500/25"></div>
+                    </div>
+                    <!-- Görüş Konisi -->
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[28px] border-l-transparent border-r-[28px] border-r-transparent border-t-[56px] border-t-cyan-400/15"></div>
+                    <div id="radar-blips" class="absolute inset-0"></div>
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_6px_#fff]"></div>
+                </div>
+            </div>
+
+            <!-- Sağ Alt: Score & Stage -->
+            <div class="hud-box px-5 py-3 w-64 sm:w-80 text-right pointer-events-auto">
+                <div class="text-sm sm:text-lg font-black tracking-widest text-cyan-200">
+                    SCORE: <span id="score-text" class="text-white text-xl sm:text-2xl">000,000</span>
+                </div>
+                <div class="flex justify-between items-center mt-1 text-xs sm:text-sm font-bold text-emerald-400">
+                    <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST</span>
+                    <span id="stage-text">STAGE 1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="ScreenOverlay">
+        <div class="hud-box max-w-2xl w-full mx-4 p-8 text-center relative">
+            <div class="text-xs tracking-[0.4em] text-cyan-400 uppercase mb-1">NAMCO TEKKEN 5 TRIBUTE // ALL-RANGE EDITION</div>
+            <h1 class="text-4xl sm:text-6xl font-black text-white tracking-wider mb-2" style="text-shadow: 0 0 25px #00f3ff, 0 0 50px #0088ff;">
+                STARBLADE
+            </h1>
+            <div class="text-sm sm:text-base font-bold text-emerald-400 tracking-[0.35em] uppercase mb-6 pb-4 border-b border-cyan-500/30">
+                OVERDRIVE: CORRIDOR COMBAT RACING
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+                <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
+                    <div class="text-cyan-300 font-bold mb-1">>> DEV GÖRÜNMEZ UZAY KORİDORU</div>
+                    <p class="text-slate-300">Devasa bir görünmez boru hattı içinde ileri doğru yarışıyorsunuz! <strong>Fare</strong> veya <strong>WASD</strong> ile boru içinde sağa-sola, aşağı-yukarı serbestçe manevra yapın ve asteroitlerden kaçın.</p>
+                </div>
+                <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
+                    <div class="text-emerald-400 font-bold mb-1">>> RAKİPLERİ VE DÜŞMANLARI PATLAT</div>
+                    <p class="text-slate-300"><strong>Sol Tık</strong> ile hem yavaşlatılmış düşman avcılarını hem de sizinle yarışan <strong>rakip yarışçıları</strong> vurup patlatabilir, sıralamada 1. sıraya yükselebilirsiniz!</p>
+                </div>
+                <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
+                    <div class="text-yellow-300 font-bold mb-1">>> BARREL ROLL & EMP KALKAN</div>
+                    <p class="text-slate-300"><strong>Q / E</strong> tuşlarıyla 360° tonoz atarak mermilerden sıyrılın. <strong>SPACE / Sağ Tık</strong> ile mavi enerji kalkanını patlatıp tüm mermileri silin.</p>
+                </div>
+                <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
+                    <div class="text-pink-400 font-bold mb-1">>> KAMERA GEÇİŞİ (C TUŞU)</div>
+                    <p class="text-slate-300">İstediğiniz an <strong>C</strong> tuşuna basarak klasik <strong>İkiz Taret Kokpit</strong> görünümü ile <strong>3. Şahıs GeoSword Gemisi</strong> görünümü arasında geçiş yapın.</p>
+                </div>
+            </div>
+
+            <button id="start-btn" class="cyber-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">
+                LAUNCH GEOSWORD
+            </button>
+        </div>
+    </div>
+
+    <!-- OYUN SONU EKRANI -->
+    <div id="gameover-screen" class="ScreenOverlay hidden">
+        <div class="hud-box max-w-md w-full mx-4 p-8 text-center">
+            <h2 id="gameover-title" class="text-3xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-4" style="text-shadow: 0 0 20px #ff0044;">
+                SHIELD CRITICAL // DOWN
+            </h2>
+            <div class="bg-slate-900/80 border border-cyan-500/30 p-4 mb-6 font-['Share_Tech_Mono'] space-y-2 text-base">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">FINAL SCORE:</span>
+                    <span id="final-score" class="text-cyan-300 font-bold">000,000</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">DESTROYED HOSTILES:</span>
+                    <span id="final-kills" class="text-emerald-400 font-bold">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">STAGE REACHED:</span>
+                    <span id="final-stage" class="text-yellow-300 font-bold">STAGE 1</span>
+                </div>
+            </div>
+            <button id="restart-btn" class="cyber-btn px-10 py-3.5 text-base font-black tracking-[0.2em] uppercase">
+                SORTIE AGAIN
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class OverdriveSound {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            playLaser() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(1150, now);
+                osc.frequency.exponentialRampToValueAtTime(140, now + 0.13);
+                gain.gain.setValueAtTime(0.11, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.13);
+            }
+            playLock() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1480, now);
+                osc.frequency.setValueAtTime(1960, now + 0.04);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            }
+            playHit() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(520, now);
+                osc.frequency.exponentialRampToValueAtTime(90, now + 0.08);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+            playExplosion(big = false) {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const dur = big ? 0.65 : 0.35;
+                const bufferSize = this.ctx.sampleRate * dur;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * (big ? 0.22 : 0.1)));
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(big ? 420 : 680, now);
+                filter.frequency.exponentialRampToValueAtTime(55, now + dur);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(big ? 0.35 : 0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+            }
+            playEMP() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
+                osc.frequency.exponentialRampToValueAtTime(90, now + 0.55);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.55);
+            }
+        }
+
+        const sound = new OverdriveSound();
+
+        const gameCanvas = document.getElementById('game-canvas');
+        const fxCanvas = document.getElementById('fx-canvas');
+        const fxCtx = fxCanvas ? fxCanvas.getContext('2d') : null;
+
+        let W = window.innerWidth;
+        let H = window.innerHeight;
+        if (fxCanvas) {
+            fxCanvas.width = W;
+            fxCanvas.height = H;
+        }
+
+        const keys = {};
+
+        const state = {
+            running: false,
+            score: 0,
+            kills: 0,
+            stage: 1,
+            shield: 100,
+            energy: 100,
+            combo: 1.0,
+            comboTimer: 0,
+            rank: 1,
+            totalRacers: 6,
+
+            // Dev Görünmez Boru (Tünel) Yarış Durumu
+            tubeRadius: 260,
+            pos: new THREE.Vector3(0, 0, 0),
+            vel: new THREE.Vector3(0, 0, 0),
+            yaw: 0,
+            pitch: 0,
+            roll: 0,
+            baseSpeed: 175,
+            currentSpeed: 175,
+            cameraMode: 'TURRET', // 'TURRET' (Köşe Silahlar) veya 'CHASE' (3. Şahıs GeoSword)
+
+            // Barrel Roll
+            barrelRollTimer: 0,
+            barrelRollCooldown: 0,
+            barrelRollDir: 1,
+
+            // Nişangah & Kilitlenme
+            mouseX: W / 2,
+            mouseY: H / 2,
+            reticleAngle: 0,
+            lockedTarget: null,
+            lastLockedTarget: null,
+            hitMarkerTimer: 0,
+            isFiring: false,
+            fireCooldown: 0,
+            gunSide: 0,
+            shake: 0,
+
+            // Boss
+            bossActive: false,
+            boss: null
+        };
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x040310);
+        scene.fog = new THREE.FogExp2(0x09051d, 0.00055);
+
+        const camera = new THREE.PerspectiveCamera(68, W / H, 0.5, 4500);
+        const renderer = new THREE.WebGLRenderer({ canvas: gameCanvas, antialias: true });
+        renderer.setSize(W, H);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Işıklandırma
+        const ambientLight = new THREE.AmbientLight(0x443366, 1.6);
+        scene.add(ambientLight);
+
+        const nebulaLight1 = new THREE.DirectionalLight(0xff55aa, 1.8);
+        nebulaLight1.position.set(-500, 400, -600);
+        scene.add(nebulaLight1);
+
+        const nebulaLight2 = new THREE.DirectionalLight(0x00e5ff, 1.6);
+        nebulaLight2.position.set(500, -300, 400);
+        scene.add(nebulaLight2);
+
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 2600;
+        const starPositions = new Float32Array(starCount * 3);
+        const starColors = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            starPositions[i * 3] = (Math.random() - 0.5) * 3600;
+            starPositions[i * 3 + 1] = (Math.random() - 0.5) * 3600;
+            starPositions[i * 3 + 2] = (Math.random() - 0.5) * 3600;
+
+            const palette = [
+                new THREE.Color(0xffffff),
+                new THREE.Color(0x88ffff),
+                new THREE.Color(0xff99dd),
+                new THREE.Color(0xffcc77)
+            ];
+            const c = palette[Math.floor(Math.random() * palette.length)];
+            starColors[i * 3] = c.r;
+            starColors[i * 3 + 1] = c.g;
+            starColors[i * 3 + 2] = c.b;
+        }
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+        const starField = new THREE.Points(
+            starGeo,
+            new THREE.PointsMaterial({ size: 3.2, vertexColors: true, transparent: true, opacity: 0.9 })
+        );
+        scene.add(starField);
+
+        // Renkli Nebula Bulutsuları (Görseldeki Mor/Pembe/Turuncu Uzay Atmosferi)
+        const nebulaGroup = new THREE.Group();
+        const nebulaColors = [0x881177, 0xff4477, 0xff8833, 0x2244aa, 0x551199];
+        for (let i = 0; i < 38; i++) {
+            const nebMat = new THREE.MeshBasicMaterial({
+                color: nebulaColors[i % nebulaColors.length],
+                transparent: true,
+                opacity: 0.09,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            const nebMesh = new THREE.Mesh(new THREE.SphereGeometry(260 + Math.random() * 420, 12, 12), nebMat);
+            nebMesh.position.set(
+                (Math.random() - 0.5) * 3200,
+                (Math.random() - 0.5) * 2200,
+                (Math.random() - 0.5) * 3200
+            );
+            nebulaGroup.add(nebMesh);
+        }
+        scene.add(nebulaGroup);
+
+        // Uzay İstasyonu Silüetleri ve Asteroit Kuşağı (Boru İçi Engeller)
+        const asteroids = [];
+        const astMat = new THREE.MeshStandardMaterial({ color: 0x3a3248, roughness: 0.85, metalness: 0.2, flatShading: true });
+        for (let i = 0; i < 55; i++) {
+            const radius = 14 + Math.random() * 28;
+            const ast = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), astMat);
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.random() * 240;
+            ast.position.set(
+                Math.cos(angle) * r,
+                Math.sin(angle) * r,
+                -i * 75 - 200
+            );
+            ast.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+            scene.add(ast);
+            asteroids.push({ mesh: ast, radius, rotSpeed: (Math.random() - 0.5) * 0.8 });
+        }
+
+        // Arka Plandaki Dev Uzay Kalesi / İstasyonu (Görseldeki Silüet)
+        const stationGroup = new THREE.Group();
+        const stHullMat = new THREE.MeshStandardMaterial({ color: 0x1c2238, roughness: 0.5, metalness: 0.7, flatShading: true });
+        const mainSpine = new THREE.Mesh(new THREE.BoxGeometry(750, 75, 110), stHullMat);
+        stationGroup.add(mainSpine);
+        for (let i = -3; i <= 3; i++) {
+            const tower = new THREE.Mesh(new THREE.BoxGeometry(45, 220 + Math.abs(i) * 25, 65), stHullMat);
+            tower.position.set(i * 95, 60, 0);
+            stationGroup.add(tower);
+        }
+        stationGroup.position.set(-180, 120, -1350);
+        stationGroup.rotation.z = 0.18;
+        stationGroup.rotation.y = 0.35;
+        scene.add(stationGroup);
+
+        const playerRig = new THREE.Group();
+        scene.add(playerRig);
+
+        // 1. Şahıs Köşe Lazer Taretleri (Görseldeki Sol/Sağ Alt Silahlar)
+        const turretGroup = new THREE.Group();
+        const gunMetalMat = new THREE.MeshStandardMaterial({ color: 0x3a465e, metalness: 0.8, roughness: 0.3, flatShading: true });
+        const gunGlowMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+
+        function createCornerTurret(isLeft) {
+            const t = new THREE.Group();
+            const housing = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 6.5), gunMetalMat);
+            const barrel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.35, 6.5, 8), gunMetalMat);
+            barrel1.rotation.x = Math.PI / 2;
+            barrel1.position.set(isLeft ? 0.5 : -0.5, 0.3, -3.5);
+            const barrel2 = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.35, 6.5, 8), gunMetalMat);
+            barrel2.rotation.x = Math.PI / 2;
+            barrel2.position.set(isLeft ? -0.5 : 0.5, -0.2, -3.5);
+
+            const tip = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.25, 2.2), gunGlowMat);
+            tip.position.set(0, 0.65, -2.5);
+            t.add(housing, barrel1, barrel2, tip);
+            t.position.set(isLeft ? -5.8 : 5.8, -3.9, -6.2);
+            return t;
+        }
+        const leftTurret = createCornerTurret(true);
+        const rightTurret = createCornerTurret(false);
+        turretGroup.add(leftTurret, rightTurret);
+        playerRig.add(turretGroup);
+
+        // 3. Şahıs FX-01 GeoSword Uzay Gemisi
+        const geoSwordMesh = new THREE.Group();
+        const shipHullMat = new THREE.MeshStandardMaterial({ color: 0xe6f0ff, metalness: 0.6, roughness: 0.3, flatShading: true });
+        const shipAccentMat = new THREE.MeshStandardMaterial({ color: 0x0066ff, metalness: 0.5, roughness: 0.4, flatShading: true });
+        const cockpitMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+
+        const noseCone = new THREE.Mesh(new THREE.ConeGeometry(1.6, 9, 4), shipHullMat);
+        noseCone.rotation.x = -Math.PI / 2;
+        noseCone.rotation.y = Math.PI / 4;
+        const cockpit = new THREE.Mesh(new THREE.OctahedronGeometry(1.25, 0), cockpitMat);
+        cockpit.scale.set(0.8, 0.55, 2.1);
+        cockpit.position.set(0, 0.65, 1.2);
+
+        const mainWings = new THREE.Mesh(new THREE.BoxGeometry(12.5, 0.3, 4.2), shipAccentMat);
+        mainWings.position.set(0, 0, 2.6);
+
+        const wingTipL = new THREE.Mesh(new THREE.ConeGeometry(0.6, 5, 3), shipHullMat);
+        wingTipL.rotation.x = -Math.PI / 2;
+        wingTipL.position.set(-6.2, 0, 2.0);
+        const wingTipR = wingTipL.clone();
+        wingTipR.position.x = 6.2;
+
+        const thrusterGlow = new THREE.Mesh(
+            new THREE.SphereGeometry(1.15, 8, 8),
+            new THREE.MeshBasicMaterial({ color: 0x00ffff })
+        );
+        thrusterGlow.position.set(0, 0, 4.8);
+
+        geoSwordMesh.add(noseCone, cockpit, mainWings, wingTipL, wingTipR, thrusterGlow);
+        geoSwordMesh.position.set(0, -1.8, -14);
+        geoSwordMesh.visible = false;
+        playerRig.add(geoSwordMesh);
+
+        const enemies = [];
+        const racers = [];
+        const playerLasers = [];
+        const enemyProjectiles = [];
+        const particles = [];
+        const floatingTexts = [];
+
+        const enemyHullMat = new THREE.MeshStandardMaterial({ color: 0x2b2d3c, metalness: 0.7, roughness: 0.35, flatShading: true });
+        const enemyWingMat = new THREE.MeshStandardMaterial({ color: 0xd9381e, metalness: 0.5, roughness: 0.4, flatShading: true });
+        const racerWingMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, metalness: 0.6, roughness: 0.3, flatShading: true });
+        const engineFlareMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+        const racerFlareMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+
+        function createEnemyFighterMesh(isElite = false, isRacer = false) {
+            const group = new THREE.Group();
+            const fuselage = new THREE.Mesh(new THREE.ConeGeometry(2.6, 11, 4), enemyHullMat);
+            fuselage.rotation.x = Math.PI / 2;
+            fuselage.rotation.y = Math.PI / 4;
+
+            let wingMat = enemyWingMat;
+            if (isRacer) wingMat = racerWingMat;
+            else if (isElite) wingMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, flatShading: true });
+
+            const wings = new THREE.Mesh(
+                new THREE.BoxGeometry(isElite || isRacer ? 16 : 13, 0.45, 4.5),
+                wingMat
+            );
+            wings.position.z = -1.2;
+
+            // Çift İtici Motor Parlaması
+            const engL = new THREE.Mesh(new THREE.SphereGeometry(0.85, 6, 6), isRacer ? racerFlareMat : engineFlareMat);
+            engL.position.set(-1.6, 0, -4.5);
+            const engR = engL.clone();
+            engR.position.x = 1.6;
+
+            group.add(fuselage, wings, engL, engR);
+            const scale = isRacer ? 1.45 : (isElite ? 1.55 : 1.25);
+            group.scale.setScalar(scale);
+            return group;
+        }
+
+        function spawnRacerFleet() {
+            racers.forEach(r => scene.remove(r.mesh));
+            racers.length = 0;
+            const racerNames = ["VIPER-01", "NOVA-X", "CYBER-7", "BLAZE-9", "ZERO-G"];
+            for (let i = 0; i < 5; i++) {
+                const mesh = createEnemyFighterMesh(false, true);
+                const angle = (i / 5) * Math.PI * 2;
+                const rad = 50 + Math.random() * 110;
+                mesh.position.set(
+                    Math.cos(angle) * rad,
+                    Math.sin(angle) * rad,
+                    state.pos.z - 120 - i * 85
+                );
+                scene.add(mesh);
+                racers.push({
+                    name: racerNames[i],
+                    mesh,
+                    hp: 38,
+                    maxHp: 38,
+                    isRacer: true,
+                    radius: 12.5,
+                    baseSpeed: 162 + i * 7,
+                    currentSpeed: 168,
+                    weavePhase: Math.random() * Math.PI * 2,
+                    weaveSpeed: 0.9 + Math.random() * 0.8,
+                    targetX: mesh.position.x,
+                    targetY: mesh.position.y,
+                    fireTimer: 2.2 + Math.random() * 2.5
+                });
+            }
+        }
+
+        function spawnEnemyWave(count = 6) {
+            for (let i = 0; i < count; i++) {
+                const isElite = Math.random() < 0.25;
+                const mesh = createEnemyFighterMesh(isElite, false);
+
+                // Görünmez boru (tünel) sınırları içinde önde doğuş
+                const angle = Math.random() * Math.PI * 2;
+                const r = Math.random() * (state.tubeRadius * 0.78);
+                mesh.position.set(
+                    Math.cos(angle) * r,
+                    Math.sin(angle) * r,
+                    state.pos.z - 320 - Math.random() * 420
+                );
+                scene.add(mesh);
+
+                enemies.push({
+                    mesh,
+                    hp: isElite ? 40 : 20,
+                    maxHp: isElite ? 40 : 20,
+                    isElite,
+                    radius: isElite ? 13.5 : 10.5,
+                    // Yavaşlatılmış düşman hızı (vurması daha keyifli ve dengeli)
+                    vel: new THREE.Vector3(0, 0, -(95 + Math.random() * 30)),
+                    weavePhase: Math.random() * Math.PI * 2,
+                    weaveSpeed: 0.75 + Math.random() * 0.65,
+                    fireTimer: 2.0 + Math.random() * 2.5
+                });
+            }
+        }
+
+        function spawnBossCruiser() {
+            if (state.bossActive) return;
+            state.bossActive = true;
+            showCenterAnnouncement("WARNING // CAPITAL SHIP DETECTED", "COMMAND CRUISER 'RED EYE'");
+            document.getElementById('boss-hud').classList.remove('hidden');
+
+            const bossGroup = new THREE.Group();
+            const hull = new THREE.Mesh(
+                new THREE.BoxGeometry(95, 28, 220),
+                new THREE.MeshStandardMaterial({ color: 0x3a1824, metalness: 0.75, roughness: 0.3, flatShading: true })
+            );
+            const bridge = new THREE.Mesh(
+                new THREE.BoxGeometry(36, 32, 55),
+                new THREE.MeshStandardMaterial({ color: 0x661122, flatShading: true })
+            );
+            bridge.position.set(0, 24, -20);
+
+            const coreGlow = new THREE.Mesh(
+                new THREE.OctahedronGeometry(14, 1),
+                new THREE.MeshBasicMaterial({ color: 0xff2244 })
+            );
+            coreGlow.position.set(0, 0, 95);
+
+            bossGroup.add(hull, bridge, coreGlow);
+
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(playerRig.quaternion);
+            bossGroup.position.copy(state.pos).add(forward.multiplyScalar(680));
+            scene.add(bossGroup);
+
+            state.boss = {
+                mesh: bossGroup,
+                core: coreGlow,
+                hp: 900,
+                maxHp: 900,
+                radius: 75,
+                fireTimer: 1.2,
+                angle: 0
+            };
+        }
+
+        function firePlayerLasers() {
+            sound.playLaser();
+
+            // Nişangah veya Kilitli Hedef Yönünü Hesapla
+            let aimWorldPoint;
+            if (state.lockedTarget && state.lockedTarget.mesh) {
+                aimWorldPoint = state.lockedTarget.mesh.position.clone();
+            } else {
+                const ndcX = (state.mouseX / W) * 2 - 1;
+                const ndcY = -(state.mouseY / H) * 2 + 1;
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+                aimWorldPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(600));
+            }
+
+            // Sol ve Sağ Köşeden Çifte الماس/Mavi ve Yeşil Lazer Ateşle (Görseldeki İkiz Lazer Çizgileri)
+            const offsets = [
+                { pos: new THREE.Vector3(-5.2, -3.4, -7.5), color: 0x00f3ff },
+                { pos: new THREE.Vector3(5.2, -3.4, -7.5), color: 0x00ff66 }
+            ];
+
+            offsets.forEach(cfg => {
+                const startPos = cfg.pos.clone().applyMatrix4(playerRig.matrixWorld);
+                const dir = aimWorldPoint.clone().sub(startPos).normalize();
+
+                const laserGeo = new THREE.CylinderGeometry(0.32, 0.32, 26, 6);
+                laserGeo.rotateX(Math.PI / 2);
+                const laserMat = new THREE.MeshBasicMaterial({ color: cfg.color });
+                const laserMesh = new THREE.Mesh(laserGeo, laserMat);
+
+                laserMesh.position.copy(startPos);
+                laserMesh.lookAt(aimWorldPoint);
+                scene.add(laserMesh);
+
+                playerLasers.push({
+                    mesh: laserMesh,
+                    dir,
+                    speed: 1450,
+                    life: 1.15
+                });
+            });
+
+            // Taret Geri Tepme Efekti
+            leftTurret.position.z = -5.4;
+            rightTurret.position.z = -5.4;
+        }
+
+        function fireEnemyAttack(originPos, isMissile = false) {
+            const toPlayer = state.pos.clone().sub(originPos).normalize();
+
+            if (isMissile) {
+                // Burgulu Güdümlü Füze (Yavaşlatılmış)
+                const mGroup = new THREE.Group();
+                const mBody = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.1, 5.5, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xffffff })
+                );
+                mBody.rotation.x = Math.PI / 2;
+                const mGlow = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.6, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0xffaa00 })
+                );
+                mGlow.position.z = -2.2;
+                mGroup.add(mBody, mGlow);
+                mGroup.position.copy(originPos);
+                mGroup.lookAt(state.pos);
+                scene.add(mGroup);
+
+                enemyProjectiles.push({
+                    mesh: mGroup,
+                    isMissile: true,
+                    hp: 1,
+                    radius: 7.5,
+                    basePos: originPos.clone(),
+                    dir: toPlayer,
+                    speed: 195,
+                    spiralPhase: Math.random() * Math.PI * 2,
+                    life: 6.5
+                });
+            } else {
+                // Kırmızı-Turuncu Plazma Lazeri
+                const pGeo = new THREE.CylinderGeometry(0.45, 0.45, 18, 6);
+                pGeo.rotateX(Math.PI / 2);
+                const pMesh = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({ color: 0xff2a2a }));
+                pMesh.position.copy(originPos);
+                pMesh.lookAt(state.pos);
+                scene.add(pMesh);
+
+                enemyProjectiles.push({
+                    mesh: pMesh,
+                    isMissile: false,
+                    hp: 1,
+                    radius: 5.0,
+                    dir: toPlayer,
+                    speed: 320,
+                    life: 4.0
+                });
+            }
+        }
+
+        function createExplosion(pos, color = 0xff8800, count = 22, scaleMul = 1) {
+            sound.playExplosion(scaleMul > 1.5);
+
+            // Parlak Merkez Alev Topu
+            const flash = new THREE.Mesh(
+                new THREE.SphereGeometry(5 * scaleMul, 10, 10),
+                new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 1 })
+            );
+            flash.position.copy(pos);
+            scene.add(flash);
+            particles.push({ mesh: flash, vel: new THREE.Vector3(), life: 0.22, maxLife: 0.22, grow: 28 * scaleMul });
+
+            for (let i = 0; i < count; i++) {
+                const pMesh = new THREE.Mesh(
+                    new THREE.OctahedronGeometry((0.9 + Math.random() * 1.6) * scaleMul, 0),
+                    new THREE.MeshBasicMaterial({
+                        color: i % 2 === 0 ? color : 0xffdd44,
+                        transparent: true,
+                        opacity: 1
+                    })
+                );
+                pMesh.position.copy(pos);
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 190 * scaleMul,
+                    (Math.random() - 0.5) * 190 * scaleMul,
+                    (Math.random() - 0.5) * 190 * scaleMul
+                );
+                scene.add(pMesh);
+                particles.push({ mesh: pMesh, vel, life: 0.55 + Math.random() * 0.35, maxLife: 0.9, grow: 0 });
+            }
+        }
+
+        function spawnFloatingText(worldPos, text, color = '#00f3ff') {
+            floatingTexts.push({
+                pos: worldPos.clone(),
+                text,
+                color,
+                life: 0.85
+            });
+        }
+
+        function triggerEMPShield() {
+            if (!state.running || state.energy < 35) return;
+            state.energy -= 35;
+            sound.playEMP();
+
+            const ring = document.getElementById('shield-ring');
+            const empFlash = document.getElementById('emp-flash');
+            ring.classList.add('shield-ring-active');
+            empFlash.style.opacity = '1';
+            setTimeout(() => {
+                ring.classList.remove('shield-ring-active');
+                empFlash.style.opacity = '0';
+            }, 350);
+
+            // Gelen Tüm Füze ve Lazerleri İmha Et
+            let cleared = 0;
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+                const ep = enemyProjectiles[i];
+                if (ep.mesh.position.distanceTo(state.pos) < 650) {
+                    createExplosion(ep.mesh.position, 0x00f3ff, 8, 0.7);
+                    scene.remove(ep.mesh);
+                    enemyProjectiles.splice(i, 1);
+                    cleared++;
+                }
+            }
+            if (cleared > 0) {
+                state.score += cleared * 250;
+                spawnFloatingText(
+                    state.pos.clone().add(new THREE.Vector3(0, 10, -80).applyQuaternion(playerRig.quaternion)),
+                    `EMP SHIELD x${cleared} CLEARED!`,
+                    '#00ffcc'
+                );
+            }
+        }
+
+        function triggerBarrelRoll(dir) {
+            if (state.barrelRollCooldown > 0 || state.barrelRollTimer > 0) return;
+            state.barrelRollDir = dir;
+            state.barrelRollTimer = 0.55;
+            state.barrelRollCooldown = 1.4;
+            sound.playEMP();
+        }
+
+        function applyPlayerDamage(amount) {
+            // Barrel Roll sırasında mermilerden sıyrılma (Invulnerability)
+            if (state.barrelRollTimer > 0) {
+                spawnFloatingText(
+                    state.pos.clone().add(new THREE.Vector3(0, 6, -50).applyQuaternion(playerRig.quaternion)),
+                    'EVADED!',
+                    '#00ff88'
+                );
+                return;
+            }
+            state.shield = Math.max(0, state.shield - amount);
+            state.shake = 1.4;
+            state.combo = 1.0;
+
+            const flash = document.getElementById('damage-flash');
+            flash.style.opacity = '1';
+            setTimeout(() => (flash.style.opacity = '0'), 120);
+
+            if (state.shield <= 0) {
+                endGame(false);
+            }
+        }
+
+        function showCenterAnnouncement(sub, title) {
+            const box = document.getElementById('center-msg');
+            document.getElementById('center-msg-sub').textContent = sub;
+            document.getElementById('center-msg-title').textContent = title;
+            box.style.opacity = '1';
+            box.style.transform = 'scale(1)';
+            setTimeout(() => {
+                box.style.opacity = '0';
+                box.style.transform = 'scale(0.9)';
+            }, 2400);
+        }
+
+        function updateGame(dt) {
+            // 1. Hız & Boost Kontrolü (Boru İçinde Yarış Hızı)
+            const boosting = (keys['ShiftLeft'] || keys['KeyW']) && state.energy > 4;
+            const braking = keys['KeyS'];
+
+            let targetSpeed = state.baseSpeed;
+            if (boosting) {
+                targetSpeed = 330;
+                state.energy = Math.max(0, state.energy - dt * 16);
+            } else if (braking) {
+                targetSpeed = 90;
+                state.energy = Math.min(100, state.energy + dt * 14);
+            } else {
+                state.energy = Math.min(100, state.energy + dt * 10);
+            }
+            state.currentSpeed += (targetSpeed - state.currentSpeed) * 5 * dt;
+
+            // Dinamik Kamera FOV (Boost Hissi)
+            const targetFov = boosting ? 78 : braking ? 62 : 68;
+            camera.fov += (targetFov - camera.fov) * 6 * dt;
+            camera.updateProjectionMatrix();
+
+            // 2. Görünmez Dev Boru İçinde Serbest Manevra (Sağ/Sol/Aşağı/Yukarı)
+            const normMouseX = (state.mouseX / W) * 2 - 1;
+            const normMouseY = (state.mouseY / H) * 2 - 1;
+
+            let moveX = normMouseX * 165;
+            let moveY = -normMouseY * 145;
+            if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 155;
+            if (keys['KeyD'] || keys['ArrowRight']) moveX += 155;
+            if (keys['ArrowUp']) moveY += 135;
+            if (keys['ArrowDown']) moveY -= 135;
+
+            state.pos.x += moveX * dt;
+            state.pos.y += moveY * dt;
+            state.pos.z -= state.currentSpeed * dt;
+
+            // Görünmez Büyük Boru Sınır Kontrolü (Silindirik Yarıçap: state.tubeRadius)
+            const distFromCenter = Math.hypot(state.pos.x, state.pos.y);
+            if (distFromCenter > state.tubeRadius) {
+                const clampAngle = Math.atan2(state.pos.y, state.pos.x);
+                state.pos.x = Math.cos(clampAngle) * state.tubeRadius;
+                state.pos.y = Math.sin(clampAngle) * state.tubeRadius;
+            }
+
+            // Geminin ve Kameranın Boru İçindeki Hafif Eğimi (Pitch / Yaw / Roll)
+            const targetYaw = -normMouseX * 0.32;
+            const targetPitch = -normMouseY * 0.28;
+            state.yaw += (targetYaw - state.yaw) * 8 * dt;
+            state.pitch += (targetPitch - state.pitch) * 8 * dt;
+
+            // Yana yatış (Bank angle) ve Barrel Roll
+            let targetRoll = -(moveX / 180) * 0.48;
+            if (state.barrelRollTimer > 0) {
+                state.barrelRollTimer -= dt;
+                targetRoll += state.barrelRollDir * (1 - state.barrelRollTimer / 0.55) * Math.PI * 2;
+            }
+            if (state.barrelRollCooldown > 0) state.barrelRollCooldown -= dt;
+            state.roll += (targetRoll - state.roll) * 10 * dt;
+
+            const euler = new THREE.Euler(state.pitch, state.yaw, state.roll, 'YXZ');
+            playerRig.quaternion.setFromEuler(euler);
+            playerRig.position.copy(state.pos);
+
+            // Arka plan istasyonunun oyuncunun önünde kalmasını sağla
+            stationGroup.position.z = state.pos.z - 1450;
+
+            // Kamera Konumlandırma
+            camera.position.copy(state.pos);
+            camera.quaternion.copy(playerRig.quaternion);
+            if (state.shake > 0) {
+                camera.position.x += (Math.random() - 0.5) * state.shake * 2.5;
+                camera.position.y += (Math.random() - 0.5) * state.shake * 2.5;
+                state.shake = Math.max(0, state.shake - dt * 4.5);
+            }
+
+            // Köşe Taretlerin Geri Tepme Düzelmesi
+            leftTurret.position.z += (-6.2 - leftTurret.position.z) * 12 * dt;
+            rightTurret.position.z += (-6.2 - rightTurret.position.z) * 12 * dt;
+
+            // Yıldızların ve Nebulaların Sonsuz Döngüsü
+            const posAttr = starGeo.attributes.position;
+            for (let i = 0; i < starCount; i++) {
+                let sx = posAttr.getX(i);
+                let sy = posAttr.getY(i);
+                let sz = posAttr.getZ(i);
+                if (sx - state.pos.x > 1800) sx -= 3600;
+                if (sx - state.pos.x < -1800) sx += 3600;
+                if (sy - state.pos.y > 1800) sy -= 3600;
+                if (sy - state.pos.y < -1800) sy += 3600;
+                if (sz - state.pos.z > 600) sz -= 3600;
+                if (sz - state.pos.z < -3000) sz += 3600;
+                posAttr.setXYZ(i, sx, sy, sz);
+            }
+            posAttr.needsUpdate = true;
+
+            nebulaGroup.children.forEach(neb => {
+                if (neb.position.z > state.pos.z + 500) {
+                    neb.position.z -= 3400;
+                }
+            });
+
+            // Boru İçi Asteroit Engelleri Dönüşü ve Çarpışma
+            asteroids.forEach(a => {
+                a.mesh.rotation.x += a.rotSpeed * dt;
+                a.mesh.rotation.y += a.rotSpeed * dt;
+                if (a.mesh.position.z > state.pos.z + 80) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const rad = Math.random() * (state.tubeRadius * 0.9);
+                    a.mesh.position.set(
+                        Math.cos(ang) * rad,
+                        Math.sin(ang) * rad,
+                        state.pos.z - 1600 - Math.random() * 800
+                    );
+                }
+                if (a.mesh.position.distanceTo(state.pos) < a.radius + 10) {
+                    applyPlayerDamage(16);
+                    state.currentSpeed *= 0.45; // Çarpınca hız düşer
+                    createExplosion(a.mesh.position, 0xff5500, 16, 1.4);
+                    a.mesh.position.z = state.pos.z - 1800;
+                }
+            });
+
+            // 3. Manyetik LOCK-ON Tarama (Düşmanlar + Rakip Yarışçılar + Füzeler)
+            findMagneticLockTarget();
+
+            // 4. Oyuncu Ateşleme
+            if (state.isFiring && state.fireCooldown <= 0) {
+                firePlayerLasers();
+                state.fireCooldown = 0.11;
+            }
+            if (state.fireCooldown > 0) state.fireCooldown -= dt;
+
+            // 5. Oyuncu Lazerleri Hareket & Vuruş Kontrolü
+            for (let i = playerLasers.length - 1; i >= 0; i--) {
+                const l = playerLasers[i];
+                l.life -= dt;
+                l.mesh.position.addScaledVector(l.dir, l.speed * dt);
+
+                let hit = false;
+
+                // Gelen Füzeleri Havada Vurma!
+                for (let j = enemyProjectiles.length - 1; j >= 0; j--) {
+                    const ep = enemyProjectiles[j];
+                    if (l.mesh.position.distanceTo(ep.mesh.position) < ep.radius + 6) {
+                        hit = true;
+                        createExplosion(ep.mesh.position, 0x00ffcc, 10, 0.7);
+                        spawnFloatingText(ep.mesh.position, 'INTERCEPT +300', '#00ffcc');
+                        scene.remove(ep.mesh);
+                        enemyProjectiles.splice(j, 1);
+                        state.score += 300;
+                        state.hitMarkerTimer = 0.15;
+                        sound.playHit();
+                        break;
+                    }
+                }
+
+                // Rakip Yarışçıları Vurma ve Patlatma!
+                if (!hit) {
+                    for (let j = racers.length - 1; j >= 0; j--) {
+                        const r = racers[j];
+                        if (l.mesh.position.distanceTo(r.mesh.position) < r.radius + 6) {
+                            hit = true;
+                            r.hp -= 12;
+                            r.currentSpeed *= 0.88; // Vurulan yarışçı yavaşlar
+                            state.hitMarkerTimer = 0.16;
+                            sound.playHit();
+                            createExplosion(l.mesh.position, 0x00ffcc, 5, 0.5);
+
+                            if (r.hp <= 0) {
+                                createExplosion(r.mesh.position, 0x00ffff, 32, 1.7);
+                                const pts = Math.round(3000 * state.combo);
+                                state.score += pts;
+                                state.kills++;
+                                state.combo = Math.min(8.0, +(state.combo + 0.35).toFixed(2));
+                                state.comboTimer = 4.5;
+                                state.energy = Math.min(100, state.energy + 20);
+                                spawnFloatingText(r.mesh.position, `RACER ${r.name} WRECKED! +${pts}`, '#00ffff');
+
+                                // Patlayan yarışçı kısa süre sonra arkadan yeniden yarışa katılır
+                                const ang = Math.random() * Math.PI * 2;
+                                const rad = Math.random() * (state.tubeRadius * 0.7);
+                                r.mesh.position.set(Math.cos(ang) * rad, Math.sin(ang) * rad, state.pos.z + 260);
+                                r.hp = r.maxHp;
+                                r.currentSpeed = r.baseSpeed;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Düşman Avcı Gemilerini Vurma
+                if (!hit) {
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const e = enemies[j];
+                        if (l.mesh.position.distanceTo(e.mesh.position) < e.radius + 6) {
+                            hit = true;
+                            e.hp -= 12;
+                            state.hitMarkerTimer = 0.16;
+                            sound.playHit();
+                            createExplosion(l.mesh.position, 0x00f3ff, 5, 0.45);
+
+                            if (e.hp <= 0) {
+                                createExplosion(e.mesh.position, 0xff6600, 26, e.isElite ? 1.6 : 1.15);
+                                const pts = Math.round((e.isElite ? 2500 : 1000) * state.combo);
+                                state.score += pts;
+                                state.kills++;
+                                state.combo = Math.min(8.0, +(state.combo + 0.25).toFixed(2));
+                                state.comboTimer = 4.5;
+                                state.shield = Math.min(100, state.shield + 2);
+                                spawnFloatingText(e.mesh.position, `DESTROYED +${pts}`, '#ffdd44');
+                                scene.remove(e.mesh);
+                                enemies.splice(j, 1);
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Boss Vurma
+                if (!hit && state.bossActive && state.boss) {
+                    if (l.mesh.position.distanceTo(state.boss.mesh.position) < state.boss.radius) {
+                        hit = true;
+                        state.boss.hp -= 8;
+                        state.hitMarkerTimer = 0.16;
+                        sound.playHit();
+                        createExplosion(l.mesh.position, 0xff3366, 6, 0.6);
+
+                        if (state.boss.hp <= 0) {
+                            createExplosion(state.boss.mesh.position, 0xffaa00, 65, 3.2);
+                            state.score += 25000;
+                            scene.remove(state.boss.mesh);
+                            state.boss = null;
+                            state.bossActive = false;
+                            document.getElementById('boss-hud').classList.add('hidden');
+                            state.stage++;
+                            showCenterAnnouncement("COMMAND CRUISER DESTROYED!", `ADVANCING TO STAGE ${state.stage}`);
+                            spawnEnemyWave(6 + state.stage);
+                        }
+                    }
+                }
+
+                if (hit || l.life <= 0) {
+                    scene.remove(l.mesh);
+                    playerLasers.splice(i, 1);
+                }
+            }
+
+            // 6. Rakip Yarışçılar (Boru İçinde Yarış + Çatışma + Sıralama Hesabı)
+            let aheadCount = 0;
+            racers.forEach(r => {
+                r.weavePhase += r.weaveSpeed * dt;
+                // Lastik bant (Rubber-banding) dengesiyle heyecanlı yarış
+                const zDiff = r.mesh.position.z - state.pos.z; // Negatifse oyuncunun önünde
+                let desiredSpeed = r.baseSpeed;
+                if (zDiff < -480) desiredSpeed = state.baseSpeed * 0.82; // Çok açıldıysa biraz beklesin
+                else if (zDiff > 240) desiredSpeed = state.baseSpeed * 1.32; // Çok geride kaldıysa yetişsin
+
+                r.currentSpeed += (desiredSpeed - r.currentSpeed) * 2.5 * dt;
+                r.mesh.position.z -= r.currentSpeed * dt;
+
+                // Boru içinde kıvrılarak uçuş
+                r.mesh.position.x += Math.cos(r.weavePhase) * 42 * dt;
+                r.mesh.position.y += Math.sin(r.weavePhase * 1.2) * 38 * dt;
+                const rDist = Math.hypot(r.mesh.position.x, r.mesh.position.y);
+                if (rDist > state.tubeRadius * 0.85) {
+                    const ang = Math.atan2(r.mesh.position.y, r.mesh.position.x);
+                    r.mesh.position.x = Math.cos(ang) * state.tubeRadius * 0.85;
+                    r.mesh.position.y = Math.sin(ang) * state.tubeRadius * 0.85;
+                }
+
+                r.mesh.rotation.z = -Math.cos(r.weavePhase) * 0.35;
+                r.mesh.lookAt(r.mesh.position.x + Math.cos(r.weavePhase) * 8, r.mesh.position.y + Math.sin(r.weavePhase) * 8, r.mesh.position.z - 60);
+
+                // Rakipler de birbirine veya oyuncuya ateş edebilir
+                r.fireTimer -= dt;
+                if (r.fireTimer <= 0 && Math.abs(zDiff) < 420) {
+                    fireEnemyAttack(r.mesh.position, false);
+                    r.fireTimer = 2.6 + Math.random() * 2.5;
+                }
+
+                if (r.mesh.position.z < state.pos.z) {
+                    aheadCount++;
+                }
+            });
+            state.rank = 1 + aheadCount;
+
+            // 7. Yavaşlatılmış Düşman Gemileri Yapay Zekası (Boru İçinde Süzülme + Saldırı)
+            if (enemies.length < 4 && !state.bossActive) {
+                if (state.kills > 0 && state.kills % 20 === 0) {
+                    spawnBossCruiser();
+                } else {
+                    spawnEnemyWave(5 + state.stage);
+                }
+            }
+
+            enemies.forEach(e => {
+                e.weavePhase += e.weaveSpeed * dt;
+
+                // Oyuncu yanlarından geçip gittiyse tekrar borunun ilerisine taşı
+                if (e.mesh.position.z > state.pos.z + 90) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const rad = Math.random() * (state.tubeRadius * 0.78);
+                    e.mesh.position.set(
+                        Math.cos(ang) * rad,
+                        Math.sin(ang) * rad,
+                        state.pos.z - 450 - Math.random() * 320
+                    );
+                }
+
+                // Yavaş ve rahat nişan alınabilir süzülme hareketi
+                e.mesh.position.x += Math.cos(e.weavePhase) * 28 * dt;
+                e.mesh.position.y += Math.sin(e.weavePhase * 1.3) * 24 * dt;
+                // Düşmanlar oyuncudan daha yavaş ilerler, böylece onlara yetişip vurabilirsiniz
+                e.mesh.position.z -= (e.isElite ? 115 : 95) * dt;
+
+                // Boru sınırında tut
+                const eDist = Math.hypot(e.mesh.position.x, e.mesh.position.y);
+                if (eDist > state.tubeRadius * 0.85) {
+                    const ang = Math.atan2(e.mesh.position.y, e.mesh.position.x);
+                    e.mesh.position.x = Math.cos(ang) * state.tubeRadius * 0.85;
+                    e.mesh.position.y = Math.sin(ang) * state.tubeRadius * 0.85;
+                }
+
+                e.mesh.lookAt(state.pos);
+
+                // Düşman Saldırısı (Kırmızı Lazer veya Burgulu Füze)
+                const dist = e.mesh.position.distanceTo(state.pos);
+                e.fireTimer -= dt;
+                if (e.fireTimer <= 0 && dist < 580 && e.mesh.position.z < state.pos.z) {
+                    const shootMissile = e.isElite || Math.random() < 0.3;
+                    fireEnemyAttack(e.mesh.position, shootMissile);
+                    e.fireTimer = 2.4 + Math.random() * 2.5;
+                }
+            });
+
+            // 8. Boss Hareketi (Boru İçinde Oyuncunun Önünde)
+            if (state.bossActive && state.boss) {
+                const b = state.boss;
+                b.angle += dt * 0.35;
+                const desiredPos = new THREE.Vector3(
+                    Math.cos(b.angle) * 110,
+                    Math.sin(b.angle * 1.4) * 65,
+                    state.pos.z - 440
+                );
+                b.mesh.position.lerp(desiredPos, 2.5 * dt);
+                b.mesh.lookAt(state.pos);
+                b.core.rotation.y += dt * 3;
+
+                b.fireTimer -= dt;
+                if (b.fireTimer <= 0) {
+                    fireEnemyAttack(b.mesh.position.clone().add(new THREE.Vector3(-35, 0, 0)), true);
+                    fireEnemyAttack(b.mesh.position.clone().add(new THREE.Vector3(35, 0, 0)), true);
+                    fireEnemyAttack(b.mesh.position, false);
+                    b.fireTimer = 2.1;
+                }
+
+                const hpPct = Math.max(0, Math.round((b.hp / b.maxHp) * 100));
+                document.getElementById('boss-hp-text').textContent = `${hpPct}%`;
+                document.getElementById('boss-hp-bar').style.width = `${hpPct}%`;
+            }
+
+            // 9. Gelen Düşman Mermileri ve Burgulu Füze Spiral Hareketi
+            let incomingDanger = false;
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+                const ep = enemyProjectiles[i];
+                ep.life -= dt;
+
+                if (ep.isMissile) {
+                    const toPlayer = state.pos.clone().sub(ep.basePos).normalize();
+                    ep.dir.lerp(toPlayer, 2.2 * dt).normalize();
+                    ep.basePos.addScaledVector(ep.dir, ep.speed * dt);
+                    ep.spiralPhase += dt * 11;
+
+                    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ep.mesh.quaternion);
+                    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(ep.mesh.quaternion);
+                    ep.mesh.position.copy(ep.basePos)
+                        .addScaledVector(right, Math.cos(ep.spiralPhase) * 4.2)
+                        .addScaledVector(up, Math.sin(ep.spiralPhase) * 4.2);
+                    ep.mesh.lookAt(state.pos);
+                } else {
+                    ep.mesh.position.addScaledVector(ep.dir, ep.speed * dt);
+                }
+
+                const distToPlayer = ep.mesh.position.distanceTo(state.pos);
+                if (distToPlayer < 260) {
+                    incomingDanger = true;
+                }
+
+                if (distToPlayer < 14) {
+                    applyPlayerDamage(ep.isMissile ? 14 : 8);
+                    createExplosion(ep.mesh.position, 0xff2244, 12, 0.8);
+                    scene.remove(ep.mesh);
+                    enemyProjectiles.splice(i, 1);
+                    continue;
+                }
+
+                if (ep.life <= 0) {
+                    scene.remove(ep.mesh);
+                    enemyProjectiles.splice(i, 1);
+                }
+            }
+
+            // 10. Patlama Parçacıkları Güncellemesi
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life -= dt;
+                if (p.grow > 0) {
+                    p.mesh.scale.addScalar(p.grow * dt);
+                } else {
+                    p.mesh.position.addScaledVector(p.vel, dt);
+                }
+                p.mesh.material.opacity = Math.max(0, p.life / p.maxLife);
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 11. Kombo ve Hit-Marker Zamanlayıcıları
+            if (state.comboTimer > 0) {
+                state.comboTimer -= dt;
+                if (state.comboTimer <= 0) state.combo = 1.0;
+            }
+            if (state.hitMarkerTimer > 0) {
+                state.hitMarkerTimer -= dt;
+            }
+
+            render2DTacticalReticle(dt);
+            updateHUD(incomingDanger);
+        }
+
+        function worldToScreen(worldPos) {
+            const vec = worldPos.clone();
+            vec.project(camera);
+            return {
+                x: (vec.x * 0.5 + 0.5) * W,
+                y: (-(vec.y * 0.5) + 0.5) * H,
+                visible: vec.z < 1.0
+            };
+        }
+
+        function findMagneticLockTarget() {
+            let bestTarget = null;
+            let bestDist = 125; // Nişangah manyetik yakalama yarıçapı (px)
+
+            const candidates = [...enemies, ...racers];
+            enemyProjectiles.forEach(ep => {
+                if (ep.isMissile) candidates.push(ep);
+            });
+            if (state.bossActive && state.boss) candidates.push(state.boss);
+
+            candidates.forEach(c => {
+                const scr = worldToScreen(c.mesh.position);
+                if (!scr.visible) return;
+                const d = Math.hypot(scr.x - state.mouseX, scr.y - state.mouseY);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestTarget = { ...c, screenX: scr.x, screenY: scr.y };
+                }
+            });
+
+            state.lockedTarget = bestTarget;
+            if (bestTarget && (!state.lastLockedTarget || state.lastLockedTarget.mesh !== bestTarget.mesh)) {
+                sound.playLock();
+            }
+            state.lastLockedTarget = bestTarget;
+        }
+
+        function render2DTacticalReticle(dt) {
+            if (!fxCtx) return;
+            fxCtx.clearRect(0, 0, W, H);
+
+            state.reticleAngle += dt * (state.lockedTarget ? 3.2 : 1.1);
+
+            const rx = state.lockedTarget ? state.lockedTarget.screenX : state.mouseX;
+            const ry = state.lockedTarget ? state.lockedTarget.screenY : state.mouseY;
+            const isLocked = !!state.lockedTarget;
+
+            // Rakip Yarışçıların Üzerinde Turkuaz Elmas Etiketi
+            racers.forEach(r => {
+                const scr = worldToScreen(r.mesh.position);
+                if (scr.visible && scr.x >= 0 && scr.x <= W && scr.y >= 0 && scr.y <= H) {
+                    fxCtx.save();
+                    fxCtx.strokeStyle = 'rgba(0, 243, 255, 0.85)';
+                    fxCtx.lineWidth = 1.5;
+                    fxCtx.translate(scr.x, scr.y);
+                    fxCtx.rotate(Math.PI / 4);
+                    fxCtx.strokeRect(-12, -12, 24, 24);
+                    fxCtx.rotate(-Math.PI / 4);
+                    fxCtx.font = 'bold 10px Orbitron, monospace';
+                    fxCtx.fillStyle = '#00f3ff';
+                    fxCtx.textAlign = 'center';
+                    fxCtx.fillText(r.name, 0, -20);
+                    fxCtx.restore();
+                }
+            });
+
+            // Düşmanların Üzerinde Hedef Çerçeveleri ve Ekran Dışı Tehdit Okları
+            enemies.forEach(e => {
+                const scr = worldToScreen(e.mesh.position);
+                if (scr.visible && scr.x >= 0 && scr.x <= W && scr.y >= 0 && scr.y <= H) {
+                    fxCtx.save();
+                    fxCtx.strokeStyle = e.isElite ? '#ffaa00' : 'rgba(255, 60, 80, 0.78)';
+                    fxCtx.lineWidth = 1.5;
+                    fxCtx.translate(scr.x, scr.y);
+                    fxCtx.strokeRect(-14, -14, 28, 28);
+                    fxCtx.restore();
+                } else {
+                    // Ekran Dışı Yön Oku
+                    const angle = Math.atan2(scr.y - H / 2, scr.x - W / 2);
+                    const pad = 42;
+                    const ax = W / 2 + Math.cos(angle) * (W / 2 - pad);
+                    const ay = H / 2 + Math.sin(angle) * (H / 2 - pad);
+                    fxCtx.save();
+                    fxCtx.translate(ax, ay);
+                    fxCtx.rotate(angle);
+                    fxCtx.fillStyle = '#ff2a4b';
+                    fxCtx.beginPath();
+                    fxCtx.moveTo(10, 0);
+                    fxCtx.lineTo(-8, -6);
+                    fxCtx.lineTo(-8, 6);
+                    fxCtx.closePath();
+                    fxCtx.fill();
+                    fxCtx.restore();
+                }
+            });
+
+            // Görseldeki İkonik Çift Halkalı Mavi/Yeşil LOCK ON Nişangahı
+            fxCtx.save();
+            fxCtx.translate(rx, ry);
+
+            // Dış Kesikli Mavi Halka
+            fxCtx.save();
+            fxCtx.rotate(state.reticleAngle);
+            fxCtx.strokeStyle = isLocked ? '#00ff88' : '#00f3ff';
+            fxCtx.lineWidth = 3;
+            fxCtx.shadowColor = isLocked ? '#00ff88' : '#00f3ff';
+            fxCtx.shadowBlur = 12;
+            for (let i = 0; i < 4; i++) {
+                fxCtx.beginPath();
+                fxCtx.arc(0, 0, isLocked ? 44 : 52, i * (Math.PI / 2) + 0.18, (i + 1) * (Math.PI / 2) - 0.18);
+                fxCtx.stroke();
+            }
+            fxCtx.restore();
+
+            // İç Yeşil Halka ve Üçgen Kilit Okları
+            fxCtx.save();
+            fxCtx.rotate(-state.reticleAngle * 1.4);
+            fxCtx.strokeStyle = '#00ff66';
+            fxCtx.lineWidth = 2;
+            fxCtx.beginPath();
+            fxCtx.arc(0, 0, isLocked ? 28 : 34, 0, Math.PI * 2);
+            fxCtx.stroke();
+
+            for (let i = 0; i < 4; i++) {
+                fxCtx.rotate(Math.PI / 2);
+                fxCtx.fillStyle = isLocked ? '#00ff88' : '#00f3ff';
+                fxCtx.beginPath();
+                fxCtx.moveTo(0, -(isLocked ? 22 : 28));
+                fxCtx.lineTo(-5, -(isLocked ? 30 : 36));
+                fxCtx.lineTo(5, -(isLocked ? 30 : 36));
+                fxCtx.closePath();
+                fxCtx.fill();
+            }
+            fxCtx.restore();
+
+            // Hit-Marker (X) Parlaması
+            if (state.hitMarkerTimer > 0) {
+                fxCtx.strokeStyle = '#ffffff';
+                fxCtx.lineWidth = 2.5;
+                fxCtx.beginPath();
+                fxCtx.moveTo(-12, -12); fxCtx.lineTo(12, 12);
+                fxCtx.moveTo(12, -12); fxCtx.lineTo(-12, 12);
+                fxCtx.stroke();
+            }
+
+            // LOCK ON Yazısı
+            fxCtx.font = 'bold 13px Orbitron, monospace';
+            fxCtx.textAlign = 'center';
+            fxCtx.fillStyle = isLocked ? '#00ff88' : '#00f3ff';
+            fxCtx.shadowColor = '#00f3ff';
+            fxCtx.shadowBlur = 8;
+            fxCtx.fillText(isLocked ? 'LOCK ON' : 'FREE AIM', 0, isLocked ? 64 : 70);
+            fxCtx.restore();
+
+            // Uçuşan Savaş Puan Yazıları
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.life -= dt;
+                ft.pos.y += 12 * dt;
+                const scr = worldToScreen(ft.pos);
+                if (scr.visible) {
+                    fxCtx.save();
+                    fxCtx.font = 'bold 14px Orbitron, sans-serif';
+                    fxCtx.fillStyle = ft.color;
+                    fxCtx.globalAlpha = Math.max(0, ft.life);
+                    fxCtx.textAlign = 'center';
+                    fxCtx.fillText(ft.text, scr.x, scr.y);
+                    fxCtx.restore();
+                }
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+        }
+
+        function updateHUD(incomingDanger) {
+            document.getElementById('score-text').textContent = state.score.toLocaleString('en-US').padStart(7, '0');
+            document.getElementById('stage-text').textContent = `STAGE ${state.stage}`;
+            document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
+            document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * 3.5);
+            document.getElementById('rank-text').textContent = `POS ${state.rank} / ${state.totalRacers}`;
+
+            const shieldPct = Math.round(state.shield);
+            document.getElementById('shield-text').textContent = `${shieldPct}%`;
+            document.getElementById('shield-bar').style.width = `${shieldPct}%`;
+            document.getElementById('energy-bar').style.width = `${Math.round(state.energy)}%`;
+
+            const rollEl = document.getElementById('roll-status');
+            if (state.barrelRollCooldown <= 0) {
+                rollEl.textContent = 'BARREL ROLL: READY (Q/E)';
+                rollEl.className = 'text-[10px] text-emerald-400 font-["Share_Tech_Mono"]';
+            } else {
+                rollEl.textContent = 'RECHARGING...';
+                rollEl.className = 'text-[10px] text-yellow-400 font-["Share_Tech_Mono"]';
+            }
+
+            const dangerBanner = document.getElementById('danger-banner');
+            if (incomingDanger) dangerBanner.classList.remove('hidden');
+            else dangerBanner.classList.add('hidden');
+
+            // 360° Radar Noktaları (Düşmanlar Kırmızı/Sarı, Rakip Yarışçılar Mavi)
+            const radarContainer = document.getElementById('radar-blips');
+            if (radarContainer) {
+                radarContainer.innerHTML = '';
+                const invQuat = playerRig.quaternion.clone().invert();
+                enemies.forEach(e => {
+                    const rel = e.mesh.position.clone().sub(state.pos).applyQuaternion(invQuat);
+                    const rx = Math.max(-48, Math.min(48, (rel.x / 650) * 48));
+                    const rz = Math.max(-48, Math.min(48, (rel.z / 650) * 48));
+                    const dot = document.createElement('div');
+                    dot.className = `absolute w-2 h-2 rounded-full ${e.isElite ? 'bg-yellow-400' : 'bg-red-500'}`;
+                    dot.style.left = `calc(50% + ${rx}px - 4px)`;
+                    dot.style.top = `calc(50% + ${rz}px - 4px)`;
+                    radarContainer.appendChild(dot);
+                });
+                racers.forEach(r => {
+                    const rel = r.mesh.position.clone().sub(state.pos).applyQuaternion(invQuat);
+                    const rx = Math.max(-48, Math.min(48, (rel.x / 650) * 48));
+                    const rz = Math.max(-48, Math.min(48, (rel.z / 650) * 48));
+                    const dot = document.createElement('div');
+                    dot.className = 'absolute w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_5px_#00f3ff]';
+                    dot.style.left = `calc(50% + ${rx}px - 4px)`;
+                    dot.style.top = `calc(50% + ${rz}px - 4px)`;
+                    radarContainer.appendChild(dot);
+                });
+            }
+        }
+
+        function toggleCameraMode() {
+            if (state.cameraMode === 'TURRET') {
+                state.cameraMode = 'CHASE';
+                turretGroup.visible = false;
+                geoSwordMesh.visible = true;
+                document.getElementById('cam-mode-text').textContent = '3RD PERSON GEOSWORD';
+            } else {
+                state.cameraMode = 'TURRET';
+                turretGroup.visible = true;
+                geoSwordMesh.visible = false;
+                document.getElementById('cam-mode-text').textContent = 'TURRET POV';
+            }
+        }
+
+        function startGame() {
+            sound.init();
+
+            enemies.forEach(e => scene.remove(e.mesh));
+            enemies.length = 0;
+            racers.forEach(r => scene.remove(r.mesh));
+            racers.length = 0;
+            playerLasers.forEach(l => scene.remove(l.mesh));
+            playerLasers.length = 0;
+            enemyProjectiles.forEach(ep => scene.remove(ep.mesh));
+            enemyProjectiles.length = 0;
+            if (state.boss) {
+                scene.remove(state.boss.mesh);
+                state.boss = null;
+            }
+
+            state.running = true;
+            state.score = 0;
+            state.kills = 0;
+            state.stage = 1;
+            state.shield = 100;
+            state.energy = 100;
+            state.combo = 1.0;
+            state.bossActive = false;
+            state.pos.set(0, 0, 0);
+            state.yaw = 0;
+            state.pitch = 0;
+            state.roll = 0;
+
+            document.getElementById('boss-hud').classList.add('hidden');
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+
+            spawnRacerFleet();
+            spawnEnemyWave(7);
+            showCenterAnnouncement("CORRIDOR RACE & COMBAT ENGAGED", "STAGE 1: NEBULA FRONT");
+        }
+
+        function endGame(victory = false) {
+            state.running = false;
+            document.getElementById('gameover-screen').classList.remove('hidden');
+            document.getElementById('final-score').textContent = state.score.toLocaleString('en-US');
+            document.getElementById('final-kills').textContent = state.kills;
+            document.getElementById('final-stage').textContent = `STAGE ${state.stage}`;
+        }
+
+        window.addEventListener('mousemove', e => {
+            state.mouseX = e.clientX;
+            state.mouseY = e.clientY;
+        });
+
+        window.addEventListener('mousedown', e => {
+            if (e.button === 0) state.isFiring = true;
+            if (e.button === 2) triggerEMPShield();
+        });
+        window.addEventListener('mouseup', e => {
+            if (e.button === 0) state.isFiring = false;
+        });
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                triggerEMPShield();
+            }
+            if (e.code === 'KeyQ') triggerBarrelRoll(-1);
+            if (e.code === 'KeyE') triggerBarrelRoll(1);
+            if (e.code === 'KeyC') toggleCameraMode();
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.code] = false;
+        });
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+
+        window.addEventListener('resize', () => {
+            W = window.innerWidth;
+            H = window.innerHeight;
+            camera.aspect = W / H;
+            camera.updateProjectionMatrix();
+            renderer.setSize(W, H);
+            if (fxCanvas) {
+                fxCanvas.width = W;
+                fxCanvas.height = H;
+            }
+        });
+
+        let lastTime = performance.now();
+        function animate(now) {
+            requestAnimationFrame(animate);
+            const dt = Math.min(0.05, (now - lastTime) / 1000);
+            lastTime = now;
+
+            if (state.running) {
+                updateGame(dt);
+            } else {
+                // Başlangıç ekranında arka plandaki Nebula ve yıldızların sinematik dönüşü
+                camera.rotation.y = Math.sin(now * 0.00025) * 0.35;
+                camera.rotation.x = Math.cos(now * 0.0002) * 0.15;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => {
+            animate(performance.now());
+        };
+    </script>
+</body>
+</html>
