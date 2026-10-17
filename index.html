@@ -1092,7 +1092,12 @@
                     applyPlayerDamage(13);
                     if(!state.playerDNF){ship.currentSpeed*=0.55;state.shake=Math.max(state.shake,0.85);}
                     state.barrierHits++;
-                }else{ship.currentSpeed*=0.55;}
+                }else{
+                    ship.currentSpeed*=0.55;
+                    ship.shield=Math.max(0,ship.shield-13);
+                    ship.aiStats && (ship.aiStats.wreckHits++);
+                    if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
+                }
                 createExplosion(o.mesh.position,0xff9344,10,0.8);
             }
         }
@@ -1463,6 +1468,76 @@
             return group;
         }
 
+        // AI-22: Paylaşılan slipstream; tüm gemiler aynı koşulda enerji kazanır.
+        // Motor sınırları DEĞİŞMEZ. Arkadan takip, uzun boost için enerji sağlar.
+        const DRAFT_RULES = Object.freeze({ minGap: 48, maxGap: 410, maxLateral: 105, recharge: 5.0 });
+        function getSlipstreamBonus(ship, isPlayer = false) {
+            const selfId = isPlayer ? 'PLAYER' : ship.name;
+            const selfProgress = ship.routeProgress;
+            const everyone = racers.slice();
+            if (!state.finished && !state.playerDNF) everyone.push(state);
+            let best = 0;
+            for (const lead of everyone) {
+                if (lead === ship || (!isPlayer && lead.name === selfId) || lead.finished || lead.dnf) continue;
+                const gap = lead.routeProgress - selfProgress;
+                if (gap < DRAFT_RULES.minGap || gap > DRAFT_RULES.maxGap) continue;
+                const lateral = Math.hypot(lead.laneX - ship.laneX, lead.laneY - ship.laneY);
+                if (lateral > DRAFT_RULES.maxLateral) continue;
+                const longitudinal = (gap - DRAFT_RULES.minGap) / (DRAFT_RULES.maxGap - DRAFT_RULES.minGap);
+                const bonus = Math.max(0, 1-longitudinal*0.5) * (1 - lateral / DRAFT_RULES.maxLateral);
+                best = Math.max(best, bonus);
+            }
+            return best;
+        }
+        function applySlipstreamEnergy(ship, dt, isPlayer = false) {
+            if (ship.finished || ship.dnf || (isPlayer && state.playerDNF)) return;
+            const bonus = getSlipstreamBonus(ship,isPlayer);
+            ship.draftStrength = bonus;
+            if (bonus > 0) {
+                const regen = DRAFT_RULES.recharge * bonus * dt;
+                const gained=Math.min(100-ship.energy,regen);
+                ship.energy = Math.min(100, ship.energy + regen);
+                ship.draftEnergyEarned = (ship.draftEnergyEarned||0) + Math.max(0, gained);
+            }
+        }
+
+        // Hızlı geçit hizalama: geçit hattına varış süresine göre yanal hedefe yönelir.
+        function getGateApproachPlan(ship, gate, dt, maxLateralSpeed) {
+            if (!gate) return null;
+            const gap = gate.distance - ship.routeProgress;
+            if (gap > 2500 || gap < -205) return null;
+            const remaining = Math.max(0.08, gap / Math.max(150,ship.currentSpeed));
+            const xError = gate.laneX-ship.laneX, yError = gate.laneY-ship.laneY;
+            const lateralError = Math.hypot(xError,yError);
+            const usable = Math.max(0.08,remaining-0.12);
+            // Max manevra kapasitesini zorlayan aşırı hata varsa kısa fren.
+            const achievable = maxLateralSpeed * usable * 0.69;
+            const shouldBrake = gap > 80 && lateralError > achievable + 30 && lateralError > 63;
+            return {x:gate.laneX,y:gate.laneY,gap,lateralError,shouldBrake,
+                // Hedefe yaklaştıkça mütevazı bir yatay kontrol kazancı kullanılır.
+                urgency:THREE.MathUtils.clamp(lateralError/Math.max(44,achievable),0,2)};
+        }
+
+        // Sollama hedefleri engellerin ve gemi enkazı kapılarının içinde olamaz.
+        function scoreRacingLane(laneX, laneY, ship, hazards, gate, safetyMargin) {
+            const safeRad = getCorridorRadiusAt(ship.routeProgress+Math.min(350,ship.currentSpeed*0.35))*0.70;
+            if (Math.hypot(laneX,laneY)>safeRad) return -1e6;
+            if(gate && gate.distance-ship.routeProgress<1300) {
+                const marginX=gate.clearX-ship.radius-14,marginY=gate.clearY-ship.radius-14;
+                if(Math.abs(laneX-gate.laneX)>marginX || Math.abs(laneY-gate.laneY)>marginY) return -1e6;
+            }
+            let penalty=0;
+            for (const h of hazards) {
+                if(!h.active) continue;
+                const dist=h.routeProgress-ship.routeProgress;
+                if(dist<-55 || dist>Math.max(450,ship.currentSpeed*0.90))continue;
+                const clearance=Math.hypot(h.laneX-laneX,h.laneY-laneY);
+                const safe=h.radius+safetyMargin+14;
+                if(clearance<safe) penalty += (safe-clearance)*7*(1-dist/Math.max(500,ship.currentSpeed*1.1));
+            }
+            return -penalty;
+        }
+
         function spawnRacerFleet() {
             racers.forEach(r => scene.remove(r.mesh));
             racers.length = 0;
@@ -1519,6 +1594,9 @@
                     isBoosting: false,
                     isBraking: false,
                     boostDecisionTimer: 0.25 + (i * 0.12),
+                    draftStrength: 0,
+                    draftEnergyEarned: 0,
+                    aiStats: {boostSeconds:0, brakeSeconds:0, laneChanges:0, obstacleHits:0, wreckHits:0, contacts:0, distance:0},
                     itemTurboTimer: 0,
                     powerShieldTimer: 0,
                     routeProgress: 0,
@@ -1810,6 +1888,9 @@
                             } else {
                                 if(ship.racer.powerShieldTimer>0)continue;
                                 ship.racer.currentSpeed *= 0.84;
+                                ship.racer.shield = Math.max(0,ship.racer.shield-4);
+                                ship.racer.aiStats && (ship.racer.aiStats.contacts++);
+                                if(ship.racer.shield<=0){ship.racer.dnf=true;ship.racer.currentSpeed=0;}
                             }
                         }
                         createExplosion(a.pos.clone().lerp(b.pos, 0.5), 0x55ccff, 8, 0.6);
@@ -2068,6 +2149,8 @@
                 } else {
                     state.energy = Math.min(100, state.energy + dt * 10);
                 }
+                // Oyuncu da rakiplerle aynı takip enerjisi avantajını kazanır.
+                applySlipstreamEnergy(state, dt, true);
                 // Gerçek hız takibi applyBoundaryFriction içinde tek kez yapılır.
 
                 // Dinamik Kamera FOV (Boost Hissi)
@@ -2412,6 +2495,11 @@
                     maxLateralSpeed = 350 * COURSE_WIDTH_SCALE;
                 }
 
+                // Hız yükseldiğinde aynı saniyelik tepki penceresini koru.
+                // Eski sabit 1.7-2.3km görüş, 5000 km/s boost için çok geç kalabiliyordu.
+                lookAheadDist = Math.max(lookAheadDist, r.currentSpeed * 2.25);
+                overtakeDetectDist = Math.max(overtakeDetectDist, r.currentSpeed * 0.62);
+
                 // Hedef koordinatın yerel daralma sınırları içerisinde olduğundan emin ol
                 const maxSafeRadius = getCorridorRadiusAt(r.routeProgress) * 0.74;
                 const targetDist = Math.hypot(r.targetX, r.targetY);
@@ -2420,6 +2508,9 @@
                     r.targetX = Math.cos(tAng) * maxSafeRadius;
                     r.targetY = Math.sin(tAng) * maxSafeRadius;
                 }
+
+                const gateAhead = upcomingWreckGate(r.routeProgress,2500);
+                const gatePlan = getGateApproachPlan(r,gateAhead,dt,maxLateralSpeed);
 
                 // C.1 — Önündeki Aktif Asteroitleri Algılama ve Bilinçli Kaçınma Kararı (En Yüksek Öncelik)
                 let mostUrgentThreat = null;
@@ -2463,7 +2554,9 @@
                 }
 
                 if (r.avoidAsteroid) {
-                    if (!r.avoidAsteroid.active || (r.avoidAsteroid.routeProgress - r.routeProgress) < -(r.avoidAsteroid.radius + r.radius + 10)) {
+                    if (!r.avoidAsteroid.active || (r.avoidAsteroid.routeProgress - r.routeProgress) < -(r.avoidAsteroid.radius + r.radius + 10) ||
+                        (mostUrgentThreat && mostUrgentThreat.asteroid !== r.avoidAsteroid &&
+                         mostUrgentThreat.relDist < r.avoidAsteroid.routeProgress-r.routeProgress-70)) {
                         r.avoidAsteroid = null;
                     }
                 }
@@ -2511,7 +2604,8 @@
                             const travelCost = Math.hypot(candX - r.laneX, candY - r.laneY);
                             const lineDeviation = Math.hypot(candX - r.targetX, candY - r.targetY);
 
-                            const score = (actualClearance * 2.4) - (travelCost * 0.65) - (lineDeviation * 0.25);
+                            const score = (actualClearance * 2.4) - (travelCost * 0.65) - (lineDeviation * 0.25)
+                                + scoreRacingLane(candX,candY,r,raceHazards,gateAhead,safetyMargin);
                             if (score > bestScore) {
                                 bestScore = score;
                                 bestX = candX;
@@ -2624,7 +2718,8 @@
                         const moveCost = Math.hypot(candX - r.laneX, candY - r.laneY);
                         const baseLineCost = Math.hypot(candX - r.targetX, candY - r.targetY);
 
-                        const score = (sepFromBlocker * 2.1) - (moveCost * 0.55) - (baseLineCost * 0.25) - astPenalty;
+                        const score = (sepFromBlocker * 2.1) - (moveCost * 0.55) - (baseLineCost * 0.25) - astPenalty
+                            + scoreRacingLane(candX,candY,r,raceHazards,gateAhead,safetyMargin);
                         if (score > bestPassScore) {
                             bestPassScore = score;
                             bestPassX = candX;
@@ -2635,13 +2730,14 @@
                     r.overtakeTarget = blockingCompetitor.id;
                     r.overtakeTargetX = bestPassX;
                     r.overtakeTargetY = bestPassY;
-                    r.overtakeHoldTimer = 0.65; // Sollama kararını koru (sağ-sol titremesini önler)
+                    r.overtakeHoldTimer = 1.25; // Kararı koru: anlık sağ-sol salınım olmasın.
+                    r.aiStats.laneChanges++;
                 }
 
                 // D — Taktiksel Boost, Fren ve Enerji Kararları (Kontrollü Durum Geçişleri)
                 r.boostDecisionTimer -= dt;
-                const severeAsteroidDanger = !!(r.avoidAsteroid && minTimeToImpact < 0.56);
-                const nearWall = Math.hypot(r.laneX, r.laneY) > state.tubeRadius * 0.82;
+                const severeAsteroidDanger = !!(!gatePlan && r.avoidAsteroid && minTimeToImpact < 0.36);
+                const nearWall = Math.hypot(r.laneX, r.laneY) > getCorridorRadiusAt(r.routeProgress) * 0.77;
 
                 // Enerji alt sınırın altına düştüğünde boost zorunlu olarak kapanır
                 if (r.energy <= 4 || r.energy <= boostStopEnergy) {
@@ -2659,7 +2755,9 @@
                     }
                 } else if (r.boostDecisionTimer <= 0) {
                     r.isBraking = false;
-                    const clearAhead = !r.avoidAsteroid && !nearWall;
+                    // Bir tehlike çok uzaktaysa boost'u gereksiz yere kapalı tutma.
+                    const clearAhead = !nearWall && (!r.avoidAsteroid || minTimeToImpact > 0.72)
+                        && !(gatePlan && gatePlan.shouldBrake);
                     const hasOvertakeOpportunity = !!(r.overtakeTarget || blockingCompetitor);
 
                     if (r.profile === 'SPEED') {
@@ -2680,7 +2778,7 @@
                         r.boostDecisionTimer = 0.28;
                     } else if (r.profile === 'CAUTIOUS') {
                         // Yalnızca tamamen güvenli, geniş alanda ve yüksek enerji rezervinde boost açar
-                        const verySafe = !r.avoidAsteroid && minTimeToImpact > 0.9 && !nearWall;
+                        const verySafe = clearAhead && minTimeToImpact > 0.95;
                         if (verySafe && (r.energy >= boostStartEnergy || (r.isBoosting && r.energy >= boostStopEnergy))) {
                             r.isBoosting = true;
                         } else {
@@ -2716,11 +2814,15 @@
                 // Oyuncuyla aynı hız takip katsayısı (5 * dt)
                 // Oyuncuyla aynı tek geçişli hız takibi aşağıdaki sınır fiziğinde uygulanır.
 
-                const gateForPilot = upcomingWreckGate(r.routeProgress, 2400);
-                if (gateForPilot && gateForPilot.distance-r.routeProgress < 1150) {
-                    const misalignment=Math.hypot(r.laneX-gateForPilot.laneX,r.laneY-gateForPilot.laneY);
-                    if (misalignment>56) desiredSpeed=Math.min(desiredSpeed,RACE_SPEEDS.NORMAL*0.76);
+                const gateForPilot = gateAhead;
+                if (gatePlan && gatePlan.shouldBrake) {
+                    // Fren yalnızca kalan yol ve yanal erişim yetersizse açılır.
+                    desiredSpeed=Math.min(desiredSpeed,RACE_SPEEDS.NORMAL*0.82);
                 }
+                // Aynı slipstream enerji hesabı AI sürücüleri için de geçerli.
+                applySlipstreamEnergy(r,dt,false);
+                r.aiStats.boostSeconds += (r.isBoosting && r.energy>4 ? dt : 0);
+                r.aiStats.brakeSeconds += (r.isBraking || (gatePlan && gatePlan.shouldBrake) ? dt : 0);
                 const prevRacerProgress = r.routeProgress;
 
                 // Hedef Öncelik Sırası: 1. Asteroit Kaçınma > 2. Sollama Şeridi > 3. Normal Uçuş Çizgisi
@@ -2743,12 +2845,16 @@
                 }
 
                 // Gerçek enkaz açıklığı, bonus/sollama/asteroit kararlarından önce gelir.
-                if (gateForPilot) {
-                    activeTargetX = gateForPilot.laneX;
-                    activeTargetY = gateForPilot.laneY;
-                    r.avoidAsteroid = null;
-                    r.overtakeHoldTimer=0;
+                if (gatePlan && gatePlan.gap < 1650) {
+                    // Kalabalık yarışta gemiler aynı noktaya kilitlenmesin:
+                    // Her bot geçidin güvenli boşluğu içinde farklı yatay şerit seçer.
+                    activeTargetX=gatePlan.x + (rIdx - 2) * 28;
+                    activeTargetY=gatePlan.y;
+                    // Bu geçişte agresif sollama oyuncuyla metal gövde arasında sıkıştırmasın.
                     r.overtakeTarget=null;
+                    r.overtakeHoldTimer=0;
+                    // Rastgele engel kaçınma yerine metal geçidin açık hattı öncelikli.
+                    r.avoidAsteroid=null;
                 }
 
                 // Mevcut yerel pozisyondan (laneX, laneY) aktif hedef koordinatlarına yumuşak ve kademeli yönelim
@@ -2781,12 +2887,21 @@
                     }
                 };
 
-                if (!gateForPilot && !state.finished && !state.playerDNF) {
+                if (!state.finished && !state.playerDNF) {
                     applySeparation(state.routeProgress, state.laneX, state.laneY);
                 }
                 for (let j = 0; j < racers.length; j++) {
                     if (j === rIdx || racers[j].finished || racers[j].dnf) continue;
-                    if (!gateForPilot) applySeparation(racers[j].routeProgress, racers[j].laneX, racers[j].laneY);
+                    applySeparation(racers[j].routeProgress, racers[j].laneX, racers[j].laneY);
+                }
+                // Enkaz geçidinin güvenli dikdörtgeninden asla zorla çıkma.
+                if (gatePlan && gatePlan.gap < 380 && gatePlan.gap > -185) {
+                    const clearanceX = Math.max(0,gateForPilot.clearX-r.radius-15);
+                    const clearanceY = Math.max(0,gateForPilot.clearY-r.radius-15);
+                    const nextX = r.laneX + desiredVx*dt;
+                    const nextY = r.laneY + desiredVy*dt;
+                    if(Math.abs(nextX-gateForPilot.laneX)>clearanceX) desiredVx=0;
+                    if(Math.abs(nextY-gateForPilot.laneY)>clearanceY) desiredVy=0;
                 }
 
                 const prevVx = r.vx || 0;
@@ -2806,6 +2921,7 @@
                     return;
                 }
                 const nextRacerProgress = prevRacerProgress + r.currentSpeed * dt;
+                r.aiStats.distance += r.currentSpeed * dt;
 
                 // Rakip Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
                 if (nextRacerProgress >= RACE_ROUTE_NOMINAL_DISTANCE) {
@@ -2898,7 +3014,12 @@
                         if(state.barrelRollTimer>0){applyPlayerDamage(16);return;}
                         applyPlayerDamage(16);
                         if(!state.playerDNF)ship.currentSpeed*=0.45;
-                    }else{ship.currentSpeed*=0.45;}
+                    }else{
+                        ship.currentSpeed*=0.45;
+                        ship.shield=Math.max(0,ship.shield-16);
+                        ship.aiStats && (ship.aiStats.obstacleHits++);
+                        if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
+                    }
                     state.asteroidHits++;
                     createExplosion(a.mesh.position,0xff5500,10,0.85);
                 };
@@ -2922,6 +3043,17 @@
             if (!state.playerDNF) {
                 updatePlayerNearMisses(prevPlayerFrameProgress);
                 updatePlayerCheckpoints(prevPlayerFrameProgress, prevRaceTime, dt);
+            }
+
+            // AI-22 yarış ölçümü; geliştirici konsolundan window.starbladeRaceTelemetry okunabilir.
+            if (Math.floor(state.raceTime*2)!==state.lastTelemetryTick) {
+                state.lastTelemetryTick=Math.floor(state.raceTime*2);
+                window.starbladeRaceTelemetry={raceTime:state.raceTime,
+                    player:{progress:state.routeProgress, speed:state.currentSpeed*SPEED_DISPLAY_SCALE,
+                        energy:state.energy, shield:state.shield, draftEnergy:state.draftEnergyEarned||0},
+                    rivals:racers.map(r=>({name:r.name,profile:r.profile,progress:r.routeProgress,
+                        speed:r.currentSpeed*SPEED_DISPLAY_SCALE,energy:r.energy,shield:r.shield,
+                        draftEnergy:r.draftEnergyEarned||0,stats:{...r.aiStats},dnf:r.dnf,finished:r.finished}))};
             }
 
             // Gerçek Zamanlı Sıralama Hesabı (Bitirenler finishTime'a, yarışanlar routeProgress'e göre)
@@ -3369,6 +3501,9 @@
             } else if (inDanger) {
                 bonus.textContent = '⚠ DEBRIS ZONE';
                 bonus.className = 'ml-2 text-amber-300 font-black';
+            } else if ((state.draftStrength||0)>0.14) {
+                bonus.textContent = 'SLIPSTREAM // ENERGY +';
+                bonus.className = 'ml-2 text-cyan-300 font-black';
             } else {
                 bonus.textContent = 'ITEM BOXES / OPEN COURSE';
                 bonus.className = 'ml-2 text-emerald-300';
@@ -3487,6 +3622,10 @@
             state.boundaryDamageRate = 0;
             state.boundarySide = 'NONE';
             state.boundaryDamageTotal = 0;
+            state.draftStrength = 0;
+            state.draftEnergyEarned = 0;
+            state.lastTelemetryTick = -1;
+            window.starbladeRaceTelemetry = null;
             const boundaryFx = document.getElementById('boundary-scrape-overlay');
             if (boundaryFx) boundaryFx.style.opacity = '0';
             state.asteroidHits = 0;
