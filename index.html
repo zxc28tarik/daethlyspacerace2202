@@ -178,7 +178,7 @@
                 </div>
 
                 <div class="flex justify-between items-center text-xs font-bold tracking-wider text-cyan-300 mb-1">
-                    <span>ENERGY (BOOST / EMP)</span>
+                    <span>ENERGY (BOOST / LAZER / EMP)</span>
                     <span class="text-[10px] text-cyan-200/80">SPACE / SAĞ TIK: EMP KALKAN</span>
                 </div>
                 <div class="w-full h-2.5 bg-slate-900/90 border border-cyan-400/50 p-0.5">
@@ -208,7 +208,7 @@
             <div class="hud-box px-5 py-3 w-64 sm:w-80 text-right pointer-events-auto">
                 <div class="text-sm sm:text-lg font-black tracking-widest text-cyan-200">
                     SCORE: <span id="score-text" class="text-white text-xl sm:text-2xl">000,000</span>
-                    <span class="block text-[10px] text-amber-300/90 font-['Share_Tech_Mono'] tracking-wide">ENGEL LAZERİ: F / SOL TIK · KIRILAN: <span id="obstacle-kills">0</span></span>
+                    <span class="block text-[10px] text-amber-300/90 font-['Share_Tech_Mono'] tracking-wide">ENGEL LAZERİ: F / SOL TIK · ATIS -3 ENERGY · KIRILAN: <span id="obstacle-kills">0</span></span>
                 </div>
                 <div class="flex justify-between items-center mt-1 text-xs sm:text-sm font-bold text-emerald-400">
                     <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST | F / SOL TIK: LAZER</span>
@@ -235,7 +235,7 @@
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-emerald-400 font-bold mb-1">>> SAF HIZ YARIŞI (HARİTA 1)</div>
-                    <p class="text-slate-300">Rakiplere ateş edilemez; <strong>sol tık / F</strong> ile küçük asteroitleri ve hafif metal bariyerleri parçalayabilirsiniz. Büyük enkaz geçitleri sağlamdır. <strong>SHIFT / W</strong> ile hızlanıp 5 rakibi geçin.</p>
+                    <p class="text-slate-300">Rakiplere ateş edilemez; <strong>sol tık / F</strong> ile küçük asteroitleri ve hafif metal bariyerleri parçalayabilirsiniz. <strong>Her çift lazer atışı boost havuzundan 3 enerji harcar.</strong> Enerji yetersizse lazer çalışmaz. Büyük enkaz geçitleri sağlamdır. <strong>SHIFT / W</strong> ile hızlanıp 5 rakibi geçin.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-yellow-300 font-bold mb-1">>> EŞYA KUTULARI & YAKIN GEÇİŞLER</div>
@@ -444,6 +444,8 @@
             BOOST: 5000 / SPEED_DISPLAY_SCALE,
             HYPER: 5500 / SPEED_DISPLAY_SCALE
         });
+        // AI-24: Engel lazeri iki namludan aynı anda çıkar; her çift atış boost enerjisinden harcar.
+        const OBSTACLE_LASER_ENERGY_COST = 3;
         // AI-19: 260 -> 360 yarıçap; parkur enine ölçülerini tek kaynaktan ölçekle.
         const COURSE_WIDTH_SCALE = 360 / 260;
         const ASTEROID_SIZE_SCALE = 1.23;
@@ -1756,6 +1758,19 @@
             rightTurret.position.z = -5.4;
         }
 
+        // AI-24: Çift lazerin iki namlusuna ayrı ayrı değil, bir volleye tek enerji bedeli uygula.
+        // Boost ve ateş aynı oyuncu enerji havuzunu paylaşır. Yetersiz enerjiyle bedava lazer çıkmaz.
+        // Gelecekteki combatEnabled modu şimdilik eski ateş mekanikleriyle korunur.
+        function tryFirePlayerLasers() {
+            if (!state.running || state.finished || state.playerDNF || state.fireCooldown > 0) return false;
+            const energyCost = state.combatEnabled ? 0 : OBSTACLE_LASER_ENERGY_COST;
+            if (state.energy < energyCost) return false;
+            if (energyCost) state.energy = Math.max(0, state.energy - energyCost);
+            firePlayerLasers();
+            state.fireCooldown = state.combatEnabled ? 0.11 : 0.19;
+            return true;
+        }
+
         // AI-23: Engel vurma. Işın süpürme + gerçek panel hacmi; rakip gemiler hedef değildir.
         function sweptLaserSphere(from,to,center,radius) {
             const d=to.clone().sub(from);
@@ -2391,11 +2406,8 @@
             findMagneticLockTarget();
 
             // 4. Oyuncu Ateşleme
-            if (!state.finished && !state.playerDNF && (state.isFiring || keys['KeyF']) && state.fireCooldown <= 0) {
-                firePlayerLasers();
-                state.fireCooldown = state.combatEnabled ? 0.11 : 0.19;
-            }
-            if (state.fireCooldown > 0) state.fireCooldown -= dt;
+            if (state.isFiring || keys['KeyF']) tryFirePlayerLasers();
+            if (state.fireCooldown > 0) state.fireCooldown = Math.max(0, state.fireCooldown - dt);
 
             // 5. Oyuncu Lazerleri Hareket & Vuruş Kontrolü
             for (let i = playerLasers.length - 1; i >= 0; i--) {
