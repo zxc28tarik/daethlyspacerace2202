@@ -1123,7 +1123,21 @@
             const railMaterial = new THREE.LineBasicMaterial({ color: 0x17adcf, transparent: true, opacity: 0.58, blending: THREE.AdditiveBlending, depthWrite: false });
             const ringMaterial = new THREE.LineBasicMaterial({ color: 0x406dff, transparent: true, opacity: 0.43, blending: THREE.AdditiveBlending, depthWrite: false });
             const majorRingMaterial = new THREE.LineBasicMaterial({ color: 0x00e7ed, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
-            corridorGuideGroup.userData = { railMaterial, ringMaterial, majorRingMaterial };
+            // Kanat sürtünmesinin başlayacağı ve ağırlaşacağı eşikler de görülebilir.
+            const boundaryHintMat = new THREE.LineBasicMaterial({ color: 0xffba65, transparent: true, opacity: 0.20, blending: THREE.AdditiveBlending, depthWrite: false });
+            const boundaryDangerMat = new THREE.LineBasicMaterial({ color: 0xff6e67, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
+            corridorGuideGroup.userData = { railMaterial, ringMaterial, majorRingMaterial, boundaryHintMat, boundaryDangerMat };
+            for (const [radius, material, count] of [[215,boundaryHintMat,8],[250,boundaryDangerMat,8]]) {
+                for (let k=0;k<count;k++) {
+                    const angle=k*2*Math.PI/count;
+                    const points=[];
+                    for(let d=0;d<=RACE_ROUTE_NOMINAL_DISTANCE;d+=235) {
+                        const f=getRaceFrameAtDistance(d);
+                        points.push(f.center.clone().addScaledVector(f.right,Math.cos(angle)*radius).addScaledVector(f.up,Math.sin(angle)*radius));
+                    }
+                    corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),material));
+                }
+            }
             // Rota boyunca 16 boyuna ışık rayı: virajlar ve geçiş alanı gözle takip edilir.
             for (let k = 0; k < 16; k++) {
                 const theta = k * Math.PI * 2 / 16;
@@ -1207,6 +1221,8 @@
             m.railMaterial.opacity = 0.45 + 0.18 * pulse + 0.07 * speed;
             m.ringMaterial.opacity = 0.33 + 0.17 * pulse;
             m.majorRingMaterial.opacity = 0.70 + 0.22 * pulse;
+            m.boundaryHintMat.opacity = 0.12 + 0.11 * pulse;
+            m.boundaryDangerMat.opacity = 0.17 + 0.14 * pulse + 0.15 * (state.boundaryLevel >= 2 ? 1 : 0);
         }
 
         function formatRaceTime(seconds) {
@@ -3304,7 +3320,8 @@
             const border = document.getElementById('boundary-alert');
             if (border) {
                 if (state.boundaryLevel >= 3) {
-                    border.textContent = `⚠ OUTSIDE ${state.boundarySide} / -${Math.round((1-state.boundaryFactor)*100)}% / -${Math.round(state.boundaryDamageRate)} SHIELD/s`;
+                    const label = state.boundaryLevel >= 4 ? 'OUTSIDE' : 'HEAVY FRICTION';
+                    border.textContent = `⚠ ${label} ${state.boundarySide} / -${Math.round((1-state.boundaryFactor)*100)}% / -${Math.round(state.boundaryDamageRate)} SHIELD/s`;
                     border.className = 'ml-2 text-red-400 font-black';
                 } else if (state.boundaryLevel === 2) {
                     border.textContent = `⚡ WING SCRAPE ${state.boundarySide} / -${Math.round((1-state.boundaryFactor)*100)}%`;
