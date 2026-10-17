@@ -208,10 +208,11 @@
             <div class="hud-box px-5 py-3 w-64 sm:w-80 text-right pointer-events-auto">
                 <div class="text-sm sm:text-lg font-black tracking-widest text-cyan-200">
                     SCORE: <span id="score-text" class="text-white text-xl sm:text-2xl">000,000</span>
-                    <span class="block text-[10px] text-amber-300/90 font-['Share_Tech_Mono'] tracking-wide">ENGEL LAZERİ: F / SOL TIK · ATIS -3 ENERGY · KIRILAN: <span id="obstacle-kills">0</span></span>
+                    <span class="block text-[10px] text-amber-300/90 font-['Share_Tech_Mono'] tracking-wide">LAZER İÇİN KUTU TOPLA · F / SOL TIK · ATIS -3 ENERGY · KIRILAN: <span id="obstacle-kills">0</span></span>
+                    <span id="laser-status" class="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold">LAZER KİLİTLİ — MOR KUTU TOPLA</span>
                 </div>
                 <div class="flex justify-between items-center mt-1 text-xs sm:text-sm font-bold text-emerald-400">
-                    <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST | F / SOL TIK: LAZER</span>
+                    <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST | KUTUDAN SONRA F / SOL TIK: LAZER</span>
                     <span id="stage-text">SECTOR 1 / 4</span>
                 </div>
             </div>
@@ -235,7 +236,7 @@
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-emerald-400 font-bold mb-1">>> SAF HIZ YARIŞI (HARİTA 1)</div>
-                    <p class="text-slate-300">Rakiplere ateş edilemez; <strong>sol tık / F</strong> ile küçük asteroitleri ve hafif metal bariyerleri parçalayabilirsiniz. <strong>Her çift lazer atışı boost havuzundan 3 enerji harcar.</strong> Enerji yetersizse lazer çalışmaz. Büyük enkaz geçitleri sağlamdır. <strong>SHIFT / W</strong> ile hızlanıp 5 rakibi geçin.</p>
+                    <p class="text-slate-300">Rakiplere ateş edilemez; <strong>önce mor sürpriz kutu toplayarak 12 saniyelik lazer erişimi kazan</strong>, sonra <strong>sol tık / F</strong> ile küçük asteroitleri ve hafif metal bariyerleri parçalayabilirsiniz. <strong>Her çift lazer atışı boost havuzundan 3 enerji harcar.</strong> Enerji yetersizse lazer çalışmaz. Büyük enkaz geçitleri sağlamdır. <strong>SHIFT / W</strong> ile hızlanıp 5 rakibi geçin.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-yellow-300 font-bold mb-1">>> EŞYA KUTULARI & YAKIN GEÇİŞLER</div>
@@ -446,6 +447,9 @@
         });
         // AI-24: Engel lazeri iki namludan aynı anda çıkar; her çift atış boost enerjisinden harcar.
         const OBSTACLE_LASER_ENERGY_COST = 3;
+        // AI-25: Oyuncu yalnızca sürpriz kutusu aldıktan sonra 12 saniye boyunca ateş edebilir.
+        // Her yeni kutu süreyi tazeler. Süre bittiğinde lazer kilitlenir; enerji tüketimi değişmez.
+        const OBSTACLE_LASER_PICKUP_SECONDS = 12;
         // AI-19: 260 -> 360 yarıçap; parkur enine ölçülerini tek kaynaktan ölçekle.
         const COURSE_WIDTH_SCALE = 360 / 260;
         const ASTEROID_SIZE_SCALE = 1.23;
@@ -502,6 +506,8 @@
             barrierHits: 0,
             lastPowerUp: '',
             lastPowerUpTimer: 0,
+            obstacleLaserTimer: 0,
+            laserPickups: 0,
             nearMisses: 0,
             checkpointTimes: [],
             currentSector: 1,
@@ -1067,12 +1073,16 @@
             if(item==='SHIELD') ship.powerShieldTimer=Math.max(ship.powerShieldTimer||0,5);
             if(item==='ENERGY') ship.energy=Math.min(100,ship.energy+42);
             if(isPlayer) {
+                // Kutunun türü ne olursa olsun lazer erişimi verir; şans faktörü kilidi engellemez.
+                // Aynı kutu yalnızca bir kez toplanabilir (claimed koruması).
+                state.obstacleLaserTimer=OBSTACLE_LASER_PICKUP_SECONDS;
+                state.laserPickups++;
                 state.powerUpsCollected++;
                 state.lastPowerUp=item;
                 state.lastPowerUpTimer=2.4;
                 state.score+=350;
                 const name=item==='HYPER_TURBO'?'HYPER TURBO 1.25s':item==='SHIELD'?'ENERGY SHIELD 5s':'ENERGY +42';
-                spawnFloatingText(box.mesh.position,`${name} / +350`,'#ffb8ff');
+                spawnFloatingText(box.mesh.position,`${name} / LASER ${OBSTACLE_LASER_PICKUP_SECONDS}s / +350`,'#ffb8ff');
             }
             return item;
         }
@@ -1763,6 +1773,8 @@
         // Gelecekteki combatEnabled modu şimdilik eski ateş mekanikleriyle korunur.
         function tryFirePlayerLasers() {
             if (!state.running || state.finished || state.playerDNF || state.fireCooldown > 0) return false;
+            // Gelecekteki savaş modu etkilenmez; mevcut yarışta silah ancak kutudan açılır.
+            if (!state.combatEnabled && state.obstacleLaserTimer <= 0) return false;
             const energyCost = state.combatEnabled ? 0 : OBSTACLE_LASER_ENERGY_COST;
             if (state.energy < energyCost) return false;
             if (energyCost) state.energy = Math.max(0, state.energy - energyCost);
@@ -2217,6 +2229,9 @@
             state.itemTurboTimer = Math.max(0, state.itemTurboTimer - dt);
             state.powerShieldTimer = Math.max(0, state.powerShieldTimer - dt);
             state.lastPowerUpTimer = Math.max(0, state.lastPowerUpTimer - dt);
+            if (!state.finished && !state.playerDNF) {
+                state.obstacleLaserTimer = Math.max(0, state.obstacleLaserTimer - dt);
+            }
             racers.forEach(r => {
                 r.itemTurboTimer = Math.max(0, (r.itemTurboTimer || 0) - dt);
                 r.powerShieldTimer = Math.max(0, (r.powerShieldTimer || 0) - dt);
@@ -3594,6 +3609,16 @@
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
             document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * SPEED_DISPLAY_SCALE) : '—';
+            const laserStatus = document.getElementById('laser-status');
+            if (laserStatus) {
+                if (state.obstacleLaserTimer > 0) {
+                    laserStatus.textContent=`LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · F / SOL TIK · -3 ENERJİ`;
+                    laserStatus.className="block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold";
+                } else {
+                    laserStatus.textContent='LAZER KİLİTLİ — MOR KUTU TOPLA';
+                    laserStatus.className="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
+                }
+            }
             const itemStatus = document.getElementById('item-status');
             if(itemStatus){
                 if(state.itemTurboTimer>0)itemStatus.textContent=`HYPER TURBO ${state.itemTurboTimer.toFixed(1)}s`;
@@ -3751,6 +3776,13 @@
             state.barrierHits = 0;
             state.lastPowerUp = '';
             state.lastPowerUpTimer = 0;
+            state.obstacleLaserTimer = 0;
+            state.laserPickups = 0;
+            const laserStatus = document.getElementById('laser-status');
+            if (laserStatus) {
+                laserStatus.textContent='LAZER KİLİTLİ — MOR KUTU TOPLA';
+                laserStatus.className="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
+            }
             resetItemAndBarrierCourse();
             state.nearMisses = 0;
             state.checkpointTimes = [];
