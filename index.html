@@ -119,7 +119,7 @@
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
                     <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">50000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
-                        CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">680</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
+                        CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">3000</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
                         <span id="boundary-alert" class="ml-2 text-emerald-300">CORRIDOR SAFE</span>
                         <span id="bonus-status" class="ml-2 text-emerald-300">BONUS READY</span>
                         <span id="item-status" class="ml-2 text-fuchsia-300">ITEM BOX: READY</span>
@@ -426,6 +426,15 @@
 
         const keys = {};
 
+        // HUD hız birimi: KM/S. Hız fiziği ve gösterge aynı sabitlerden beslenir.
+        const SPEED_DISPLAY_SCALE = 3.5;
+        const RACE_SPEEDS = Object.freeze({
+            NORMAL: 3000 / SPEED_DISPLAY_SCALE,
+            BRAKE: 1500 / SPEED_DISPLAY_SCALE,
+            BOOST: 5000 / SPEED_DISPLAY_SCALE,
+            HYPER: 5500 / SPEED_DISPLAY_SCALE
+        });
+
         const state = {
             running: false,
             combatEnabled: false,
@@ -456,8 +465,8 @@
             yaw: 0,
             pitch: 0,
             roll: 0,
-            baseSpeed: 700,
-            currentSpeed: 700,
+            baseSpeed: RACE_SPEEDS.NORMAL,
+            currentSpeed: RACE_SPEEDS.NORMAL,
             cameraMode: 'TURRET', // 'TURRET' (Köşe Silahlar) veya 'CHASE' (3. Şahıs GeoSword)
             wallCooldown: 0,
             wallFlash: 0,
@@ -678,7 +687,6 @@
         raceRouteCurve.arcLengthDivisions = 5000;
         raceRouteCurve.updateArcLengths();
         const RACE_ROUTE_NOMINAL_DISTANCE = 50000;
-        const RACE_SPEEDS = Object.freeze({ NORMAL: 700, BRAKE: 360, BOOST: 2640, HYPER: 2920 });
         // Oyuncu ve 5 bot bu aynı hız limitlerini ve enerji kurallarını kullanır.
         const RACE_ROUTE_TOTAL_ARC_LENGTH = raceRouteCurve.getLength();
         const WORLD_UP_VECTOR = new THREE.Vector3(0, 1, 0);
@@ -707,7 +715,7 @@
 
 
         // AI-14 — Virajlı rota üzerindeki tek kullanımlık (yarışçı başına) yarış bonusları.
-        // Oyuncu ve bütün AI pilotları için ortak 2640 boost sınırı geçerlidir.
+        // Oyuncu ve bütün AI pilotları için ortak 5000 KM/S boost sınırı geçerlidir.
         const speedGateDistances = Array.from({length:5}, (_, sector) =>
             [920, 2480, 4100, 5850, 7600, 9300].map(d => d + sector * 10000)).flat();
         const energyGateDistances = Array.from({length:5}, (_, sector) =>
@@ -1831,11 +1839,11 @@
                     targetSpeed = RACE_SPEEDS.BRAKE;
                     state.energy = Math.min(100, state.energy + dt * 14);
                 } else if (itemTurbo) {
-                    // Hyper Turbo: hem oyuncu hem AI için 2920 özel üst sınırı.
+                    // Hyper Turbo: hem oyuncu hem AI için 5500 KM/S özel üst sınırı.
                     targetSpeed = RACE_SPEEDS.HYPER;
                     state.energy = Math.min(100, state.energy + dt * 10);
                 } else if (gateBoost) {
-                    // Hız kapısı yeni 2640 boost sınırını kullanır.
+                    // Hız kapısı yeni 5000 KM/S boost sınırını kullanır.
                     targetSpeed = RACE_SPEEDS.BOOST;
                     state.energy = Math.min(100, state.energy + dt * 10);
                 } else if (boosting) {
@@ -2485,7 +2493,7 @@
                 }
 
                 // A — Oyuncuyla Birebir Aynı Motor, Boost, Fren ve Enerji Fiziği
-                let desiredSpeed = r.baseSpeed; // 700
+                let desiredSpeed = r.baseSpeed; // 3000 KM/S
                 if (r.isBraking) {
                     desiredSpeed = RACE_SPEEDS.BRAKE;
                     r.energy = Math.min(100, r.energy + dt * 14);
@@ -2638,7 +2646,7 @@
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts();
 
-            // 2.640 birim/sn boost hızında asteroidler kareler arasında atlanmasın:
+            // Yüksek hızda asteroidler kareler arasında atlanmasın:
             // gemi ve asteroidin aynı karedeki göreli hareketi boyunca en yakın yaklaşımı bul.
             const movingCourseTouch = (rock, prevShip, nowShip, shipRadius) => {
                 const fromRock = rock.prevCourse || rock;
@@ -2969,7 +2977,7 @@
                     fxCtx.font = 'bold 10px Orbitron, monospace';
                     fxCtx.fillStyle = '#00f3ff';
                     fxCtx.textAlign = 'center';
-                    fxCtx.fillText(`${r.name} • ${Math.round(r.currentSpeed * 3.5)}${r.isBoosting ? ' BOOST' : ''}`, 0, -20);
+                    fxCtx.fillText(`${r.name} • ${Math.round(r.currentSpeed * SPEED_DISPLAY_SCALE)}${r.isBoosting ? ' BOOST' : ''}`, 0, -20);
                     fxCtx.restore();
                 }
             });
@@ -3085,7 +3093,7 @@
             document.getElementById('score-text').textContent = state.score.toLocaleString('en-US').padStart(7, '0');
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
-            document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * 3.5);
+            document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * SPEED_DISPLAY_SCALE);
             const border = document.getElementById('boundary-alert');
             if (border) {
                 const clearance = state.tubeRadius - 10 - Math.hypot(state.laneX, state.laneY);
@@ -3101,7 +3109,7 @@
                 }
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
-            document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * 3.5) : '—';
+            document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * SPEED_DISPLAY_SCALE) : '—';
             const itemStatus = document.getElementById('item-status');
             if(itemStatus){
                 if(state.itemTurboTimer>0)itemStatus.textContent=`HYPER TURBO ${state.itemTurboTimer.toFixed(1)}s`;
