@@ -210,6 +210,7 @@
                     SCORE: <span id="score-text" class="text-white text-xl sm:text-2xl">000,000</span>
                     <span class="block text-[10px] text-amber-300/90 font-['Share_Tech_Mono'] tracking-wide">LAZER İÇİN KUTU TOPLA · F / SOL TIK · ATIS -3 ENERGY · KIRILAN: <span id="obstacle-kills">0</span></span>
                     <span id="laser-status" class="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold">LAZER KİLİTLİ — MOR KUTU TOPLA</span>
+                    <span id="laser-target-status" class="block text-[10px] text-cyan-200/90 font-['Share_Tech_Mono']">HEDEF: —</span>
                 </div>
                 <div class="flex justify-between items-center mt-1 text-xs sm:text-sm font-bold text-emerald-400">
                     <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST | KUTUDAN SONRA F / SOL TIK: LAZER</span>
@@ -450,6 +451,10 @@
         // AI-25: Oyuncu yalnızca sürpriz kutusu aldıktan sonra 12 saniye boyunca ateş edebilir.
         // Her yeni kutu süreyi tazeler. Süre bittiğinde lazer kilitlenir; enerji tüketimi değişmez.
         const OBSTACLE_LASER_PICKUP_SECONDS = 12;
+        // AI-26: Görsel hedefleme ve çarpışma aynı lazer menzilini paylaşır.
+        const OBSTACLE_LASER_RANGE = 2450;
+        const OBSTACLE_LOCK_MAX_PX = 108;
+        const OBSTACLE_SHARD_LIMIT = 72;
         // AI-19: 260 -> 360 yarıçap; parkur enine ölçülerini tek kaynaktan ölçekle.
         const COURSE_WIDTH_SCALE = 360 / 260;
         const ASTEROID_SIZE_SCALE = 1.23;
@@ -528,6 +533,10 @@
             fireCooldown: 0,
             obstaclesDestroyed: 0,
             laserHits: 0,
+            laserFeedback: '',
+            laserFeedbackTimer: 0,
+            obstacleLaserShots: 0,
+            obstacleLaserLockCount: 0,
             gunSide: 0,
             shake: 0,
 
@@ -1727,13 +1736,15 @@
             // Nişangah veya Kilitli Hedef Yönünü Hesapla
             let aimWorldPoint;
             if (state.lockedTarget && state.lockedTarget.mesh) {
-                aimWorldPoint = state.lockedTarget.mesh.position.clone();
+                aimWorldPoint = state.combatEnabled
+                    ? state.lockedTarget.mesh.position.clone()
+                    : predictObstacleAimPoint(state.lockedTarget);
             } else {
                 const ndcX = (state.mouseX / W) * 2 - 1;
                 const ndcY = -(state.mouseY / H) * 2 + 1;
                 const raycaster = new THREE.Raycaster();
                 raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-                aimWorldPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(state.combatEnabled ? 600 : 2500));
+                aimWorldPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(state.combatEnabled ? 600 : OBSTACLE_LASER_RANGE));
             }
 
             // Sol ve Sağ Köşeden Çifte الماس/Mavi ve Yeşil Lazer Ateşle (Görseldeki İkiz Lazer Çizgileri)
@@ -1779,8 +1790,31 @@
             if (state.energy < energyCost) return false;
             if (energyCost) state.energy = Math.max(0, state.energy - energyCost);
             firePlayerLasers();
+            if (!state.combatEnabled) state.obstacleLaserShots++;
             state.fireCooldown = state.combatEnabled ? 0.11 : 0.19;
             return true;
+        }
+
+        // AI-26: Basit öngörülü nişan. Sadece vurulabilir engelleri kilitler.
+        // Hareketli asteroitlerin yerel salınım hızını, lazerin uçuş süresi kadar öne taşır.
+        function isLaserDestructible(o) {
+            return !!o && o.active === true && Number.isFinite(o.durability) && o.durability > 0;
+        }
+        function predictObstacleAimPoint(o) {
+            const pos = o.mesh.position.clone();
+            if (!o.moveType || o.moveType === 'STATIC' || o.type) return pos;
+            const time = Math.min(0.42, state.pos.distanceTo(pos) / 4550);
+            const frame = getRaceFrameAtDistance(o.routeProgress);
+            const offsetSpeed = o.motionAmplitude * o.motionRate * Math.cos(o.motionPhase);
+            return pos.addScaledVector(frame.right, (o.motionAxisX || 0) * offsetSpeed * time)
+                .addScaledVector(frame.up, (o.motionAxisY || 0) * offsetSpeed * time)
+                .addScaledVector(frame.tangent, o.moveType === 'APPROACH' ? -(o.approachSpeed || 0) * time : 0);
+        }
+        function getLaserTargetLabel(o) {
+            if (!isLaserDestructible(o)) return 'HEDEF: —';
+            const size = o.sizeClass === 'SMALL' ? 'KÜÇÜK ASTEROİT' :
+                o.sizeClass === 'MEDIUM' ? 'ORTA ASTEROİT' : 'HAFİF BARİYER';
+            return `${size} · ${o.durability}/${o.maxDurability} DAYANIKLILIK`;
         }
 
         // AI-23: Engel vurma. Işın süpürme + gerçek panel hacmi; rakip gemiler hedef değildir.
@@ -1813,7 +1847,11 @@
         function findObstacleLaserImpact(from,to) {
             // Kaba rota aralığı filtresi sayesinde sahnedeki yüzlerce obje her seferinde ayrıntılı test edilmez.
             let best=null;
-            const lo=state.routeProgress-80,hi=state.routeProgress+1400;
+            const frame=getRaceFrameAtDistance(state.routeProgress);
+            const alongFrom=from.clone().sub(state.pos).dot(frame.tangent);
+            const alongTo=to.clone().sub(state.pos).dot(frame.tangent);
+            const lo=state.routeProgress+Math.min(-80,alongFrom,alongTo)-120;
+            const hi=state.routeProgress+Math.max(1400,alongFrom,alongTo)+180;
             const record=(o,test)=>{
                 if(!test || best && test.t>=best.t)return;
                 best={obstacle:o,t:test.t,point:test.point};
@@ -1829,17 +1867,71 @@
             }
             return best;
         }
+        // AI-26: Parçacık yerine gerçek, dönen metal/kaya kırıkları. Tekrar oynama ve
+        // bellek güvenliği için paylaşılan geometri, paylaşılan materyal ve sert üst sınır.
+        const obstacleShardGroup = new THREE.Group();
+        scene.add(obstacleShardGroup);
+        const obstacleShardGeometry = new THREE.TetrahedronGeometry(1, 0);
+        const obstacleShardMats = [
+            new THREE.MeshBasicMaterial({ color: 0x9ad7e4 }),
+            new THREE.MeshBasicMaterial({ color: 0x77798b }),
+            new THREE.MeshBasicMaterial({ color: 0xffad6d })
+        ];
+        const obstacleShards = [];
+        function clearObstacleShards() {
+            for (const shard of obstacleShards) obstacleShardGroup.remove(shard.mesh);
+            obstacleShards.length = 0;
+        }
+        function spawnObstacleShards(point, isAsteroid, baseRadius) {
+            const count = isAsteroid ? 10 : 8;
+            for (let i=0;i<count;i++) {
+                if(obstacleShards.length>=OBSTACLE_SHARD_LIMIT) {
+                    const oldest=obstacleShards.shift();
+                    obstacleShardGroup.remove(oldest.mesh);
+                }
+                const mesh=new THREE.Mesh(obstacleShardGeometry,obstacleShardMats[isAsteroid?(i%2):2]);
+                const size=Math.min(7,Math.max(1.8,baseRadius*(0.07+Math.random()*0.09)));
+                mesh.scale.setScalar(size);
+                mesh.position.copy(point);
+                mesh.rotation.set(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28);
+                const theta=Math.random()*Math.PI*2,vertical=Math.random()*2-1;
+                const speed=65+Math.random()*130;
+                const lateral=Math.sqrt(Math.max(0,1-vertical*vertical))*speed;
+                const velocity=new THREE.Vector3(Math.cos(theta)*lateral,vertical*speed,Math.sin(theta)*lateral);
+                const maxLife=0.48+Math.random()*0.48;
+                obstacleShards.push({mesh,velocity,spin:new THREE.Vector3(Math.random()*7,Math.random()*7,Math.random()*7),life:maxLife,maxLife,baseSize:size});
+                obstacleShardGroup.add(mesh);
+            }
+        }
+        function updateObstacleShards(dt) {
+            for(let i=obstacleShards.length-1;i>=0;i--) {
+                const shard=obstacleShards[i];
+                shard.life-=dt;
+                if(shard.life<=0){obstacleShardGroup.remove(shard.mesh);obstacleShards.splice(i,1);continue;}
+                shard.mesh.position.addScaledVector(shard.velocity,dt);
+                shard.mesh.rotation.x+=shard.spin.x*dt;
+                shard.mesh.rotation.y+=shard.spin.y*dt;
+                shard.mesh.rotation.z+=shard.spin.z*dt;
+                shard.mesh.scale.setScalar(Math.max(0.02,shard.baseSize*shard.life/shard.maxLife));
+            }
+        }
+        function setLaserFeedback(label, seconds=0.28) {
+            state.laserFeedback=label;
+            state.laserFeedbackTimer=seconds;
+        }
         function handleObstacleLaserImpact(obstacle,point) {
             state.laserHits++;
             state.hitMarkerTimer=0.14;
             sound.playHit();
             const indestructible=obstacle.durability===Infinity || obstacle.durability===undefined;
             if(indestructible){
+                setLaserFeedback('ZIRHLI ENGEL');
                 createExplosion(point,0xff9554,3,0.34);
                 return;
             }
             obstacle.durability--;
             if(obstacle.durability>0){
+                setLaserFeedback(`İSABET · ${obstacle.durability} HP`);
                 createExplosion(point,0x73faff,4,0.42);
                 return;
             }
@@ -1851,6 +1943,8 @@
             const bonus=isAsteroid?(obstacle.sizeClass==='SMALL'?180:300):240;
             state.score+=bonus;
             state.obstaclesDestroyed++;
+            setLaserFeedback(`PARÇALANDI +${bonus}`,0.55);
+            spawnObstacleShards(point,isAsteroid,obstacle.radius||23);
             createExplosion(point,isAsteroid?0x87dfff:0xffb168,isAsteroid?13:17,1.0);
             spawnFloatingText(point,`OBSTACLE DESTROYED +${bonus}`,'#9efaff');
         }
@@ -2418,6 +2512,8 @@
             });
 
             // Harita 1 lazeri yalnızca parkur engellerine kilitlenebilir.
+            // Aynı karede kamera taşındığı için dünya matrisini önce güncelle.
+            camera.updateMatrixWorld(true);
             findMagneticLockTarget();
 
             // 4. Oyuncu Ateşleme
@@ -3355,6 +3451,8 @@
             if (state.hitMarkerTimer > 0) {
                 state.hitMarkerTimer -= dt;
             }
+            if(state.laserFeedbackTimer>0)state.laserFeedbackTimer=Math.max(0,state.laserFeedbackTimer-dt);
+            updateObstacleShards(dt);
 
             render2DTacticalReticle(dt);
             updateHUD(incomingDanger);
@@ -3372,31 +3470,31 @@
 
         function findMagneticLockTarget() {
             let bestTarget = null;
-            let bestDist = 125; // Nişangah manyetik yakalama yarıçapı (px)
-
+            let bestDist = state.combatEnabled ? 125 : OBSTACLE_LOCK_MAX_PX;
+            const laserReady=state.combatEnabled || state.obstacleLaserTimer > 0;
             const candidates = state.combatEnabled ? [...enemies, ...racers] :
-                asteroids.filter(a=>a.active && a.routeProgress > state.routeProgress+30 && a.routeProgress < state.routeProgress+1400)
-                  .concat(staticObstacles.filter(o=>o.active && o.routeProgress > state.routeProgress+30 && o.routeProgress < state.routeProgress+1200));
+                laserReady ? asteroids.filter(a=>isLaserDestructible(a) &&
+                    a.routeProgress > state.routeProgress+24 && a.routeProgress < state.routeProgress+OBSTACLE_LASER_RANGE)
+                  .concat(staticObstacles.filter(o=>isLaserDestructible(o) &&
+                    o.routeProgress > state.routeProgress+24 && o.routeProgress < state.routeProgress+OBSTACLE_LASER_RANGE)) : [];
             if (state.combatEnabled) {
                 enemyProjectiles.forEach(ep => { if (ep.isMissile) candidates.push(ep); });
                 if (state.bossActive && state.boss) candidates.push(state.boss);
             }
-
-            candidates.forEach(c => {
-                const scr = worldToScreen(c.mesh.position);
-                if (!scr.visible) return;
-                const d = Math.hypot(scr.x - state.mouseX, scr.y - state.mouseY);
-                if (d < bestDist) {
-                    bestDist = d;
-                    bestTarget = { ...c, screenX: scr.x, screenY: scr.y };
-                }
-            });
-
-            state.lockedTarget = bestTarget;
+            for (const c of candidates) {
+                if(!c.mesh || c.mesh.visible===false)continue;
+                const aimPos=state.combatEnabled?c.mesh.position:predictObstacleAimPoint(c);
+                const scr=worldToScreen(aimPos);
+                if(!scr.visible || scr.x<0 || scr.x>W || scr.y<0 || scr.y>H)continue;
+                const d=Math.hypot(scr.x-state.mouseX,scr.y-state.mouseY);
+                if(d < bestDist) {bestDist=d;bestTarget={...c,screenX:scr.x,screenY:scr.y};}
+            }
+            state.lockedTarget=bestTarget;
             if (bestTarget && (!state.lastLockedTarget || state.lastLockedTarget.mesh !== bestTarget.mesh)) {
                 sound.playLock();
+                if(!state.combatEnabled)state.obstacleLaserLockCount++;
             }
-            state.lastLockedTarget = bestTarget;
+            state.lastLockedTarget=bestTarget;
         }
 
         function render2DTacticalReticle(dt) {
@@ -3549,13 +3647,24 @@
                 fxCtx.stroke();
             }
 
-            // LOCK ON Yazısı
+            // AI-26: Reticle açıkça silah kilidini, hedefin dayanıklılığını ve
+            // isabet/sekme/parçalanma sonucunu gösterir. Rakip yarışçılar kilitlenmez.
+            const weaponReady=state.combatEnabled || state.obstacleLaserTimer>0;
             fxCtx.font = 'bold 13px Orbitron, monospace';
             fxCtx.textAlign = 'center';
-            fxCtx.fillStyle = isLocked ? '#00ff88' : '#00f3ff';
+            fxCtx.fillStyle = !weaponReady ? '#fb7185' : isLocked ? '#00ff88' : '#00f3ff';
             fxCtx.shadowColor = '#00f3ff';
             fxCtx.shadowBlur = 8;
-            fxCtx.fillText(isLocked ? 'LOCK ON' : 'FREE AIM', 0, isLocked ? 64 : 70);
+            fxCtx.fillText(!weaponReady ? 'LAZER KİLİTLİ' : isLocked ? 'LOCK ON' : 'FREE AIM', 0, isLocked ? 64 : 70);
+            if(!state.combatEnabled && isLocked) {
+                fxCtx.font='bold 11px Share Tech Mono, monospace';
+                fxCtx.fillText(`${state.lockedTarget.durability} / ${state.lockedTarget.maxDurability} HP`,0,82);
+            }
+            if(state.laserFeedbackTimer>0 && !state.combatEnabled) {
+                fxCtx.fillStyle=state.laserFeedback.startsWith('ZIRH')?'#ff9b69':'#faffaa';
+                fxCtx.font='bold 15px Share Tech Mono, monospace';
+                fxCtx.fillText(state.laserFeedback,0,104);
+            }
             fxCtx.restore();
 
             // Uçuşan Savaş Puan Yazıları
@@ -3618,6 +3727,14 @@
                     laserStatus.textContent='LAZER KİLİTLİ — MOR KUTU TOPLA';
                     laserStatus.className="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
                 }
+            }
+            const targetStatus=document.getElementById('laser-target-status');
+            if(targetStatus) {
+                const hasLaser=state.obstacleLaserTimer>0;
+                targetStatus.textContent=hasLaser?getLaserTargetLabel(state.lockedTarget):'HEDEF: LAZER KİLİTLİ';
+                targetStatus.className=hasLaser && state.lockedTarget?
+                    "block text-[10px] text-emerald-300 font-['Share_Tech_Mono']":
+                    "block text-[10px] text-cyan-200/90 font-['Share_Tech_Mono']";
             }
             const itemStatus = document.getElementById('item-status');
             if(itemStatus){
@@ -3723,6 +3840,7 @@
             enemyProjectiles.length = 0;
             particles.forEach(p => scene.remove(p.mesh));
             particles.length = 0;
+            clearObstacleShards();
             floatingTexts.length = 0;
             shipContactTimes.clear();
             if (state.boss) {
@@ -3751,6 +3869,12 @@
             state.fireCooldown = 0;
             state.obstaclesDestroyed = 0;
             state.laserHits = 0;
+            state.laserFeedback = '';
+            state.laserFeedbackTimer = 0;
+            state.obstacleLaserShots = 0;
+            state.obstacleLaserLockCount = 0;
+            state.lockedTarget = null;
+            state.lastLockedTarget = null;
             state.barrelRollTimer = 0;
             state.barrelRollCooldown = 0;
             state.rank = 1;
@@ -3778,6 +3902,8 @@
             state.lastPowerUpTimer = 0;
             state.obstacleLaserTimer = 0;
             state.laserPickups = 0;
+            const laserTargetStatus=document.getElementById('laser-target-status');
+            if(laserTargetStatus)laserTargetStatus.textContent='HEDEF: LAZER KİLİTLİ';
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
                 laserStatus.textContent='LAZER KİLİTLİ — MOR KUTU TOPLA';
