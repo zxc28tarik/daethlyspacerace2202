@@ -443,6 +443,10 @@
             BOOST: 5000 / SPEED_DISPLAY_SCALE,
             HYPER: 5500 / SPEED_DISPLAY_SCALE
         });
+        // AI-19: 260 -> 360 yarıçap; parkur enine ölçülerini tek kaynaktan ölçekle.
+        const COURSE_WIDTH_SCALE = 360 / 260;
+        const ASTEROID_SIZE_SCALE = 1.23;
+
 
         const state = {
             running: false,
@@ -458,7 +462,7 @@
             totalRacers: 6,
 
             // Dev Görünmez Boru (Tünel) Yarış Durumu
-            tubeRadius: 260,
+            tubeRadius: 360,
             finishZ: -50000,
             routeProgress: 0,
             laneX: 0,
@@ -604,7 +608,7 @@
         const asteroidEdgeMat = new THREE.LineBasicMaterial({ color: 0x5ccddb, transparent: true, opacity: 0.24, depthWrite: false });
         const driftTailMat = new THREE.LineBasicMaterial({ color: 0x63e9ff, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false });
         const approachTailMat = new THREE.LineBasicMaterial({ color: 0xffac66, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
-        for (let i = 0; i < 220; i++) {
+        for (let i = 0; i < 320; i++) {
             // Boyut sınıfları: ~%40 Küçük (10–20), ~%40 Orta (21–38), ~%20 Büyük (39–62)
             let sizeClass = 'SMALL';
             let radius = 15;
@@ -620,6 +624,7 @@
                 radius = 39 + Math.random() * 23;
             }
 
+            radius *= ASTEROID_SIZE_SCALE;
             const ast = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), asteroidMaterials[sizeClass]);
             ast.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
             const edgeGlow = new THREE.LineSegments(new THREE.EdgesGeometry(ast.geometry, 25), asteroidEdgeMat);
@@ -747,8 +752,8 @@
             const checkpointMaterial = new THREE.MeshBasicMaterial({ color: 0x83cfff, transparent: true, opacity: 0.64 });
             const dangerMaterial = new THREE.MeshBasicMaterial({ color: 0xffad32, transparent: true, opacity: 0.7 });
             const locations = [
-                ...speedGateDistances.map((progress, i) => ({ type: 'SPEED', progress, laneX: ((i % 3) - 1) * 62, laneY: i % 2 ? 35 : -30, radius: 82 })),
-                ...energyGateDistances.map((progress, i) => ({ type: 'ENERGY', progress, laneX: (i % 2 ? -1 : 1) * 78, laneY: i % 3 === 0 ? 60 : -45, radius: 58 }))
+                ...speedGateDistances.map((progress, i) => ({ type: 'SPEED', progress, laneX: ((i % 3) - 1) * 62 * COURSE_WIDTH_SCALE, laneY: (i % 2 ? 35 : -30) * COURSE_WIDTH_SCALE, radius: 82 * COURSE_WIDTH_SCALE })),
+                ...energyGateDistances.map((progress, i) => ({ type: 'ENERGY', progress, laneX: (i % 2 ? -1 : 1) * 78 * COURSE_WIDTH_SCALE, laneY: (i % 3 === 0 ? 60 : -45) * COURSE_WIDTH_SCALE, radius: 58 * COURSE_WIDTH_SCALE }))
             ];
             locations.forEach((cfg, i) => {
                 const f = getRaceFrameAtDistance(cfg.progress);
@@ -902,55 +907,72 @@
                 // Farklı sektörlerde tehlikeler yalnızca kaydırılmaz, çapraz konum da değiştirir.
                 const shiftX = x * Math.cos(turn) - y * Math.sin(turn);
                 const shiftY = x * Math.sin(turn) + y * Math.cos(turn);
-                return [distance + sector * 10000, shiftX, shiftY, radius + (index % 4) * 2, 'BARRIER'];
+                return [distance + sector * 10000,
+                    shiftX * COURSE_WIDTH_SCALE, shiftY * COURSE_WIDTH_SCALE,
+                    (radius + (index % 4) * 2) * COURSE_WIDTH_SCALE, 'BARRIER'];
             })
         ).flat();
         const baseItemBlueprints = [
             [745, 8, -10], [1880, 90, 15], [2795, -80, -25], [3935, 58, 64],
-            [5070, -45, 60], [6050, 20, -95], [7475, 72, 48], [8370, -92, -18], [9400, 5, 18]
+            [5070, -45, 60], [6050, 20, -95], [7475, 72, 48], [8370, -92, -18],
+            [9400, 5, 18], [4730, 148, -32], [9080, -128, 84]
         ];
         const itemBlueprints = Array.from({length:5},(_,sector)=>
             baseItemBlueprints.map(([dist,x,y])=>[dist+sector*10000,
-                x * Math.cos(sector * 0.35) - y * Math.sin(sector * 0.35),
-                x * Math.sin(sector * 0.35) + y * Math.cos(sector * 0.35)])
+                (x * Math.cos(sector * 0.35) - y * Math.sin(sector * 0.35)) * COURSE_WIDTH_SCALE,
+                (x * Math.sin(sector * 0.35) + y * Math.cos(sector * 0.35)) * COURSE_WIDTH_SCALE])
         ).flat();
         // Ek dar ama geçilebilir riskli geçitler: koridorun ters kenarlarındaki çift bariyer.
         for (let sector=0; sector<5; sector++) {
             for (let p=0; p<3; p++) {
                 const d=sector*10000 + 3030 + p*1840;
                 const ang=(sector*3+p)*1.2;
-                obstacleBlueprints.push([d, Math.cos(ang)*148, Math.sin(ang)*148, 48, 'BARRIER']);
-                obstacleBlueprints.push([d+95, -Math.cos(ang)*142, -Math.sin(ang)*142, 43, 'BARRIER']);
+                obstacleBlueprints.push([d, Math.cos(ang)*148*COURSE_WIDTH_SCALE, Math.sin(ang)*148*COURSE_WIDTH_SCALE, 48*COURSE_WIDTH_SCALE, 'BARRIER']);
+                obstacleBlueprints.push([d+95, -Math.cos(ang)*142*COURSE_WIDTH_SCALE, -Math.sin(ang)*142*COURSE_WIDTH_SCALE, 43*COURSE_WIDTH_SCALE, 'BARRIER']);
+            }
+        }
+
+        // Genişleyen kesitte yan kuşaklarda da tehdit kalsın: 5 sektörde 25 ek bariyer.
+        for (let sector=0; sector<5; sector++) {
+            for (let slot=0; slot<5; slot++) {
+                const d=sector*10000+1140+slot*1880;
+                const angle=sector*0.91+slot*2.399963;
+                const laneR=(158+(slot%3)*17)*COURSE_WIDTH_SCALE;
+                obstacleBlueprints.push([d,Math.cos(angle)*laneR,Math.sin(angle)*laneR,
+                    (40+slot%3*5)*COURSE_WIDTH_SCALE,'BARRIER']);
             }
         }
 
         // AI-17: Gemi enkazı daraltmaları. Bazı bölgelerde yalnızca merkezden,
         // bazı bölgelerde ise yalnızca üst taraftan geçiş bırakılır.
         function addWreckageChokepoint(progress, mode, variant = 0) {
+            const addWreck = (distance, x, y, radius) =>
+                obstacleBlueprints.push([distance, x*COURSE_WIDTH_SCALE,
+                    y*COURSE_WIDTH_SCALE, radius*COURSE_WIDTH_SCALE, 'WRECK']);
             if (mode === 'CENTER_ONLY') {
                 // Dış halkayı molozla kapat, merkezde net bir geçit bırak.
-                obstacleBlueprints.push([progress - 56, -156, 0, 82, 'WRECK']);
-                obstacleBlueprints.push([progress - 18, 156, 0, 82, 'WRECK']);
-                obstacleBlueprints.push([progress + 22, 0, 146, 70, 'WRECK']);
-                obstacleBlueprints.push([progress + 58, 0, -146, 70, 'WRECK']);
+                addWreck(progress - 56, -156, 0, 82);
+                addWreck(progress - 18, 156, 0, 82);
+                addWreck(progress + 22, 0, 146, 70);
+                addWreck(progress + 58, 0, -146, 70);
                 if (variant % 2 === 0) {
-                    obstacleBlueprints.push([progress + 6, 108, 92, 42, 'WRECK']);
-                    obstacleBlueprints.push([progress + 34, -108, -92, 42, 'WRECK']);
+                    addWreck(progress + 6, 108, 92, 42);
+                    addWreck(progress + 34, -108, -92, 42);
                 } else {
-                    obstacleBlueprints.push([progress + 6, -112, 88, 40, 'WRECK']);
-                    obstacleBlueprints.push([progress + 34, 112, -88, 40, 'WRECK']);
+                    addWreck(progress + 6, -112, 88, 40);
+                    addWreck(progress + 34, 112, -88, 40);
                 }
             } else if (mode === 'TOP_ONLY') {
                 // Alt ve orta bölüm dolu; yukarıda tek kaçış koridoru bırak.
-                obstacleBlueprints.push([progress - 70, 0, -152, 88, 'WRECK']);
-                obstacleBlueprints.push([progress - 26, -142, -18, 74, 'WRECK']);
-                obstacleBlueprints.push([progress + 20, 142, -18, 74, 'WRECK']);
-                obstacleBlueprints.push([progress + 64, 0, 6, 78, 'WRECK']);
-                obstacleBlueprints.push([progress + 102, 0, 84, 54, 'WRECK']);
+                addWreck(progress - 70, 0, -152, 88);
+                addWreck(progress - 26, -142, -18, 74);
+                addWreck(progress + 20, 142, -18, 74);
+                addWreck(progress + 64, 0, 6, 78);
+                addWreck(progress + 102, 0, 84, 54);
                 if (variant % 2 === 0) {
-                    obstacleBlueprints.push([progress + 38, -74, 138, 30, 'WRECK']);
+                    addWreck(progress + 38, -74, 138, 30);
                 } else {
-                    obstacleBlueprints.push([progress + 38, 76, 136, 30, 'WRECK']);
+                    addWreck(progress + 38, 76, 136, 30);
                 }
             }
         }
@@ -1030,13 +1052,13 @@
             const coreMat = new THREE.MeshBasicMaterial({color:0x60eeff});
             itemBlueprints.forEach(([routeProgress, laneX, laneY],i)=>{
                 const g = makeCourseLocalGroup(routeProgress,laneX,laneY);
-                const cube = new THREE.Mesh(new THREE.BoxGeometry(27,27,27),cubeMat);
+                const cube = new THREE.Mesh(new THREE.BoxGeometry(34,34,34),cubeMat);
                 cube.rotation.set(0.15,0.15,0.1);
-                const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(29,29,29)), cubeEdgeMat);
+                const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(36,36,36)), cubeEdgeMat);
                 const core = new THREE.Mesh(new THREE.OctahedronGeometry(9,0),coreMat);
                 cube.add(core);g.add(cube,edge);
                 itemBoxGroup.add(g);
-                itemBoxes.push({id:`ITEM-${i}`,routeProgress,laneX,laneY,radius:39,mesh:g,claimed:new Set(),spin:cube,edge});
+                itemBoxes.push({id:`ITEM-${i}`,routeProgress,laneX,laneY,radius:49,mesh:g,claimed:new Set(),spin:cube,edge});
             });
         }
         buildItemAndBarrierCourse();
@@ -1114,7 +1136,7 @@
         }
 
         // Harita 1 — görünür fakat uçuşu engellemeyen neon koridor sınırları.
-        // Gerçek sınır yarıçapı ile birebir eşleşir (tubeRadius = 260).
+        // Gerçek sınır yarıçapı ile birebir eşleşir (tubeRadius = 360).
         const corridorGuideGroup = new THREE.Group();
         scene.add(corridorGuideGroup);
         function buildVisibleCorridor() {
@@ -1127,7 +1149,7 @@
             const boundaryHintMat = new THREE.LineBasicMaterial({ color: 0xffba65, transparent: true, opacity: 0.20, blending: THREE.AdditiveBlending, depthWrite: false });
             const boundaryDangerMat = new THREE.LineBasicMaterial({ color: 0xff6e67, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
             corridorGuideGroup.userData = { railMaterial, ringMaterial, majorRingMaterial, boundaryHintMat, boundaryDangerMat };
-            for (const [radius, material, count] of [[215,boundaryHintMat,8],[250,boundaryDangerMat,8]]) {
+            for (const [radius, material, count] of [[215*COURSE_WIDTH_SCALE,boundaryHintMat,8],[250*COURSE_WIDTH_SCALE,boundaryDangerMat,8]]) {
                 for (let k=0;k<count;k++) {
                     const angle=k*2*Math.PI/count;
                     const points=[];
@@ -1172,7 +1194,7 @@
                 const from=sector*10000, to=(sector+1)*10000, step=145;
                 const roadMat = new THREE.MeshBasicMaterial({color:sectorPalette[sector],
                     transparent:true,opacity:0.115,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
-                const makePt=(frame,x)=>frame.center.clone().addScaledVector(frame.up,-190).addScaledVector(frame.right,x);
+                const makePt=(frame,x)=>frame.center.clone().addScaledVector(frame.up,-190*COURSE_WIDTH_SCALE).addScaledVector(frame.right,x*COURSE_WIDTH_SCALE);
                 for(let d=from;d<to;d+=step){
                     const f=getRaceFrameAtDistance(d), f2=getRaceFrameAtDistance(Math.min(to,d+step));
                     const bl=makePt(f,-160),br=makePt(f,160), el=makePt(f2,-160),er=makePt(f2,160);
@@ -1197,7 +1219,7 @@
                 if(Math.abs(turn)<.035)continue;
                 const side=turn>0?1:-1, target=side>0?right:left;
                 for(let j=0;j<2;j++) {
-                    const origin=f.center.clone().addScaledVector(f.right,side*192).addScaledVector(f.up,70);
+                    const origin=f.center.clone().addScaledVector(f.right,side*192*COURSE_WIDTH_SCALE).addScaledVector(f.up,70*COURSE_WIDTH_SCALE);
                     origin.addScaledVector(f.tangent,j*55);
                     const a=origin.clone().addScaledVector(f.right,-side*26).addScaledVector(f.tangent,-20);
                     const b=origin.clone();
@@ -1346,7 +1368,7 @@
                 a.moveType = mode < 2 ? 'STATIC' : (mode < 6 ? 'DRIFT' : 'APPROACH');
                 a.motionAxisX = -Math.sin(angle);
                 a.motionAxisY = Math.cos(angle);
-                a.motionAmplitude = a.moveType === 'STATIC' ? 0 : (a.moveType === 'DRIFT' ? 40 + Math.random() * 35 : 55 + Math.random() * 45);
+                a.motionAmplitude = a.moveType === 'STATIC' ? 0 : (a.moveType === 'DRIFT' ? 40 + Math.random() * 35 : 55 + Math.random() * 45) * COURSE_WIDTH_SCALE;
                 a.motionRate = a.moveType === 'STATIC' ? 0 : 0.85 + Math.random() * 0.85;
                 a.motionPhase = Math.random() * Math.PI * 2;
                 a.approachSpeed = a.moveType === 'APPROACH' ? 90 + Math.random() * 170 : 0;
@@ -1875,8 +1897,11 @@
         // AI-18: Kademeli sınır sürtünmesi. Fizik dt ile ölçeklenir; kanat uçları
         // ayrı örneklenir. Görsel/hasar eşikleri dünya-yerel koridor eksenindedir.
         const BOUNDARY_RULES = Object.freeze({
-            safeRadius: 215, softRadius: 235, scrapeRadius: 250,
-            outsideRadius: 270, maxRadius: 285,
+            safeRadius: 215 * COURSE_WIDTH_SCALE,
+            softRadius: 235 * COURSE_WIDTH_SCALE,
+            scrapeRadius: 250 * COURSE_WIDTH_SCALE,
+            outsideRadius: 270 * COURSE_WIDTH_SCALE,
+            maxRadius: 285 * COURSE_WIDTH_SCALE,
             playerWingHalfSpan: 18, rivalWingHalfSpan: 17
         });
         function evaluateBoundaryFriction(laneX, laneY, wingHalfSpan = 18, roll = 0) {
@@ -1893,22 +1918,22 @@
                 level = 4;
                 const t = (contactRadius-edge.outsideRadius)/(edge.maxRadius-edge.outsideRadius);
                 factor = lerp(0.25,0.15,t);
-                damagePerSecond = lerp(30,42,t);
+                damagePerSecond = lerp(7,12,t);
             } else if (contactRadius > edge.scrapeRadius) {
                 level = 3;
                 const t = (contactRadius-edge.scrapeRadius)/(edge.outsideRadius-edge.scrapeRadius);
                 factor = lerp(0.65,0.25,t);
-                damagePerSecond = lerp(18,30,t);
+                damagePerSecond = lerp(3,7,t);
             } else if (contactRadius > edge.softRadius) {
                 level = 2;
                 const t = (contactRadius-edge.softRadius)/(edge.scrapeRadius-edge.softRadius);
                 factor = lerp(0.90,0.65,t);
-                damagePerSecond = lerp(6,12,t);
+                damagePerSecond = lerp(1.25,3,t);
             } else if (contactRadius > edge.safeRadius) {
                 level = 1;
                 const t = (contactRadius-edge.safeRadius)/(edge.softRadius-edge.safeRadius);
                 factor = lerp(1,0.90,t);
-                damagePerSecond = lerp(2,4,t);
+                damagePerSecond = lerp(0.5,1.25,t);
             }
             const leftHit = left > edge.safeRadius;
             const rightHit = right > edge.safeRadius;
@@ -1917,7 +1942,7 @@
         }
 
         function clampToSoftBoundary(ship) {
-            // Koridor fiziksel olarak 260; merkez 285'e kadar çıkabilir.
+            // Koridor fiziksel olarak 360; merkez 394.6'ya kadar çıkabilir.
             const radius = Math.hypot(ship.laneX, ship.laneY);
             if (radius > BOUNDARY_RULES.maxRadius) {
                 const ratio = BOUNDARY_RULES.maxRadius / radius;
@@ -1946,7 +1971,7 @@
             ship.boundaryDamageRate = f.damagePerSecond;
             ship.boundarySide = f.side;
             // Normal ivmelenme ve sınıra bağlı hedef hız aynı geçişte hesaplanır.
-            // Böylece 5000 km/s boost, dışarıda %15'e kadar gerçekten düşebilir.
+            // 5000 km/s boost dışarıda kademeli yavaşlar; hasar artık çok daha yumuşak.
             const frictionTarget = desiredSpeed * f.factor;
             ship.currentSpeed += (frictionTarget - ship.currentSpeed) * Math.min(1, 5*dt);
             if (!f.level) return;
@@ -2076,17 +2101,17 @@
                 camera.updateProjectionMatrix();
 
                 // 2. Görünmez Dev Boru İçinde Serbest Manevra (Sağ/Sol/Aşağı/Yukarı)
-                moveX = normMouseX * 720;
-                moveY = -normMouseY * 630;
-                if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 680;
-                if (keys['KeyD'] || keys['ArrowRight']) moveX += 680;
-                if (keys['ArrowUp']) moveY += 580;
-                if (keys['ArrowDown']) moveY -= 580;
+                moveX = normMouseX * 850;
+                moveY = -normMouseY * 750;
+                if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 800;
+                if (keys['KeyD'] || keys['ArrowRight']) moveX += 800;
+                if (keys['ArrowUp']) moveY += 690;
+                if (keys['ArrowDown']) moveY -= 690;
 
                 state.laneX += moveX * dt;
                 state.laneY += moveY * dt;
 
-                // Kanat sınır teması ve 25 birimlik taşma payı. Hız cezasını
+                // Kanat sınır teması ve orantılı taşma payı. Hız cezasını
                 // ilerleme hesabından önce uygula; yüksek FPS/farklı dt'de adil kalır.
                 applyBoundaryFriction(state, targetSpeed, dt, true);
                 if (state.playerDNF) return;
@@ -2375,7 +2400,7 @@
                 let competitorClearance = 34;
                 let boostStartEnergy = 28;
                 let boostStopEnergy = 8;
-                let maxLateralSpeed = 350;
+                let maxLateralSpeed = 350 * COURSE_WIDTH_SCALE;
 
                 if (r.profile === 'SPEED') {
                     lookAheadDist = 1860;
@@ -2384,7 +2409,7 @@
                     competitorClearance = 32;
                     boostStartEnergy = 16; // Düzlüklerde boost'u erken açar ve uzun sürdürür
                     boostStopEnergy = 5;
-                    maxLateralSpeed = 370;
+                    maxLateralSpeed = 370 * COURSE_WIDTH_SCALE;
                 } else if (r.profile === 'CAUTIOUS') {
                     lookAheadDist = 2320;
                     safetyMargin = r.radius + 28; // Asteroitlere ve gemilere daha geniş güvenlik boşluğu bırakır
@@ -2392,7 +2417,7 @@
                     competitorClearance = 44;
                     boostStartEnergy = 42;
                     boostStopEnergy = 18;
-                    maxLateralSpeed = 330;
+                    maxLateralSpeed = 330 * COURSE_WIDTH_SCALE;
                 } else if (r.profile === 'AGGRESSIVE') {
                     lookAheadDist = 1760;
                     safetyMargin = r.radius + 15;
@@ -2400,7 +2425,7 @@
                     competitorClearance = 30;
                     boostStartEnergy = 20;
                     boostStopEnergy = 7;
-                    maxLateralSpeed = 385;
+                    maxLateralSpeed = 385 * COURSE_WIDTH_SCALE;
                 } else {
                     // BALANCED
                     lookAheadDist = 2020;
@@ -2409,7 +2434,7 @@
                     competitorClearance = 36;
                     boostStartEnergy = 28;
                     boostStopEnergy = 8;
-                    maxLateralSpeed = 350;
+                    maxLateralSpeed = 350 * COURSE_WIDTH_SCALE;
                 }
 
                 // Hedef koordinatın koridor sınırları içerisinde olduğundan emin ol
