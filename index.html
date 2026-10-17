@@ -537,6 +537,7 @@
             laserFeedbackTimer: 0,
             obstacleLaserShots: 0,
             obstacleLaserLockCount: 0,
+            laserSalvageEnergy: 0,
             gunSide: 0,
             shake: 0,
 
@@ -1728,6 +1729,14 @@
             };
         }
 
+        // AI-30: One GPU geometry and two materials for the whole race. Removing a
+        // laser no longer leaves an undisposed geometry/material on every volley.
+        const sharedLaserGeometry = new THREE.CylinderGeometry(0.32, 0.32, 26, 6);
+        sharedLaserGeometry.rotateX(Math.PI / 2);
+        const sharedLaserMaterials = [
+            new THREE.MeshBasicMaterial({ color: 0x00f3ff }),
+            new THREE.MeshBasicMaterial({ color: 0x00ff66 })
+        ];
         function firePlayerLasers() {
             // Yüksek hızlarda taretler eski karedeki konumdan ateş etmesin.
             playerRig.updateMatrixWorld(true);
@@ -1736,9 +1745,11 @@
             // Nişangah veya Kilitli Hedef Yönünü Hesapla
             let aimWorldPoint;
             if (state.lockedTarget && state.lockedTarget.mesh) {
+                // Do not aim using a stale spread-copy: read moving obstacle's live state.
+                const liveLock = state.lockedTarget.source || state.lockedTarget;
                 aimWorldPoint = state.combatEnabled
-                    ? state.lockedTarget.mesh.position.clone()
-                    : predictObstacleAimPoint(state.lockedTarget);
+                    ? liveLock.mesh.position.clone()
+                    : predictObstacleAimPoint(liveLock);
             } else {
                 const ndcX = (state.mouseX / W) * 2 - 1;
                 const ndcY = -(state.mouseY / H) * 2 + 1;
@@ -1753,14 +1764,11 @@
                 { pos: new THREE.Vector3(5.2, -3.4, -7.5), color: 0x00ff66 }
             ];
 
-            offsets.forEach(cfg => {
+            offsets.forEach((cfg, barrelIndex) => {
                 const startPos = cfg.pos.clone().applyMatrix4(playerRig.matrixWorld);
                 const dir = aimWorldPoint.clone().sub(startPos).normalize();
 
-                const laserGeo = new THREE.CylinderGeometry(0.32, 0.32, 26, 6);
-                laserGeo.rotateX(Math.PI / 2);
-                const laserMat = new THREE.MeshBasicMaterial({ color: cfg.color });
-                const laserMesh = new THREE.Mesh(laserGeo, laserMat);
+                const laserMesh = new THREE.Mesh(sharedLaserGeometry, sharedLaserMaterials[barrelIndex]);
 
                 laserMesh.position.copy(startPos);
                 laserMesh.lookAt(aimWorldPoint);
@@ -1786,6 +1794,10 @@
             if (!state.running || state.finished || state.playerDNF || state.fireCooldown > 0) return false;
             // Gelecekteki savaş modu etkilenmez; mevcut yarışta silah ancak kutudan açılır.
             if (!state.combatEnabled && state.obstacleLaserTimer <= 0) return false;
+            if (!state.combatEnabled && state.lockedTarget &&
+                !isLaserDestructible(state.lockedTarget.source || state.lockedTarget)) {
+                state.lockedTarget = null; // Gone targets must never attract new shots.
+            }
             const energyCost = state.combatEnabled ? 0 : OBSTACLE_LASER_ENERGY_COST;
             if (state.energy < energyCost) return false;
             if (energyCost) state.energy = Math.max(0, state.energy - energyCost);
@@ -1878,6 +1890,40 @@
             new THREE.MeshBasicMaterial({ color: 0xffad6d })
         ];
         const obstacleShards = [];
+        // AI-28: Brief three-dimensional scorch pulses make 1/3 and 2/3 HP
+        // hits legible at 3,000-5,000 km/s without cluttering the course.
+        const laserImpactGroup = new THREE.Group();
+        scene.add(laserImpactGroup);
+        const laserImpactGeometry = new THREE.RingGeometry(4, 10, 12);
+        const laserImpactMaterials = [
+            new THREE.MeshBasicMaterial({color:0x79ffff, transparent:true, opacity:0.88, depthWrite:false,side:THREE.DoubleSide}),
+            new THREE.MeshBasicMaterial({color:0xffba6a, transparent:true, opacity:0.88, depthWrite:false,side:THREE.DoubleSide})
+        ];
+        const laserImpacts = [];
+        function createLaserImpactPulse(position, armored=false, scale=1) {
+            if (laserImpacts.length>=24) {
+                const old=laserImpacts.shift();
+                laserImpactGroup.remove(old.mesh);
+            }
+            const mesh=new THREE.Mesh(laserImpactGeometry, laserImpactMaterials[armored?1:0]);
+            mesh.position.copy(position);
+            mesh.quaternion.copy(camera.quaternion);
+            mesh.scale.setScalar(scale);
+            laserImpactGroup.add(mesh);
+            laserImpacts.push({mesh,life:0.28,maxLife:0.28});
+        }
+        function updateLaserImpacts(dt) {
+            for(let i=laserImpacts.length-1;i>=0;i--) {
+                const impact=laserImpacts[i];
+                impact.life-=dt;
+                if(impact.life<=0){laserImpactGroup.remove(impact.mesh);laserImpacts.splice(i,1);continue;}
+                impact.mesh.scale.multiplyScalar(1+dt*4);
+            }
+        }
+        function clearLaserImpacts() {
+            laserImpacts.forEach(p=>laserImpactGroup.remove(p.mesh));
+            laserImpacts.length=0;
+        }
         function clearObstacleShards() {
             for (const shard of obstacleShards) obstacleShardGroup.remove(shard.mesh);
             obstacleShards.length = 0;
@@ -1924,6 +1970,7 @@
             state.hitMarkerTimer=0.14;
             sound.playHit();
             const indestructible=obstacle.durability===Infinity || obstacle.durability===undefined;
+            createLaserImpactPulse(point, indestructible, indestructible ? 1.4 : 1);
             if(indestructible){
                 setLaserFeedback('ZIRHLI ENGEL');
                 createExplosion(point,0xff9554,3,0.34);
@@ -1943,7 +1990,13 @@
             const bonus=isAsteroid?(obstacle.sizeClass==='SMALL'?180:300):240;
             state.score+=bonus;
             state.obstaclesDestroyed++;
-            setLaserFeedback(`PARÇALANDI +${bonus}`,0.55);
+            // AI-29: Precision destruction pays back a *small* fraction of the
+            // three-energy volley cost. Firing still uses the boost energy pool.
+            const salvage = isAsteroid && obstacle.sizeClass === 'SMALL' ? 1 : 2;
+            const restored = Math.min(100-state.energy,salvage);
+            state.energy += restored;
+            state.laserSalvageEnergy += restored;
+            setLaserFeedback(`PARÇALANDI +${bonus} / ENERJİ +${restored.toFixed(0)}`,0.55);
             spawnObstacleShards(point,isAsteroid,obstacle.radius||23);
             createExplosion(point,isAsteroid?0x87dfff:0xffb168,isAsteroid?13:17,1.0);
             spawnFloatingText(point,`OBSTACLE DESTROYED +${bonus}`,'#9efaff');
@@ -3453,6 +3506,7 @@
             }
             if(state.laserFeedbackTimer>0)state.laserFeedbackTimer=Math.max(0,state.laserFeedbackTimer-dt);
             updateObstacleShards(dt);
+            updateLaserImpacts(dt);
 
             render2DTacticalReticle(dt);
             updateHUD(incomingDanger);
@@ -3468,33 +3522,62 @@
             };
         }
 
+        // AI-27: Line-of-sight for a precise lock; a solid bulkhead or asteroid
+        // cannot be silently ignored just because a destructible target is behind it.
+        function hasClearObstacleLaserPath(candidate, aimPoint) {
+            const shotOrigin = state.pos.clone();
+            const toTarget = aimPoint.clone().sub(shotOrigin);
+            const distance = toTarget.length();
+            if (distance <= 1 || distance > OBSTACLE_LASER_RANGE) return false;
+            const impact = findObstacleLaserImpact(shotOrigin, aimPoint);
+            if (!impact) return true; // Moving targets may have moved slightly after prediction.
+            if (impact.obstacle === candidate) return true;
+            // Another obstacle blocks the path before the target's expected front face.
+            return impact.t >= 1 - Math.min(0.14, (candidate.radius || 24) / distance);
+        }
+
         function findMagneticLockTarget() {
             let bestTarget = null;
+            const laserReady = state.combatEnabled || state.obstacleLaserTimer > 0;
+            const previousSource = state.lockedTarget && (state.lockedTarget.source || state.lockedTarget);
             let bestDist = state.combatEnabled ? 125 : OBSTACLE_LOCK_MAX_PX;
-            const laserReady=state.combatEnabled || state.obstacleLaserTimer > 0;
+            if (!state.combatEnabled && previousSource && isLaserDestructible(previousSource)) {
+                // A small retention margin prevents target blinking at crosshair edges.
+                bestDist += 18;
+            }
             const candidates = state.combatEnabled ? [...enemies, ...racers] :
-                laserReady ? asteroids.filter(a=>isLaserDestructible(a) &&
-                    a.routeProgress > state.routeProgress+24 && a.routeProgress < state.routeProgress+OBSTACLE_LASER_RANGE)
-                  .concat(staticObstacles.filter(o=>isLaserDestructible(o) &&
-                    o.routeProgress > state.routeProgress+24 && o.routeProgress < state.routeProgress+OBSTACLE_LASER_RANGE)) : [];
+                laserReady ? asteroids.filter(a => isLaserDestructible(a) &&
+                    a.routeProgress > state.routeProgress + 24 && a.routeProgress < state.routeProgress + OBSTACLE_LASER_RANGE)
+                .concat(staticObstacles.filter(o => isLaserDestructible(o) &&
+                    o.routeProgress > state.routeProgress + 24 && o.routeProgress < state.routeProgress + OBSTACLE_LASER_RANGE)) : [];
             if (state.combatEnabled) {
                 enemyProjectiles.forEach(ep => { if (ep.isMissile) candidates.push(ep); });
                 if (state.bossActive && state.boss) candidates.push(state.boss);
             }
+            const possibilities = [];
             for (const c of candidates) {
-                if(!c.mesh || c.mesh.visible===false)continue;
-                const aimPos=state.combatEnabled?c.mesh.position:predictObstacleAimPoint(c);
-                const scr=worldToScreen(aimPos);
-                if(!scr.visible || scr.x<0 || scr.x>W || scr.y<0 || scr.y>H)continue;
-                const d=Math.hypot(scr.x-state.mouseX,scr.y-state.mouseY);
-                if(d < bestDist) {bestDist=d;bestTarget={...c,screenX:scr.x,screenY:scr.y};}
+                if (!c.mesh || c.mesh.visible === false) continue;
+                const aimPos = state.combatEnabled ? c.mesh.position : predictObstacleAimPoint(c);
+                const scr = worldToScreen(aimPos);
+                if (!scr.visible || scr.x < 0 || scr.x > W || scr.y < 0 || scr.y > H) continue;
+                const d = Math.hypot(scr.x - state.mouseX, scr.y - state.mouseY);
+                if (d > bestDist) continue;
+                const stableScore = d - (!state.combatEnabled && c === previousSource ? 16 : 0);
+                possibilities.push({source:c, screenX:scr.x, screenY:scr.y, distance:d, score:stableScore, aimPos});
             }
-            state.lockedTarget=bestTarget;
-            if (bestTarget && (!state.lastLockedTarget || state.lastLockedTarget.mesh !== bestTarget.mesh)) {
+            possibilities.sort((a,b) => a.score-b.score);
+            for (const p of possibilities) {
+                if (!state.combatEnabled && !hasClearObstacleLaserPath(p.source, p.aimPos)) continue;
+                bestTarget = {...p.source, source:p.source, screenX:p.screenX, screenY:p.screenY};
+                break;
+            }
+            state.lockedTarget = bestTarget;
+            if (bestTarget && (!state.lastLockedTarget ||
+                    (state.lastLockedTarget.source || state.lastLockedTarget) !== bestTarget.source)) {
                 sound.playLock();
-                if(!state.combatEnabled)state.obstacleLaserLockCount++;
+                if (!state.combatEnabled) state.obstacleLaserLockCount++;
             }
-            state.lastLockedTarget=bestTarget;
+            state.lastLockedTarget = bestTarget;
         }
 
         function render2DTacticalReticle(dt) {
@@ -3718,6 +3801,16 @@
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
             document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * SPEED_DISPLAY_SCALE) : '—';
+            // AI-30: Read-only weapon telemetry for reproducible manual game tests.
+            window.starbladeWeaponTelemetry = {
+                shots: state.obstacleLaserShots,
+                hits: state.laserHits,
+                destroyed: state.obstaclesDestroyed,
+                recoveredEnergy: Number(state.laserSalvageEnergy.toFixed(2)),
+                activeSeconds: Number(state.obstacleLaserTimer.toFixed(2)),
+                locked: !!state.lockedTarget,
+                energy: Number(state.energy.toFixed(2))
+            };
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
                 if (state.obstacleLaserTimer > 0) {
@@ -3731,7 +3824,7 @@
             const targetStatus=document.getElementById('laser-target-status');
             if(targetStatus) {
                 const hasLaser=state.obstacleLaserTimer>0;
-                targetStatus.textContent=hasLaser?getLaserTargetLabel(state.lockedTarget):'HEDEF: LAZER KİLİTLİ';
+                targetStatus.textContent=hasLaser?getLaserTargetLabel(state.lockedTarget && (state.lockedTarget.source || state.lockedTarget)):'HEDEF: LAZER KİLİTLİ';
                 targetStatus.className=hasLaser && state.lockedTarget?
                     "block text-[10px] text-emerald-300 font-['Share_Tech_Mono']":
                     "block text-[10px] text-cyan-200/90 font-['Share_Tech_Mono']";
@@ -3841,6 +3934,7 @@
             particles.forEach(p => scene.remove(p.mesh));
             particles.length = 0;
             clearObstacleShards();
+            clearLaserImpacts();
             floatingTexts.length = 0;
             shipContactTimes.clear();
             if (state.boss) {
@@ -3873,6 +3967,7 @@
             state.laserFeedbackTimer = 0;
             state.obstacleLaserShots = 0;
             state.obstacleLaserLockCount = 0;
+            state.laserSalvageEnergy = 0;
             state.lockedTarget = null;
             state.lastLockedTarget = null;
             state.barrelRollTimer = 0;
@@ -3889,6 +3984,7 @@
             state.draftEnergyEarned = 0;
             state.lastTelemetryTick = -1;
             window.starbladeRaceTelemetry = null;
+            window.starbladeWeaponTelemetry = null;
             const boundaryFx = document.getElementById('boundary-scrape-overlay');
             if (boundaryFx) boundaryFx.style.opacity = '0';
             state.asteroidHits = 0;
