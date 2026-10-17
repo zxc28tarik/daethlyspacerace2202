@@ -58,6 +58,14 @@
             clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
         }
 
+        /* AI-18: sınır enerjisinin kanatlara sürtünmesi. */
+        #boundary-scrape-overlay {
+            position: absolute; inset: 0; z-index: 24; pointer-events: none;
+            opacity: 0; transition: opacity 100ms linear;
+            background: radial-gradient(ellipse at left center, transparent 45%, rgba(255, 149, 67, .22) 100%);
+            box-shadow: inset 0 0 80px rgba(255, 112, 72, .3);
+        }
+
         .danger-banner {
             background: linear-gradient(90deg, transparent, rgba(220, 20, 40, 0.85), transparent);
             border-top: 1px solid #ff2a4b;
@@ -105,6 +113,7 @@
 
     <!-- Ekran Çevresi Enerji Kalkanı Çemberi -->
     <div id="shield-ring" class="shield-ring-overlay"></div>
+    <div id="boundary-scrape-overlay"></div>
 
     <!-- Hasar ve EMP Ekran Efektleri -->
     <div id="damage-flash" class="absolute inset-0 bg-red-600/40 pointer-events-none z-30 opacity-0 transition-opacity duration-100"></div>
@@ -470,6 +479,11 @@
             cameraMode: 'TURRET', // 'TURRET' (Köşe Silahlar) veya 'CHASE' (3. Şahıs GeoSword)
             wallCooldown: 0,
             wallFlash: 0,
+            boundaryLevel: 0,
+            boundaryFactor: 1,
+            boundaryDamageRate: 0,
+            boundarySide: 'NONE',
+            boundaryDamageTotal: 0,
             asteroidHits: 0,
             shipContacts: 0,
             wallContacts: 0,
@@ -888,7 +902,7 @@
                 // Farklı sektörlerde tehlikeler yalnızca kaydırılmaz, çapraz konum da değiştirir.
                 const shiftX = x * Math.cos(turn) - y * Math.sin(turn);
                 const shiftY = x * Math.sin(turn) + y * Math.cos(turn);
-                return [distance + sector * 10000, shiftX, shiftY, radius + (index % 4) * 2];
+                return [distance + sector * 10000, shiftX, shiftY, radius + (index % 4) * 2, 'BARRIER'];
             })
         ).flat();
         const baseItemBlueprints = [
@@ -905,10 +919,54 @@
             for (let p=0; p<3; p++) {
                 const d=sector*10000 + 3030 + p*1840;
                 const ang=(sector*3+p)*1.2;
-                obstacleBlueprints.push([d, Math.cos(ang)*148, Math.sin(ang)*148, 48]);
-                obstacleBlueprints.push([d+95, -Math.cos(ang)*142, -Math.sin(ang)*142, 43]);
+                obstacleBlueprints.push([d, Math.cos(ang)*148, Math.sin(ang)*148, 48, 'BARRIER']);
+                obstacleBlueprints.push([d+95, -Math.cos(ang)*142, -Math.sin(ang)*142, 43, 'BARRIER']);
             }
         }
+
+        // AI-17: Gemi enkazı daraltmaları. Bazı bölgelerde yalnızca merkezden,
+        // bazı bölgelerde ise yalnızca üst taraftan geçiş bırakılır.
+        function addWreckageChokepoint(progress, mode, variant = 0) {
+            if (mode === 'CENTER_ONLY') {
+                // Dış halkayı molozla kapat, merkezde net bir geçit bırak.
+                obstacleBlueprints.push([progress - 56, -156, 0, 82, 'WRECK']);
+                obstacleBlueprints.push([progress - 18, 156, 0, 82, 'WRECK']);
+                obstacleBlueprints.push([progress + 22, 0, 146, 70, 'WRECK']);
+                obstacleBlueprints.push([progress + 58, 0, -146, 70, 'WRECK']);
+                if (variant % 2 === 0) {
+                    obstacleBlueprints.push([progress + 6, 108, 92, 42, 'WRECK']);
+                    obstacleBlueprints.push([progress + 34, -108, -92, 42, 'WRECK']);
+                } else {
+                    obstacleBlueprints.push([progress + 6, -112, 88, 40, 'WRECK']);
+                    obstacleBlueprints.push([progress + 34, 112, -88, 40, 'WRECK']);
+                }
+            } else if (mode === 'TOP_ONLY') {
+                // Alt ve orta bölüm dolu; yukarıda tek kaçış koridoru bırak.
+                obstacleBlueprints.push([progress - 70, 0, -152, 88, 'WRECK']);
+                obstacleBlueprints.push([progress - 26, -142, -18, 74, 'WRECK']);
+                obstacleBlueprints.push([progress + 20, 142, -18, 74, 'WRECK']);
+                obstacleBlueprints.push([progress + 64, 0, 6, 78, 'WRECK']);
+                obstacleBlueprints.push([progress + 102, 0, 84, 54, 'WRECK']);
+                if (variant % 2 === 0) {
+                    obstacleBlueprints.push([progress + 38, -74, 138, 30, 'WRECK']);
+                } else {
+                    obstacleBlueprints.push([progress + 38, 76, 136, 30, 'WRECK']);
+                }
+            }
+        }
+
+        const chokepointPlan = [
+            [6840, 'CENTER_ONLY'],
+            [12840, 'TOP_ONLY'],
+            [17620, 'CENTER_ONLY'],
+            [23680, 'TOP_ONLY'],
+            [28760, 'CENTER_ONLY'],
+            [34640, 'TOP_ONLY'],
+            [39720, 'CENTER_ONLY'],
+            [45680, 'TOP_ONLY']
+        ];
+        chokepointPlan.forEach(([progress, mode], idx) => addWreckageChokepoint(progress, mode, idx));
+
         function makeCourseLocalGroup(progress, laneX, laneY) {
             const frame = getRaceFrameAtDistance(progress);
             const group = new THREE.Group();
@@ -920,19 +978,50 @@
             const obstacleHull = new THREE.MeshStandardMaterial({ color: 0x493943, metalness: 0.72, roughness: 0.38, flatShading: true });
             const obstacleGlow = new THREE.MeshBasicMaterial({ color: 0xff623e, side: THREE.DoubleSide });
             const obstacleLine = new THREE.LineBasicMaterial({ color: 0xffc07a, transparent: true, opacity: 0.9 });
-            obstacleBlueprints.forEach(([routeProgress, laneX, laneY, radius], i) => {
+            obstacleBlueprints.forEach(([routeProgress, laneX, laneY, radius, type = 'BARRIER'], i) => {
                 const g = makeCourseLocalGroup(routeProgress, laneX, laneY);
-                // Koyu metal çekirdek + uyarıcı sarı/turuncu çerçeve: asteroidle karışmasın.
-                const core = new THREE.Mesh(i % 2 === 0 ? new THREE.OctahedronGeometry(radius * 0.85, 0) : new THREE.IcosahedronGeometry(radius * 0.82, 0), obstacleHull);
-                const front = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.02, 3.5, 7, 40), obstacleGlow);
-                const back = front.clone(); back.position.z = 10;
-                const spokes = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(-radius * 0.5, -radius * 0.5, 4),new THREE.Vector3(radius * 0.5, radius * 0.5, 4),
-                    new THREE.Vector3(radius * 0.5, -radius * 0.5, 4),new THREE.Vector3(-radius * 0.5, radius * 0.5, 4)
-                ]);
-                g.add(core, front, back, new THREE.LineSegments(spokes, obstacleLine));
+                if (type === 'WRECK') {
+                    const wreckHull = new THREE.MeshStandardMaterial({ color: 0x566172, metalness: 0.78, roughness: 0.46, flatShading: true });
+                    const wreckDark = new THREE.MeshStandardMaterial({ color: 0x29313f, metalness: 0.62, roughness: 0.72, flatShading: true });
+                    const glowPanelMat = new THREE.MeshBasicMaterial({ color: 0x6de3ff, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
+                    const warnLineMat = new THREE.LineBasicMaterial({ color: 0xff7b54, transparent: true, opacity: 0.92 });
+                    const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.34, radius * 0.46, radius * 1.9, 7, 1), wreckHull);
+                    fuselage.rotation.z = Math.PI * 0.5;
+                    fuselage.rotation.y = (i % 3) * 0.38;
+                    const wingA = new THREE.Mesh(new THREE.BoxGeometry(radius * 1.5, radius * 0.16, radius * 0.54), wreckDark);
+                    wingA.position.set(0, radius * 0.14, 0);
+                    wingA.rotation.z = 0.32 + (i % 2) * 0.18;
+                    const wingB = wingA.clone();
+                    wingB.position.y = -radius * 0.2;
+                    wingB.rotation.z = -0.58;
+                    const shardA = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.56, radius * 0.12, radius * 0.22), wreckHull);
+                    shardA.position.set(radius * 0.18, radius * 0.55, radius * 0.24);
+                    shardA.rotation.set(0.45, 0.4, 0.8);
+                    const shardB = shardA.clone();
+                    shardB.position.set(-radius * 0.28, -radius * 0.5, -radius * 0.16);
+                    shardB.rotation.set(-0.35, -0.55, -0.46);
+                    const panel = new THREE.Mesh(new THREE.PlaneGeometry(radius * 1.6, radius * 0.24), glowPanelMat);
+                    panel.position.z = radius * 0.34;
+                    panel.rotation.y = Math.PI * 0.5;
+                    const wire = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(-radius * 0.78, 0, 0), new THREE.Vector3(radius * 0.84, 0, 0),
+                        new THREE.Vector3(0, -radius * 0.68, 0), new THREE.Vector3(0, radius * 0.68, 0)
+                    ]);
+                    g.rotation.z += (i % 2 === 0 ? 0.18 : -0.22);
+                    g.add(fuselage, wingA, wingB, shardA, shardB, panel, new THREE.LineSegments(wire, warnLineMat));
+                } else {
+                    // Koyu metal çekirdek + uyarıcı sarı/turuncu çerçeve: asteroidle karışmasın.
+                    const core = new THREE.Mesh(i % 2 === 0 ? new THREE.OctahedronGeometry(radius * 0.85, 0) : new THREE.IcosahedronGeometry(radius * 0.82, 0), obstacleHull);
+                    const front = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.02, 3.5, 7, 40), obstacleGlow);
+                    const back = front.clone(); back.position.z = 10;
+                    const spokes = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(-radius * 0.5, -radius * 0.5, 4),new THREE.Vector3(radius * 0.5, radius * 0.5, 4),
+                        new THREE.Vector3(radius * 0.5, -radius * 0.5, 4),new THREE.Vector3(-radius * 0.5, radius * 0.5, 4)
+                    ]);
+                    g.add(core, front, back, new THREE.LineSegments(spokes, obstacleLine));
+                }
                 staticObstacleGroup.add(g);
-                staticObstacles.push({ routeProgress, laneX, laneY, radius, mesh:g, active:true,
+                staticObstacles.push({ routeProgress, laneX, laneY, radius, mesh:g, active:true, type,
                     moveType:'STATIC', driftVx:0, driftVy:0, approachSpeed:0,
                     touchingShips:new Set(),hitTimes:Object.create(null) });
             });
@@ -1400,6 +1489,12 @@
                     mesh,
                     hp: 38,
                     maxHp: 38,
+                    shield: 100,
+                    boundaryLevel: 0,
+                    boundaryFactor: 1,
+                    boundaryDamageRate: 0,
+                    boundarySide: 'NONE',
+                    boundaryDamageTotal: 0,
                     isRacer: true,
                     radius: 12.5,
                     baseSpeed: state.baseSpeed,
@@ -1670,7 +1765,7 @@
                     const nx = dx / sideDistance, ny = dy / sideDistance;
                     const push = Math.min(12, Math.max(1.5, (minContact - distanceWorld) * 0.4));
                     for (const [ship, sign] of [[a, 1], [b, -1]]) {
-                        const limit = ship.player ? state.tubeRadius - ship.radius : state.tubeRadius * 0.85;
+                        const limit = BOUNDARY_RULES.maxRadius;
                         const xx = ship.laneX + nx * push * sign;
                         const yy = ship.laneY + ny * push * sign;
                         const mag = Math.hypot(xx, yy);
@@ -1759,6 +1854,110 @@
             state.barrelRollTimer = 0.55;
             state.barrelRollCooldown = 1.4;
             sound.playEMP();
+        }
+
+        // AI-18: Kademeli sınır sürtünmesi. Fizik dt ile ölçeklenir; kanat uçları
+        // ayrı örneklenir. Görsel/hasar eşikleri dünya-yerel koridor eksenindedir.
+        const BOUNDARY_RULES = Object.freeze({
+            safeRadius: 215, softRadius: 235, scrapeRadius: 250,
+            outsideRadius: 270, maxRadius: 285,
+            playerWingHalfSpan: 18, rivalWingHalfSpan: 17
+        });
+        function evaluateBoundaryFriction(laneX, laneY, wingHalfSpan = 18, roll = 0) {
+            const wingCos = Math.cos(roll) * wingHalfSpan;
+            const wingSin = Math.sin(roll) * wingHalfSpan;
+            const left = Math.hypot(laneX - wingCos, laneY - wingSin);
+            const right = Math.hypot(laneX + wingCos, laneY + wingSin);
+            const radial = Math.hypot(laneX, laneY);
+            const contactRadius = Math.max(radial, left, right);
+            const edge = BOUNDARY_RULES;
+            let factor = 1, damagePerSecond = 0, level = 0;
+            const lerp = (a,b,t) => a + (b-a)*Math.min(1, Math.max(0,t));
+            if (contactRadius > edge.outsideRadius) {
+                level = 4;
+                const t = (contactRadius-edge.outsideRadius)/(edge.maxRadius-edge.outsideRadius);
+                factor = lerp(0.25,0.15,t);
+                damagePerSecond = lerp(30,42,t);
+            } else if (contactRadius > edge.scrapeRadius) {
+                level = 3;
+                const t = (contactRadius-edge.scrapeRadius)/(edge.outsideRadius-edge.scrapeRadius);
+                factor = lerp(0.65,0.25,t);
+                damagePerSecond = lerp(18,30,t);
+            } else if (contactRadius > edge.softRadius) {
+                level = 2;
+                const t = (contactRadius-edge.softRadius)/(edge.scrapeRadius-edge.softRadius);
+                factor = lerp(0.90,0.65,t);
+                damagePerSecond = lerp(6,12,t);
+            } else if (contactRadius > edge.safeRadius) {
+                level = 1;
+                const t = (contactRadius-edge.safeRadius)/(edge.softRadius-edge.safeRadius);
+                factor = lerp(1,0.90,t);
+                damagePerSecond = lerp(2,4,t);
+            }
+            const leftHit = left > edge.safeRadius;
+            const rightHit = right > edge.safeRadius;
+            const side = leftHit && rightHit ? 'BOTH' : leftHit ? 'LEFT' : rightHit ? 'RIGHT' : 'NONE';
+            return { level, factor, damagePerSecond, side, contactRadius, radial };
+        }
+
+        function clampToSoftBoundary(ship) {
+            // Koridor fiziksel olarak 260; merkez 285'e kadar çıkabilir.
+            const radius = Math.hypot(ship.laneX, ship.laneY);
+            if (radius > BOUNDARY_RULES.maxRadius) {
+                const ratio = BOUNDARY_RULES.maxRadius / radius;
+                ship.laneX *= ratio;
+                ship.laneY *= ratio;
+                // Yanal enerji dışarıya doğru büyüyüp sert duvarda birikmesin.
+                if (typeof ship.vx === 'number' && typeof ship.vy === 'number') {
+                    const outward = (ship.vx*ship.laneX + ship.vy*ship.laneY) / BOUNDARY_RULES.maxRadius;
+                    if (outward > 0) {
+                        ship.vx -= outward * ship.laneX / BOUNDARY_RULES.maxRadius;
+                        ship.vy -= outward * ship.laneY / BOUNDARY_RULES.maxRadius;
+                    }
+                }
+            }
+        }
+
+        function applyBoundaryFriction(ship, desiredSpeed, dt, isPlayer) {
+            if (ship.finished || ship.dnf || (isPlayer && state.playerDNF)) return;
+            clampToSoftBoundary(ship);
+            const previousLevel = ship.boundaryLevel || 0;
+            const f = evaluateBoundaryFriction(ship.laneX, ship.laneY,
+                isPlayer ? BOUNDARY_RULES.playerWingHalfSpan : BOUNDARY_RULES.rivalWingHalfSpan,
+                isPlayer ? state.roll : (ship.bankAngle || 0));
+            ship.boundaryLevel = f.level;
+            ship.boundaryFactor = f.factor;
+            ship.boundaryDamageRate = f.damagePerSecond;
+            ship.boundarySide = f.side;
+            // Normal ivmelenme ve sınıra bağlı hedef hız aynı geçişte hesaplanır.
+            // Böylece 5000 km/s boost, dışarıda %15'e kadar gerçekten düşebilir.
+            const frictionTarget = desiredSpeed * f.factor;
+            ship.currentSpeed += (frictionTarget - ship.currentSpeed) * Math.min(1, 5*dt);
+            if (!f.level) return;
+            ship.currentSpeed = Math.max(0, ship.currentSpeed);
+            if (ship.powerShieldTimer <= 0 && f.damagePerSecond > 0) {
+                const damage = f.damagePerSecond * dt;
+                ship.shield = Math.max(0, ship.shield - damage);
+                ship.boundaryDamageTotal = (ship.boundaryDamageTotal || 0) + damage;
+                if (isPlayer && ship.shield <= 0) {
+                    state.playerDNF = true;
+                    state.currentSpeed = 0;
+                    endGame(false);
+                    return;
+                }
+                if (!isPlayer && ship.shield <= 0) {
+                    ship.dnf = true;
+                    ship.currentSpeed = 0;
+                    ship.isBoosting = false;
+                    ship.isBraking = false;
+                    return;
+                }
+            }
+            if (isPlayer) {
+                state.wallFlash = Math.max(state.wallFlash, Math.min(0.55, 0.10 + f.level * 0.065));
+                state.shake = Math.max(state.shake, f.level >= 3 ? 0.19 : 0.075);
+                if (previousLevel === 0) state.wallContacts++;
+            }
         }
 
         function applyPlayerDamage(amount) {
@@ -1852,7 +2051,7 @@
                 } else {
                     state.energy = Math.min(100, state.energy + dt * 10);
                 }
-                state.currentSpeed += (targetSpeed - state.currentSpeed) * 5 * dt;
+                // Gerçek hız takibi applyBoundaryFriction içinde tek kez yapılır.
 
                 // Dinamik Kamera FOV (Boost Hissi)
                 const speedRatio = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.BRAKE) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.BRAKE), 0, 1);
@@ -1871,24 +2070,12 @@
                 state.laneX += moveX * dt;
                 state.laneY += moveY * dt;
 
+                // Kanat sınır teması ve 25 birimlik taşma payı. Hız cezasını
+                // ilerleme hesabından önce uygula; yüksek FPS/farklı dt'de adil kalır.
+                applyBoundaryFriction(state, targetSpeed, dt, true);
+                if (state.playerDNF) return;
                 const prevPlayerProgress = state.routeProgress;
                 const nextPlayerProgress = prevPlayerProgress + state.currentSpeed * dt;
-
-                // Görünmez Büyük Boru Sınır Kontrolü (Silindirik Yarıçap: state.tubeRadius)
-                const distFromCenter = Math.hypot(state.laneX, state.laneY);
-                const playerMaxRadius = state.tubeRadius - 10;
-                if (distFromCenter > playerMaxRadius) {
-                    const clampAngle = Math.atan2(state.laneY, state.laneX);
-                    state.laneX = Math.cos(clampAngle) * playerMaxRadius;
-                    state.laneY = Math.sin(clampAngle) * playerMaxRadius;
-                    if (state.wallCooldown <= 0) {
-                        state.wallCooldown = 1.2;
-                        state.wallFlash = 0.9;
-                        state.wallContacts++;
-                        state.currentSpeed *= 0.96;
-                        state.shake = Math.max(state.shake, 0.24);
-                    }
-                }
 
                 // Oyuncu Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
                 if (nextPlayerProgress >= RACE_ROUTE_NOMINAL_DISTANCE) {
@@ -2139,7 +2326,9 @@
             }
 
             // 6. Rakip Yarışçılar (Eşit Motor/Boost + 4 Pilot Profili + Asteroit Kaçınma + Gerçek Sollama + Bitiş Kontrolü)
-            const maxSafeRadius = state.tubeRadius * 0.85;
+            // AI hedefleri temel olarak güvenli iç bölgeyi kullanır; gerekirse
+            // fizik, kısa süreli dışa taşmaya yine izin verir.
+            const maxSafeRadius = state.tubeRadius * 0.74;
             const raceHazards = asteroids.concat(staticObstacles);
 
             racers.forEach((r, rIdx) => {
@@ -2511,10 +2700,9 @@
                     r.energy = Math.min(100, r.energy + dt * 10);
                 }
                 // Oyuncuyla aynı hız takip katsayısı (5 * dt)
-                r.currentSpeed += (desiredSpeed - r.currentSpeed) * 5 * dt;
+                // Oyuncuyla aynı tek geçişli hız takibi aşağıdaki sınır fiziğinde uygulanır.
 
                 const prevRacerProgress = r.routeProgress;
-                const nextRacerProgress = prevRacerProgress + r.currentSpeed * dt;
 
                 // Hedef Öncelik Sırası: 1. Asteroit Kaçınma > 2. Sollama Şeridi > 3. Normal Uçuş Çizgisi
                 let activeTargetX = r.targetX;
@@ -2582,15 +2770,14 @@
                 r.laneX += r.vx * dt;
                 r.laneY += r.vy * dt;
 
-                // Görünmez koridor sınır koruması (yerel laneX / laneY üzerinden)
-                const rDist = Math.hypot(r.laneX, r.laneY);
-                if (rDist > maxSafeRadius) {
-                    const ang = Math.atan2(r.laneY, r.laneX);
-                    r.laneX = Math.cos(ang) * maxSafeRadius;
-                    r.laneY = Math.sin(ang) * maxSafeRadius;
-                    r.vx = 0;
-                    r.vy = 0;
+                // Rakipler de oyuncuyla aynı kalkan/sürtünme fiziğini kullanır.
+                // AI hedefleri merkezde tercih etmeye devam eder ama kenara kaçabilir.
+                applyBoundaryFriction(r, desiredSpeed, dt, false);
+                if (r.dnf) {
+                    positionRacerOnRoute(r);
+                    return;
                 }
+                const nextRacerProgress = prevRacerProgress + r.currentSpeed * dt;
 
                 // Rakip Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
                 if (nextRacerProgress >= RACE_ROUTE_NOMINAL_DISTANCE) {
@@ -2957,6 +3144,26 @@
                 }
             }
 
+            // Kanat sürtünmesinin hangi tarafta olduğunu gösteren kısa elektrik izleri.
+            if (state.running && state.boundaryLevel > 0 && !state.finished && !state.playerDNF) {
+                const intensity = Math.min(1, state.boundaryLevel / 4);
+                fxCtx.save();
+                fxCtx.lineWidth = 1.2 + intensity * 2.4;
+                fxCtx.strokeStyle = 'rgba(255,178,96,' + (0.28 + 0.6*intensity).toFixed(2) + ')';
+                const sides = state.boundarySide === 'BOTH' ? [-1, 1] : state.boundarySide === 'LEFT' ? [-1] : [1];
+                for (const side of sides) {
+                    for (let i=0;i<6;i++) {
+                        const x = W*0.5 + side*(W*0.13 + Math.random()*W*0.06);
+                        const y = H*(0.57+Math.random()*0.22);
+                        fxCtx.beginPath();
+                        fxCtx.moveTo(x,y);
+                        fxCtx.lineTo(x + side*(9+Math.random()*26),y+8+Math.random()*38);
+                        fxCtx.stroke();
+                    }
+                }
+                fxCtx.restore();
+            }
+
             state.reticleAngle += dt * (state.lockedTarget ? 3.2 : 1.1);
 
             const rx = state.lockedTarget ? state.lockedTarget.screenX : state.mouseX;
@@ -3096,17 +3303,26 @@
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * SPEED_DISPLAY_SCALE);
             const border = document.getElementById('boundary-alert');
             if (border) {
-                const clearance = state.tubeRadius - 10 - Math.hypot(state.laneX, state.laneY);
-                if (state.wallFlash > 0 || clearance < 22) {
-                    border.textContent = '⚠ BORDER ' + Math.max(0, Math.round(clearance)) + 'm';
+                if (state.boundaryLevel >= 3) {
+                    border.textContent = `⚠ OUTSIDE ${state.boundarySide} / -${Math.round((1-state.boundaryFactor)*100)}% / -${Math.round(state.boundaryDamageRate)} SHIELD/s`;
                     border.className = 'ml-2 text-red-400 font-black';
-                } else if (clearance < 64) {
-                    border.textContent = 'EDGE ' + Math.round(clearance) + 'm';
+                } else if (state.boundaryLevel === 2) {
+                    border.textContent = `⚡ WING SCRAPE ${state.boundarySide} / -${Math.round((1-state.boundaryFactor)*100)}%`;
+                    border.className = 'ml-2 text-orange-300 font-black';
+                } else if (state.boundaryLevel === 1) {
+                    border.textContent = `EDGE FRICTION ${state.boundarySide}`;
                     border.className = 'ml-2 text-yellow-300';
                 } else {
                     border.textContent = 'CORRIDOR SAFE';
                     border.className = 'ml-2 text-emerald-300';
                 }
+            }
+            const boundaryFx = document.getElementById('boundary-scrape-overlay');
+            if (boundaryFx) {
+                const active = state.boundaryLevel > 0 && state.running && !state.finished;
+                boundaryFx.style.opacity = active ? String(Math.min(0.85, state.boundaryLevel*0.16)) : '0';
+                const edgeSide = state.boundarySide === 'LEFT' ? 'left' : state.boundarySide === 'RIGHT' ? 'right' : 'center';
+                boundaryFx.style.background = `radial-gradient(ellipse at ${edgeSide} center, transparent 45%, rgba(255,119,55,.33) 100%)`;
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
             document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * SPEED_DISPLAY_SCALE) : '—';
@@ -3241,6 +3457,13 @@
             state.rank = 1;
             state.wallCooldown = 0;
             state.wallFlash = 0;
+            state.boundaryLevel = 0;
+            state.boundaryFactor = 1;
+            state.boundaryDamageRate = 0;
+            state.boundarySide = 'NONE';
+            state.boundaryDamageTotal = 0;
+            const boundaryFx = document.getElementById('boundary-scrape-overlay');
+            if (boundaryFx) boundaryFx.style.opacity = '0';
             state.asteroidHits = 0;
             state.shipContacts = 0;
             state.wallContacts = 0;
