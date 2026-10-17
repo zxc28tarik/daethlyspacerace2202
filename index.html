@@ -208,9 +208,10 @@
             <div class="hud-box px-5 py-3 w-64 sm:w-80 text-right pointer-events-auto">
                 <div class="text-sm sm:text-lg font-black tracking-widest text-cyan-200">
                     SCORE: <span id="score-text" class="text-white text-xl sm:text-2xl">000,000</span>
+                    <span class="block text-[10px] text-amber-300/90 font-['Share_Tech_Mono'] tracking-wide">ENGEL LAZERİ: F / SOL TIK · KIRILAN: <span id="obstacle-kills">0</span></span>
                 </div>
                 <div class="flex justify-between items-center mt-1 text-xs sm:text-sm font-bold text-emerald-400">
-                    <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST</span>
+                    <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST | F / SOL TIK: LAZER</span>
                     <span id="stage-text">SECTOR 1 / 4</span>
                 </div>
             </div>
@@ -234,7 +235,7 @@
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-emerald-400 font-bold mb-1">>> SAF HIZ YARIŞI (HARİTA 1)</div>
-                    <p class="text-slate-300">Bu koridorda silahlar devre dışıdır! <strong>SHIFT / W</strong> ile maksimum hıza çıkın, 5 rakip yarışçıyı sollayarak <strong>1. sıraya</strong> yükselin ve bitiş halkasına ilk ulaşan olun.</p>
+                    <p class="text-slate-300">Rakiplere ateş edilemez; <strong>sol tık / F</strong> ile küçük asteroitleri ve hafif metal bariyerleri parçalayabilirsiniz. Büyük enkaz geçitleri sağlamdır. <strong>SHIFT / W</strong> ile hızlanıp 5 rakibi geçin.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-yellow-300 font-bold mb-1">>> EŞYA KUTULARI & YAKIN GEÇİŞLER</div>
@@ -517,6 +518,8 @@
             hitMarkerTimer: 0,
             isFiring: false,
             fireCooldown: 0,
+            obstaclesDestroyed: 0,
+            laserHits: 0,
             gunSide: 0,
             shake: 0,
 
@@ -652,6 +655,8 @@
                 motionPhase: 0,
                 motionRate: 0,
                 active: true,
+                durability: sizeClass === 'SMALL' ? 1 : (sizeClass === 'MEDIUM' ? 3 : Infinity),
+                maxDurability: sizeClass === 'SMALL' ? 1 : (sizeClass === 'MEDIUM' ? 3 : Infinity),
                 touchingShips: new Set(),
                 hitTimes: Object.create(null)
             });
@@ -924,6 +929,7 @@
                 }
                 staticObstacleGroup.add(g);
                 staticObstacles.push({ routeProgress, laneX, laneY, radius, mesh:g, active:true, type,
+                    maxDurability:type==='BARRIER'?3:Infinity, durability:type==='BARRIER'?3:Infinity,
                     moveType:'STATIC', driftVx:0, driftVy:0, approachSpeed:0,
                     touchingShips:new Set(),hitTimes:Object.create(null) });
             });
@@ -1008,7 +1014,11 @@
         buildDerelictBulkheads();
 
         function resetItemAndBarrierCourse() {
-            staticObstacles.forEach(o=>{o.touchingShips.clear();o.hitTimes=Object.create(null);});
+            staticObstacles.forEach(o=>{
+                o.touchingShips.clear();o.hitTimes=Object.create(null);
+                o.active=true; o.durability=o.maxDurability===undefined?Infinity:o.maxDurability;
+                if(o.mesh && o.mesh.visible!==undefined)o.mesh.visible=true;
+            });
             itemBoxes.forEach(b=>b.claimed.clear());
         }
 
@@ -1080,6 +1090,7 @@
             if(ship.finished||ship.dnf||(isPlayer&&state.playerDNF))return;
             const shipRadius=isPlayer?10:(ship.radius||12.5);
             for(const o of staticObstacles){
+                if(!o.active)continue;
                 const touching=courseSegmentTouch(o,previousState,ship,shipRadius);
                 if(!touching){o.touchingShips.delete(shipId);continue;}
                 if(o.touchingShips.has(shipId))continue;
@@ -1356,7 +1367,9 @@
                 a.motionPhase = Math.random() * Math.PI * 2;
                 a.approachSpeed = a.moveType === 'APPROACH' ? 90 + Math.random() * 170 : 0;
                 a.active = true;
+                a.durability = a.maxDurability;
                 a.mesh.visible = true;
+                if (a.movementTail) a.movementTail.visible = false;
                 a.touchingShips.clear();
                 a.hitTimes = Object.create(null);
                 a.nearMissClaimed = false;
@@ -1695,6 +1708,8 @@
         }
 
         function firePlayerLasers() {
+            // Yüksek hızlarda taretler eski karedeki konumdan ateş etmesin.
+            playerRig.updateMatrixWorld(true);
             sound.playLaser();
 
             // Nişangah veya Kilitli Hedef Yönünü Hesapla
@@ -1706,7 +1721,7 @@
                 const ndcY = -(state.mouseY / H) * 2 + 1;
                 const raycaster = new THREE.Raycaster();
                 raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-                aimWorldPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(600));
+                aimWorldPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(state.combatEnabled ? 600 : 2500));
             }
 
             // Sol ve Sağ Köşeden Çifte الماس/Mavi ve Yeşil Lazer Ateşle (Görseldeki İkiz Lazer Çizgileri)
@@ -1731,14 +1746,86 @@
                 playerLasers.push({
                     mesh: laserMesh,
                     dir,
-                    speed: 1450,
-                    life: 1.15
+                    speed: state.combatEnabled ? 1450 : 4550,
+                    life: state.combatEnabled ? 1.15 : 0.54
                 });
             });
 
             // Taret Geri Tepme Efekti
             leftTurret.position.z = -5.4;
             rightTurret.position.z = -5.4;
+        }
+
+        // AI-23: Engel vurma. Işın süpürme + gerçek panel hacmi; rakip gemiler hedef değildir.
+        function sweptLaserSphere(from,to,center,radius) {
+            const d=to.clone().sub(from);
+            const lenSq=d.lengthSq();
+            const t=lenSq>1e-10?THREE.MathUtils.clamp(center.clone().sub(from).dot(d)/lenSq,0,1):0;
+            const point=from.clone().addScaledVector(d,t);
+            return point.distanceToSquared(center)<=(radius*radius)?{t,point}:null;
+        }
+        function sweptLaserBulkhead(from,to,o) {
+            const f=getRaceFrameAtDistance(o.routeProgress);
+            const toLocal=p=>{
+                const d=p.clone().sub(f.center);
+                return [d.dot(f.tangent),d.dot(f.right),d.dot(f.up)];
+            };
+            const a=toLocal(from),b=toLocal(to),
+                  mid=[0,o.laneX,o.laneY],half=[o.halfDepth+2,o.halfX+2,o.halfY+2];
+            let enter=0,leave=1;
+            for(let k=0;k<3;k++) {
+                const delta=b[k]-a[k], lo=mid[k]-half[k],hi=mid[k]+half[k];
+                if(Math.abs(delta)<1e-8){if(a[k]<lo||a[k]>hi)return null;continue;}
+                const t0=(lo-a[k])/delta,t1=(hi-a[k])/delta;
+                enter=Math.max(enter,Math.min(t0,t1));
+                leave=Math.min(leave,Math.max(t0,t1));
+                if(enter>leave)return null;
+            }
+            return {t:enter,point:from.clone().lerp(to,enter)};
+        }
+        function findObstacleLaserImpact(from,to) {
+            // Kaba rota aralığı filtresi sayesinde sahnedeki yüzlerce obje her seferinde ayrıntılı test edilmez.
+            let best=null;
+            const lo=state.routeProgress-80,hi=state.routeProgress+1400;
+            const record=(o,test)=>{
+                if(!test || best && test.t>=best.t)return;
+                best={obstacle:o,t:test.t,point:test.point};
+            };
+            for(const a of asteroids){
+                if(!a.active || a.routeProgress<lo || a.routeProgress>hi)continue;
+                record(a,sweptLaserSphere(from,to,a.mesh.position,a.radius+1.5));
+            }
+            for(const o of staticObstacles){
+                if(!o.active || o.routeProgress<lo || o.routeProgress>hi)continue;
+                if(o.type==='WRECK_BOX') record(o,sweptLaserBulkhead(from,to,o));
+                else record(o,sweptLaserSphere(from,to,o.mesh.position,o.radius+1.5));
+            }
+            return best;
+        }
+        function handleObstacleLaserImpact(obstacle,point) {
+            state.laserHits++;
+            state.hitMarkerTimer=0.14;
+            sound.playHit();
+            const indestructible=obstacle.durability===Infinity || obstacle.durability===undefined;
+            if(indestructible){
+                createExplosion(point,0xff9554,3,0.34);
+                return;
+            }
+            obstacle.durability--;
+            if(obstacle.durability>0){
+                createExplosion(point,0x73faff,4,0.42);
+                return;
+            }
+            obstacle.active=false;
+            if(obstacle.mesh && obstacle.mesh.visible!==undefined)obstacle.mesh.visible=false;
+            if(obstacle.movementTail) obstacle.movementTail.visible=false;
+            obstacle.touchingShips && obstacle.touchingShips.clear();
+            const isAsteroid=!!obstacle.sizeClass;
+            const bonus=isAsteroid?(obstacle.sizeClass==='SMALL'?180:300):240;
+            state.score+=bonus;
+            state.obstaclesDestroyed++;
+            createExplosion(point,isAsteroid?0x87dfff:0xffb168,isAsteroid?13:17,1.0);
+            spawnFloatingText(point,`OBSTACLE DESTROYED +${bonus}`,'#9efaff');
         }
 
         function fireEnemyAttack(originPos, isMissile = false) {
@@ -2300,13 +2387,13 @@
                 updateAsteroidMotion(a, dt);
             });
 
-            // 3. Manyetik LOCK-ON Tarama (Düşmanlar + Rakip Yarışçılar + Füzeler)
+            // Harita 1 lazeri yalnızca parkur engellerine kilitlenebilir.
             findMagneticLockTarget();
 
             // 4. Oyuncu Ateşleme
-            if (!state.finished && !state.playerDNF && state.combatEnabled && state.isFiring && state.fireCooldown <= 0) {
+            if (!state.finished && !state.playerDNF && (state.isFiring || keys['KeyF']) && state.fireCooldown <= 0) {
                 firePlayerLasers();
-                state.fireCooldown = 0.11;
+                state.fireCooldown = state.combatEnabled ? 0.11 : 0.19;
             }
             if (state.fireCooldown > 0) state.fireCooldown -= dt;
 
@@ -2314,12 +2401,21 @@
             for (let i = playerLasers.length - 1; i >= 0; i--) {
                 const l = playerLasers[i];
                 l.life -= dt;
+                const laserFrom = l.mesh.position.clone();
                 l.mesh.position.addScaledVector(l.dir, l.speed * dt);
 
                 let hit = false;
+                // Kareler arasında hızla ilerleyen ışının tüm segmentini test et.
+                if (!state.combatEnabled) {
+                    const impact = findObstacleLaserImpact(laserFrom,l.mesh.position);
+                    if(impact) {
+                        hit=true;
+                        handleObstacleLaserImpact(impact.obstacle,impact.point);
+                    }
+                }
 
                 // Gelen Füzeleri Havada Vurma!
-                for (let j = enemyProjectiles.length - 1; j >= 0; j--) {
+                for (let j = enemyProjectiles.length - 1; j >= 0 && state.combatEnabled; j--) {
                     const ep = enemyProjectiles[j];
                     if (l.mesh.position.distanceTo(ep.mesh.position) < ep.radius + 6) {
                         hit = true;
@@ -2335,7 +2431,7 @@
                 }
 
                 // Rakip Yarışçıları Vurma ve Patlatma!
-                if (!hit) {
+                if (!hit && state.combatEnabled) {
                     for (let j = racers.length - 1; j >= 0; j--) {
                         const r = racers[j];
                         if (l.mesh.position.distanceTo(r.mesh.position) < r.radius + 6) {
@@ -2369,7 +2465,7 @@
                 }
 
                 // Düşman Avcı Gemilerini Vurma
-                if (!hit) {
+                if (!hit && state.combatEnabled) {
                     for (let j = enemies.length - 1; j >= 0; j--) {
                         const e = enemies[j];
                         if (l.mesh.position.distanceTo(e.mesh.position) < e.radius + 6) {
@@ -3251,11 +3347,13 @@
             let bestTarget = null;
             let bestDist = 125; // Nişangah manyetik yakalama yarıçapı (px)
 
-            const candidates = [...enemies, ...racers];
-            enemyProjectiles.forEach(ep => {
-                if (ep.isMissile) candidates.push(ep);
-            });
-            if (state.bossActive && state.boss) candidates.push(state.boss);
+            const candidates = state.combatEnabled ? [...enemies, ...racers] :
+                asteroids.filter(a=>a.active && a.routeProgress > state.routeProgress+30 && a.routeProgress < state.routeProgress+1400)
+                  .concat(staticObstacles.filter(o=>o.active && o.routeProgress > state.routeProgress+30 && o.routeProgress < state.routeProgress+1200));
+            if (state.combatEnabled) {
+                enemyProjectiles.forEach(ep => { if (ep.isMissile) candidates.push(ep); });
+                if (state.bossActive && state.boss) candidates.push(state.boss);
+            }
 
             candidates.forEach(c => {
                 const scr = worldToScreen(c.mesh.position);
@@ -3454,6 +3552,7 @@
 
         function updateHUD(incomingDanger) {
             document.getElementById('score-text').textContent = state.score.toLocaleString('en-US').padStart(7, '0');
+            document.getElementById('obstacle-kills').textContent = state.obstaclesDestroyed;
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * SPEED_DISPLAY_SCALE);
@@ -3612,6 +3711,9 @@
             state.postFinishWaitTimer = 0;
             state.currentSpeed = state.baseSpeed;
             state.isFiring = false;
+            state.fireCooldown = 0;
+            state.obstaclesDestroyed = 0;
+            state.laserHits = 0;
             state.barrelRollTimer = 0;
             state.barrelRollCooldown = 0;
             state.rank = 1;
@@ -3649,6 +3751,7 @@
             state.pitch = 0;
             state.roll = 0;
             document.getElementById('distance-text').textContent = '50000m';
+            document.getElementById('obstacle-kills').textContent = '0';
             document.getElementById('race-time-text').textContent = '00:00.00';
 
             const centerBox = document.getElementById('center-msg');
