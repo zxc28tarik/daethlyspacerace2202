@@ -825,52 +825,50 @@
             }
         }
 
-        // AI-17: Gemi enkazı daraltmaları. Bazı bölgelerde yalnızca merkezden,
-        // bazı bölgelerde ise yalnızca üst taraftan geçiş bırakılır.
-        function addWreckageChokepoint(progress, mode, variant = 0) {
-            const addWreck = (distance, x, y, radius) =>
-                obstacleBlueprints.push([distance, x*COURSE_WIDTH_SCALE,
-                    y*COURSE_WIDTH_SCALE, radius*COURSE_WIDTH_SCALE, 'WRECK']);
-            if (mode === 'CENTER_ONLY') {
-                // Dış halkayı molozla kapat, merkezde net bir geçit bırak.
-                addWreck(progress - 56, -156, 0, 82);
-                addWreck(progress - 18, 156, 0, 82);
-                addWreck(progress + 22, 0, 146, 70);
-                addWreck(progress + 58, 0, -146, 70);
-                if (variant % 2 === 0) {
-                    addWreck(progress + 6, 108, 92, 42);
-                    addWreck(progress + 34, -108, -92, 42);
-                } else {
-                    addWreck(progress + 6, -112, 88, 40);
-                    addWreck(progress + 34, 112, -88, 40);
-                }
-            } else if (mode === 'TOP_ONLY') {
-                // Alt ve orta bölüm dolu; yukarıda tek kaçış koridoru bırak.
-                addWreck(progress - 70, 0, -152, 88);
-                addWreck(progress - 26, -142, -18, 74);
-                addWreck(progress + 20, 142, -18, 74);
-                addWreck(progress + 64, 0, 6, 78);
-                addWreck(progress + 102, 0, 84, 54);
-                if (variant % 2 === 0) {
-                    addWreck(progress + 38, -74, 138, 30);
-                } else {
-                    addWreck(progress + 38, 76, 136, 30);
-                }
-            }
-        }
-
+        // AI-21: El yapımı hissi veren sekiz enkaz bölümü. Kestirme yok:
+        // her bölüm tek, net ve test edilebilir bir geçiş ağzına sahiptir.
         const chokepointPlan = [
-            [6840, 'CENTER_ONLY'],
-            [12840, 'TOP_ONLY'],
-            [17620, 'CENTER_ONLY'],
-            [23680, 'TOP_ONLY'],
-            [28760, 'CENTER_ONLY'],
-            [34640, 'TOP_ONLY'],
-            [39720, 'CENTER_ONLY'],
-            [45680, 'TOP_ONLY']
+            [6840, 'CENTER_ONLY'], [12840, 'TOP_ONLY'],
+            [17620, 'BOTTOM_ONLY'], [23680, 'CENTER_ONLY'],
+            [28760, 'TOP_ONLY'], [34640, 'BOTTOM_ONLY'],
+            [39720, 'CENTER_ONLY'], [45680, 'TOP_ONLY']
         ];
-        chokepointPlan.forEach(([progress, mode], idx) => addWreckageChokepoint(progress, mode, idx));
-
+        const wreckageModules = [];
+        function smoothCourseRamp(t) {
+            const x = THREE.MathUtils.clamp(t, 0, 1);
+            return x*x*(3-2*x);
+        }
+        function getCorridorRadiusAt(progress) {
+            // Geniş uçuş bölümleri 400-410, enkaz yaklaşımları 315-335 yarıçap.
+            const broadCenters = [3600, 14650, 25500, 36600, 42600];
+            let radius = 360;
+            for (const d of broadCenters) {
+                const blend = 1 - smoothCourseRamp(Math.abs(progress-d)/1800);
+                radius = Math.max(radius, 360 + 45*blend);
+            }
+            for (const [d] of chokepointPlan) {
+                const blend = 1 - smoothCourseRamp(Math.abs(progress-d)/1100);
+                if (blend > 0) radius = Math.min(radius, 360 - 45*blend);
+            }
+            return radius;
+        }
+        function upcomingWreckGate(progress, lookAhead = 2400) {
+            for (const [distance, mode] of chokepointPlan) {
+                if (distance+185 < progress) continue;
+                if (distance-progress > lookAhead) return null;
+                return { distance, mode, laneX:0,
+                    laneY: mode === 'TOP_ONLY' ? 159 : mode === 'BOTTOM_ONLY' ? -159 : 0,
+                    clearX: 116, clearY: mode === 'CENTER_ONLY' ? 98 : 78 };
+            }
+            return null;
+        }
+        // Eski parçacık bariyerleri kritik geçit ağzını kapatmasın.
+        for (let i=obstacleBlueprints.length-1;i>=0;i--) {
+            if (chokepointPlan.some(([d])=>Math.abs(d-obstacleBlueprints[i][0])<480)) obstacleBlueprints.splice(i,1);
+        }
+        for (let i=itemBlueprints.length-1;i>=0;i--) {
+            if (chokepointPlan.some(([d])=>Math.abs(d-itemBlueprints[i][0])<370)) itemBlueprints.splice(i,1);
+        }
         function makeCourseLocalGroup(progress, laneX, laneY) {
             const frame = getRaceFrameAtDistance(progress);
             const group = new THREE.Group();
@@ -945,6 +943,70 @@
         }
         buildItemAndBarrierCourse();
 
+        function buildDerelictBulkheads() {
+            const hull = new THREE.MeshStandardMaterial({ color:0x526077, metalness:0.84, roughness:0.46, flatShading:true });
+            const plating = new THREE.MeshStandardMaterial({ color:0x283044, metalness:0.76, roughness:0.58, flatShading:true });
+            const accent = new THREE.MeshBasicMaterial({color:0xff9256,transparent:true,opacity:0.85});
+            const guidance = new THREE.LineBasicMaterial({color:0x79f5ff,transparent:true,opacity:0.95});
+            for (let i=0;i<chokepointPlan.length;i++) {
+                const [distance,mode] = chokepointPlan[i];
+                const localRadius=getCorridorRadiusAt(distance);
+                const gate=upcomingWreckGate(distance,1);
+                const hx=gate.clearX, hy=gate.clearY, ox=gate.laneX, oy=gate.laneY;
+                const outer=localRadius+30, depth=165;
+                const g=makeCourseLocalGroup(distance,0,0);
+                staticObstacleGroup.add(g);
+                // Paneller açıklığın çevresindeki DÖRT ayrı katı bölgedir.
+                // Sınırlayıcı kutular ile görünen metal geometrisi birebir eşleşir.
+                const panels=[
+                    {x:(-outer+ox-hx)/2,y:0,w:outer+ox-hx,h:2*outer},
+                    {x:(ox+hx+outer)/2,y:0,w:outer-ox-hx,h:2*outer},
+                    {x:ox,y:(oy+hy+outer)/2,w:2*hx,h:outer-oy-hy},
+                    {x:ox,y:(-outer+oy-hy)/2,w:2*hx,h:outer+oy-hy}
+                ];
+                const parts=[];
+                panels.forEach((a,j)=>{
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(a.w,a.h,depth),hull);
+                    mesh.position.set(a.x,a.y,0);
+                    g.add(mesh);
+                    // Panellerin dışına çıkan çapraz zırh parçaları; geçidin içine uzanmaz.
+                    const plate = new THREE.Mesh(new THREE.BoxGeometry(a.w*0.82,a.h*0.73,14),plating);
+                    plate.position.set(a.x,a.y,-depth/2-8);
+                    g.add(plate);
+                    if(j<2){
+                        const rib=new THREE.Mesh(new THREE.BoxGeometry(12,a.h*0.9,depth+12),plating);
+                        rib.position.set(a.x,a.y,0);g.add(rib);
+                    }
+                    const pos=makeCourseLocalGroup(distance,a.x,a.y).position;
+                    parts.push({routeProgress:distance,laneX:a.x,laneY:a.y,
+                        halfX:a.w/2,halfY:a.h/2,halfDepth:depth/2,
+                        radius:Math.hypot(a.w,a.h)/2,mesh:{position:pos},
+                        type:'WRECK_BOX',moveType:'STATIC',active:true,
+                        touchingShips:new Set(),hitTimes:Object.create(null)});
+                });
+                // Görünür geçiş çerçevesi; bonus halkası değil, parçalı geminin boş kapısı.
+                const outline=new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(ox-hx,oy-hy,-depth/2-12),new THREE.Vector3(ox+hx,oy-hy,-depth/2-12),
+                    new THREE.Vector3(ox+hx,oy-hy,-depth/2-12),new THREE.Vector3(ox+hx,oy+hy,-depth/2-12),
+                    new THREE.Vector3(ox+hx,oy+hy,-depth/2-12),new THREE.Vector3(ox-hx,oy+hy,-depth/2-12),
+                    new THREE.Vector3(ox-hx,oy+hy,-depth/2-12),new THREE.Vector3(ox-hx,oy-hy,-depth/2-12)
+                ]);
+                g.add(new THREE.LineSegments(outline,guidance));
+                for(let k=0;k<4;k++) {
+                    const warning = new THREE.Mesh(new THREE.BoxGeometry(16,9,30),accent);
+                    warning.position.set((k%2?1:-1)*(hx+35),oy+(k<2?hy:-hy),-depth/2-5);
+                    g.add(warning);
+                }
+                // Köprü iskeleti/hasarlı anten silueti (kolidere dahil olmayan DIŞ süs).
+                const antenna=new THREE.Mesh(new THREE.BoxGeometry(14,48,125),plating);
+                antenna.position.set(-outer+26,0,10);antenna.rotation.z=0.21;
+                g.add(antenna);
+                wreckageModules.push({distance,mode,group:g,parts,opening:{x:ox,y:oy,hx,hy}});
+                staticObstacles.push(...parts);
+            }
+        }
+        buildDerelictBulkheads();
+
         function resetItemAndBarrierCourse() {
             staticObstacles.forEach(o=>{o.touchingShips.clear();o.hitTimes=Object.create(null);});
             itemBoxes.forEach(b=>b.claimed.clear());
@@ -960,6 +1022,24 @@
 
         // En yakın rota izdüşümü: bir karede kutu veya engel atlanmasın.
         function courseSegmentTouch(o, prev, current, shipRadius) {
+            if (o.type === 'WRECK_BOX') {
+                // Segment-vs-expanded-AABB: çarpışma kutuları metalin GÖRÜNEN yüzeyiyle eşleşir.
+                let enter=0,leave=1;
+                const axes=[
+                    [prev.routeProgress,current.routeProgress,o.routeProgress,o.halfDepth],
+                    [prev.laneX,current.laneX,o.laneX,o.halfX],
+                    [prev.laneY,current.laneY,o.laneY,o.halfY]
+                ];
+                for(const [a,b,mid,half] of axes){
+                    const lo=mid-half-shipRadius, hi=mid+half+shipRadius,delta=b-a;
+                    if(Math.abs(delta)<1e-9){if(a<lo||a>hi)return false;continue;}
+                    const t0=(lo-a)/delta,t1=(hi-a)/delta;
+                    enter=Math.max(enter,Math.min(t0,t1));
+                    leave=Math.min(leave,Math.max(t0,t1));
+                    if(enter>leave)return false;
+                }
+                return true;
+            }
             const dx=current.routeProgress-prev.routeProgress,dy=current.laneX-prev.laneX,dz=current.laneY-prev.laneY;
             const lenSq=dx*dx+dy*dy+dz*dz;
             const t=lenSq>1e-8 ? THREE.MathUtils.clamp(((o.routeProgress-prev.routeProgress)*dx+(o.laneX-prev.laneX)*dy+(o.laneY-prev.laneY)*dz)/lenSq,0,1):0;
@@ -1037,7 +1117,7 @@
                     const points=[];
                     for(let d=0;d<=RACE_ROUTE_NOMINAL_DISTANCE;d+=235) {
                         const f=getRaceFrameAtDistance(d);
-                        points.push(f.center.clone().addScaledVector(f.right,Math.cos(angle)*radius).addScaledVector(f.up,Math.sin(angle)*radius));
+                        points.push(f.center.clone().addScaledVector(f.right,Math.cos(angle)*radius*getCorridorRadiusAt(d)/state.tubeRadius).addScaledVector(f.up,Math.sin(angle)*radius*getCorridorRadiusAt(d)/state.tubeRadius));
                     }
                     corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),material));
                 }
@@ -1048,10 +1128,10 @@
                 const points = [];
                 for (let d = 0; d <= RACE_ROUTE_NOMINAL_DISTANCE; d += 115) {
                     const f = getRaceFrameAtDistance(d);
-                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(theta) * r).addScaledVector(f.up, Math.sin(theta) * r));
+                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(theta) * getCorridorRadiusAt(d)).addScaledVector(f.up, Math.sin(theta) * getCorridorRadiusAt(d)));
                 }
                 const end = getRaceFrameAtDistance(RACE_ROUTE_NOMINAL_DISTANCE);
-                points.push(end.center.clone().addScaledVector(end.right, Math.cos(theta) * r).addScaledVector(end.up, Math.sin(theta) * r));
+                points.push(end.center.clone().addScaledVector(end.right, Math.cos(theta) * getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE)).addScaledVector(end.up, Math.sin(theta) * getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE)));
                 corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), railMaterial));
             }
             // Aralıklı dairesel kesitler koridorun çapını ve dönüşlerini gösterir.
@@ -1060,7 +1140,7 @@
                 const points = [];
                 for (let k = 0; k < 48; k++) {
                     const a = k * Math.PI * 2 / 48;
-                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(a) * r).addScaledVector(f.up, Math.sin(a) * r));
+                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(a) * getCorridorRadiusAt(d)).addScaledVector(f.up, Math.sin(a) * getCorridorRadiusAt(d)));
                 }
                 const major = Math.round((d - 160) / 260) % 5 === 0;
                 corridorGuideGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), major ? majorRingMaterial : ringMaterial));
@@ -1076,13 +1156,15 @@
                 const from=sector*10000, to=(sector+1)*10000, step=145;
                 const roadMat = new THREE.MeshBasicMaterial({color:sectorPalette[sector],
                     transparent:true,opacity:0.115,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
-                const makePt=(frame,x)=>frame.center.clone().addScaledVector(frame.up,-190*COURSE_WIDTH_SCALE).addScaledVector(frame.right,x*COURSE_WIDTH_SCALE);
+                const makePt=(frame,x,progress)=>frame.center.clone()
+                    .addScaledVector(frame.up,-190*COURSE_WIDTH_SCALE*getCorridorRadiusAt(progress)/state.tubeRadius)
+                    .addScaledVector(frame.right,x*COURSE_WIDTH_SCALE*getCorridorRadiusAt(progress)/state.tubeRadius);
                 for(let d=from;d<to;d+=step){
                     const f=getRaceFrameAtDistance(d), f2=getRaceFrameAtDistance(Math.min(to,d+step));
-                    const bl=makePt(f,-160),br=makePt(f,160), el=makePt(f2,-160),er=makePt(f2,160);
+                    const bl=makePt(f,-160,d),br=makePt(f,160,d), el=makePt(f2,-160,Math.min(to,d+step)),er=makePt(f2,160,Math.min(to,d+step));
                     tris.push(...bl.toArray(),...br.toArray(),...er.toArray(),...bl.toArray(),...er.toArray(),...el.toArray());
                     leftEdge.push(bl,el);rightEdge.push(br,er);
-                    if(Math.round(d/step)%3===0){centerDashes.push(makePt(f,0),makePt(f2,0));}
+                    if(Math.round(d/step)%3===0){centerDashes.push(makePt(f,0,d),makePt(f2,0,Math.min(to,d+step)));}
                 }
                 const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(tris,3));
                 const mesh=new THREE.Mesh(geo,roadMat);mesh.frustumCulled=false;raceRoadGroup.add(mesh);
@@ -1188,7 +1270,7 @@
 
         function updateAsteroidMotion(a, dt) {
             if (!a.active) return;
-            const safe = state.tubeRadius - a.radius - 12;
+            const safe = getCorridorRadiusAt(a.routeProgress) - a.radius - 12;
             if (a.moveType !== 'STATIC') {
                 a.motionPhase += a.motionRate * dt;
                 const offset = Math.sin(a.motionPhase) * a.motionAmplitude;
@@ -1202,7 +1284,16 @@
                     a.laneY *= safe / mag;
                 }
                 if (a.moveType === 'APPROACH' && dt > 0) {
-                    a.routeProgress = Math.max(120, a.routeProgress - a.approachSpeed * dt);
+                    let nextProgress = Math.max(120, a.routeProgress - a.approachSpeed * dt);
+                    for (const [gateDistance] of chokepointPlan) {
+                        const stop = gateDistance + 440;
+                        if (a.routeProgress >= stop && nextProgress < stop) {
+                            nextProgress = stop;
+                            a.approachSpeed = 0;
+                            break;
+                        }
+                    }
+                    a.routeProgress = nextProgress;
                 }
             }
             const f = getRaceFrameAtDistance(a.routeProgress);
@@ -1232,8 +1323,13 @@
                 const a = asteroids[i];
                 const jitter = (Math.random() - 0.5) * step * 0.62;
                 a.routeProgress = THREE.MathUtils.clamp(minDist + (i + 0.5) * step + jitter, minDist, maxDist);
+                for (const [gateDistance] of chokepointPlan) {
+                    if (Math.abs(a.routeProgress-gateDistance)<430) {
+                        a.routeProgress=gateDistance+(a.routeProgress<gateDistance?-485:485);
+                    }
+                }
                 const angle = basePhase + i * goldenAngle + (Math.random() - 0.5) * 0.35;
-                const safeRadius = state.tubeRadius - a.radius - 12;
+                const safeRadius = getCorridorRadiusAt(a.routeProgress) - a.radius - 12;
                 // Merkezde %20, orta kuşakta %35, dış kuşakta %45: merkeze yığılmayı önler.
                 const band = i % 20;
                 let radialFraction;
@@ -1684,7 +1780,7 @@
                     const nx = dx / sideDistance, ny = dy / sideDistance;
                     const push = Math.min(12, Math.max(1.5, (minContact - distanceWorld) * 0.4));
                     for (const [ship, sign] of [[a, 1], [b, -1]]) {
-                        const limit = BOUNDARY_RULES.maxRadius;
+                        const limit = BOUNDARY_RULES.maxRadius*getCorridorRadiusAt(ship.routeProgress)/state.tubeRadius;
                         const xx = ship.laneX + nx * push * sign;
                         const yy = ship.laneY + ny * push * sign;
                         const mag = Math.hypot(xx, yy);
@@ -1785,14 +1881,21 @@
             maxRadius: 285 * COURSE_WIDTH_SCALE,
             playerWingHalfSpan: 18, rivalWingHalfSpan: 17
         });
-        function evaluateBoundaryFriction(laneX, laneY, wingHalfSpan = 18, roll = 0) {
+        function evaluateBoundaryFriction(laneX, laneY, wingHalfSpan = 18, roll = 0, routeProgress = 0) {
             const wingCos = Math.cos(roll) * wingHalfSpan;
             const wingSin = Math.sin(roll) * wingHalfSpan;
             const left = Math.hypot(laneX - wingCos, laneY - wingSin);
             const right = Math.hypot(laneX + wingCos, laneY + wingSin);
             const radial = Math.hypot(laneX, laneY);
             const contactRadius = Math.max(radial, left, right);
-            const edge = BOUNDARY_RULES;
+            const ratio=getCorridorRadiusAt(routeProgress)/state.tubeRadius;
+            const edge={
+                safeRadius:BOUNDARY_RULES.safeRadius*ratio,
+                softRadius:BOUNDARY_RULES.softRadius*ratio,
+                scrapeRadius:BOUNDARY_RULES.scrapeRadius*ratio,
+                outsideRadius:BOUNDARY_RULES.outsideRadius*ratio,
+                maxRadius:BOUNDARY_RULES.maxRadius*ratio
+            };
             let factor = 1, damagePerSecond = 0, level = 0;
             const lerp = (a,b,t) => a + (b-a)*Math.min(1, Math.max(0,t));
             if (contactRadius > edge.outsideRadius) {
@@ -1825,16 +1928,17 @@
         function clampToSoftBoundary(ship) {
             // Koridor fiziksel olarak 360; merkez 394.6'ya kadar çıkabilir.
             const radius = Math.hypot(ship.laneX, ship.laneY);
-            if (radius > BOUNDARY_RULES.maxRadius) {
-                const ratio = BOUNDARY_RULES.maxRadius / radius;
+            const limit=BOUNDARY_RULES.maxRadius*getCorridorRadiusAt(ship.routeProgress)/state.tubeRadius;
+            if (radius > limit) {
+                const ratio = limit / radius;
                 ship.laneX *= ratio;
                 ship.laneY *= ratio;
                 // Yanal enerji dışarıya doğru büyüyüp sert duvarda birikmesin.
                 if (typeof ship.vx === 'number' && typeof ship.vy === 'number') {
-                    const outward = (ship.vx*ship.laneX + ship.vy*ship.laneY) / BOUNDARY_RULES.maxRadius;
+                    const outward = (ship.vx*ship.laneX + ship.vy*ship.laneY) / limit;
                     if (outward > 0) {
-                        ship.vx -= outward * ship.laneX / BOUNDARY_RULES.maxRadius;
-                        ship.vy -= outward * ship.laneY / BOUNDARY_RULES.maxRadius;
+                        ship.vx -= outward * ship.laneX / limit;
+                        ship.vy -= outward * ship.laneY / limit;
                     }
                 }
             }
@@ -1846,7 +1950,7 @@
             const previousLevel = ship.boundaryLevel || 0;
             const f = evaluateBoundaryFriction(ship.laneX, ship.laneY,
                 isPlayer ? BOUNDARY_RULES.playerWingHalfSpan : BOUNDARY_RULES.rivalWingHalfSpan,
-                isPlayer ? state.roll : (ship.bankAngle || 0));
+                isPlayer ? state.roll : (ship.bankAngle || 0), ship.routeProgress);
             ship.boundaryLevel = f.level;
             ship.boundaryFactor = f.factor;
             ship.boundaryDamageRate = f.damagePerSecond;
@@ -2241,8 +2345,7 @@
             // 6. Rakip Yarışçılar (Eşit Motor/Boost + 4 Pilot Profili + Asteroit Kaçınma + Gerçek Sollama + Bitiş Kontrolü)
             // AI hedefleri temel olarak güvenli iç bölgeyi kullanır; gerekirse
             // fizik, kısa süreli dışa taşmaya yine izin verir.
-            const maxSafeRadius = state.tubeRadius * 0.74;
-            const raceHazards = asteroids.concat(staticObstacles);
+            const raceHazards = asteroids.concat(staticObstacles.filter(o=>o.type!=='WRECK_BOX'));
 
             racers.forEach((r, rIdx) => {
                 // Bitirmiş veya DNF olmuş rakip artık hızlanmaz, frenlemez, boost kullanmaz ve parkur sonunda hareket etmez
@@ -2309,7 +2412,8 @@
                     maxLateralSpeed = 350 * COURSE_WIDTH_SCALE;
                 }
 
-                // Hedef koordinatın koridor sınırları içerisinde olduğundan emin ol
+                // Hedef koordinatın yerel daralma sınırları içerisinde olduğundan emin ol
+                const maxSafeRadius = getCorridorRadiusAt(r.routeProgress) * 0.74;
                 const targetDist = Math.hypot(r.targetX, r.targetY);
                 if (targetDist > maxSafeRadius) {
                     const tAng = Math.atan2(r.targetY, r.targetX);
@@ -2335,7 +2439,7 @@
                     let predAstX = a.moveType==='STATIC'?a.laneX:a.baseLaneX + a.motionAxisX * predictedOffset;
                     let predAstY = a.moveType==='STATIC'?a.laneY:a.baseLaneY + a.motionAxisY * predictedOffset;
                     const predictedRad = Math.hypot(predAstX, predAstY);
-                    const maxPredictedRad = state.tubeRadius - a.radius - 12;
+                    const maxPredictedRad = getCorridorRadiusAt(a.routeProgress) - a.radius - 12;
                     if (predictedRad > maxPredictedRad) {
                         predAstX *= maxPredictedRad / predictedRad;
                         predAstY *= maxPredictedRad / predictedRad;
@@ -2612,6 +2716,11 @@
                 // Oyuncuyla aynı hız takip katsayısı (5 * dt)
                 // Oyuncuyla aynı tek geçişli hız takibi aşağıdaki sınır fiziğinde uygulanır.
 
+                const gateForPilot = upcomingWreckGate(r.routeProgress, 2400);
+                if (gateForPilot && gateForPilot.distance-r.routeProgress < 1150) {
+                    const misalignment=Math.hypot(r.laneX-gateForPilot.laneX,r.laneY-gateForPilot.laneY);
+                    if (misalignment>56) desiredSpeed=Math.min(desiredSpeed,RACE_SPEEDS.NORMAL*0.76);
+                }
                 const prevRacerProgress = r.routeProgress;
 
                 // Hedef Öncelik Sırası: 1. Asteroit Kaçınma > 2. Sollama Şeridi > 3. Normal Uçuş Çizgisi
@@ -2631,6 +2740,15 @@
                         activeTargetX = box.laneX;
                         activeTargetY = box.laneY;
                     }
+                }
+
+                // Gerçek enkaz açıklığı, bonus/sollama/asteroit kararlarından önce gelir.
+                if (gateForPilot) {
+                    activeTargetX = gateForPilot.laneX;
+                    activeTargetY = gateForPilot.laneY;
+                    r.avoidAsteroid = null;
+                    r.overtakeHoldTimer=0;
+                    r.overtakeTarget=null;
                 }
 
                 // Mevcut yerel pozisyondan (laneX, laneY) aktif hedef koordinatlarına yumuşak ve kademeli yönelim
@@ -2663,12 +2781,12 @@
                     }
                 };
 
-                if (!state.finished && !state.playerDNF) {
+                if (!gateForPilot && !state.finished && !state.playerDNF) {
                     applySeparation(state.routeProgress, state.laneX, state.laneY);
                 }
                 for (let j = 0; j < racers.length; j++) {
                     if (j === rIdx || racers[j].finished || racers[j].dnf) continue;
-                    applySeparation(racers[j].routeProgress, racers[j].laneX, racers[j].laneY);
+                    if (!gateForPilot) applySeparation(racers[j].routeProgress, racers[j].laneX, racers[j].laneY);
                 }
 
                 const prevVx = r.vx || 0;
@@ -3241,8 +3359,14 @@
                 else itemStatus.textContent=`ITEMS ${state.powerUpsCollected}`;
             }
             const bonus = document.getElementById('bonus-status');
+            const gateWarning=upcomingWreckGate(state.routeProgress,2400);
             const inDanger = dangerBands.some(([from, to]) => state.routeProgress >= from && state.routeProgress <= to);
-            if (inDanger) {
+            if (gateWarning && gateWarning.distance >= state.routeProgress - 185) {
+                const command = gateWarning.mode==='TOP_ONLY' ? 'YUKARIDAN' :
+                    gateWarning.mode==='BOTTOM_ONLY' ? 'ASAGIDAN' : 'ORTADAN';
+                bonus.textContent = `⚠ ENKAZ GECIDI / ${command} / ${Math.max(0,Math.round(gateWarning.distance-state.routeProgress))}m`;
+                bonus.className = 'ml-2 text-orange-300 font-black';
+            } else if (inDanger) {
                 bonus.textContent = '⚠ DEBRIS ZONE';
                 bonus.className = 'ml-2 text-amber-300 font-black';
             } else {
