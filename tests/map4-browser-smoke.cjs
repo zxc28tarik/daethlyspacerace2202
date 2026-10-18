@@ -62,6 +62,63 @@ const assert = require('node:assert/strict');
       zoneName:document.getElementById('planetary-zone-name').textContent
     }));
     assert.equal(planetary.zones,4,'four distinct planetary zones');
+    // W03 physical and strategic paths before phase-two arena.
+    const canyon=await page.evaluate(()=>{
+      const fast={laneX:H4_CANYON.fastCenter};
+      const hunt={laneX:H4_CANYON.huntCenter};
+      const main={laneX:0};
+      const p=3700,dt=0.1,speed=2200;
+      const firstRock=h4CanyonColliders[0];
+      const segmentStart={routeProgress:firstRock.progress-450,
+        laneX:firstRock.side,laneY:firstRock.altitude};
+      const segmentEnd={routeProgress:firstRock.progress+450,
+        laneX:firstRock.side,laneY:firstRock.altitude};
+      const safeStart={...segmentStart,laneX:0,laneY:0};
+      const safeEnd={...segmentEnd,laneX:0,laneY:0};
+      const initial={progress:state.routeProgress,x:state.laneX,y:state.laneY};
+      // The *same* visible rock volume must damage the player's shield.
+      state.routeProgress=firstRock.progress+60;
+      state.laneX=firstRock.side;state.laneY=firstRock.altitude;
+      state.shield=100;state.powerShieldTimer=0;state.barrelRollTimer=0;
+      state.h4CanyonCooldown=0;state.map4Phase=1;
+      h4UpdateCanyonContacts(segmentStart,racers.map(r=>({
+        routeProgress:r.routeProgress,laneX:r.laneX,laneY:r.laneY
+      })));
+      const afterImpact={shield:state.shield,speed:state.currentSpeed};
+      state.routeProgress=initial.progress;state.laneX=initial.x;
+      state.laneY=initial.y;state.shield=100;state.h4CanyonCooldown=0;
+      return {
+        routeFast:h4CanyonRoute(p,fast.laneX),
+        routeHunt:h4CanyonRoute(p,hunt.laneX),
+        routeMain:h4CanyonRoute(p,main.laneX),
+        advanceFast:map4Advance(p,speed,dt,fast)-p,
+        advanceMain:map4Advance(p,speed,dt,main)-p,
+        advanceHunt:map4Advance(p,speed,dt,hunt)-p,
+        rockCount:h4CanyonColliders.length,
+        visualGroups:h4CanyonVisualGroups.length,
+        visibleRockLink:firstRock.mesh.userData.h4CanyonCollider===firstRock,
+        hit:h4SegmentBoxHit(segmentStart,segmentEnd,firstRock),
+        missesCenter:!h4SegmentBoxHit(safeStart,safeEnd,firstRock),
+        afterImpact,
+        earlyHuntersEast:hunterTargets.filter(h=>h.baseLaneX>850).length,
+        routeHud:document.getElementById('planetary-route-name')!==null
+      };
+    });
+    assert.equal(canyon.routeFast,'FAST');
+    assert.equal(canyon.routeHunt,'HUNT');
+    assert.equal(canyon.routeMain,'MAIN');
+    assert(canyon.advanceFast>canyon.advanceMain*1.17 &&
+      canyon.advanceFast<canyon.advanceMain*1.19,'real 18% gorge speed gain');
+    assert.equal(canyon.advanceHunt,canyon.advanceMain,
+      'hunter flank does not receive unearned speed gain');
+    assert.equal(canyon.rockCount,6,'three real two-pillar rock gates');
+    assert.equal(canyon.visualGroups,1,'single persistent W03 canyon zone');
+    assert.equal(canyon.visibleRockLink,true,'collision tied to visible rock');
+    assert.equal(canyon.hit,true,'swept rock collision catches high speed');
+    assert.equal(canyon.missesCenter,true,'safe central lane is clear');
+    assert(canyon.afterImpact.shield<100,'canyon rock collision damages shield');
+    assert(canyon.earlyHuntersEast>=4,'optional east route has more hunter encounters');
+    assert.equal(canyon.routeHud,true,'flight lane HUD created');
     const openSpace=await page.evaluate(()=>{
       const probe=[0,12500,13500,22000,45000].map(progress=>({
         progress,radius:map4AirspaceRadius(progress),
@@ -255,6 +312,8 @@ const assert = require('node:assert/strict');
       'restart reuses one-time world compositions');
     assert.equal(await page.evaluate(()=>h4WideScenery.total),226,
       'restart does not duplicate terrain and skyline');
+    assert.equal(await page.evaluate(()=>h4CanyonColliders.length),6,
+      'restart reuses the same real canyon rock volumes');
     assert(restart.gameTime<4,'timer reset');
     assert.equal(restart.playerKills,0);
     assert.equal(await page.evaluate(()=>state.map4Phase),1,'four phase reset');
@@ -296,7 +355,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Map4 W02 large airspace, four-stage soft edges, panoramic scenery, no Map1 regression');
+    console.log('PASS: Map4 W03 3 canyon choices, +18% gorge, hunter flank, swept rock hits, 4 phases and Map1');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();
