@@ -1295,19 +1295,189 @@
         const planetaryBuildingColliders = [];
         scene.add(planetaryWorldGroup);
         planetaryWorldGroup.visible = false;
+
+        // VQ01: self-contained authored surface textures. Canvas is drawn once:
+        // no external images, network downloads, per-frame texture allocations.
+        const h4VisualQuality={textures:0,enhancedAircraft:0,atmosphere:true};
+        function h4SurfaceTexture(baseHex,seed,kind){
+            const canvas=document.createElement('canvas');
+            canvas.width=canvas.height=256;
+            const ctx=canvas.getContext('2d');
+            const base=new THREE.Color(baseHex);
+            const data=ctx.createImageData(256,256);
+            let rng=seed>>>0;
+            const rand=()=>{
+                rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;
+                return ((rng>>>0)%1000000)/1000000;
+            };
+            const rgb=[base.r*255,base.g*255,base.b*255];
+            for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+                const idx=(y*256+x)*4;
+                const large=Math.sin(x*.037+seed)*Math.cos(y*.054-seed)*.17;
+                const layers=kind==='rock'?
+                    Math.sin(y*.19+Math.sin(x*.025)*2)*.10:
+                    kind==='metal'?
+                        (x%58<2||y%66<2?-.24:.02):0;
+                const grain=(rand()-.5)*(kind==='rock'?.22:.10);
+                const amount=Math.max(.4,Math.min(1.28,.90+large+layers+grain));
+                for(let c=0;c<3;c++)data.data[idx+c]=Math.min(255,rgb[c]*amount);
+                data.data[idx+3]=255;
+            }
+            ctx.putImageData(data,0,0);
+            for(let i=0;i<(kind==='rock'?115:70);i++){
+                const x=rand()*256,y=rand()*256;
+                ctx.strokeStyle=kind==='rock'?'rgba(34,21,17,.17)':'rgba(155,205,216,.13)';
+                ctx.lineWidth=kind==='rock'?1.5:.85;
+                ctx.beginPath();ctx.moveTo(x,y);
+                ctx.lineTo(x+(rand()-.5)*(kind==='rock'?85:40),
+                    y+(rand()-.5)*(kind==='rock'?21:4));
+                ctx.stroke();
+            }
+            if(kind==='metal'){
+                ctx.strokeStyle='rgba(6,19,31,.48)';
+                for(let y=28;y<256;y+=66){
+                    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();
+                    for(let x=23;x<256;x+=58){
+                        ctx.fillStyle='rgba(170,219,228,.33)';
+                        ctx.fillRect(x,y+5,3,3);
+                    }
+                }
+            }
+            const texture=new THREE.CanvasTexture(canvas);
+            texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+            texture.repeat.set(kind==='rock'?3:2,kind==='rock'?5:3);
+            texture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+            texture.encoding=THREE.sRGBEncoding;
+            h4VisualQuality.textures++;
+            return texture;
+        }
+        function h4RuggedRockGeometry(){
+            // A rugged 9-sided rock tower, tapered in tiers; same unit AABB as
+            // legacy rock, so physics authored using mesh scales still line up.
+            const g=new THREE.CylinderGeometry(.26,.47,1,9,6,false);
+            const pos=g.attributes.position;
+            for(let i=0;i<pos.count;i++){
+                const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
+                const n=1+.13*Math.sin(i*5.73)+.07*Math.cos(i*2.47);
+                const shift=.035*Math.sin(y*17+i*.31);
+                pos.setXYZ(i,x*n+shift,y,z*n-shift*.6);
+            }
+            pos.needsUpdate=true;
+            g.computeVertexNormals();
+            return g;
+        }
+        const h4SurfaceMaps={
+            rock:h4SurfaceTexture(0xb28d73,118,'rock'),
+            sandstone:h4SurfaceTexture(0xc9a178,93,'rock'),
+            soil:h4SurfaceTexture(0x9b7659,49,'rock'),
+            steel:h4SurfaceTexture(0x7e96a1,719,'metal'),
+            darkSteel:h4SurfaceTexture(0x596776,772,'metal'),
+            armor:h4SurfaceTexture(0x576274,913,'metal'),
+            ground:h4SurfaceTexture(0xcfc5b6,131,'rock')
+        };
+        const h4AtmosphereUniforms={
+            zenith:{value:new THREE.Color(0x263954)},
+            horizon:{value:new THREE.Color(0xd9ac80)},
+            lower:{value:new THREE.Color(0x8c6474)},
+            sunTint:{value:new THREE.Color(0xffe7b6)},
+            sunDirection:{value:new THREE.Vector3(.55,.36,-.77).normalize()},
+            haze:{value:1}
+        };
+        const h4SkyMaterial=new THREE.ShaderMaterial({
+            uniforms:h4AtmosphereUniforms,
+            side:THREE.BackSide,depthWrite:false,depthTest:false,
+            vertexShader:`
+                varying vec3 vSkyDirection;
+                void main(){
+                    vSkyDirection=normalize(position);
+                    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+                }`,
+            fragmentShader:`
+                varying vec3 vSkyDirection;
+                uniform vec3 zenith;
+                uniform vec3 horizon;
+                uniform vec3 lower;
+                uniform vec3 sunTint;
+                uniform vec3 sunDirection;
+                uniform float haze;
+                void main(){
+                    vec3 ray=normalize(vSkyDirection);
+                    float h=ray.y;
+                    float t=smoothstep(-.20,.64,h);
+                    vec3 sky=mix(horizon,zenith,t);
+                    sky=mix(lower,sky,smoothstep(-.55,-.04,h));
+                    float sun=max(0.,dot(ray,normalize(sunDirection)));
+                    sky+=sunTint*(pow(sun,14.)*.16+pow(sun,105.)*.60)*haze;
+                    float horizonGlow=exp(-abs(h)*7.)*.09*haze;
+                    sky+=sunTint*horizonGlow;
+                    gl_FragColor=vec4(sky,1.);
+                }`
+        });
+        const h4SkyDome=new THREE.Mesh(new THREE.SphereGeometry(7800,40,24),
+            h4SkyMaterial);
+        h4SkyDome.name='MAP4_ATMOSPHERE_GRADIENT';
+        h4SkyDome.renderOrder=-1000;
+        h4SkyDome.visible=false;
+        scene.add(h4SkyDome);
+        function h4SunSprite(){
+            const canvas=document.createElement('canvas');
+            canvas.width=canvas.height=128;
+            const c=canvas.getContext('2d');
+            const glow=c.createRadialGradient(64,64,0,64,64,64);
+            glow.addColorStop(0,'rgba(255,255,240,.98)');
+            glow.addColorStop(.12,'rgba(255,226,165,.90)');
+            glow.addColorStop(.30,'rgba(255,163,97,.43)');
+            glow.addColorStop(.68,'rgba(255,135,82,.12)');
+            glow.addColorStop(1,'rgba(255,135,82,0)');
+            c.fillStyle=glow;c.fillRect(0,0,128,128);
+            const texture=new THREE.CanvasTexture(canvas);
+            const sprite=new THREE.Sprite(new THREE.SpriteMaterial({
+                map:texture,transparent:true,depthWrite:false,depthTest:false,
+                blending:THREE.AdditiveBlending,fog:false
+            }));
+            sprite.name='MAP4_SUN_HALO';
+            sprite.scale.set(1700,1700,1);
+            sprite.visible=false;
+            scene.add(sprite);
+            return sprite;
+        }
+        const h4SunHalo=h4SunSprite();
+        function h4UpdateSkyVisuals(){
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            h4SkyDome.position.copy(camera.position);
+            h4SunHalo.position.copy(camera.position)
+                .addScaledVector(h4AtmosphereUniforms.sunDirection.value,5700);
+            const phase=state.map4Phase||1;
+            const altitude=THREE.MathUtils.clamp((state.laneY-80)/1400,0,1);
+            const upperOrbit=phase===4?altitude:0;
+            const hue=phase===1?0x283f59:phase===2?0x455b72:
+                phase===3?0x394555:0x1e3559;
+            const horizon=phase===1?0xd4a078:phase===2?0xcf9076:
+                phase===3?0xac8d79:0x887f95;
+            h4AtmosphereUniforms.zenith.value.setHex(hue)
+                .lerp(new THREE.Color(0x020b26),upperOrbit);
+            h4AtmosphereUniforms.horizon.value.setHex(horizon)
+                .lerp(new THREE.Color(0x26335a),upperOrbit);
+            h4AtmosphereUniforms.lower.value.setHex(
+                phase===1?0x89636b:phase===2?0x70545e:0x46505f);
+            h4AtmosphereUniforms.haze.value=1-upperOrbit*.8;
+            h4SunHalo.material.opacity=1-upperOrbit*.80;
+            for(const cloudGroup of h4CloudGroups)
+                cloudGroup.visible=phase<4||upperOrbit<.52;
+        }
         const H4_MESHES = Object.freeze({
-            rock: new THREE.ConeGeometry(1,1,5),
+            rock: h4RuggedRockGeometry(),
             tower: new THREE.CylinderGeometry(1,1,1,7),
             structure: new THREE.BoxGeometry(1,1,1),
             dome: new THREE.SphereGeometry(1,10,6),
             beacon: new THREE.TorusGeometry(1,0.045,5,28)
         });
         const H4_MATERIALS = Object.freeze({
-            rock:new THREE.MeshLambertMaterial({color:0x936746,flatShading:true}),
-            sand:new THREE.MeshLambertMaterial({color:0x61463a,flatShading:true}),
-            wreck:new THREE.MeshLambertMaterial({color:0x484b58,flatShading:true}),
-            steel:new THREE.MeshLambertMaterial({color:0x60727d,flatShading:true}),
-            wall:new THREE.MeshLambertMaterial({color:0x714f55,flatShading:true}),
+            rock:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.rock,color:0xbca694,roughness:.98,flatShading:true}),
+            sand:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.soil,color:0x8d7269,roughness:.95,flatShading:true}),
+            wreck:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.darkSteel,color:0x929ca8,roughness:.78,metalness:.34,flatShading:true}),
+            steel:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.steel,color:0xa1bac7,roughness:.56,metalness:.52,flatShading:true}),
+            wall:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.armor,color:0xa5a1a9,roughness:.72,metalness:.28,flatShading:true}),
             core:new THREE.MeshBasicMaterial({color:0xf75c7c}),
             marker:new THREE.MeshBasicMaterial({color:0xffdd91,transparent:true,opacity:0.5})
         });
@@ -1321,7 +1491,7 @@
             // W02 layered terrain: broad, shared-color low-poly topography.
             // Core route remains visibly open; hills rise only toward the sides.
             // This is scenery, not a collision promise (W03/W05 own terrain hits).
-            const verts=[],colors=[],steps=80,across=16,halfWidth=5850;
+            const verts=[],colors=[],uvs=[],steps=80,across=16,halfWidth=5850;
             const baseColor=new THREE.Color(def.ground);
             const pos=(progress,side)=>{
                 const normalized=Math.abs(side)/halfWidth;
@@ -1337,11 +1507,13 @@
                     Math.max(0,terrace)*ridge*45;
                 return h4WorldPosition(progress,side,-440+elevation);
             };
-            const face=(points,shade)=>{
-                for(const v of points) {
+            const face=(points,shade,coords)=>{
+                for(let k=0;k<points.length;k++){
+                    const v=points[k];
                     verts.push(v.x,v.y,v.z);
                     const color=baseColor.clone().multiplyScalar(shade);
                     colors.push(color.r,color.g,color.b);
+                    uvs.push(coords[k][0],coords[k][1]);
                 }
             };
             for(let i=0;i<steps;i++){
@@ -1353,19 +1525,83 @@
                     const p1=pos(a,left),p2=pos(a,right),p3=pos(b,left),p4=pos(b,right);
                     const band=(x%4)*0.035;
                     const contour=0.90+0.07*Math.sin(i*0.53+x*1.6);
-                    face([p1,p2,p4],contour-band);
-                    face([p1,p4,p3],contour-band+0.024);
+                    const u1=left/560,u2=right/560,v1=a/670,v2=b/670;
+                    face([p1,p2,p4],contour-band,[[u1,v1],[u2,v1],[u2,v2]]);
+                    face([p1,p4,p3],contour-band+0.024,[[u1,v1],[u2,v2],[u1,v2]]);
                 }
             }
             const geo=new THREE.BufferGeometry();
             geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
             geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+            geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
             geo.computeVertexNormals();
-            const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
-                vertexColors:true,side:THREE.DoubleSide,flatShading:true
+            const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.ground,vertexColors:true,roughness:.99,
+                side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
             return mesh;
+        }
+
+        // VQ01: fast, reusable architectural trims. Children inherit the same
+        // building transforms, so all parent collision volumes remain unchanged.
+        const h4FacadeGeometry=new THREE.BoxGeometry(1,1,1);
+        const h4FacadeGlass=new THREE.MeshStandardMaterial({
+            color:0x253c54,metalness:.72,roughness:.18,emissive:0x18466a,
+            emissiveIntensity:.45
+        });
+        const h4FacadeMetal=new THREE.MeshStandardMaterial({
+            color:0x9eacb4,metalness:.8,roughness:.34
+        });
+        const h4FacadeEmission=new THREE.MeshBasicMaterial({color:0x5adce8});
+        function h4ArchitecturalDetail(mesh,kind){
+            if(mesh.userData.h4Detailed)return;
+            mesh.userData.h4Detailed=true;
+            const detail=(x,y,z,sx,sy,sz,material)=>{
+                const panel=new THREE.Mesh(h4FacadeGeometry,material);
+                panel.position.set(x,y,z);panel.scale.set(sx,sy,sz);
+                mesh.add(panel);return panel;
+            };
+            // Two vertical ribs and narrow reflective windows break big flat faces.
+            for(const x of [-.37,.37]){
+                detail(x,0,.516,.045,.80,.023,h4FacadeMetal);
+                detail(x*.62,.05,.521,.10,.32,.025,h4FacadeGlass);
+            }
+            for(const y of [-.26,.02,.30]){
+                detail(0,y,.532,.69,.028,.025,h4FacadeMetal);
+            }
+            detail(0,.42,.531,.48,.029,.030,h4FacadeEmission);
+            if(kind==='hangar'||kind==='tower'){
+                detail(0,.535,0,.71,.08,.76,h4FacadeMetal);
+            }
+        }
+        const h4CloudGroups=[];
+        const h4Clouds=[];
+        const h4CloudGeometry=new THREE.SphereGeometry(1,12,8);
+        const h4CloudMaterials=[
+            new THREE.MeshBasicMaterial({color:0xf1cbb0,transparent:true,opacity:.13,depthWrite:false}),
+            new THREE.MeshBasicMaterial({color:0xb8b1b1,transparent:true,opacity:.095,depthWrite:false}),
+            new THREE.MeshBasicMaterial({color:0xdfc4ac,transparent:true,opacity:.075,depthWrite:false})
+        ];
+        function h4AddCloudLayer(zone,regionIndex,def){
+            if(h4CloudGroups.length>regionIndex)return;
+            const clouds=new THREE.Group();
+            clouds.name='MAP4_VOLUMETRIC_CLOUD_SILHOUETTES_'+regionIndex;
+            for(let i=0;i<9;i++){
+                const progress=def.from+(def.to-def.from)*(i+.4)/9;
+                const side=(i%2?1:-1)*(1100+(i*337)%1720);
+                const altitude=1250+(i*123)%600;
+                const m=new THREE.Mesh(h4CloudGeometry,
+                    h4CloudMaterials[(i+regionIndex)%3]);
+                m.position.copy(h4WorldPosition(progress,side,altitude));
+                m.scale.set(580+(i%4)*220,65+(i%3)*32,335+(i%4)*98);
+                m.rotation.y=i*.38;
+                m.userData.visualOnly=true;
+                clouds.add(m);
+                h4Clouds.push(m);
+            }
+            zone.add(clouds);
+            h4CloudGroups.push(clouds);
         }
         function h4PlaceStructure(group,progress,side,altitude,geometry,material,scale) {
             const mesh=new THREE.Mesh(geometry,material);
@@ -1373,6 +1609,8 @@
             mesh.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
             mesh.scale.set(scale[0],scale[1],scale[2]);
             group.add(mesh);
+            if(geometry===H4_MESHES.structure&&scale[1]>=180&&scale[0]>=75)
+                h4ArchitecturalDetail(mesh,scale[1]>430?'tower':'building');
             if((progress>=MAP4_PHASES.arenaEnd &&
                 progress<MAP4_PHASES.industryEnd) &&
                 geometry!==H4_MESHES.beacon && geometry!==H4_MESHES.dome){
@@ -1401,10 +1639,10 @@
             sphere:new THREE.SphereGeometry(1,9,6)
         });
         const H4_DETAIL_MAT = Object.freeze({
-            sandstone:new THREE.MeshLambertMaterial({color:0xb68b65,flatShading:true}),
-            cliffShadow:new THREE.MeshLambertMaterial({color:0x5a3c36,flatShading:true}),
-            oxidized:new THREE.MeshLambertMaterial({color:0x63747c,flatShading:true}),
-            armor:new THREE.MeshLambertMaterial({color:0x3e4858,flatShading:true}),
+            sandstone:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.sandstone,color:0xd0b095,roughness:.97,flatShading:true}),
+            cliffShadow:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.rock,color:0x78615c,roughness:1,flatShading:true}),
+            oxidized:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.steel,color:0x8fa7aa,roughness:.65,metalness:.38,flatShading:true}),
+            armor:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.armor,color:0x818d99,roughness:.62,metalness:.49,flatShading:true}),
             warning:new THREE.MeshBasicMaterial({color:0xffb25a}),
             hazard:new THREE.MeshBasicMaterial({color:0xff5b61}),
             cyan:new THREE.MeshBasicMaterial({color:0x64d9ed}),
@@ -1627,6 +1865,8 @@
                     mesh.scale.set(scale[0],scale[1],scale[2]);
                     group.add(mesh);
                     mesh.userData.w05Kind=kind;
+                    if(geo===H4_MESHES.structure&&scale[1]>170)
+                        h4ArchitecturalDetail(mesh,kind==='HUNTER_SIDE_TOWER'?'tower':'building');
                     h4IndustrialStats.meshes++;
                     if(solid){
                         const c={progress,side:x,altitude:y,
@@ -1948,6 +2188,7 @@
                 }
                 h4PopulateRegion(zone,zoneIndex);
                 h4PopulateWideScenery(zone,zoneIndex,def);
+                h4AddCloudLayer(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 if(zoneIndex===1)h4BuildArenaWarfront(zone);
                 if(zoneIndex===2)h4BuildIndustrialGauntlet(zone);
@@ -1959,6 +2200,12 @@
             const active=state.activeMap===MAP_MODES.MAP4;
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
+            h4GeoSwordArt.visible=active;
+            h4SkyDome.visible=active;
+            h4SunHalo.visible=active;
+            renderer.toneMapping=active?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
+            renderer.toneMappingExposure=active?1.27:1.0;
+            renderer.outputEncoding=active?THREE.sRGBEncoding:THREE.LinearEncoding;
             corridorGuideGroup.visible=!active;
             raceRoadGroup.visible=!active;
             stationGroup.visible=!active;
@@ -2967,6 +3214,59 @@
         geoSwordMesh.visible = false;
         playerRig.add(geoSwordMesh);
 
+        // Map4-specific 3D detail kit. Does not alter the approved Map1 craft.
+        const h4GeoSwordArt=new THREE.Group();
+        h4GeoSwordArt.name='MAP4_GEOSWORD_ART';
+        h4GeoSwordArt.visible=false;
+        const h4PlayerGlass=new THREE.MeshStandardMaterial({
+            color:0x246083,metalness:.8,roughness:.12,
+            emissive:0x0d5078,emissiveIntensity:.48});
+        const h4PlayerTrim=new THREE.MeshStandardMaterial({
+            map:h4SurfaceMaps.steel,color:0xd7e8f1,metalness:.7,roughness:.27});
+        const h4ShipLight=new THREE.MeshBasicMaterial({color:0x6ff9ff});
+        function h4PlayerDetail(geo,mat,x,y,z,sx,sy,sz){
+            const part=new THREE.Mesh(geo,mat);part.position.set(x,y,z);
+            part.scale.set(sx,sy,sz);h4GeoSwordArt.add(part);return part;
+        }
+        h4PlayerDetail(new THREE.SphereGeometry(1,14,8),h4PlayerGlass,
+            0,.83,.7,1.1,.58,2.3);
+        h4PlayerDetail(new THREE.BoxGeometry(1,1,1),h4PlayerTrim,
+            0,-.26,1.5,3,.65,8);
+        for(const side of [-1,1]){
+            h4PlayerDetail(new THREE.BoxGeometry(1,1,1),h4PlayerTrim,
+                side*4.9,.22,2.2,3.2,.26,2.5).rotation.z=side*.11;
+            h4PlayerDetail(new THREE.BoxGeometry(1,1,1),h4ShipLight,
+                side*6.1,.46,2.0,.23,.14,2.2);
+            h4PlayerDetail(new THREE.TorusGeometry(.70,.12,6,14),h4ShipLight,
+                side*1.5,-.20,4.5,1,1,1);
+        }
+        geoSwordMesh.add(h4GeoSwordArt);
+        function h4EnrichFighter(group,isElite,isRacer){
+            const shell=new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,color:isRacer?0xc9dceb:0x9f9da0,
+                metalness:.61,roughness:.42});
+            const canopy=new THREE.MeshStandardMaterial({
+                color:0x1a4666,metalness:.78,roughness:.12,
+                emissive:0x045678,emissiveIntensity:.38});
+            const signal=new THREE.MeshBasicMaterial({
+                color:isRacer?0x64ecff:isElite?0xffc47d:0xff685b});
+            const add=(g,m,x,y,z,sx,sy,sz)=>{
+                const q=new THREE.Mesh(g,m);q.position.set(x,y,z);
+                q.scale.set(sx,sy,sz);group.add(q);return q;
+            };
+            add(new THREE.SphereGeometry(1,12,8),canopy,0,.75,1,1.35,.52,2.1);
+            add(new THREE.BoxGeometry(1,1,1),shell,0,-.21,-.45,3.2,.9,5);
+            for(const side of [-1,1]){
+                add(new THREE.BoxGeometry(1,1,1),shell,side*5,.3,-1.7,4.5,.25,2.5)
+                    .rotation.z=side*.10;
+                add(new THREE.BoxGeometry(1,1,1),signal,side*7,.53,-1.6,.2,.12,2.2);
+                add(new THREE.TorusGeometry(.7,.14,6,12),signal,
+                    side*2.3,-.2,-5.2,1,1,1);
+            }
+            group.userData.h4DetailedCraft=true;
+            h4VisualQuality.enhancedAircraft++;
+        }
+
         const enemies = [];
         const racers = [];
         const playerLasers = [];
@@ -3003,6 +3303,7 @@
             engR.position.x = 1.6;
 
             group.add(fuselage, wings, engL, engR);
+            if(state.activeMap===MAP_MODES.MAP4)h4EnrichFighter(group,isElite,isRacer);
             const scale = isRacer ? 1.45 : (isElite ? 1.55 : 1.25);
             group.scale.setScalar(scale);
             return group;
@@ -6557,6 +6858,7 @@
                 camera.rotation.x = Math.cos(now * 0.0002) * 0.15;
             }
 
+            if(state.activeMap===MAP_MODES.MAP4)h4UpdateSkyVisuals();
             renderer.render(scene, camera);
         }
 
