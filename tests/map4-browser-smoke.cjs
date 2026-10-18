@@ -62,6 +62,32 @@ const assert = require('node:assert/strict');
       zoneName:document.getElementById('planetary-zone-name').textContent
     }));
     assert.equal(planetary.zones,4,'four distinct planetary zones');
+    const content=await page.evaluate(()=>{
+      const initialProgress=state.routeProgress;
+      const byRegion=h4WorldContentStats.byRegion.slice();
+      const nameSet=new Set(h4WorldLandmarks.map(x=>x.name));
+      const zoneProbe=[6000,13200,23800,42600].map((progress,i)=>{
+        state.routeProgress=progress;
+        updatePlanetaryWorld();
+        const point=h4WorldLandmarks.find(x=>x.zone===i&&x.group.visible);
+        return {regionVisible:planetaryWorldRegions[i].visible,
+          landmarkVisible:!!point,
+          label:document.getElementById('planetary-landmark-name').textContent};
+      });
+      state.routeProgress=initialProgress;
+      updatePlanetaryWorld();
+      return {byRegion,total:h4WorldContentStats.landmarks,
+        meshes:h4WorldContentStats.decorMeshes,names:nameSet.size,
+        zones:zoneProbe};
+    });
+    assert.equal(content.total,12,'12 named landmark groups');
+    assert.deepEqual(content.byRegion,[3,3,3,3],'three landmarks in each zone');
+    assert.equal(content.names,12,'every landmark has a distinct identity');
+    assert(content.meshes>=55 && content.meshes<200,'bounded additional geometry');
+    assert(content.zones.every(z=>z.regionVisible&&z.landmarkVisible),
+      'visible landmarks throughout all four sectors');
+    assert(content.zones.every(z=>z.label.includes('YAKIN NOKTA')),
+      'nearby landmark names on HUD');
     assert.equal(planetary.worldVisible,true,'planet landscape visible');
     assert.equal(planetary.corridorVisible,false,'neon race tube hidden');
     assert.equal(planetary.starsVisible,false,'old stars hidden');
@@ -175,6 +201,8 @@ const assert = require('node:assert/strict');
     }));
     assert.equal(restart.mode,'map4');
     assert.equal(restart.hunters,8);
+    assert.equal(await page.evaluate(()=>h4WorldLandmarks.length),12,
+      'restart reuses one-time world compositions');
     assert(restart.gameTime<4,'timer reset');
     assert.equal(restart.playerKills,0);
     assert.equal(await page.evaluate(()=>state.map4Phase),1,'four phase reset');
@@ -199,6 +227,8 @@ const assert = require('node:assert/strict');
     assert.equal(map1.map,'map1');
     assert.equal(map1.hunters,0);
     assert.equal(map1.terrainVisible,false,'planetary terrain hidden in Map1');
+    assert.equal(await page.locator('#planetary-zone-hud').isVisible(),false,
+      'landmark HUD hidden in Map1');
     assert.equal(map1.corridorVisible,true,'Map1 corridor restored');
     assert(map1.flightRadius<500,'Map1 narrow flight restored');
     assert.equal(map1.racers,5);
@@ -208,7 +238,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: 4-phase Map4 intro/60s arena/industrial collision/orbit/300s deadline, points, restart, Map1 regression');
+    console.log('PASS: Map4 W01 12 landmarks/4 regions, 60s arena, collision, orbital ascent, restart and Map1 regression');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();
