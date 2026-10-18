@@ -1267,6 +1267,7 @@
                 pilot.mesh.position.copy(h4WorldPosition(pilot.routeProgress,pilot.laneX,pilot.laneY));
             }
             h4RefreshArenaHunters();
+            state.lastHunterHudTick=-1; // Show arena scoring immediately.
             showCenterAnnouncement('İLERLEME KİLİTLENDİ',
                 '60 SANİYE · ORTA / ENKAZ / ELİT SAVUNMA');
         }
