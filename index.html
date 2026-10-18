@@ -1565,6 +1565,13 @@
             scene.background.setHex(active?0x997664:0x040310);
             scene.fog.color.setHex(active?0xb18b76:0x09051d);
             scene.fog.density=active?0.00015:0.00055;
+            // Restore the exact neon lighting if the player returns to Map1.
+            ambientLight.color.setHex(active?0xa8a4a1:0x443366);
+            ambientLight.intensity=active?1.25:1.6;
+            nebulaLight1.color.setHex(active?0xffdbb0:0xff55aa);
+            nebulaLight1.intensity=active?1.7:1.8;
+            nebulaLight2.color.setHex(active?0x749cbd:0x00e5ff);
+            nebulaLight2.intensity=active?0.8:1.6;
             camera.far=active?11500:4500;
             camera.updateProjectionMatrix();
             if(!active) {
@@ -1642,8 +1649,9 @@
                     altitudeRatio>0.5?0x2e3d66:sector.sky);
                 scene.fog.color.setHex(altitudeRatio>0.75?0x192249:0x735b72);
             }
-            const color=sector.sky;
-            scene.background.setHex(color);
+            // Respect upper-atmosphere/space visuals: never overwrite phase-4
+            // altitude palette with the ground sector's constant sky color.
+            if(phase!==4) scene.background.setHex(sector.sky);
         }
         // AI-20: Dairesel boost/enerji toplama halkaları, checkpoint ve tehlike
         // çemberleri kaldırıldı. Sektör ve tehlike verileri görsel halkalara bağlı değil.
