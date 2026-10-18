@@ -141,6 +141,10 @@
         
         <!-- ÜST BÖLÜM: Tehlike Uyarısı, Kamera Modu & Boss Can Barı -->
         <div class="flex flex-col items-center w-full gap-2">
+            <div id="hunter-competition-hud" class="hidden hud-box w-full max-w-4xl px-3 py-2 text-center font-['Share_Tech_Mono']">
+                <div class="font-bold text-amber-300 text-xs tracking-widest">HARİTA 4 · AVCI İMHA SIRALAMASI</div>
+                <div id="hunter-competition-scores" class="text-cyan-100 text-xs mt-1" aria-live="off"></div>
+            </div>
             <div class="w-full flex justify-between items-start">
                 <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
@@ -538,6 +542,9 @@
         const state = {
             activeMap: MAP_MODES.MAP1,
             hunterKills: 0,
+            hunterShots: 0,
+            hunterHits: 0,
+            lastHunterHudTick: -1,
             running: false,
             paused: false,
             hudWarningTick: -1,
@@ -1786,6 +1793,7 @@
             });
         }
         function clearHunterTargets() {
+            clearHunterRivalShots();
             for (const target of hunterTargets) disposeHunterMesh(target.mesh);
             hunterTargets.length = 0;
             hunterCounters.spawned = 0;
@@ -1887,7 +1895,9 @@
             const point = impactPoint || target.mesh.position;
             createExplosion(point, 0x00f3ff, 4, 0.4);
             sound.playHit();
-            if (attackerId === 'PLAYER') state.hitMarkerTimer = 0.16;
+            const creditedRacer = attackerId === 'PLAYER' ? null : racers.find(r => r.name === attackerId);
+            if (attackerId === 'PLAYER') { state.hitMarkerTimer = 0.16; state.hunterHits++; }
+            else if (creditedRacer) creditedRacer.hunterHits++;
             if (target.hp > 0) return {hit: true, destroyed: false, remainingHp: target.hp};
             const pos = target.mesh.position.clone();
             beginHunterRespawn(target);
@@ -1895,6 +1905,7 @@
             createExplosion(pos, target.isElite ? 0xffaa33 : 0xff5522, target.isElite ? 30 : 22,
                 target.isElite ? 1.6 : 1.15);
             if (attackerId === 'PLAYER') state.hunterKills++;
+            else if (creditedRacer) creditedRacer.hunterKills++;
             spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
             return {hit: true, destroyed: true, targetId: target.id, attackerId};
         }
@@ -1909,6 +1920,123 @@
                 }
             }
             return earliest;
+        }
+
+
+        // H4-03 — realistic rival shots with shared target competition.
+        // Every rival fires actual projectiles, uses the player's laser damage and
+        // cannot harm players or other racers. No instant/phantom kill awards.
+        const hunterRivalShots = [];
+        const MAP4_RIVAL_GUN = Object.freeze({
+            cooldown: 0.15, projectileSpeed: 2050, projectileLifetime: 1.15,
+            range: 1650, coneLateral: 440, maxProjectiles: 100
+        });
+        function clearHunterRivalShots() {
+            hunterRivalShots.forEach(shot => scene.remove(shot.mesh));
+            hunterRivalShots.length = 0;
+        }
+        function selectHunterForRival(racer) {
+            if (state.activeMap !== MAP_MODES.MAP4 || racer.finished || racer.dnf) return null;
+            let best = null, lowestCost = Infinity;
+            const frame = getRaceFrameAtDistance(racer.routeProgress);
+            for (const hunter of hunterTargets) {
+                if (!hunter.alive || !hunter.mesh.visible) continue;
+                const ahead = hunter.routeProgress - racer.routeProgress;
+                if (ahead < 55 || ahead > MAP4_RIVAL_GUN.range) continue;
+                const lateral = Math.hypot(hunter.laneX - racer.laneX, hunter.laneY - racer.laneY);
+                if (lateral > MAP4_RIVAL_GUN.coneLateral) continue;
+                const toHunter = hunter.mesh.position.clone().sub(racer.mesh.position);
+                if (toHunter.dot(frame.tangent) < 10) continue;
+                // Favor the nearby target that is closer to our line of flight.
+                // Small per-pilot preference spreads engagements across shared targets.
+                const cost = ahead + lateral * 1.25 +
+                    ((hunterTargets.indexOf(hunter) * 7 + racer.hunterPilotIndex * 13) % 5) * 30;
+                if (cost < lowestCost) {best = hunter; lowestCost = cost;}
+            }
+            return best;
+        }
+        function fireHunterRivalVolley(racer, hunter) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running ||
+                    !hunter || !hunter.alive || racer.finished || racer.dnf ||
+                    hunterRivalShots.length > MAP4_RIVAL_GUN.maxProjectiles - 2) return false;
+            const start = racer.mesh.position.clone();
+            const targetVelocity = getRaceFrameAtDistance(hunter.routeProgress).tangent
+                .clone().multiplyScalar(hunter.moveSpeed);
+            const flightTime = Math.min(0.85, start.distanceTo(hunter.mesh.position) /
+                MAP4_RIVAL_GUN.projectileSpeed);
+            const aim = hunter.mesh.position.clone().addScaledVector(targetVelocity, flightTime);
+            const forward = aim.clone().sub(start).normalize();
+            if (forward.lengthSq() < 0.0001) return false;
+            for (const side of [-1,1]) {
+                const origin = start.clone().addScaledVector(
+                    getRaceFrameAtDistance(racer.routeProgress).right, side * 4);
+                const dir = aim.clone().sub(origin).normalize();
+                const mesh = new THREE.Mesh(sharedLaserGeometry,
+                    sharedLaserMaterials[racer.hunterPilotIndex % sharedLaserMaterials.length]);
+                mesh.position.copy(origin);
+                mesh.lookAt(aim);
+                scene.add(mesh);
+                hunterRivalShots.push({
+                    mesh, ownerId:racer.name, dir,
+                    speed:MAP4_RIVAL_GUN.projectileSpeed,
+                    life:MAP4_RIVAL_GUN.projectileLifetime
+                });
+            }
+            racer.hunterShots++;
+            return true;
+        }
+        function updateHunterRivalFire(racer, dt) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running ||
+                    state.finished || state.playerDNF || racer.finished || racer.dnf) return;
+            racer.hunterFireCooldown = Math.max(0, racer.hunterFireCooldown - dt);
+            if (racer.hunterFireCooldown > 0) return;
+            const hunter = selectHunterForRival(racer);
+            if (!hunter) return;
+            if (fireHunterRivalVolley(racer, hunter)) {
+                racer.hunterFireCooldown = MAP4_RIVAL_GUN.cooldown;
+            }
+        }
+        function updateHunterRivalShots(dt) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
+            for (let i=hunterRivalShots.length-1;i>=0;i--) {
+                const shot=hunterRivalShots[i];
+                const from=shot.mesh.position.clone();
+                shot.mesh.position.addScaledVector(shot.dir,shot.speed*dt);
+                shot.life -= dt;
+                const hit=findHunterLaserImpact(from,shot.mesh.position);
+                if (hit) damageHunterTarget(hit.target, MAP4_HUNTERS.laserDamage,
+                    shot.ownerId, hit.point);
+                if (hit || shot.life<=0) {
+                    scene.remove(shot.mesh);
+                    hunterRivalShots.splice(i,1);
+                }
+            }
+        }
+        function getHunterContestStandings() {
+            const rows=[{id:'PLAYER',name:'OYUNCU',kills:state.hunterKills||0,
+                hits:state.hunterHits||0,shots:state.hunterShots||0,progress:state.routeProgress||0}];
+            for (const r of racers) rows.push({id:r.name,name:r.name,
+                kills:r.hunterKills||0,hits:r.hunterHits||0,shots:r.hunterShots||0,
+                progress:r.routeProgress||0});
+            return rows.sort((a,b)=>b.kills-a.kills || b.hits-a.hits ||
+                b.progress-a.progress || a.id.localeCompare(b.id));
+        }
+        function updateHunterCompetitionHUD() {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
+            if (Math.floor(state.raceTime*4) === state.lastHunterHudTick) return;
+            state.lastHunterHudTick = Math.floor(state.raceTime*4);
+            const standings = getHunterContestStandings();
+            const header = document.getElementById('hunter-competition-hud');
+            const list = document.getElementById('hunter-competition-scores');
+            header.classList.remove('hidden');
+            list.textContent = standings.map((e,i) =>
+                (i+1)+'. '+e.name+' '+e.kills+' İMHA / '+e.hits+' İSABET').join('   |   ');
+            window.starbladeHunterTelemetry = {
+                raceTime:state.raceTime, alive:hunterTargets.filter(t=>t.alive).length,
+                spawned:hunterCounters.spawned, destroyed:hunterCounters.destroyed,
+                escaped:hunterCounters.escaped, activeShots:hunterRivalShots.length,
+                standings:standings.map(e=>({...e}))
+            };
         }
 
         // AI-22: Paylaşılan slipstream; tüm gemiler aynı koşulda enerji kazanır.
@@ -2078,7 +2206,12 @@
                     vx: 0,
                     vy: 0,
                     bankAngle: 0,
-                    fireTimer: 2.2 + Math.random() * 2.5
+                    fireTimer: 2.2 + Math.random() * 2.5,
+                    hunterPilotIndex: i,
+                    hunterFireCooldown: (i + 1) * 0.06,
+                    hunterKills: 0,
+                    hunterHits: 0,
+                    hunterShots: 0
                 });
             }
         }
@@ -2236,6 +2369,7 @@
                 state.laserEnergySpent += energyCost;
             }
             firePlayerLasers();
+            if (state.activeMap === MAP_MODES.MAP4) state.hunterShots++;
             if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4) state.obstacleLaserShots++;
             state.fireCooldown = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 0.15 : 0.19;
             return true;
@@ -3716,6 +3850,7 @@
                 const desiredBank = -THREE.MathUtils.clamp(r.vx / maxLateralSpeed, -1, 1) * 0.42;
                 r.bankAngle = (r.bankAngle || 0) + (desiredBank - (r.bankAngle || 0)) * Math.min(1, 6.0 * dt);
                 r.mesh.rotateZ(r.bankAngle);
+                if (state.activeMap === MAP_MODES.MAP4) updateHunterRivalFire(r,dt);
 
                 // Rakipler de birbirine veya oyuncuya ateş edebilir (yalnızca combatEnabled açıkken)
                 if (state.combatEnabled && !r.finished) {
@@ -3726,6 +3861,11 @@
                     }
                 }
             });
+
+            if (state.activeMap === MAP_MODES.MAP4) {
+                updateHunterRivalShots(dt);
+                updateHunterCompetitionHUD();
+            }
 
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts(prevPlayerCourse,prevRacerCourse);
@@ -4560,6 +4700,11 @@
             state.score = 0;
             state.kills = 0;
             state.hunterKills = 0;
+            state.hunterShots = 0;
+            state.hunterHits = 0;
+            state.lastHunterHudTick = -1;
+            window.starbladeHunterTelemetry = null;
+            document.getElementById('hunter-competition-hud').classList.add('hidden');
             state.stage = 1;
             state.shield = 100;
             state.energy = 100;
