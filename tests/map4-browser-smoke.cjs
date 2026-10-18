@@ -28,7 +28,18 @@ const assert = require('node:assert/strict');
     await page.locator('#map-choice-4').click();
     assert.equal(await page.locator('#start-btn').isEnabled(),true,'Map4 selectable');
     await page.locator('#start-btn').click();
-    await page.waitForTimeout(800);
+    try {
+      await page.waitForFunction(() => state.running && state.raceTime>0.06,null,{timeout:25000});
+    } catch(err) {
+      console.error('Game loop diagnostics',await page.evaluate(()=>({
+        map:state.activeMap,running:state.running,paused:state.paused,
+        time:state.raceTime,zones:planetaryWorldRegions.length,
+        terrainVisible:planetaryWorldGroup.visible,
+        scriptsError:typeof updateGame,
+        webgl:renderer.getContext().getParameter(renderer.getContext().VERSION)
+      })),errors);
+      throw err;
+    }
     assert.equal(await page.locator('#start-screen').isVisible(),false);
     const alive = await page.evaluate(() => hunterTargets.filter(h=>h.alive).length);
     assert.equal(alive,8,'8 live hunters after starting Map4');
