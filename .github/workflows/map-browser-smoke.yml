@@ -1,7 +1,7 @@
 name: Map 1 / Map 4 Browser Smoke
 on:
   push:
-    branches: [feature/map4-hunter-race, main]
+    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, main]
   workflow_dispatch:
 jobs:
   browser-smoke:

@@ -141,12 +141,17 @@
     <div id="emp-flash" class="absolute inset-0 bg-cyan-400/50 pointer-events-none z-30 opacity-0 transition-opacity duration-300"></div>
 
     <div class="absolute inset-0 z-40 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+        <div id="planetary-zone-hud" class="hidden hud-box self-center text-center px-4 py-2 max-w-sm">
+            <div class="text-xs text-amber-200 font-bold">GEZEGEN GEÇİŞ OPERASYONU</div>
+            <div id="planetary-zone-name" class="text-sm text-white font-black">KAYALIK VADİLER</div>
+            <div id="planetary-destination" class="text-xs text-cyan-200">HEDEF: ASKERÎ ÜS</div>
+        </div>
         
         <!-- ÜST BÖLÜM: Tehlike Uyarısı, Kamera Modu & Boss Can Barı -->
         <div class="flex flex-col items-center w-full gap-2">
             <div id="hunter-competition-hud" class="hidden hud-box w-full max-w-4xl px-3 py-2 text-center font-['Share_Tech_Mono']">
                 <div class="font-bold text-amber-300 text-xs tracking-widest">HARİTA 4 · AVCI İMHA SIRALAMASI</div>
-                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 02:00.00 · AVCI BAŞI -2s</div>
+                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 02:00.00 · NORMAL +1 / ELİT +3</div>
                 <div id="hunter-competition-scores" class="text-cyan-100 text-xs mt-1" aria-live="off"></div>
             </div>
             <div class="w-full flex justify-between items-start">
@@ -314,8 +319,8 @@
                     <p class="text-slate-300">Sen ve beş rakip pilot hareketli avcıları vurmak için yarışacaksınız. Rakip gemileri vuramazsınız; avcılar ortak hedeflerdir.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-emerald-500/40 p-3.5 rounded">
-                    <div class="text-emerald-300 font-bold mb-1">>> İMHA İNDİRİMİ</div>
-                    <p class="text-slate-300">Her imha, geçerli bitiş süresinden şimdilik 2 saniye düşürür. Son sıralama net süreye göredir. İndirim miktarı denge aşamasında ayarlanabilir.</p>
+                    <div class="text-emerald-300 font-bold mb-1">>> SAVAŞ PUANI</div>
+                    <p class="text-slate-300">120 saniyede hedefe ulaşmak zorunlu. Varanlar arasında normal avcı +1, elit avcı +3 puan kazandırır. Puan eşitliğinde daha hızlı bitiren kazanır.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
                     <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
@@ -567,7 +572,8 @@
         // Provisional balance parameter, adjustable in H4-05 after playtests.
         const MAP4_RACE_RULES = Object.freeze({
             realTimeLimit: 120,
-            secondsPerHunterKill: 2,
+            normalHunterPoints: 1,
+            eliteHunterPoints: 3,
             finishTolerance: 0.000001
         });
         function validHunterFinish(finished, dnf, realTime) {
@@ -575,26 +581,20 @@
                 realTime >= 0 &&
                 realTime <= MAP4_RACE_RULES.realTimeLimit + MAP4_RACE_RULES.finishTolerance;
         }
-        function hunterAdjustedTime(realTime, kills) {
-            return Math.max(0, realTime - Math.max(0, Math.floor(kills || 0)) *
-                MAP4_RACE_RULES.secondsPerHunterKill);
-        }
         function computeHunterRaceStandings() {
             const candidates = [{
                 id: 'PLAYER', name: 'YOU', profile: 'PLAYER', isPlayer: true,
                 finished:state.finished, dnf:state.playerDNF,
                 finishTime:state.finishTime, routeProgress:state.routeProgress,
-                kills:state.hunterKills||0, shots:state.hunterShots||0, hits:state.hunterHits||0
+                kills:state.hunterKills||0, score:state.hunterScore||0, shots:state.hunterShots||0, hits:state.hunterHits||0
             }, ...racers.map(r=>({
                 id:r.name, name:r.name, profile:r.profile, isPlayer:false,
                 finished:r.finished, dnf:r.dnf, finishTime:r.finishTime,
-                routeProgress:r.routeProgress, kills:r.hunterKills||0,
+                routeProgress:r.routeProgress, kills:r.hunterKills||0, score:r.hunterScore||0,
                 shots:r.hunterShots||0, hits:r.hunterHits||0
             }))];
             for(const row of candidates) {
                 row.validFinish=validHunterFinish(row.finished,row.dnf,row.finishTime);
-                row.adjustedTime=row.validFinish ? hunterAdjustedTime(row.finishTime,row.kills) : null;
-                row.timeDiscount=row.kills * MAP4_RACE_RULES.secondsPerHunterKill;
                 row.disqualified = row.dnf || (row.finished && !row.validFinish);
             }
             // Finishers first, ranked by corrected score. Unfinished entrants
@@ -602,15 +602,14 @@
             candidates.sort((a,b)=>{
                 if(a.validFinish!==b.validFinish) return a.validFinish?-1:1;
                 if(a.validFinish) {
-                    if(Math.abs(a.adjustedTime-b.adjustedTime)>1e-7)
-                        return a.adjustedTime-b.adjustedTime;
-                    if(Math.abs(a.finishTime-b.finishTime)>1e-7) return a.finishTime-b.finishTime;
+                    if(a.score!==b.score)return b.score-a.score;
+                    if(a.finishTime!==b.finishTime)return a.finishTime-b.finishTime;
                     if(a.kills!==b.kills) return b.kills-a.kills;
                     return a.id.localeCompare(b.id);
                 }
                 if(a.disqualified!==b.disqualified) return a.disqualified?1:-1;
                 if(a.routeProgress!==b.routeProgress) return b.routeProgress-a.routeProgress;
-                if(a.kills!==b.kills) return b.kills-a.kills;
+                if(a.score!==b.score) return b.score-a.score;
                 return a.id.localeCompare(b.id);
             });
             return candidates;
@@ -652,20 +651,19 @@
             title.style.textShadow='0 0 20px '+(failure?'#ff0044':success?'#00ff88':'#00f3ff');
             document.getElementById('race-summary-banner').textContent =
                 'GERCEK '+(player.validFinish?formatRaceTime(player.finishTime):'DNF')+
-                ' · AVCI '+player.kills+' · INDIRIM '+player.timeDiscount+'s'+
-                ' · NET '+(player.validFinish?formatRaceTime(player.adjustedTime):'GEÇERSİZ')+
+                ' · AVCI '+player.kills+' · İMHA PUANI '+player.score+
                 ' · LIDER '+(leader?leader.name:'—');
             document.getElementById('race-bonus-summary').textContent =
                 'GERÇEK SÜRE LİMİTİ: '+MAP4_RACE_RULES.realTimeLimit+
-                's · AVCI BAŞINA İNDİRİM: '+MAP4_RACE_RULES.secondsPerHunterKill+'s (GEÇİCİ DENGE)';
+                's · NORMAL AVCI +1 / ELİT AVCI +3 PUAN';
             document.getElementById('race-sector-splits').textContent =
-                'İNDİRİM 120 SANİYELİK GERÇEK BİTİŞ ŞARTINI AŞAMAZ';
+                '120s İÇİNDE VARIŞ ZORUNLU; EN YÜKSEK PUAN KAZANIR · EŞİTLİKTE EN HIZLI';
             document.getElementById('race-telemetry-summary').textContent =
                 'OYUNCU: '+player.shots+' ÇİFT ATIŞ / '+player.hits+' İSABET / '+player.kills+
                 ' AVCI İMHA';
             document.getElementById('race-standings-head').innerHTML =
                 '<div class="col-span-2">SIRA</div><div class="col-span-3">PILOT</div>'+
-                '<div class="col-span-2">AVCI</div><div class="col-span-5 text-right">GERCEK / INDIRIM / NET</div>';
+                '<div class="col-span-2">PUAN</div><div class="col-span-5 text-right">İMHA / GERÇEK VARIŞ</div>';
             const list=document.getElementById('race-standings-list');
             list.innerHTML='';
             standings.forEach((entry,index)=>{
@@ -675,12 +673,11 @@
                         'bg-slate-950/60 border border-slate-800 text-slate-300');
                 const raw=entry.validFinish?formatRaceTime(entry.finishTime):
                     (entry.finished && Number.isFinite(entry.finishTime)?'GEC KALDI':'DNF');
-                const adjusted=entry.validFinish?formatRaceTime(entry.adjustedTime):'GEÇERSİZ';
                 const cells=[
                     ['col-span-2 text-yellow-300',String(index+1)],
                     ['col-span-3 truncate',entry.name],
-                    ['col-span-2 text-amber-300',String(entry.kills)],
-                    ['col-span-5 text-right text-[10px] sm:text-xs',raw+' / -'+entry.timeDiscount+'s / '+adjusted]
+                    ['col-span-2 text-amber-300',String(entry.score)],
+                    ['col-span-5 text-right text-[10px] sm:text-xs',entry.kills+' İMHA / '+raw]
                 ];
                 for(const [cls,value] of cells){
                     const node=document.createElement('div');
@@ -693,7 +690,7 @@
             document.getElementById('combat-stats-box').classList.add('hidden');
             window.starbladeHunterFinal={
                 realTimeLimit:MAP4_RACE_RULES.realTimeLimit,
-                secondsPerHunterKill:MAP4_RACE_RULES.secondsPerHunterKill,
+                scoreRules:{normal:MAP4_RACE_RULES.normalHunterPoints,elite:MAP4_RACE_RULES.eliteHunterPoints},
                 standings:standings.map(x=>({...x}))
             };
         }
@@ -702,6 +699,7 @@
         const state = {
             activeMap: MAP_MODES.MAP1,
             hunterKills: 0,
+            hunterScore: 0,
             hunterShots: 0,
             hunterHits: 0,
             lastHunterHudTick: -1,
@@ -1007,6 +1005,156 @@
         }
 
 
+
+        // H4-P01: One continuous planetary theatre in four connected regions.
+        // Geometry is native Three.js, with bounded static allocations (no frame-by-frame creation).
+        const PLANETARY_REGIONS = Object.freeze([
+            {from:0,to:12500,name:'KAYALIK VADİLER',type:'canyon',ground:0x886044,sky:0xa6725c},
+            {from:12500,to:25000,name:'AÇIK SAVAŞ OVASI',type:'battlefield',ground:0x725648,sky:0x96736a},
+            {from:25000,to:37500,name:'ENDÜSTRİ BÖLGESİ',type:'industrial',ground:0x494c51,sky:0x647484},
+            {from:37500,to:50001,name:'ASKERÎ ÜS VE TAHLİYE',type:'fortress',ground:0x57434c,sky:0x735b72}
+        ]);
+        const PLANETARY_FLIGHT_RADIUS = 1340;
+        const planetaryWorldGroup = new THREE.Group();
+        const planetaryWorldRegions = [];
+        scene.add(planetaryWorldGroup);
+        planetaryWorldGroup.visible = false;
+        const H4_MESHES = Object.freeze({
+            rock: new THREE.ConeGeometry(1,1,5),
+            tower: new THREE.CylinderGeometry(1,1,1,7),
+            structure: new THREE.BoxGeometry(1,1,1),
+            dome: new THREE.SphereGeometry(1,10,6),
+            beacon: new THREE.TorusGeometry(1,0.045,5,28)
+        });
+        const H4_MATERIALS = Object.freeze({
+            rock:new THREE.MeshLambertMaterial({color:0x936746,flatShading:true}),
+            sand:new THREE.MeshLambertMaterial({color:0x61463a,flatShading:true}),
+            wreck:new THREE.MeshLambertMaterial({color:0x484b58,flatShading:true}),
+            steel:new THREE.MeshLambertMaterial({color:0x60727d,flatShading:true}),
+            wall:new THREE.MeshLambertMaterial({color:0x714f55,flatShading:true}),
+            core:new THREE.MeshBasicMaterial({color:0xf75c7c}),
+            marker:new THREE.MeshBasicMaterial({color:0xffdd91,transparent:true,opacity:0.5})
+        });
+        const H4_UP=new THREE.Vector3(0,1,0);
+        function h4WorldPosition(progress,side=0,altitude=0) {
+            const frame=getRaceFrameAtDistance(progress);
+            return frame.center.clone().addScaledVector(frame.right,side)
+                .addScaledVector(frame.up,altitude);
+        }
+        function h4GroundStrip(def) {
+            const verts=[],steps=70;
+            for(let i=0;i<steps;i++){
+                const a=def.from+(def.to-def.from)*i/steps;
+                const b=def.from+(def.to-def.from)*(i+1)/steps;
+                const p1=h4WorldPosition(a,-1800,-440),p2=h4WorldPosition(a,1800,-440);
+                const p3=h4WorldPosition(b,-1800,-440),p4=h4WorldPosition(b,1800,-440);
+                verts.push(...p1.toArray(),...p2.toArray(),...p4.toArray(),
+                    ...p1.toArray(),...p4.toArray(),...p3.toArray());
+            }
+            const geo=new THREE.BufferGeometry();
+            geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+            geo.computeVertexNormals();
+            return new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
+                color:def.ground,side:THREE.DoubleSide,flatShading:true
+            }));
+        }
+        function h4PlaceStructure(group,progress,side,altitude,geometry,material,scale) {
+            const mesh=new THREE.Mesh(geometry,material);
+            mesh.position.copy(h4WorldPosition(progress,side,altitude));
+            mesh.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
+            mesh.scale.set(scale[0],scale[1],scale[2]);
+            group.add(mesh);
+            return mesh;
+        }
+        function buildPlanetaryWorld() {
+            if(planetaryWorldRegions.length) return;
+            for(let zoneIndex=0;zoneIndex<PLANETARY_REGIONS.length;zoneIndex++){
+                const def=PLANETARY_REGIONS[zoneIndex], zone=new THREE.Group();
+                zone.userData.from=def.from;
+                zone.userData.to=def.to;
+                zone.userData.name=def.name;
+                zone.add(h4GroundStrip(def));
+                // Distinct skyline silhouettes, off the main flight axis.
+                const count=def.type==='industrial'?34:28;
+                for(let n=0;n<count;n++){
+                    const d=def.from+300+(n+0.5)*(def.to-def.from-600)/count;
+                    const sideSign=n%2?1:-1;
+                    const spread=def.type==='battlefield'?770:650;
+                    const side=sideSign*(spread+(n*103)%560);
+                    if(def.type==='canyon'){
+                        const height=230+(n*73)%510;
+                        h4PlaceStructure(zone,d,side,-440+height*0.5,H4_MESHES.rock,
+                            n%3?H4_MATERIALS.rock:H4_MATERIALS.sand,
+                            [135+(n%4)*26,height,125+(n%3)*32]);
+                    }else if(def.type==='battlefield'){
+                        const height=45+(n*33)%125;
+                        h4PlaceStructure(zone,d,side,-440+height/2,H4_MESHES.structure,
+                            n%3?H4_MATERIALS.wreck:H4_MATERIALS.sand,
+                            [110+(n%4)*30,height,145]);
+                        if(n%6===0) h4PlaceStructure(zone,d,side+sideSign*170,-365,H4_MESHES.dome,
+                            H4_MATERIALS.rock,[140,65,140]);
+                    }else if(def.type==='industrial'){
+                        const height=370+(n*53)%690;
+                        h4PlaceStructure(zone,d,side,-440+height/2,
+                            n%3===0?H4_MESHES.tower:H4_MESHES.structure,
+                            H4_MATERIALS.steel,[85+(n%5)*15,height,90+(n%4)*20]);
+                        if(n%5===0)h4PlaceStructure(zone,d,side+sideSign*170,-55,
+                            H4_MESHES.structure,H4_MATERIALS.core,[28,18,30]);
+                    }else{
+                        const height=210+(n*39)%350;
+                        h4PlaceStructure(zone,d,side,-440+height/2,H4_MESHES.structure,
+                            H4_MATERIALS.wall,[135,height,170]);
+                        if(n%5===0)h4PlaceStructure(zone,d,side+sideSign*155,-260,
+                            H4_MESHES.tower,H4_MATERIALS.core,[30,160,30]);
+                    }
+                }
+                // Large navigational altitude beacons, not collision hoops.
+                for(let k=1;k<=3;k++){
+                    const d=def.from+(def.to-def.from)*k/4;
+                    const beacon=h4PlaceStructure(zone,d,(k%2?1:-1)*315,90,
+                        H4_MESHES.beacon,H4_MATERIALS.marker,[70,70,70]);
+                    beacon.rotateX(Math.PI*0.5);
+                }
+                planetaryWorldGroup.add(zone);
+                planetaryWorldRegions.push(zone);
+            }
+        }
+        function applyPlanetaryEnvironment() {
+            const active=state.activeMap===MAP_MODES.MAP4;
+            if(active)buildPlanetaryWorld();
+            planetaryWorldGroup.visible=active;
+            corridorGuideGroup.visible=!active;
+            raceRoadGroup.visible=!active;
+            stationGroup.visible=!active;
+            starField.visible=!active;
+            nebulaGroup.visible=!active;
+            scene.background.setHex(active?0x997664:0x040310);
+            scene.fog.color.setHex(active?0xb18b76:0x09051d);
+            scene.fog.density=active?0.00026:0.00055;
+            if(!active) {
+                updateCourseVisibility(state.routeProgress);
+            }
+            document.getElementById('planetary-zone-hud').classList.toggle('hidden',!active);
+        }
+        function updatePlanetaryWorld() {
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            // Only render the active area and neighboring visible chunks.
+            const first=PLANETARY_REGIONS.findIndex(z=>state.routeProgress < z.to);
+            const idx=first>=0?first:PLANETARY_REGIONS.length-1;
+            const sector=PLANETARY_REGIONS[idx];
+            const distanceRemaining=Math.max(0,
+                RACE_ROUTE_NOMINAL_DISTANCE-state.routeProgress);
+            for(let i=0;i<planetaryWorldRegions.length;i++){
+                const def=PLANETARY_REGIONS[i];
+                planetaryWorldRegions[i].visible=def.to>state.routeProgress-3400
+                    && def.from<state.routeProgress+7800;
+            }
+            document.getElementById('planetary-zone-name').textContent=sector.name;
+            document.getElementById('planetary-destination').textContent=
+                'HEDEF: ASKERÎ ÜS · '+Math.round(distanceRemaining/1000)+' km';
+            const color=sector.sky;
+            scene.background.setHex(color);
+        }
         // AI-20: Dairesel boost/enerji toplama halkaları, checkpoint ve tehlike
         // çemberleri kaldırıldı. Sektör ve tehlike verileri görsel halkalara bağlı değil.
         const checkpointDistances = [10000, 20000, 30000, 40000];
@@ -1116,6 +1264,8 @@
             return x*x*(3-2*x);
         }
         function getCorridorRadiusAt(progress) {
+            // Map 4 flies in a wide terrain airspace, not Map 1's narrow neon tube.
+            if (state.activeMap===MAP_MODES.MAP4) return PLANETARY_FLIGHT_RADIUS;
             // Geniş uçuş bölümleri 400-410, enkaz yaklaşımları 315-335 yarıçap.
             const broadCenters = [3600, 14650, 25500, 36600, 42600];
             let radius = 360;
@@ -1130,6 +1280,7 @@
             return radius;
         }
         function upcomingWreckGate(progress, lookAhead = 2400) {
+            if(state.activeMap===MAP_MODES.MAP4) return null;
             for (const [distance, mode] of chokepointPlan) {
                 if (distance+185 < progress) continue;
                 if (distance-progress > lookAhead) return null;
@@ -1607,6 +1758,15 @@
                 progress <= currentProgress + COURSE_RENDER_AHEAD;
         }
         function updateCourseVisibility(playerProgress) {
+            if (state.activeMap===MAP_MODES.MAP4) {
+                for(const a of asteroids){a.mesh.visible=false;if(a.movementTail)a.movementTail.visible=false;}
+                for(const o of staticObstacles)o.mesh.visible=false;
+                for(const m of wreckageModules)m.group.visible=false;
+                for(const b of itemBoxes)b.mesh.visible=false;
+                for(const s of (raceRoadGroup.userData.sectors||[]))s.visible=false;
+                courseVisibility.asteroids=courseVisibility.obstacles=courseVisibility.items=courseVisibility.sectors=0;
+                return;
+            }
             let visibleAsteroids = 0, visibleObstacles = 0, visibleItems = 0, visibleSectors = 0;
             for (const a of asteroids) {
                 a.mesh.visible = !!a.active && isCourseWithinRenderRange(a.routeProgress, playerProgress);
@@ -1640,6 +1800,7 @@
         // aralığı açıkça hesaplandığı için geride kalan yarışçıların tehlikeleri atlanmaz.
         const allRaceHazards = asteroids.concat(staticObstacles);
         function getRelevantRaceHazards() {
+            if(state.activeMap===MAP_MODES.MAP4) return [];
             let minProgress = Infinity, maxProgress = -Infinity;
             if (!state.finished && !state.playerDNF) {
                 minProgress = maxProgress = state.routeProgress;
@@ -2083,8 +2244,9 @@
             hunterCounters.destroyed++;
             createExplosion(pos, target.isElite ? 0xffaa33 : 0xff5522, target.isElite ? 30 : 22,
                 target.isElite ? 1.6 : 1.15);
-            if (attackerId === 'PLAYER') state.hunterKills++;
-            else if (creditedRacer) creditedRacer.hunterKills++;
+            const pts=target.isElite?MAP4_RACE_RULES.eliteHunterPoints:MAP4_RACE_RULES.normalHunterPoints;
+            if(attackerId==='PLAYER'){state.hunterKills++;state.hunterScore+=pts;}
+            else if(creditedRacer){creditedRacer.hunterKills++;creditedRacer.hunterScore+=pts;}
             spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
             return {hit: true, destroyed: true, targetId: target.id, attackerId};
         }
@@ -2123,7 +2285,7 @@
         const hunterRivalShots = [];
         const MAP4_RIVAL_GUN = Object.freeze({
             cooldown: 0.15, projectileSpeed: 2050, projectileLifetime: 1.15,
-            range: 1650, coneLateral: 440, maxProjectiles: 100
+            range: 2000, coneLateral: 860, maxProjectiles: 100
         });
         function clearHunterRivalShots() {
             hunterRivalShots.forEach(shot => scene.remove(shot.mesh));
@@ -2145,8 +2307,13 @@
                 // Small per-pilot preference spreads engagements across shared targets.
                 const otherLocks = racers.filter(other => other !== racer &&
                     !other.finished && !other.dnf && other.hunterAimTargetId === hunter.id).length;
-                const cost = ahead + lateral * 1.25 + otherLocks * 420 +
-                    ((hunterTargets.indexOf(hunter) * 7 + racer.hunterPilotIndex * 13) % 5) * 30;
+                const style=racer.hunterStrategy||'BALANCED';
+                const elitePreference=style==='ELITE' && hunter.isElite ? -750 : 0;
+                const caution=style==='CAUTIOUS' && hunter.isElite ? 380 : 0;
+                const urgency=style==='SPRINTER' && state.raceTime>75 ? 600 : 0;
+                const cost = ahead + lateral * (style==='HUNTER'?0.75:1.25)
+                    + otherLocks * 420 + elitePreference + caution + urgency
+                    + ((hunterTargets.indexOf(hunter)*7 + racer.hunterPilotIndex*13)%5)*30;
                 if (cost < lowestCost) {best = hunter; lowestCost = cost;}
             }
             return best;
@@ -2186,7 +2353,10 @@
             if (!hunter) { racer.hunterAimTargetId = null; return; }
             racer.hunterAimTargetId = hunter.id;
             if (fireHunterRivalVolley(racer, hunter)) {
-                racer.hunterFireCooldown = MAP4_RIVAL_GUN.cooldown;
+                const style=racer.hunterStrategy||'BALANCED';
+                racer.hunterFireCooldown=style==='HUNTER'?0.13:
+                    style==='SPRINTER'?0.28:style==='ELITE'?0.17:
+                    style==='CAUTIOUS'?0.24:MAP4_RIVAL_GUN.cooldown;
             }
         }
         function updateHunterRivalShots(dt) {
@@ -2217,17 +2387,17 @@
             const list = document.getElementById('hunter-competition-scores');
             header.classList.remove('hidden');
             list.textContent = standings.map((e,i) =>
-                (i+1)+'. '+e.name+' '+e.kills+' İMHA'+
-                (e.validFinish ? ' · NET '+formatRaceTime(e.adjustedTime) : e.disqualified?' · DNF':' · DEVAM')).join('   |   ');
+                (i+1)+'. '+e.name+' '+e.score+' PUAN / '+e.kills+' İMHA'+
+                (e.validFinish ? ' · '+formatRaceTime(e.finishTime) : e.disqualified?' · DNF':' · DEVAM')).join('   |   ');
             document.getElementById('hunter-time-limit').textContent =
                 'KALAN '+formatRaceTime(Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime))+
-                ' · AVCI BAŞI -'+MAP4_RACE_RULES.secondsPerHunterKill+'s';
+                ' · NORMAL +1 / ELİT +3 PUAN';
             window.starbladeHunterTelemetry = {
                 raceTime:state.raceTime, alive:hunterTargets.filter(t=>t.alive).length,
                 spawned:hunterCounters.spawned, destroyed:hunterCounters.destroyed,
                 escaped:hunterCounters.escaped, activeShots:hunterRivalShots.length,
                 timeRemaining:Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime),
-                secondsPerHunterKill:MAP4_RACE_RULES.secondsPerHunterKill,
+                scoreRules:{normal:MAP4_RACE_RULES.normalHunterPoints,elite:MAP4_RACE_RULES.eliteHunterPoints},
                 standings:standings.map(e=>({...e}))
             };
         }
@@ -2321,6 +2491,8 @@
             racers.forEach(disposeRacerMesh);
             racers.length = 0;
             const racerNames = ["VIPER-01", "NOVA-X", "CYBER-7", "BLAZE-9", "ZERO-G"];
+            // Map4-specific pilot behavior; Map1 racing profiles stay unchanged.
+            const map4Styles=['SPRINTER','HUNTER','BALANCED','ELITE','CAUTIOUS'];
             // B — Dört Pilot Karakter Profili Dağılımı: 1 SPEED, 2 BALANCED, 1 CAUTIOUS, 1 AGGRESSIVE
             const racerProfiles = ["SPEED", "BALANCED", "CAUTIOUS", "AGGRESSIVE", "BALANCED"];
             const startFrame = getRaceFrameAtDistance(0);
@@ -2401,9 +2573,11 @@
                     bankAngle: 0,
                     fireTimer: 2.2 + Math.random() * 2.5,
                     hunterPilotIndex: i,
+                    hunterStrategy: map4Styles[i],
                     hunterFireCooldown: (i + 1) * 0.06,
                     hunterAimTargetId: null,
                     hunterKills: 0,
+                    hunterScore: 0,
                     hunterHits: 0,
                     hunterShots: 0
                 });
@@ -3186,7 +3360,10 @@
             state.wallCooldown = Math.max(0, state.wallCooldown - dt);
             state.wallFlash = Math.max(0, state.wallFlash - dt);
             updateVisibleCorridor();
-            if (state.activeMap === MAP_MODES.MAP4) updateHunterTargets(dt);
+            if (state.activeMap === MAP_MODES.MAP4) {
+                updatePlanetaryWorld();
+                updateHunterTargets(dt);
+            }
 
             // 1. Hız, Boost ve Oyuncu Hareketi (Bitirmiş veya DNF olmuş oyuncu hareket etmez ve kontrol almaz)
             let moveX = 0;
@@ -3369,7 +3546,7 @@
                 updateAsteroidMotion(a, dt);
                 // Yaklaşan asteroid görünür alana girdiyse bir sonraki kareyi
                 // beklemeden mesh konumunu bu karede de güncelle.
-                if (!a.mesh.visible && isCourseWithinRenderRange(a.routeProgress, state.routeProgress)) {
+                if (state.activeMap!==MAP_MODES.MAP4 && !a.mesh.visible && isCourseWithinRenderRange(a.routeProgress, state.routeProgress)) {
                     a.mesh.visible = true;
                     updateAsteroidMotion(a, 0);
                 }
@@ -3933,6 +4110,22 @@
                     }
                 }
 
+                // Map4: pilot styles choose how far to deviate toward hunt targets.
+                // High-speed pilots do not automatically chase all aircraft;
+                // riskier hunters sacrifice the straight line to earn combat points.
+                if(state.activeMap===MAP_MODES.MAP4){
+                    const selected=selectHunterForRival(r);
+                    const strategy=r.hunterStrategy||'BALANCED';
+                    const remaining=MAP4_RACE_RULES.realTimeLimit-state.raceTime;
+                    const weight=strategy==='SPRINTER'?0:
+                        strategy==='HUNTER'?0.96:
+                        strategy==='ELITE'?(selected&&selected.isElite?0.86:0.28):
+                        strategy==='CAUTIOUS'?0.30:0.62;
+                    if(selected && remaining>18 && selected.routeProgress-r.routeProgress<1700){
+                        activeTargetX += (selected.laneX-activeTargetX)*weight;
+                        activeTargetY += (selected.laneY-activeTargetY)*weight;
+                    }
+                }
                 // Gerçek enkaz açıklığı, bonus/sollama/asteroit kararlarından önce gelir.
                 if (gatePlan && gatePlan.gap < 1650) {
                     // Kalabalık yarışta gemiler aynı noktaya kilitlenmesin:
@@ -4075,7 +4268,7 @@
 
             // Yüksek hızda asteroidler kareler arasında atlanmasın:
             // gemi ve asteroidin aynı karedeki göreli hareketi boyunca en yakın yaklaşımı bul.
-            asteroids.forEach(a=>{
+            if(state.activeMap!==MAP_MODES.MAP4) asteroids.forEach(a=>{
                 if(!a.active) return;
                 const test=(id,ship,prev,radius,isPlayer)=>{
                     if(!prev||ship.finished||ship.dnf||(isPlayer&&state.playerDNF)){
@@ -4123,12 +4316,12 @@
             if (!state.running) return; // Asteroit nedeniyle DNF sonrası ek hasar/ödül yazılmasın.
 
             // AI-15: sabit engel ve item kutusu kontrolleri; her gemiye ayrı hak ve temas kaydı.
-            if(!state.playerDNF && !state.finished){
+            if(state.activeMap!==MAP_MODES.MAP4 && !state.playerDNF && !state.finished){
                 applyStaticObstacleContact('PLAYER',state,prevPlayerCourse,true);
                 if(!state.running) return;
                 if(!state.playerDNF)collectItemBoxesForShip('PLAYER',state,prevPlayerCourse,true);
             }
-            racers.forEach((r,idx)=>{
+            if(state.activeMap!==MAP_MODES.MAP4) racers.forEach((r,idx)=>{
                 if(!r.finished&&!r.dnf){
                     applyStaticObstacleContact(r.name,r,prevRacerCourse[idx],false);
                     collectItemBoxesForShip(r.name,r,prevRacerCourse[idx],false);
@@ -4139,7 +4332,7 @@
 
             // Dairesel bonus toplayıcılar yok; yakın geçiş ve sektör süreleri korunur.
             if (!state.playerDNF) {
-                updatePlayerNearMisses(prevPlayerFrameProgress);
+                if(state.activeMap!==MAP_MODES.MAP4) updatePlayerNearMisses(prevPlayerFrameProgress);
                 updatePlayerCheckpoints(prevPlayerFrameProgress, prevRaceTime, dt);
             }
 
@@ -4934,6 +5127,7 @@
             state.score = 0;
             state.kills = 0;
             state.hunterKills = 0;
+            state.hunterScore = 0;
             state.hunterShots = 0;
             state.hunterHits = 0;
             state.lastHunterHudTick = -1;
@@ -5041,6 +5235,7 @@
             resetAsteroidField();
             updateCourseVisibility(state.routeProgress);
             spawnRacerFleet();
+            applyPlanetaryEnvironment();
             if (state.activeMap === MAP_MODES.MAP4) initializeHunterTargets();
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
@@ -5213,6 +5408,7 @@
             if (mapId !== MAP_MODES.MAP1 && mapId !== MAP_MODES.MAP4) return;
             if (state.running) return; // A running race can never switch maps.
             state.activeMap = mapId;
+            applyPlanetaryEnvironment();
             const ready = MAP_AVAILABLE[mapId] === true;
             document.getElementById('map-choice-1').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP1));
             document.getElementById('map-choice-4').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP4));
@@ -5225,7 +5421,7 @@
                 'HARİTA 4 · GELİŞTİRİLİYOR';
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
-                : isMap4 ? 'Harita 4 oynanabilir test sürümü: 120s süre sınırı, avcı imhası ve net süre.'
+                : isMap4 ? 'Harita 4: gezegen geçişi, 120s sınır ve avcı imha puanı.'
                 : 'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
             status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
         }
@@ -5245,6 +5441,7 @@
             document.getElementById('gameover-screen').classList.add('hidden');
             document.getElementById('start-screen').classList.remove('hidden');
             selectMap(state.activeMap);
+            applyPlanetaryEnvironment();
         }
         document.getElementById('menu-btn').addEventListener('click',returnToMapSelection);
         document.getElementById('start-btn').addEventListener('click', startGame);
