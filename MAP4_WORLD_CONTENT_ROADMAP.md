@@ -126,3 +126,43 @@ Detaylı W03 teknik uygulama bu bölümde kayıtlıdır. Sıradaki W04 60 saniye
 - [ ] Görsel kaplama, çevresel hasar etkileri, ek ses ve devriye dalgalarının final dengesi (W09).
 
 **Sıradaki W05:** sanayi binalarını üç boyutlu gerçek alternatif geçitlere bağlayacak boru, köprü ve fabrika çatışma sistemi.
+
+## W05 — Sanayi Gauntlet: Geçişleri Seç, Yapılardan Kaç, Avcı Vur
+
+### Üç yanal/irtifa oyun hattı (fiziksel seçim)
+| Hat | Yaklaşık konum | Kazanç | Tehlike |
+|---|---|---|---|
+| **Alçak boru geçidi** | X≈−800, yükseklik Y≈−100 | **%12 gerçek ileri mesafe kazancı** | Enkaz borularının altından geçilmeli; görünür dikme, köprü ve borular çarpışmalı |
+| **Güvenli üst hat** | X≈0, yükseklik Y≈760–970 | Normal hız, düşük temas riski | Düşman sayısı az; en yüksek puanı toplamak güç |
+| **Doğu fabrika/avcı kuşağı** | X≈+900, yükseklik Y≈250–350 | Yenilenen normal avcıların çoğu buraya yönlendirilir | Savunma kulelerinin etrafından uçma, hedefe giderken zaman kaybı |
+
+Üç rota aynı dünya içindeki serbest yatay/yükseklik alanlarıdır; oyuncu istediği anda hattını değiştirebilir. Kestirme kazancı gerçek ilerleme hesaplamasına uygulanır, skor doğrudan verilmez. Pilotun çizgisel 3D ileri akışında bağımsız 6DOF hareket varmış gibi sunulmaz.
+
+### Sanayi mimarisi ve dünya doluluğu
+- **6 ayrı fabrika/rafineri düğümü**: yerel ilerleme 15750, 18750, 21850, 24950, 28150, 31500.
+- Her düğümde ağır rafineri blokları, iki uzak silo, gerçek boru köprüsünün **iki dikmesi**, üstte fiziksel çarpışmalı boru, orta yükseklikte transfer köprüsü, iki avcı kanadı savunma kulesi, enerji/ikazlar, servis ve kargo platformları, üst güvenli uçuş işaretleri.
+- Toplam içerik 6 tekrarlı düğüm x ~19 mesh = **114 yeni sanayi modeli**. Ortak önceden var olan Three.js geometri ve malzemelerini tekrar kullanır; restart esnasında geometri birikmez.
+- **36 gerçek hitbox**, her biri aynı görünen katı nesnenin mesh'inde kayıtlıdır. Uzak/hava sinyal lambası, zemin/sis, dekor platformları ve uzak ufuk için görünmez çarpışma üretilmez.
+- Önceki endüstri binalarının çarpışma testi de W05'te önceki/yeni pozisyon arasındaki **süpürmeli segment–AABB testi** ile hızda tünelleme yapmamak üzere yükseltilir.
+- Fiziksel dar geçitler: borunun *altı ve üstü* çarpışmasız bırakılır, dikmeler arasında açıklık vardır. Yalnız gerçek dar bir katı gövdeden geçmek -12 kalkan ve hız ×0,68 ceza verir; temas sıklığı için 0,9sn cooldown korunur.
+
+### AI ve avcı yoğunluğu
+- Sprinter alçak hızlı hattı, Hunter ve Elite doğu avcı kuşağını, Balanced ve Cautious güvenli orta-yüksek hattı seçer.
+- AI bakış mesafesindeki katı kolon/köprüyü kontrol edip önceden yanal veya dikey kaçınma hedefi seçer; görsel olmayan hitbox yok.
+- Yalnız endüstri fazı içinde yeniden doğan **gerçek avcıların çoğu** doğu tesis kuşağında görünür. Hedef öldürme/pilot puanı değişmez: normal +1, elit +3; gerçek lazer vuruşu şart.
+
+### Korunan temel oyun
+- Açılış üç kaya rotası, 60sn üç cepheli arena, 300sn son limit, zorunlu yörünge yüksekliği 850, altı pilot / 5 AI, yeniden başlatma ve onaylı Map1.
+- Kaynak ayrı W05 bileşeni olarak Map4 dünyasının endüstri bölgesine bağlanır; ana menu ve H1 kodu etkilenmez.
+- Görsel doluluk ara üretim kalitesindedir; boru açısı, materyal, kamera ve animasyon cilası son kullanıcı testi/W09 aşamasına bırakılmıştır.
+
+### W05 test ve kabul kapıları
+- [x] 6 ayrı sanayi düğümü, kontrollü sayıda yeni statik mesh ve collider.
+- [x] Alçak/üst/avcı olmak üzere üç farklı ilerleme tercihi ve gerçek +%12 alt geçit bonusu.
+- [x] Kayda bağlı görünür boru/köprü ve yüksek hızda swept çarpışma; alt ve üst açıklıklar fiziksel olarak geçilebilir.
+- [x] H4 pilot tipleri sahaya uygun farklı rotalar seçer ve görünür yapıyı önden algılayıp kaçınır.
+- [x] Normal/elit avcı puanı yalnız gerçek imhada yazılır.
+- [ ] Oynanış yoğunluğu, görüntü kalitesi, temas adaleti ve performansın kullanıcı tarafından onaylanması.
+- [ ] Yüksek kaliteli özgün sanayi modeli, boru animasyonları ve efekt cilası (W09).
+
+W06 hedefi: üs yaklaşma/hangar/radar/fırlatma kompleksi, atmosferden yörüngeye yükselişin okunur ve büyük finali.
