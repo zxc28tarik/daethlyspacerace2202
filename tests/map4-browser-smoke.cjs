@@ -76,7 +76,11 @@ const assert = require('node:assert/strict');
       return {
         probe,warn,caution,pressure,limiter,
         scenery:h4WideScenery,
-        worldSize:h4GroundStrip(PLANETARY_REGIONS[0]).geometry.attributes.position.array,
+        terrain:{
+          positions:planetaryWorldRegions[0].children[0].geometry.attributes.position.count,
+          colors:!!planetaryWorldRegions[0].children[0].geometry.attributes.color,
+          sceneryOnly:planetaryWorldRegions[0].children[0].userData.h4TerrainSceneryOnly
+        },
         cameraFar:camera.far,
         light:nebulaLight1.color.getHex(),
         firstPositions:racers.map(r=>Math.hypot(r.laneX,r.laneY))
@@ -102,6 +106,9 @@ const assert = require('node:assert/strict');
     assert.deepEqual(openSpace.scenery.byRegion,[66,44,58,58],
       'layered scenery across four zones');
     assert.equal(openSpace.scenery.total,226,'bounded one-time scenery allocation');
+    assert(openSpace.terrain.positions>7000,'planet ground subdivided for relief');
+    assert.equal(openSpace.terrain.colors,true,'planet ground has vertex palette');
+    assert.equal(openSpace.terrain.sceneryOnly,true,'no invented terrain hitboxes');
     assert(openSpace.cameraFar>10000,'planet draw distance increased');
     assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
     assert.equal(openSpace.light,0xffdbb0,'planetary daylight active');
