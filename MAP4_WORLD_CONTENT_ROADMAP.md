@@ -57,3 +57,40 @@ Normal avcı 1, elit 3 puan; geçerli bitiş yapanlar puana göre, eşitlikte s�
 - [ ] Oyuncu oynanış/performans onayı bekleniyor; W03 kaya kemeri/topoloji ve gerçek kaya çarpışmalarına başlanacak
 
 Tam teknik spesifikasyon: `MAP4_WORLD_W02_IMPLEMENTATION.md`.
+
+## W03 — Kayalık vadi oynanabilir rota çatalları
+
+### Üç gerçek yol seçimi
+| Rota | Yanal merkez | Ödül | Tehlike |
+|---|---:|---|---|
+| Orta / güvenli hat | X ≈ 0 | Genel ilerleme; kaza olmadan geçiş | Ana merkez koridoru kasıtlı açık |
+| Batı / dar kaya kapıları | X ≈ −1150 | Bölüm 1 içinde yolu takip ederken **%18 gerçek ilerleme kazancı** | Üç fiziksel kaya boğazında sütun çarpışması |
+| Doğu / avcı hattı | X ≈ +1250 | Normal avcıların çoğu erken safhada doğu tarafında görünür | Daha az saf hız avantajı; savaş için yoldan sapma ve zaman kaybı |
+
+Bu seçenekler fiziksel olarak aynı geniş vadinin farklı x bölümlerindedir, ayrı yükleme ekranları veya teleport değil. Oyuncu oyun esnasında rotasını değiştirebilir. Mesafe bonusu yalnız batı hattı merkezine yaklaşık ±360 yakın uçan aktif pilotlara uygulanır. Doğuda avcı biriktirmek garantili otomatik puan vermez; gerçek lazer vuruşu gerekir.
+
+### Fiziksel W03 set-piece
+- Üç boğaz konumu: yerel ilerleme ~3150, 6150 ve 9150.
+- Her boğaz iki gerçek kaya sütunundan oluşur (toplam **6 çarpışma hacmi**) ve orta açıklık uçulabilir bırakılmıştır.
+- Sütunların fiziksel hitbox'ı **görünür kaya mesh'i oluşturulurken** aynı yerel boyutlardan hesaplanır; dekoratif dağ/zemine sahte invisible hitbox eklenmez.
+- Önceki/yeni konum arasında ileri + sağ/sol + irtifa **süpürmeli slab testi**; 0,75sn hasar cooldown; oyuncuda −11 kalkan ve hızın ×0,71'e düşmesi; botta eşit hasar ve hız cezası.
+- Üç geçit öncesinde mavi hız işaretleri, doğu hattında turuncu avcı beacons, başlangıçta üç yanal rota işaretleyicisi.
+- HUD oyuncunun **ana / hızlı / avcı** hattında olduğunu anlık gösterir.
+
+### Yapay zekâ ve uçuş sistemi
+- H1'i etkilemeden H4-Sprinter batıya ve H4-Hunter/Elite doğu hattına yönelmeye çalışır; geri kalan pilotlar güvenli merkezde kalır.
+- Gerçek bot ve oyuncu ilerlemesi tek bir H4 fonksiyonda ve pilotun kendi X pozisyonuna göre hesaplanır; diğer etapların 60sn kilidi ve uzay çıkışı korunur.
+- Erken avcı spawn'larının çoğu doğu hattına dağıtılır; 60sn avcı arenasında mevcut arena devriye kuralı korunur.
+- W03 açık sınırlama: mevcut yönlendirme hâlâ ana ileri yolculuk boyunca sağ/sol/irtifa hareketidir; ayrı geometrik kısa mesafe şeritleri ve tam bağımsız 6DOF dünya henüz yoktur. Batı hız kazancı geometrik kısayolun oyun mekaniği karşılığıdır.
+- Aynı zamanda endüstri bina çarpışması (aşama 3), bitişte zorunlu 850 irtifa ve H1 fizik görünümü değişmemelidir.
+
+### Kabul kapıları
+- [x] Üç rota ayırt edilebilir, oyun içinde görünen işaretlere sahip.
+- [x] Batı hattında gerçekten daha yüksek ilerleme; ana ve avcı hatları aynı temel ilerleme.
+- [x] Gerçek görünen üç dar kaya geçidinde süpürmeli çarpışma; merkez hat çarpışmasız.
+- [x] Doğu hattında gerçek avcı spawn fırsatı; imha puanı gerçek atışta verilir.
+- [x] H4 AI stilleri başlangıç rota tercihi yapar.
+- [ ] Gerçek oyuncu denge/hız/çarpışma hissi onayı.
+- [ ] Görsel kalite için kayalardaki benzeşimli köprü kemerleri ve genişlemiş canyon wall'ların son cilası (W09).
+
+Detaylı W03 teknik uygulama bu bölümde kayıtlıdır. Sıradaki W04 60 saniyelik savaş alanının gerçek çok-cepli dizaynıdır.

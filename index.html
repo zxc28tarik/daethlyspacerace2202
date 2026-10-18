@@ -146,6 +146,7 @@
             <div id="planetary-zone-name" class="text-sm text-white font-black">KAYALIK VADİLER</div>
             <div id="planetary-destination" class="text-xs text-cyan-200">HEDEF: ASKERÎ ÜS</div>
             <div id="planetary-landmark-name" class="text-[10px] text-amber-200 mt-1">BÖLGE TARAMASI</div>
+            <div id="planetary-route-name" class="text-[10px] text-cyan-200 mt-1">ORTA · GÜVENLİ ANA HAT</div>
             <div id="planetary-airspace-status" class="text-[10px] text-emerald-200 mt-1">
                 GENİŞ UÇUŞ SAHASI · SINIR UZAK
             </div>
@@ -283,8 +284,8 @@
                         <span class="block text-xs text-emerald-300 mt-1">OYNANABİLİR · TAMAMLANDI</span>
                     </button>
                     <button type="button" id="map-choice-4" class="map-choice-btn" aria-pressed="false">
-                        <strong class="block text-sm text-white">HARİTA 4 · AVCI İMHA YARIŞI</strong>
-                        <span class="block text-xs text-amber-300 mt-1">GELİŞTİRİLİYOR · HENÜZ KAPALI</span>
+                        <strong class="block text-sm text-white">HARİTA 4 · GEZEGEN GEÇİŞİ VE SAVAŞ</strong>
+                        <span class="block text-xs text-emerald-300 mt-1">OYNANABİLİR · GELİŞTİRİLİYOR</span>
                     </button>
                 </div>
                 <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
@@ -316,7 +317,7 @@
             <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
                     <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
-                    <p class="text-slate-300">1. Kayalık vadilerde yaklaşık 40 saniyelik geçiş. 2. Savaş ovasında tam 60 saniye ileri gidemez, serbestçe avcı vurursun. 3. Endüstriyel binalardan kaçarak ilerlersin. 4. Savaşırken uzay katmanına yükselirsin.</p>
+                    <p class="text-slate-300">1. Kayalık vadi: <strong>orta hat güvenli</strong>, <strong>batı geçidi %18 daha hızlı</strong> ama gerçek kayalara çarpabilirsin, <strong>doğu hattında avcı fırsatları</strong> bulunur. 2. Savaş ovası: 60 saniye ileri gitmeden savaş. 3. Binalardan kaçarak ilerle. 4. Savaşarak uzay katmanına yüksel.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
@@ -1099,6 +1100,134 @@
             if(progress<MAP4_PHASES.industryEnd)return 3;
             return 4;
         }
+
+        // W03: Three optional paths in the first valley. No mandatory tunnel.
+        // The west gorge gives a tangible speed advantage, the east flank gives
+        // extra hunter opportunities, and the center remains wide and safe.
+        const H4_CANYON = Object.freeze({
+            start:550,end:11950,fastCenter:-1150,huntCenter:1250,
+            laneTolerance:360,fastMultiplier:1.18
+        });
+        const h4CanyonColliders=[];
+        const h4CanyonVisualGroups=[];
+        function h4CanyonRoute(progress,laneX){
+            if(state.activeMap!==MAP_MODES.MAP4 || progress<H4_CANYON.start ||
+                progress>H4_CANYON.end)return 'NONE';
+            if(Math.abs(laneX-H4_CANYON.fastCenter)<H4_CANYON.laneTolerance)
+                return 'FAST';
+            if(Math.abs(laneX-H4_CANYON.huntCenter)<H4_CANYON.laneTolerance+160)
+                return 'HUNT';
+            return 'MAIN';
+        }
+        function h4CanyonSpeedMultiplier(progress,laneX){
+            return h4CanyonRoute(progress,laneX)==='FAST'?
+                H4_CANYON.fastMultiplier:1;
+        }
+        function h4SegmentBoxHit(previous,current,volume,padding=14){
+            // Swept AABB in route/right/up coordinates prevents high-speed tunneling.
+            if(!previous || !current)return false;
+            const axes=[
+                ['routeProgress',volume.progress,volume.halfDepth+padding],
+                ['laneX',volume.side,volume.halfSide+padding],
+                ['laneY',volume.altitude,volume.halfUp+padding]
+            ];
+            let enter=0,exit=1;
+            for(const [axis,center,half] of axes){
+                const a=previous[axis]-center,b=current[axis]-center;
+                const velocity=b-a;
+                if(Math.abs(velocity)<1e-9){
+                    if(Math.abs(a)>half)return false;
+                    continue;
+                }
+                const t1=(-half-a)/velocity,t2=(half-a)/velocity;
+                enter=Math.max(enter,Math.min(t1,t2));
+                exit=Math.min(exit,Math.max(t1,t2));
+                if(enter>exit)return false;
+            }
+            return exit>=0&&enter<=1;
+        }
+        function h4UpdateCanyonContacts(previousPlayer,previousRivals){
+            if(state.activeMap!==MAP_MODES.MAP4||state.map4Phase!==1)return;
+            const test=(ship,previous,isPlayer)=>{
+                if(!previous||ship.finished||ship.dnf||
+                    (isPlayer&&state.playerDNF)||state.raceTime<(ship.h4CanyonCooldown||0))return;
+                const now={routeProgress:ship.routeProgress,laneX:ship.laneX,laneY:ship.laneY};
+                for(const rock of h4CanyonColliders){
+                    if(!h4SegmentBoxHit(previous,now,rock,isPlayer?12:(ship.radius||13)))continue;
+                    ship.h4CanyonCooldown=state.raceTime+0.75;
+                    if(isPlayer){
+                        applyPlayerDamage(11);
+                        ship.currentSpeed*=0.71;
+                        state.shake=Math.max(state.shake,0.12);
+                        spawnFloatingText(state.pos,'KAYA ÇARPIŞMASI · -11 KALKAN','#ffb079');
+                    }else{
+                        ship.shield=Math.max(0,ship.shield-11);
+                        ship.currentSpeed*=0.71;
+                        if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
+                    }
+                    break;
+                }
+            };
+            if(!state.finished&&!state.playerDNF)test(state,previousPlayer,true);
+            racers.forEach((r,i)=>test(r,previousRivals[i],false));
+        }
+        function h4PopulateCanyonRoutes(zone){
+            if(h4CanyonVisualGroups.length)return;
+            const root=new THREE.Group();
+            root.name='CANYON_W03_THREE_FLIGHT_PATHS';
+            const defs=[
+                {at:3150,name:'KIZIL GECIT'},
+                {at:6150,name:'MESA YARIGI'},
+                {at:9150,name:'KAYA TUNELI'}
+            ];
+            for(const def of defs){
+                const group=new THREE.Group();
+                group.name='GAP_'+def.name;
+                // WEST: two *visible* massive rock pillars make an actual gap.
+                // Collision volumes are authored together with the exact mesh.
+                for(const dir of [-1,1]){
+                    const side=H4_CANYON.fastCenter+dir*335;
+                    const h=790+((def.at/100+dir*17)%110);
+                    const boulder=h4PlaceStructure(group,def.at,side,-440+h*0.5,
+                        H4_MESHES.rock,H4_DETAIL_MAT.sandstone,[210,h,245]);
+                    const collider={
+                        progress:def.at,side,altitude:-440+h*0.5,
+                        halfSide:105,halfUp:h*0.5,halfDepth:123,
+                        kind:'CANYON_ROCK',mesh:boulder
+                    };
+                    boulder.userData.h4CanyonCollider=collider;
+                    h4CanyonColliders.push(collider);
+                    // Adjacent shoulders make a recognisable ravine, not invisible walls.
+                    h4PlaceStructure(group,def.at-110,side+dir*320,-190,
+                        H4_MESHES.rock,H4_DETAIL_MAT.cliffShadow,[250,520,260]);
+                }
+                // Physical pillar pair leaves an 880-wide central opening, with
+                // a bright marker for sight-reading while moving at full speed.
+                const fastBeacon=h4PlaceStructure(group,def.at-260,
+                    H4_CANYON.fastCenter,85,H4_DETAIL_GEO.ring,H4_DETAIL_MAT.cyan,[96,96,96]);
+                fastBeacon.rotateX(Math.PI/2);
+                // East airspace stays open for fighting; amber navigation lights
+                // signal the hunter detour without inventing solid obstacles.
+                for(const side of [-1,1]){
+                    const marker=h4PlaceStructure(group,def.at-260,
+                        H4_CANYON.huntCenter+side*390,70,
+                        H4_DETAIL_GEO.mast,H4_DETAIL_MAT.warning,[18,145,18]);
+                    marker.userData.h4VisualOnly=true;
+                }
+                root.add(group);
+            }
+            // Flight choice beacons before the first split.
+            for(const [x,material] of [
+                [H4_CANYON.fastCenter,H4_DETAIL_MAT.cyan],
+                [0,H4_DETAIL_MAT.energy],
+                [H4_CANYON.huntCenter,H4_DETAIL_MAT.warning]
+            ]){
+                const m=h4PlaceStructure(root,850,x,50,H4_DETAIL_GEO.ring,material,[74,74,74]);
+                m.rotateX(Math.PI/2);
+            }
+            zone.add(root);
+            h4CanyonVisualGroups.push(root);
+        }
         function map4SpeedFactor(progress) {
             if(state.activeMap!==MAP_MODES.MAP4)return 1;
             if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds &&
@@ -1107,11 +1236,12 @@
             if(progress<MAP4_PHASES.industryEnd)return MAP4_PHASES.industrialSpeed;
             return MAP4_PHASES.ascentSpeed;
         }
-        function map4Advance(progress,speed,dt) {
+        function map4Advance(progress,speed,dt,ship=null) {
             if(state.activeMap!==MAP_MODES.MAP4)return progress+speed*dt;
             if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds) {
+                const routeBonus=ship?h4CanyonSpeedMultiplier(progress,ship.laneX):1;
                 return Math.min(MAP4_PHASES.introEnd,
-                    progress+speed*MAP4_PHASES.introSpeed*dt);
+                    progress+speed*MAP4_PHASES.introSpeed*routeBonus*dt);
             }
             const factor=map4SpeedFactor(progress);
             let next=progress+speed*factor*dt;
@@ -1580,6 +1710,7 @@
                 }
                 h4PopulateRegion(zone,zoneIndex);
                 h4PopulateWideScenery(zone,zoneIndex,def);
+                if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
             }
@@ -1643,6 +1774,13 @@
                 scenery.near.visible=region.to>state.routeProgress-2300 &&
                     region.from<state.routeProgress+5200;
                 scenery.far.visible=true;
+            }
+            const routeName=document.getElementById('planetary-route-name');
+            if(routeName){
+                const route=h4CanyonRoute(state.routeProgress,state.laneX);
+                routeName.textContent=route==='FAST'?'BATI · HIZLI DAR GEÇİT (+18% İLERLEME)':
+                    route==='HUNT'?'DOĞU · AVCI CEPHESİ (EK HEDEFLER)':
+                    route==='MAIN'?'ORTA · GÜVENLİ ANA HAT':'SERBEST UÇUŞ';
             }
             const landmarkLine=document.getElementById('planetary-landmark-name');
             if(landmarkLine) landmarkLine.textContent=nextLandmark ?
@@ -2679,8 +2817,15 @@
                 Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 60, anchorProgress + ahead);
             const radius = getCorridorRadiusAt(target.routeProgress) * (0.26 + 0.36 * Math.random());
             const angle = ((slot * 2.399963) + Math.random() * 0.8) % (Math.PI * 2);
-            target.baseLaneX = Math.cos(angle) * radius;
-            target.baseLaneY = Math.sin(angle) * radius;
+            const canyonHunt=state.activeMap===MAP_MODES.MAP4 &&
+                !state.map4ArenaStarted &&
+                anchorProgress<H4_CANYON.end && slot%4!==3;
+            target.baseLaneX = canyonHunt ?
+                H4_CANYON.huntCenter+(slot%3-1)*210 :
+                Math.cos(angle)*radius;
+            target.baseLaneY = canyonHunt ?
+                (slot%2===0?120:-90):
+                Math.sin(angle)*radius;
             target.laneX = target.baseLaneX;
             target.laneY = target.baseLaneY;
             target.weavePhase = Math.random() * Math.PI * 2;
@@ -3979,7 +4124,7 @@
                 applyBoundaryFriction(state, targetSpeed, dt, true);
                 if (state.playerDNF && state.activeMap !== MAP_MODES.MAP4) return;
                 const prevPlayerProgress = state.routeProgress;
-                const nextPlayerProgress = map4Advance(prevPlayerProgress,state.currentSpeed,dt);
+                const nextPlayerProgress = map4Advance(prevPlayerProgress,state.currentSpeed,dt,state);
 
                 // Oyuncu Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
                 if (nextPlayerProgress >= RACE_ROUTE_NOMINAL_DISTANCE &&
@@ -4683,6 +4828,17 @@
                 // High-speed pilots do not automatically chase all aircraft;
                 // riskier hunters sacrifice the straight line to earn combat points.
                 if(state.activeMap===MAP_MODES.MAP4){
+                    // W03: Sprinter seeks narrow fast gorge; hunters move toward
+                    // the eastern target-rich flank. Other styles take safe middle.
+                    if(r.routeProgress<H4_CANYON.end &&
+                        r.routeProgress>=H4_CANYON.start &&
+                        !state.map4ArenaStarted){
+                        const strategy=r.hunterStrategy||'BALANCED';
+                        activeTargetX=strategy==='SPRINTER'?H4_CANYON.fastCenter:
+                            strategy==='HUNTER'||strategy==='ELITE'?
+                                H4_CANYON.huntCenter:0;
+                        activeTargetY=0;
+                    }
                     const selected=selectHunterForRival(r);
                     const strategy=r.hunterStrategy||'BALANCED';
                     const remaining=MAP4_RACE_RULES.realTimeLimit-state.raceTime;
@@ -4779,7 +4935,7 @@
                     positionRacerOnRoute(r);
                     return;
                 }
-                const nextRacerProgress = map4Advance(prevRacerProgress,r.currentSpeed,dt);
+                const nextRacerProgress = map4Advance(prevRacerProgress,r.currentSpeed,dt,r);
                 r.aiStats.distance += Math.max(0,nextRacerProgress-prevRacerProgress);
 
                 // Rakip Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
@@ -4844,8 +5000,10 @@
             }
 
             // Physical building collision is separate from Map 1's debris hazards.
-            if(state.activeMap===MAP_MODES.MAP4)
+            if(state.activeMap===MAP_MODES.MAP4){
+                h4UpdateCanyonContacts(prevPlayerCourse,prevRacerCourse);
                 updatePlanetaryBuildingContacts(prevPlayerCourse,prevRacerCourse);
+            }
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts(prevPlayerCourse,prevRacerCourse);
             if (!state.running) return; // Gemiler arası temas oyuncuyu DNF yaptıysa kareyi sonlandır.
