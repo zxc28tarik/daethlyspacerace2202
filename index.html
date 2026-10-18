@@ -2285,7 +2285,7 @@
         const hunterRivalShots = [];
         const MAP4_RIVAL_GUN = Object.freeze({
             cooldown: 0.15, projectileSpeed: 2050, projectileLifetime: 1.15,
-            range: 1650, coneLateral: 440, maxProjectiles: 100
+            range: 2000, coneLateral: 860, maxProjectiles: 100
         });
         function clearHunterRivalShots() {
             hunterRivalShots.forEach(shot => scene.remove(shot.mesh));
@@ -2307,8 +2307,13 @@
                 // Small per-pilot preference spreads engagements across shared targets.
                 const otherLocks = racers.filter(other => other !== racer &&
                     !other.finished && !other.dnf && other.hunterAimTargetId === hunter.id).length;
-                const cost = ahead + lateral * 1.25 + otherLocks * 420 +
-                    ((hunterTargets.indexOf(hunter) * 7 + racer.hunterPilotIndex * 13) % 5) * 30;
+                const style=racer.hunterStrategy||'BALANCED';
+                const elitePreference=style==='ELITE' && hunter.isElite ? -750 : 0;
+                const caution=style==='CAUTIOUS' && hunter.isElite ? 380 : 0;
+                const urgency=style==='SPRINTER' && state.raceTime>75 ? 600 : 0;
+                const cost = ahead + lateral * (style==='HUNTER'?0.75:1.25)
+                    + otherLocks * 420 + elitePreference + caution + urgency
+                    + ((hunterTargets.indexOf(hunter)*7 + racer.hunterPilotIndex*13)%5)*30;
                 if (cost < lowestCost) {best = hunter; lowestCost = cost;}
             }
             return best;
@@ -2348,7 +2353,10 @@
             if (!hunter) { racer.hunterAimTargetId = null; return; }
             racer.hunterAimTargetId = hunter.id;
             if (fireHunterRivalVolley(racer, hunter)) {
-                racer.hunterFireCooldown = MAP4_RIVAL_GUN.cooldown;
+                const style=racer.hunterStrategy||'BALANCED';
+                racer.hunterFireCooldown=style==='HUNTER'?0.13:
+                    style==='SPRINTER'?0.28:style==='ELITE'?0.17:
+                    style==='CAUTIOUS'?0.24:MAP4_RIVAL_GUN.cooldown;
             }
         }
         function updateHunterRivalShots(dt) {
@@ -2483,6 +2491,8 @@
             racers.forEach(disposeRacerMesh);
             racers.length = 0;
             const racerNames = ["VIPER-01", "NOVA-X", "CYBER-7", "BLAZE-9", "ZERO-G"];
+            // Map4-specific pilot behavior; Map1 racing profiles stay unchanged.
+            const map4Styles=['SPRINTER','HUNTER','BALANCED','ELITE','CAUTIOUS'];
             // B — Dört Pilot Karakter Profili Dağılımı: 1 SPEED, 2 BALANCED, 1 CAUTIOUS, 1 AGGRESSIVE
             const racerProfiles = ["SPEED", "BALANCED", "CAUTIOUS", "AGGRESSIVE", "BALANCED"];
             const startFrame = getRaceFrameAtDistance(0);
@@ -2563,6 +2573,7 @@
                     bankAngle: 0,
                     fireTimer: 2.2 + Math.random() * 2.5,
                     hunterPilotIndex: i,
+                    hunterStrategy: map4Styles[i],
                     hunterFireCooldown: (i + 1) * 0.06,
                     hunterAimTargetId: null,
                     hunterKills: 0,
@@ -4099,6 +4110,22 @@
                     }
                 }
 
+                // Map4: pilot styles choose how far to deviate toward hunt targets.
+                // High-speed pilots do not automatically chase all aircraft;
+                // riskier hunters sacrifice the straight line to earn combat points.
+                if(state.activeMap===MAP_MODES.MAP4){
+                    const selected=selectHunterForRival(r);
+                    const strategy=r.hunterStrategy||'BALANCED';
+                    const remaining=MAP4_RACE_RULES.realTimeLimit-state.raceTime;
+                    const weight=strategy==='SPRINTER'?0:
+                        strategy==='HUNTER'?0.96:
+                        strategy==='ELITE'?(selected&&selected.isElite?0.86:0.28):
+                        strategy==='CAUTIOUS'?0.30:0.62;
+                    if(selected && remaining>18 && selected.routeProgress-r.routeProgress<1700){
+                        activeTargetX += (selected.laneX-activeTargetX)*weight;
+                        activeTargetY += (selected.laneY-activeTargetY)*weight;
+                    }
+                }
                 // Gerçek enkaz açıklığı, bonus/sollama/asteroit kararlarından önce gelir.
                 if (gatePlan && gatePlan.gap < 1650) {
                     // Kalabalık yarışta gemiler aynı noktaya kilitlenmesin:
