@@ -94,6 +94,7 @@
         .map-choice-btn { border: 1px solid rgba(0,243,255,.35); background: rgba(6,20,39,.83); color: #bceaf4; padding: 12px; border-radius: 6px; text-align: left; cursor: pointer; transition: border-color .18s, background .18s; }
         .map-choice-btn[aria-pressed="true"] { border-color: #00f3ff; background: rgba(0,243,255,.15); box-shadow: inset 0 0 12px rgba(0,243,255,.10); }
         .map-choice-btn:focus-visible { outline: 2px solid #00ff88; outline-offset: 3px; }
+        #map1-instructions.hidden, #map4-instructions.hidden { display:none !important; }
         #start-btn:disabled { opacity: .48; cursor: not-allowed; filter: saturate(.35); }
         #start-btn:disabled:hover { transform: none; box-shadow: none; }
 
@@ -278,7 +279,7 @@
                 <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+            <div id="map1-instructions" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> DEV GÖRÜNMEZ UZAY KORİDORU</div>
                     <p class="text-slate-300">Neon sınırları olan bir uzay koridorunda yarışın. <strong>Fare</strong> gemiyi yönlendirir; <strong>A/D veya ←/→</strong> yatay, <strong>↑/↓</strong> dikey manevrayı destekler. <strong>W yön tuşu değil, boost tuşudur.</strong> <strong>P/H</strong> ile duraklatıp kontrolleri görün.</p>
@@ -301,6 +302,24 @@
                 </div>
             </div>
 
+            <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+                <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
+                    <div class="text-amber-300 font-bold mb-1">>> 120 SANİYE GERÇEK SÜRE</div>
+                    <p class="text-slate-300">50.000 metrelik bitiş çizgisine gerçek yarış saati 120 saniyeyi geçmeden ulaşın. Süre aşımı DNF olur; imha indirimi bu şartı değiştirmez.</p>
+                </div>
+                <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
+                    <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
+                    <p class="text-slate-300">Sen ve beş rakip pilot hareketli avcıları vurmak için yarışacaksınız. Rakip gemileri vuramazsınız; avcılar ortak hedeflerdir.</p>
+                </div>
+                <div class="bg-slate-900/80 border border-emerald-500/40 p-3.5 rounded">
+                    <div class="text-emerald-300 font-bold mb-1">>> İMHA İNDİRİMİ</div>
+                    <p class="text-slate-300">Her imha, geçerli bitiş süresinden şimdilik 2 saniye düşürür. Son sıralama net süreye göredir. İndirim miktarı denge aşamasında ayarlanabilir.</p>
+                </div>
+                <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
+                    <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
+                    <p class="text-slate-300">Fareyle nişan al; sol tık / F ile avcılara ateş et. Avcı lazeri baştan açıktır, sürpriz kutu gerekmez. SHIFT/W boost, S fren, Q/E tonoz, C kamera, P/H duraklat.</p>
+                </div>
+            </div>
             <button id="start-btn" class="cyber-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">
                 LAUNCH GEOSWORD
             </button>
@@ -346,9 +365,10 @@
                     <span id="final-stage" class="text-yellow-300 font-bold">STAGE 1</span>
                 </div>
             </div>
-            <button id="restart-btn" class="cyber-btn px-10 py-3.5 text-base font-black tracking-[0.2em] uppercase">
-                SORTIE AGAIN
-            </button>
+            <div class="flex flex-wrap gap-3 justify-center">
+                <button id="restart-btn" class="cyber-btn px-7 py-3 text-sm font-black tracking-[0.1em] uppercase">TEKRAR OYNA</button>
+                <button id="menu-btn" class="cyber-btn px-7 py-3 text-sm font-black tracking-[0.1em] uppercase">HARİTA SEÇİMİ</button>
+            </div>
         </div>
     </div>
 
@@ -538,7 +558,7 @@
 
 
         const MAP_MODES = Object.freeze({ MAP1: 'map1', MAP4: 'map4' });
-        const MAP_AVAILABLE = Object.freeze({ map1: true, map4: false });
+        const MAP_AVAILABLE = Object.freeze({ map1: true, map4: true });
 
         // H4-04 — authoritatively time-gated hunt race. IMPORTANT: the real
         // crossing time, NOT the discounted time, decides eligibility.
@@ -4568,7 +4588,7 @@
 
             // AI-26: Reticle açıkça silah kilidini, hedefin dayanıklılığını ve
             // isabet/sekme/parçalanma sonucunu gösterir. Rakip yarışçılar kilitlenmez.
-            const weaponReady=state.combatEnabled || state.obstacleLaserTimer>0;
+            const weaponReady=state.combatEnabled || state.activeMap===MAP_MODES.MAP4 || state.obstacleLaserTimer>0;
             fxCtx.font = 'bold 13px Orbitron, monospace';
             fxCtx.textAlign = 'center';
             fxCtx.fillStyle = !weaponReady ? '#fb7185' : isLocked ? '#00ff88' : '#00f3ff';
@@ -4577,7 +4597,10 @@
             fxCtx.fillText(!weaponReady ? 'LAZER KİLİTLİ' : isLocked ? 'LOCK ON' : 'FREE AIM', 0, isLocked ? 64 : 70);
             if(!state.combatEnabled && isLocked) {
                 fxCtx.font='bold 11px Share Tech Mono, monospace';
-                fxCtx.fillText(`${state.lockedTarget.durability} / ${state.lockedTarget.maxDurability} HP`,0,82);
+                const locked=state.lockedTarget.source || state.lockedTarget;
+                const hp=state.activeMap===MAP_MODES.MAP4 ? locked.hp : locked.durability;
+                const max=state.activeMap===MAP_MODES.MAP4 ? locked.maxHp : locked.maxDurability;
+                fxCtx.fillText(`${hp} / ${max} HP`,0,82);
             }
             if(state.laserFeedbackTimer>0 && !state.combatEnabled) {
                 fxCtx.fillStyle=state.laserFeedback.startsWith('ZIRH')?'#ff9b69':'#faffaa';
@@ -4724,7 +4747,10 @@
             };
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
-                if (state.obstacleLaserTimer > 0) {
+                if (state.activeMap === MAP_MODES.MAP4) {
+                    laserStatus.textContent='AVCI LAZERİ HAZIR · F / SOL TIK · ÜCRETSİZ';
+                    laserStatus.className="block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold";
+                } else if (state.obstacleLaserTimer > 0) {
                     const ready = state.energy >= OBSTACLE_LASER_ENERGY_COST;
                     const expiring = state.obstacleLaserTimer < 3;
                     laserStatus.textContent=!ready ?
@@ -4741,8 +4767,13 @@
             }
             const targetStatus=document.getElementById('laser-target-status');
             if(targetStatus) {
-                const hasLaser=state.obstacleLaserTimer>0;
-                targetStatus.textContent=hasLaser?getLaserTargetLabel(state.lockedTarget && (state.lockedTarget.source || state.lockedTarget)):'HEDEF: LAZER KİLİTLİ';
+                const isHunt = state.activeMap===MAP_MODES.MAP4;
+                const hasLaser=isHunt || state.obstacleLaserTimer>0;
+                const target=state.lockedTarget && (state.lockedTarget.source || state.lockedTarget);
+                targetStatus.textContent=isHunt ? (target && target.alive ?
+                    'AVCI: '+(target.isElite?'ELİT · ':'')+target.hp+'/'+target.maxHp+' HP' :
+                    'AVCI HEDEFİ ARA') :
+                    hasLaser?getLaserTargetLabel(target):'HEDEF: LAZER KİLİTLİ';
                 targetStatus.className=hasLaser && state.lockedTarget?
                     "block text-[10px] text-emerald-300 font-['Share_Tech_Mono']":
                     "block text-[10px] text-cyan-200/90 font-['Share_Tech_Mono']";
@@ -4822,6 +4853,18 @@
                     dot.style.top = `calc(50% + ${rz}px - 4px)`;
                     radarContainer.appendChild(dot);
                 });
+                if (state.activeMap===MAP_MODES.MAP4) hunterTargets.forEach(h => {
+                    if(!h.alive) return;
+                    const rel=h.mesh.position.clone().sub(state.pos).applyQuaternion(invQuat);
+                    const rx=Math.max(-48,Math.min(48,(rel.x/650)*48));
+                    const rz=Math.max(-48,Math.min(48,(rel.z/650)*48));
+                    const dot=document.createElement('div');
+                    dot.className='absolute w-2 h-2 rounded-full '+
+                        (h.isElite?'bg-yellow-400':'bg-red-500');
+                    dot.style.left=`calc(50% + ${rx}px - 4px)`;
+                    dot.style.top=`calc(50% + ${rz}px - 4px)`;
+                    radarContainer.appendChild(dot);
+                });
                 racers.forEach(r => {
                     const rel = r.mesh.position.clone().sub(state.pos).applyQuaternion(invQuat);
                     const rx = Math.max(-48, Math.min(48, (rel.x / 650) * 48));
@@ -4850,8 +4893,8 @@
         }
 
         function startGame() {
-            // H4-01: never launch Map 1 under the name of an unfinished map.
-            if (state.activeMap !== MAP_MODES.MAP1) return;
+            // H4-05: only launch modes explicitly released in MAP_AVAILABLE.
+            if (MAP_AVAILABLE[state.activeMap] !== true) return;
             cancelCenterAnnouncement();
             state.paused = false;
             state.hudWarningTick = -1;
@@ -4958,12 +5001,19 @@
             state.obstacleLaserTimer = 0;
             state.laserPickups = 0;
             const laserTargetStatus=document.getElementById('laser-target-status');
-            if(laserTargetStatus)laserTargetStatus.textContent='HEDEF: LAZER KİLİTLİ';
+            if(laserTargetStatus)laserTargetStatus.textContent=state.activeMap===MAP_MODES.MAP4?'AVCI HEDEFİ ARA':'HEDEF: LAZER KİLİTLİ';
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
-                laserStatus.textContent='LAZER KİLİTLİ — MOR KUTU TOPLA';
-                laserStatus.className="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
+                laserStatus.textContent=state.activeMap===MAP_MODES.MAP4 ?
+                    'AVCI LAZERİ HAZIR · F / SOL TIK · ÜCRETSİZ' : 'LAZER KİLİTLİ — MOR KUTU TOPLA';
+                laserStatus.className=state.activeMap===MAP_MODES.MAP4 ?
+                    "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold" :
+                    "block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
             }
+            // H4 result headers must not bleed into the approved Map1 scoreboard.
+            document.getElementById('race-standings-head').innerHTML=
+                '<div class="col-span-2">POS</div><div class="col-span-4">PILOT</div>'+
+                '<div class="col-span-3">PROFILE</div><div class="col-span-3 text-right">TIME / GAP</div>';
             resetItemAndBarrierCourse();
             state.nearMisses = 0;
             state.checkpointTimes = [];
@@ -4993,7 +5043,9 @@
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
             }
-            showCenterAnnouncement("CORRIDOR RACE ENGAGED", "STAGE 1: NEBULA FRONT");
+            showCenterAnnouncement(state.activeMap===MAP_MODES.MAP4 ?
+                "AVCI YARISI BASLADI · 120 SANİYE" : "CORRIDOR RACE ENGAGED",
+                state.activeMap===MAP_MODES.MAP4 ? "HARITA 4 · HUNTER RACE" : "STAGE 1: NEBULA FRONT");
         }
 
         function endGame(completedRoute = false) {
@@ -5164,16 +5216,35 @@
             document.getElementById('map-choice-4').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP4));
             const launch = document.getElementById('start-btn');
             launch.disabled = !ready;
-            launch.textContent = ready ? 'LAUNCH GEOSWORD' : 'HARİTA 4 · GELİŞTİRİLİYOR';
+            const isMap4=mapId===MAP_MODES.MAP4;
+            document.getElementById('map1-instructions').classList.toggle('hidden',isMap4);
+            document.getElementById('map4-instructions').classList.toggle('hidden',!isMap4);
+            launch.textContent = ready ? (isMap4?'HARİTA 4 · AVCI YARIŞINI BAŞLAT':'HARİTA 1 · YARIŞI BAŞLAT') :
+                'HARİTA 4 · GELİŞTİRİLİYOR';
             const status = document.getElementById('map-selection-status');
-            status.textContent = ready
-                ? 'Harita 1 hazır: saf hız yarışını başlatabilirsiniz.'
-                : 'Harita 4 henüz oynanabilir değil. Başlamak için Harita 1’i seçin.';
+            status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
+                : isMap4 ? 'Harita 4 oynanabilir test sürümü: 120s süre sınırı, avcı imhası ve net süre.'
+                : 'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
             status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
         }
         document.getElementById('map-choice-1').addEventListener('click', () => selectMap(MAP_MODES.MAP1));
         document.getElementById('map-choice-4').addEventListener('click', () => selectMap(MAP_MODES.MAP4));
         selectMap(MAP_MODES.MAP1);
+        // Return from either results screen to the chooser without launching a race.
+        function returnToMapSelection() {
+            if (state.running) return;
+            cancelCenterAnnouncement();
+            clearHunterTargets();
+            state.isFiring=false;
+            state.paused=false;
+            Object.keys(keys).forEach(k=>{keys[k]=false;});
+            document.getElementById('hunter-competition-hud').classList.add('hidden');
+            document.getElementById('flight-help-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            selectMap(state.activeMap);
+        }
+        document.getElementById('menu-btn').addEventListener('click',returnToMapSelection);
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
         document.getElementById('resume-btn').addEventListener('click', () => setFlightPaused(false));
