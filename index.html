@@ -151,7 +151,7 @@
         <div class="flex flex-col items-center w-full gap-2">
             <div id="hunter-competition-hud" class="hidden hud-box w-full max-w-4xl px-3 py-2 text-center font-['Share_Tech_Mono']">
                 <div class="font-bold text-amber-300 text-xs tracking-widest">HARİTA 4 · AVCI İMHA SIRALAMASI</div>
-                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 02:00.00 · AVCI BAŞI -2s</div>
+                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 02:00.00 · NORMAL +1 / ELİT +3</div>
                 <div id="hunter-competition-scores" class="text-cyan-100 text-xs mt-1" aria-live="off"></div>
             </div>
             <div class="w-full flex justify-between items-start">
@@ -319,8 +319,8 @@
                     <p class="text-slate-300">Sen ve beş rakip pilot hareketli avcıları vurmak için yarışacaksınız. Rakip gemileri vuramazsınız; avcılar ortak hedeflerdir.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-emerald-500/40 p-3.5 rounded">
-                    <div class="text-emerald-300 font-bold mb-1">>> İMHA İNDİRİMİ</div>
-                    <p class="text-slate-300">Her imha, geçerli bitiş süresinden şimdilik 2 saniye düşürür. Son sıralama net süreye göredir. İndirim miktarı denge aşamasında ayarlanabilir.</p>
+                    <div class="text-emerald-300 font-bold mb-1">>> SAVAŞ PUANI</div>
+                    <p class="text-slate-300">120 saniyede hedefe ulaşmak zorunlu. Varanlar arasında normal avcı +1, elit avcı +3 puan kazandırır. Puan eşitliğinde daha hızlı bitiren kazanır.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
                     <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
@@ -651,20 +651,19 @@
             title.style.textShadow='0 0 20px '+(failure?'#ff0044':success?'#00ff88':'#00f3ff');
             document.getElementById('race-summary-banner').textContent =
                 'GERCEK '+(player.validFinish?formatRaceTime(player.finishTime):'DNF')+
-                ' · AVCI '+player.kills+' · INDIRIM '+player.timeDiscount+'s'+
-                ' · NET '+(player.validFinish?formatRaceTime(player.adjustedTime):'GEÇERSİZ')+
+                ' · AVCI '+player.kills+' · İMHA PUANI '+player.score+
                 ' · LIDER '+(leader?leader.name:'—');
             document.getElementById('race-bonus-summary').textContent =
                 'GERÇEK SÜRE LİMİTİ: '+MAP4_RACE_RULES.realTimeLimit+
-                's · AVCI BAŞINA İNDİRİM: '+MAP4_RACE_RULES.secondsPerHunterKill+'s (GEÇİCİ DENGE)';
+                's · NORMAL AVCI +1 / ELİT AVCI +3 PUAN';
             document.getElementById('race-sector-splits').textContent =
-                'İNDİRİM 120 SANİYELİK GERÇEK BİTİŞ ŞARTINI AŞAMAZ';
+                '120s İÇİNDE VARIŞ ZORUNLU; EN YÜKSEK PUAN KAZANIR · EŞİTLİKTE EN HIZLI';
             document.getElementById('race-telemetry-summary').textContent =
                 'OYUNCU: '+player.shots+' ÇİFT ATIŞ / '+player.hits+' İSABET / '+player.kills+
                 ' AVCI İMHA';
             document.getElementById('race-standings-head').innerHTML =
                 '<div class="col-span-2">SIRA</div><div class="col-span-3">PILOT</div>'+
-                '<div class="col-span-2">AVCI</div><div class="col-span-5 text-right">GERCEK / INDIRIM / NET</div>';
+                '<div class="col-span-2">PUAN</div><div class="col-span-5 text-right">İMHA / GERÇEK VARIŞ</div>';
             const list=document.getElementById('race-standings-list');
             list.innerHTML='';
             standings.forEach((entry,index)=>{
@@ -674,12 +673,11 @@
                         'bg-slate-950/60 border border-slate-800 text-slate-300');
                 const raw=entry.validFinish?formatRaceTime(entry.finishTime):
                     (entry.finished && Number.isFinite(entry.finishTime)?'GEC KALDI':'DNF');
-                const adjusted=entry.validFinish?formatRaceTime(entry.adjustedTime):'GEÇERSİZ';
                 const cells=[
                     ['col-span-2 text-yellow-300',String(index+1)],
                     ['col-span-3 truncate',entry.name],
-                    ['col-span-2 text-amber-300',String(entry.kills)],
-                    ['col-span-5 text-right text-[10px] sm:text-xs',raw+' / -'+entry.timeDiscount+'s / '+adjusted]
+                    ['col-span-2 text-amber-300',String(entry.score)],
+                    ['col-span-5 text-right text-[10px] sm:text-xs',entry.kills+' İMHA / '+raw]
                 ];
                 for(const [cls,value] of cells){
                     const node=document.createElement('div');
@@ -692,7 +690,7 @@
             document.getElementById('combat-stats-box').classList.add('hidden');
             window.starbladeHunterFinal={
                 realTimeLimit:MAP4_RACE_RULES.realTimeLimit,
-                secondsPerHunterKill:MAP4_RACE_RULES.secondsPerHunterKill,
+                scoreRules:{normal:MAP4_RACE_RULES.normalHunterPoints,elite:MAP4_RACE_RULES.eliteHunterPoints},
                 standings:standings.map(x=>({...x}))
             };
         }
@@ -2381,17 +2379,17 @@
             const list = document.getElementById('hunter-competition-scores');
             header.classList.remove('hidden');
             list.textContent = standings.map((e,i) =>
-                (i+1)+'. '+e.name+' '+e.kills+' İMHA'+
-                (e.validFinish ? ' · NET '+formatRaceTime(e.adjustedTime) : e.disqualified?' · DNF':' · DEVAM')).join('   |   ');
+                (i+1)+'. '+e.name+' '+e.score+' PUAN / '+e.kills+' İMHA'+
+                (e.validFinish ? ' · '+formatRaceTime(e.finishTime) : e.disqualified?' · DNF':' · DEVAM')).join('   |   ');
             document.getElementById('hunter-time-limit').textContent =
                 'KALAN '+formatRaceTime(Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime))+
-                ' · AVCI BAŞI -'+MAP4_RACE_RULES.secondsPerHunterKill+'s';
+                ' · NORMAL +1 / ELİT +3 PUAN';
             window.starbladeHunterTelemetry = {
                 raceTime:state.raceTime, alive:hunterTargets.filter(t=>t.alive).length,
                 spawned:hunterCounters.spawned, destroyed:hunterCounters.destroyed,
                 escaped:hunterCounters.escaped, activeShots:hunterRivalShots.length,
                 timeRemaining:Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime),
-                secondsPerHunterKill:MAP4_RACE_RULES.secondsPerHunterKill,
+                scoreRules:{normal:MAP4_RACE_RULES.normalHunterPoints,elite:MAP4_RACE_RULES.eliteHunterPoints},
                 standings:standings.map(e=>({...e}))
             };
         }
@@ -5396,7 +5394,7 @@
                 'HARİTA 4 · GELİŞTİRİLİYOR';
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
-                : isMap4 ? 'Harita 4 oynanabilir test sürümü: 120s süre sınırı, avcı imhası ve net süre.'
+                : isMap4 ? 'Harita 4: gezegen geçişi, 120s sınır ve avcı imha puanı.'
                 : 'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
             status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
         }
