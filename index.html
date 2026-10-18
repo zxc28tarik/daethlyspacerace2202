@@ -705,6 +705,7 @@
             activeMap: MAP_MODES.MAP1,
             hunterKills: 0,
             hunterScore: 0,
+            hunterPocketKills:{CENTER:0,WRECK:0,DEFENSE:0},
             map4Phase:1,
             map4ArenaStarted:false,
             map4ArenaElapsed:0,
@@ -1890,7 +1891,9 @@
                 const route=h4CanyonRoute(state.routeProgress,state.laneX);
                 routeName.textContent=state.map4Phase===2?
                     'SAVAŞ CEPHESİ: '+h4ArenaPocketForLane(state.laneX).name+
-                        ' · 3 BÖLGE / 8 AVCI':
+                        ' · İMHA M'+state.hunterPocketKills.CENTER+
+                        ' / E'+state.hunterPocketKills.WRECK+
+                        ' / S'+state.hunterPocketKills.DEFENSE:
                     route==='FAST'?'BATI · HIZLI DAR GEÇİT (+18% İLERLEME)':
                     route==='HUNT'?'DOĞU · AVCI CEPHESİ (EK HEDEFLER)':
                     route==='MAIN'?'ORTA · GÜVENLİ ANA HAT':'SERBEST UÇUŞ';
@@ -3058,8 +3061,15 @@
             createExplosion(pos, target.isElite ? 0xffaa33 : 0xff5522, target.isElite ? 30 : 22,
                 target.isElite ? 1.6 : 1.15);
             const pts=target.isElite?MAP4_RACE_RULES.eliteHunterPoints:MAP4_RACE_RULES.normalHunterPoints;
-            if(attackerId==='PLAYER'){state.hunterKills++;state.hunterScore+=pts;}
-            else if(creditedRacer){creditedRacer.hunterKills++;creditedRacer.hunterScore+=pts;}
+            if(attackerId==='PLAYER'){
+                state.hunterKills++;state.hunterScore+=pts;
+                if(target.arenaPocketId && state.map4Phase===2)
+                    state.hunterPocketKills[target.arenaPocketId]++;
+            }else if(creditedRacer){
+                creditedRacer.hunterKills++;creditedRacer.hunterScore+=pts;
+                if(target.arenaPocketId && state.map4Phase===2)
+                    creditedRacer.hunterPocketKills[target.arenaPocketId]++;
+            }
             spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
             return {hit: true, destroyed: true, targetId: target.id, attackerId};
         }
@@ -3068,8 +3078,11 @@
         function predictHunterAimPoint(hunter, from) {
             const speed = MAP4_RIVAL_GUN.projectileSpeed;
             const time = Math.min(0.95, from.distanceTo(hunter.mesh.position) / speed);
-            const predictedProgress = Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 30,
-                hunter.routeProgress + hunter.moveSpeed * time);
+            const orbiting=state.map4ArenaStarted &&
+                state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds;
+            const predictedProgress=THREE.MathUtils.clamp(hunter.routeProgress+
+                hunter.moveSpeed*(orbiting?hunter.arenaDirection:1)*time,
+                0,RACE_ROUTE_NOMINAL_DISTANCE-30);
             const frame = getRaceFrameAtDistance(predictedProgress);
             const phase = hunter.weavePhase + hunter.weaveSpeed * time;
             const radius = getCorridorRadiusAt(predictedProgress) * 0.78;
@@ -3216,6 +3229,10 @@
                     counts:H4_ARENA_POCKETS.map(p=>({
                         id:p.id,alive:hunterTargets.filter(t=>t.alive&&
                             t.arenaPocketId===p.id).length
+                    })),
+                    playerKillsByPocket:{...state.hunterPocketKills},
+                    rivalKillsByPocket:racers.map(r=>({
+                        id:r.name,kills:{...r.hunterPocketKills}
                     })),
                     timeRemaining:Math.max(0,MAP4_PHASES.arenaSeconds-
                         state.map4ArenaElapsed)
@@ -3408,6 +3425,7 @@
                     hunterAimTargetId: null,
                     hunterKills: 0,
                     hunterScore: 0,
+                    hunterPocketKills:{CENTER:0,WRECK:0,DEFENSE:0},
                     hunterHits: 0,
                     hunterShots: 0
                 });
@@ -6024,6 +6042,7 @@
             state.kills = 0;
             state.hunterKills = 0;
             state.hunterScore = 0;
+            state.hunterPocketKills={CENTER:0,WRECK:0,DEFENSE:0};
             state.map4Phase=1;
             state.map4ArenaStarted=false;
             state.map4ArenaElapsed=0;
