@@ -317,7 +317,7 @@
             <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
                     <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
-                    <p class="text-slate-300">1. Kayalık vadi: <strong>orta hat güvenli</strong>, <strong>batı geçidi %18 daha hızlı</strong> ama gerçek kayalara çarpabilirsin, <strong>doğu hattında avcı fırsatları</strong> bulunur. 2. Savaş ovası: 60 saniye ileri gitmeden savaş. 3. Binalardan kaçarak ilerle. 4. Savaşarak uzay katmanına yüksel.</p>
+                    <p class="text-slate-300">1. Kayalık vadide üç rotadan birini seç. 2. <strong>60 saniyelik avcı arenası:</strong> açık merkezde 3 normal avcı, sol enkaz alanında 3 normal avcı, sağ savunma hattında 2 elit avcı. İleri hareket kilitli ama yanal/dikey manevra serbest. 3. Endüstriyel binalardan kaç. 4. Savaşarak uzaya yüksel.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
@@ -705,6 +705,7 @@
             activeMap: MAP_MODES.MAP1,
             hunterKills: 0,
             hunterScore: 0,
+            hunterPocketKills:{CENTER:0,WRECK:0,DEFENSE:0},
             map4Phase:1,
             map4ArenaStarted:false,
             map4ArenaElapsed:0,
@@ -1265,7 +1266,10 @@
                 pilot.currentSpeed=RACE_SPEEDS.NORMAL;
                 pilot.mesh.position.copy(h4WorldPosition(pilot.routeProgress,pilot.laneX,pilot.laneY));
             }
-            showCenterAnnouncement('İLERLEME KİLİTLENDİ','60 SANİYE SERBEST AVCI SAVAŞI');
+            h4RefreshArenaHunters();
+            state.lastHunterHudTick=-1; // Show arena scoring immediately.
+            showCenterAnnouncement('İLERLEME KİLİTLENDİ',
+                '60 SANİYE · ORTA / ENKAZ / ELİT SAVUNMA');
         }
         function map4UpdatePhase(dt) {
             if(state.activeMap!==MAP_MODES.MAP4||!state.running)return;
@@ -1659,6 +1663,113 @@
             zone.add(scenery);
             h4SceneryGroups.push({near,far,regionIndex});
         }
+
+        // W04: Three tactically distinct air-combat pockets inside the 60-second
+        // forward-locked arena. The 8 shared fighters still require REAL hits.
+        // Slots 3 and 7 are elites assigned to the dangerous defense wing.
+        const H4_ARENA_POCKETS=Object.freeze([
+            {id:'CENTER',name:'ACIK MERKEZ',side:0,altitude:120,
+                minAhead:330,maxAhead:890,rangeX:310,rangeY:165,slots:[0,1,2]},
+            {id:'WRECK',name:'KRUVAZOR ENKAZI',side:-1250,altitude:300,
+                minAhead:380,maxAhead:1140,rangeX:255,rangeY:195,slots:[4,5,6]},
+            {id:'DEFENSE',name:'ELIT SAVUNMA HATTI',side:1250,altitude:380,
+                minAhead:470,maxAhead:1300,rangeX:330,rangeY:215,slots:[3,7]}
+        ]);
+        const h4ArenaWarfrontGroups=[];
+        const h4ArenaWarfrontStats={geometryCount:0,groups:0,byPocket:[0,0,0]};
+        function h4ArenaPocketForSlot(slot) {
+            return H4_ARENA_POCKETS.find(p=>p.slots.includes(slot))||H4_ARENA_POCKETS[0];
+        }
+        function h4ArenaPocketForLane(laneX) {
+            if(laneX<-570)return H4_ARENA_POCKETS[1];
+            if(laneX>570)return H4_ARENA_POCKETS[2];
+            return H4_ARENA_POCKETS[0];
+        }
+        function h4BuildArenaWarfront(zone){
+            if(h4ArenaWarfrontGroups.length)return;
+            // Each pocket has its own readable silhouettes, ground-level cover
+            // and colored navigation. W04 set pieces are visual, not hitboxes.
+            for(let index=0;index<H4_ARENA_POCKETS.length;index++){
+                const pocket=H4_ARENA_POCKETS[index];
+                const group=new THREE.Group();
+                group.name='W04_'+pocket.id+'_WARFRONT';
+                group.userData.pocketId=pocket.id;
+                zone.add(group);
+                const add=(d,side,altitude,geometry,material,scale)=>{
+                    const obj=h4PlaceStructure(group,MAP4_PHASES.introEnd+d,
+                        pocket.side+side,altitude,geometry,material,scale);
+                    obj.userData.w04VisualOnly=true;
+                    h4ArenaWarfrontStats.geometryCount++;
+                    h4ArenaWarfrontStats.byPocket[index]++;
+                    return obj;
+                };
+                const signal=index===0?H4_DETAIL_MAT.cyan:
+                    index===1?H4_DETAIL_MAT.warning:H4_DETAIL_MAT.hazard;
+                // A three-dimensional guidance silhouette above each pocket.
+                const ring=add(280,0,pocket.altitude+50,H4_DETAIL_GEO.ring,
+                    signal,[118,118,118]);
+                ring.rotateX(Math.PI*0.5);
+                const beacon=add(340,0,pocket.altitude+80,H4_DETAIL_GEO.hull,
+                    signal,[27,27,27]);
+                beacon.userData.w04Signal=true;
+                if(index===0){
+                    // Open central airspace remains unobstructed.
+                    for(let k=0;k<6;k++){
+                        const side=(k%2?-1:1)*(540+(k%3)*145);
+                        const h=70+(k*29)%95;
+                        add(260+k*155,side,-440+h/2,H4_MESHES.structure,
+                            k%2?H4_MATERIALS.sand:H4_DETAIL_MAT.oxidized,
+                            [115,h,115]);
+                        if(k%2===0)
+                            add(260+k*155,side,-355+h,H4_DETAIL_GEO.mast,
+                                signal,[17,55,17]);
+                    }
+                }else if(index===1){
+                    // Wreck zone: broken carrier fuselage, fractured wings and
+                    // engine pods; flies above cover toward normal fighters.
+                    add(720,0,-240,H4_MESHES.structure,H4_DETAIL_MAT.armor,
+                        [420,155,245]);
+                    for(let k=0;k<8;k++){
+                        const side=(k%2?-1:1)*(150+(k%4)*95);
+                        const length=115+(k*21)%120;
+                        add(280+k*105,side,-405+length*0.35,
+                            k%3?H4_DETAIL_GEO.wedge:H4_DETAIL_GEO.hull,
+                            k%2?H4_DETAIL_MAT.oxidized:H4_MATERIALS.wreck,
+                            [78+(k%3)*30,length,68+(k%2)*45]);
+                    }
+                    for(const side of [-1,1]){
+                        add(680,side*340,-290,H4_MESHES.tower,
+                            H4_DETAIL_MAT.armor,[115,215,115]);
+                        add(680,side*340,-145,H4_DETAIL_GEO.ring,
+                            signal,[57,57,57]);
+                    }
+                }else{
+                    // Defense line: armored positions and two elite signal towers.
+                    add(750,0,-390,H4_MESHES.structure,H4_MATERIALS.wall,
+                        [620,100,135]);
+                    for(const side of [-1,1]){
+                        add(470,side*300,-250,H4_MESHES.structure,
+                            H4_DETAIL_MAT.armor,[155,380,175]);
+                        add(470,side*300,10,H4_MESHES.tower,
+                            H4_MATERIALS.steel,[64,180,64]);
+                        add(470,side*300,130,H4_DETAIL_GEO.sphere,
+                            signal,[52,52,52]);
+                    }
+                    for(let k=0;k<5;k++){
+                        const side=(k-2)*172;
+                        add(890,side,-310,H4_MESHES.structure,
+                            H4_MATERIALS.wall,[145,225,120]);
+                    }
+                }
+                h4ArenaWarfrontGroups.push(group);
+                h4ArenaWarfrontStats.groups++;
+            }
+        }
+        function h4RefreshArenaHunters(){
+            if(state.activeMap!==MAP_MODES.MAP4 || !state.map4ArenaStarted)return;
+            // Reassign the EXISTING 8 targets; no leaks and no phantom kills.
+            for(let i=0;i<hunterTargets.length;i++)spawnHunterTarget(hunterTargets[i],i);
+        }
         function buildPlanetaryWorld() {
             if(planetaryWorldRegions.length) return;
             for(let zoneIndex=0;zoneIndex<PLANETARY_REGIONS.length;zoneIndex++){
@@ -1711,6 +1822,7 @@
                 h4PopulateRegion(zone,zoneIndex);
                 h4PopulateWideScenery(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
+                if(zoneIndex===1)h4BuildArenaWarfront(zone);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
             }
@@ -1778,7 +1890,12 @@
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
                 const route=h4CanyonRoute(state.routeProgress,state.laneX);
-                routeName.textContent=route==='FAST'?'BATI · HIZLI DAR GEÇİT (+18% İLERLEME)':
+                routeName.textContent=state.map4Phase===2?
+                    'SAVAŞ CEPHESİ: '+h4ArenaPocketForLane(state.laneX).name+
+                        ' · İMHA M'+state.hunterPocketKills.CENTER+
+                        ' / E'+state.hunterPocketKills.WRECK+
+                        ' / S'+state.hunterPocketKills.DEFENSE:
+                    route==='FAST'?'BATI · HIZLI DAR GEÇİT (+18% İLERLEME)':
                     route==='HUNT'?'DOĞU · AVCI CEPHESİ (EK HEDEFLER)':
                     route==='MAIN'?'ORTA · GÜVENLİ ANA HAT':'SERBEST UÇUŞ';
             }
@@ -1807,7 +1924,7 @@
             document.getElementById('planetary-destination').textContent=
                 phase===2 ? stageLabels[2]+' · KALAN '+
                     formatRaceTime(MAP4_PHASES.arenaSeconds-state.map4ArenaElapsed)+
-                    ' · İLERLEME KİLİTLİ' :
+                    ' · MERKEZ 3 / ENKAZ 3 / ELİT 2' :
                 phase===4 ? stageLabels[4]+' · YÜKSEKLİK '+
                     Math.round(state.laneY)+' / '+MAP4_PHASES.orbitAltitude+
                     ' · ↑ İLE YÜKSEL' :
@@ -2812,24 +2929,30 @@
             const maxAhead = Math.min(arenaActive?1200:MAP4_HUNTERS.spawnMaxAhead, Math.max(100, room - 85));
             const minAhead = Math.min(arenaActive?180:MAP4_HUNTERS.spawnMinAhead, maxAhead);
             const ahead = minAhead + Math.random() * Math.max(0, maxAhead - minAhead);
+            const arenaPocket=arenaActive?h4ArenaPocketForSlot(slot):null;
+            target.arenaPocketId=arenaPocket?arenaPocket.id:null;
             target.routeProgress = arenaActive ?
-                MAP4_PHASES.introEnd + ahead :
+                MAP4_PHASES.introEnd +
+                    arenaPocket.minAhead +
+                    (slot%3)*((arenaPocket.maxAhead-arenaPocket.minAhead)/3):
                 Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 60, anchorProgress + ahead);
             const radius = getCorridorRadiusAt(target.routeProgress) * (0.26 + 0.36 * Math.random());
             const angle = ((slot * 2.399963) + Math.random() * 0.8) % (Math.PI * 2);
             const canyonHunt=state.activeMap===MAP_MODES.MAP4 &&
                 !state.map4ArenaStarted &&
                 anchorProgress<H4_CANYON.end && slot%4!==3;
-            target.baseLaneX = canyonHunt ?
-                H4_CANYON.huntCenter+(slot%3-1)*210 :
-                Math.cos(angle)*radius;
-            target.baseLaneY = canyonHunt ?
-                (slot%2===0?120:-90):
-                Math.sin(angle)*radius;
+            target.baseLaneX=arenaPocket ?
+                arenaPocket.side+(slot%3-1)*115 :
+                canyonHunt?H4_CANYON.huntCenter+(slot%3-1)*210:
+                    Math.cos(angle)*radius;
+            target.baseLaneY=arenaPocket ?
+                arenaPocket.altitude+(slot%2?-60:95):
+                canyonHunt?(slot%2===0?120:-90):
+                    Math.sin(angle)*radius;
             target.laneX = target.baseLaneX;
             target.laneY = target.baseLaneY;
             target.weavePhase = Math.random() * Math.PI * 2;
-            target.moveSpeed = arenaActive ? 80+Math.random()*90 : 260+Math.random()*180;
+            target.moveSpeed = arenaActive ? 75+slot%3*22 : 260+Math.random()*180;
             target.arenaDirection=Math.random()<0.5?-1:1;
             target.weaveSpeed = 0.7 + Math.random() * 0.65;
             target.hp = target.maxHp;
@@ -2882,9 +3005,11 @@
                 const arenaActive=state.map4ArenaStarted &&
                     state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds;
                 if(arenaActive){
+                    const pocket=h4ArenaPocketForSlot(i);
+                    target.arenaPocketId=pocket.id;
                     target.routeProgress+=target.moveSpeed*target.arenaDirection*dt;
-                    const low=MAP4_PHASES.introEnd+135;
-                    const high=MAP4_PHASES.introEnd+1370;
+                    const low=MAP4_PHASES.introEnd+pocket.minAhead;
+                    const high=MAP4_PHASES.introEnd+pocket.maxAhead;
                     if(target.routeProgress>=high || target.routeProgress<=low){
                         target.routeProgress=THREE.MathUtils.clamp(target.routeProgress,low,high);
                         target.arenaDirection*=-1;
@@ -2905,10 +3030,13 @@
                 }
                 target.weavePhase += target.weaveSpeed * dt;
                 const availableWidth = getCorridorRadiusAt(target.routeProgress) * 0.78;
+                const pocket=arenaActive?h4ArenaPocketForSlot(i):null;
                 target.laneX = THREE.MathUtils.clamp(target.baseLaneX +
-                    Math.cos(target.weavePhase) * 25, -availableWidth, availableWidth);
+                    Math.cos(target.weavePhase)*(pocket?pocket.rangeX:25),
+                    -availableWidth,availableWidth);
                 target.laneY = THREE.MathUtils.clamp(target.baseLaneY +
-                    Math.sin(target.weavePhase * 1.21) * 23, -availableWidth, availableWidth);
+                    Math.sin(target.weavePhase*1.21)*(pocket?pocket.rangeY:23),
+                    -availableWidth,availableWidth);
                 setHunterWorldPosition(target);
             }
         }
@@ -2934,8 +3062,15 @@
             createExplosion(pos, target.isElite ? 0xffaa33 : 0xff5522, target.isElite ? 30 : 22,
                 target.isElite ? 1.6 : 1.15);
             const pts=target.isElite?MAP4_RACE_RULES.eliteHunterPoints:MAP4_RACE_RULES.normalHunterPoints;
-            if(attackerId==='PLAYER'){state.hunterKills++;state.hunterScore+=pts;}
-            else if(creditedRacer){creditedRacer.hunterKills++;creditedRacer.hunterScore+=pts;}
+            if(attackerId==='PLAYER'){
+                state.hunterKills++;state.hunterScore+=pts;
+                if(target.arenaPocketId && state.map4Phase===2)
+                    state.hunterPocketKills[target.arenaPocketId]++;
+            }else if(creditedRacer){
+                creditedRacer.hunterKills++;creditedRacer.hunterScore+=pts;
+                if(target.arenaPocketId && state.map4Phase===2)
+                    creditedRacer.hunterPocketKills[target.arenaPocketId]++;
+            }
             spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
             return {hit: true, destroyed: true, targetId: target.id, attackerId};
         }
@@ -2944,13 +3079,21 @@
         function predictHunterAimPoint(hunter, from) {
             const speed = MAP4_RIVAL_GUN.projectileSpeed;
             const time = Math.min(0.95, from.distanceTo(hunter.mesh.position) / speed);
-            const predictedProgress = Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 30,
-                hunter.routeProgress + hunter.moveSpeed * time);
+            const orbiting=state.map4ArenaStarted &&
+                state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds;
+            const predictedProgress=THREE.MathUtils.clamp(hunter.routeProgress+
+                hunter.moveSpeed*(orbiting?hunter.arenaDirection:1)*time,
+                0,RACE_ROUTE_NOMINAL_DISTANCE-30);
             const frame = getRaceFrameAtDistance(predictedProgress);
             const phase = hunter.weavePhase + hunter.weaveSpeed * time;
             const radius = getCorridorRadiusAt(predictedProgress) * 0.78;
-            const laneX = THREE.MathUtils.clamp(hunter.baseLaneX + Math.cos(phase) * 25,-radius,radius);
-            const laneY = THREE.MathUtils.clamp(hunter.baseLaneY + Math.sin(phase*1.21) * 23,-radius,radius);
+            const pocket=state.map4ArenaStarted &&
+                state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds ?
+                h4ArenaPocketForSlot(hunterTargets.indexOf(hunter)):null;
+            const laneX=THREE.MathUtils.clamp(hunter.baseLaneX+
+                Math.cos(phase)*(pocket?pocket.rangeX:25),-radius,radius);
+            const laneY=THREE.MathUtils.clamp(hunter.baseLaneY+
+                Math.sin(phase*1.21)*(pocket?pocket.rangeY:23),-radius,radius);
             return frame.center.clone().addScaledVector(frame.right,laneX)
                 .addScaledVector(frame.up,laneY);
         }
@@ -3082,6 +3225,19 @@
                 'KALAN '+formatRaceTime(Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime))+
                 ' · NORMAL +1 / ELİT +3 PUAN';
             window.starbladeHunterTelemetry = {
+                arena:state.map4Phase===2?{
+                    pocket:h4ArenaPocketForLane(state.laneX).id,
+                    counts:H4_ARENA_POCKETS.map(p=>({
+                        id:p.id,alive:hunterTargets.filter(t=>t.alive&&
+                            t.arenaPocketId===p.id).length
+                    })),
+                    playerKillsByPocket:{...state.hunterPocketKills},
+                    rivalKillsByPocket:racers.map(r=>({
+                        id:r.name,kills:{...r.hunterPocketKills}
+                    })),
+                    timeRemaining:Math.max(0,MAP4_PHASES.arenaSeconds-
+                        state.map4ArenaElapsed)
+                }:null,
                 raceTime:state.raceTime, alive:hunterTargets.filter(t=>t.alive).length,
                 spawned:hunterCounters.spawned, destroyed:hunterCounters.destroyed,
                 escaped:hunterCounters.escaped, activeShots:hunterRivalShots.length,
@@ -3270,6 +3426,7 @@
                     hunterAimTargetId: null,
                     hunterKills: 0,
                     hunterScore: 0,
+                    hunterPocketKills:{CENTER:0,WRECK:0,DEFENSE:0},
                     hunterHits: 0,
                     hunterShots: 0
                 });
@@ -4839,6 +4996,16 @@
                                 H4_CANYON.huntCenter:0;
                         activeTargetY=0;
                     }
+                    if(state.map4Phase===2){
+                        const style=r.hunterStrategy||'BALANCED';
+                        const assigned=style==='ELITE'?H4_ARENA_POCKETS[2]:
+                            style==='HUNTER'?H4_ARENA_POCKETS[1]:
+                            style==='SPRINTER'?H4_ARENA_POCKETS[0]:
+                            style==='CAUTIOUS'?H4_ARENA_POCKETS[0]:
+                            H4_ARENA_POCKETS[1];
+                        activeTargetX=assigned.side+(r.hunterPilotIndex%2?75:-75);
+                        activeTargetY=assigned.altitude;
+                    }
                     const selected=selectHunterForRival(r);
                     const strategy=r.hunterStrategy||'BALANCED';
                     const remaining=MAP4_RACE_RULES.realTimeLimit-state.raceTime;
@@ -5876,6 +6043,7 @@
             state.kills = 0;
             state.hunterKills = 0;
             state.hunterScore = 0;
+            state.hunterPocketKills={CENTER:0,WRECK:0,DEFENSE:0};
             state.map4Phase=1;
             state.map4ArenaStarted=false;
             state.map4ArenaElapsed=0;
