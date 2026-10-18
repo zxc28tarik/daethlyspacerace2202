@@ -1372,7 +1372,8 @@
             soil:h4SurfaceTexture(0x9b7659,49,'rock'),
             steel:h4SurfaceTexture(0x7e96a1,719,'metal'),
             darkSteel:h4SurfaceTexture(0x596776,772,'metal'),
-            armor:h4SurfaceTexture(0x576274,913,'metal')
+            armor:h4SurfaceTexture(0x576274,913,'metal'),
+            ground:h4SurfaceTexture(0xcfc5b6,131,'rock')
         };
         const h4AtmosphereUniforms={
             zenith:{value:new THREE.Color(0x263954)},
@@ -1461,6 +1462,8 @@
                 phase===1?0x89636b:phase===2?0x70545e:0x46505f);
             h4AtmosphereUniforms.haze.value=1-upperOrbit*.8;
             h4SunHalo.material.opacity=1-upperOrbit*.80;
+            for(const cloudGroup of h4CloudGroups)
+                cloudGroup.visible=phase<4||upperOrbit<.52;
         }
         const H4_MESHES = Object.freeze({
             rock: h4RuggedRockGeometry(),
@@ -1488,7 +1491,7 @@
             // W02 layered terrain: broad, shared-color low-poly topography.
             // Core route remains visibly open; hills rise only toward the sides.
             // This is scenery, not a collision promise (W03/W05 own terrain hits).
-            const verts=[],colors=[],steps=80,across=16,halfWidth=5850;
+            const verts=[],colors=[],uvs=[],steps=80,across=16,halfWidth=5850;
             const baseColor=new THREE.Color(def.ground);
             const pos=(progress,side)=>{
                 const normalized=Math.abs(side)/halfWidth;
@@ -1504,11 +1507,13 @@
                     Math.max(0,terrace)*ridge*45;
                 return h4WorldPosition(progress,side,-440+elevation);
             };
-            const face=(points,shade)=>{
-                for(const v of points) {
+            const face=(points,shade,coords)=>{
+                for(let k=0;k<points.length;k++){
+                    const v=points[k];
                     verts.push(v.x,v.y,v.z);
                     const color=baseColor.clone().multiplyScalar(shade);
                     colors.push(color.r,color.g,color.b);
+                    uvs.push(coords[k][0],coords[k][1]);
                 }
             };
             for(let i=0;i<steps;i++){
@@ -1520,19 +1525,83 @@
                     const p1=pos(a,left),p2=pos(a,right),p3=pos(b,left),p4=pos(b,right);
                     const band=(x%4)*0.035;
                     const contour=0.90+0.07*Math.sin(i*0.53+x*1.6);
-                    face([p1,p2,p4],contour-band);
-                    face([p1,p4,p3],contour-band+0.024);
+                    const u1=left/560,u2=right/560,v1=a/670,v2=b/670;
+                    face([p1,p2,p4],contour-band,[[u1,v1],[u2,v1],[u2,v2]]);
+                    face([p1,p4,p3],contour-band+0.024,[[u1,v1],[u2,v2],[u1,v2]]);
                 }
             }
             const geo=new THREE.BufferGeometry();
             geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
             geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+            geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
             geo.computeVertexNormals();
-            const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
-                vertexColors:true,side:THREE.DoubleSide,flatShading:true
+            const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.ground,vertexColors:true,roughness:.99,
+                side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
             return mesh;
+        }
+
+        // VQ01: fast, reusable architectural trims. Children inherit the same
+        // building transforms, so all parent collision volumes remain unchanged.
+        const h4FacadeGeometry=new THREE.BoxGeometry(1,1,1);
+        const h4FacadeGlass=new THREE.MeshStandardMaterial({
+            color:0x253c54,metalness:.72,roughness:.18,emissive:0x18466a,
+            emissiveIntensity:.45
+        });
+        const h4FacadeMetal=new THREE.MeshStandardMaterial({
+            color:0x9eacb4,metalness:.8,roughness:.34
+        });
+        const h4FacadeEmission=new THREE.MeshBasicMaterial({color:0x5adce8});
+        function h4ArchitecturalDetail(mesh,kind){
+            if(mesh.userData.h4Detailed)return;
+            mesh.userData.h4Detailed=true;
+            const detail=(x,y,z,sx,sy,sz,material)=>{
+                const panel=new THREE.Mesh(h4FacadeGeometry,material);
+                panel.position.set(x,y,z);panel.scale.set(sx,sy,sz);
+                mesh.add(panel);return panel;
+            };
+            // Two vertical ribs and narrow reflective windows break big flat faces.
+            for(const x of [-.37,.37]){
+                detail(x,0,.516,.045,.80,.023,h4FacadeMetal);
+                detail(x*.62,.05,.521,.10,.32,.025,h4FacadeGlass);
+            }
+            for(const y of [-.26,.02,.30]){
+                detail(0,y,.532,.69,.028,.025,h4FacadeMetal);
+            }
+            detail(0,.42,.531,.48,.029,.030,h4FacadeEmission);
+            if(kind==='hangar'||kind==='tower'){
+                detail(0,.535,0,.71,.08,.76,h4FacadeMetal);
+            }
+        }
+        const h4CloudGroups=[];
+        const h4Clouds=[];
+        const h4CloudGeometry=new THREE.SphereGeometry(1,12,8);
+        const h4CloudMaterials=[
+            new THREE.MeshBasicMaterial({color:0xf1cbb0,transparent:true,opacity:.13,depthWrite:false}),
+            new THREE.MeshBasicMaterial({color:0xb8b1b1,transparent:true,opacity:.095,depthWrite:false}),
+            new THREE.MeshBasicMaterial({color:0xdfc4ac,transparent:true,opacity:.075,depthWrite:false})
+        ];
+        function h4AddCloudLayer(zone,regionIndex,def){
+            if(h4CloudGroups.length>regionIndex)return;
+            const clouds=new THREE.Group();
+            clouds.name='MAP4_VOLUMETRIC_CLOUD_SILHOUETTES_'+regionIndex;
+            for(let i=0;i<9;i++){
+                const progress=def.from+(def.to-def.from)*(i+.4)/9;
+                const side=(i%2?1:-1)*(1100+(i*337)%1720);
+                const altitude=1250+(i*123)%600;
+                const m=new THREE.Mesh(h4CloudGeometry,
+                    h4CloudMaterials[(i+regionIndex)%3]);
+                m.position.copy(h4WorldPosition(progress,side,altitude));
+                m.scale.set(580+(i%4)*220,65+(i%3)*32,335+(i%4)*98);
+                m.rotation.y=i*.38;
+                m.userData.visualOnly=true;
+                clouds.add(m);
+                h4Clouds.push(m);
+            }
+            zone.add(clouds);
+            h4CloudGroups.push(clouds);
         }
         function h4PlaceStructure(group,progress,side,altitude,geometry,material,scale) {
             const mesh=new THREE.Mesh(geometry,material);
@@ -1540,6 +1609,8 @@
             mesh.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
             mesh.scale.set(scale[0],scale[1],scale[2]);
             group.add(mesh);
+            if(geometry===H4_MESHES.structure&&scale[1]>=180&&scale[0]>=75)
+                h4ArchitecturalDetail(mesh,scale[1]>430?'tower':'building');
             if((progress>=MAP4_PHASES.arenaEnd &&
                 progress<MAP4_PHASES.industryEnd) &&
                 geometry!==H4_MESHES.beacon && geometry!==H4_MESHES.dome){
@@ -1794,6 +1865,8 @@
                     mesh.scale.set(scale[0],scale[1],scale[2]);
                     group.add(mesh);
                     mesh.userData.w05Kind=kind;
+                    if(geo===H4_MESHES.structure&&scale[1]>170)
+                        h4ArchitecturalDetail(mesh,kind==='HUNTER_SIDE_TOWER'?'tower':'building');
                     h4IndustrialStats.meshes++;
                     if(solid){
                         const c={progress,side:x,altitude:y,
@@ -2115,6 +2188,7 @@
                 }
                 h4PopulateRegion(zone,zoneIndex);
                 h4PopulateWideScenery(zone,zoneIndex,def);
+                h4AddCloudLayer(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 if(zoneIndex===1)h4BuildArenaWarfront(zone);
                 if(zoneIndex===2)h4BuildIndustrialGauntlet(zone);
