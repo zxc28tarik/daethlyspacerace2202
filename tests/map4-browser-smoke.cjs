@@ -86,7 +86,7 @@ const assert = require('node:assert/strict');
         groundUV:!!planetaryWorldRegions[0].children[0].geometry.attributes.uv,
         groundMap:!!planetaryWorldRegions[0].children[0].material.map,
         playerEnhancements:h4GeoSwordArt.visible,
-        tonemap:renderer.toneMapping,
+        tonemapMatches:renderer.toneMapping===THREE.ACESFilmicToneMapping,
         exposure:renderer.toneMappingExposure
       };
     });
@@ -104,8 +104,7 @@ const assert = require('node:assert/strict');
     assert.equal(art.groundUV,true,'ground UV atlas tiling');
     assert.equal(art.groundMap,true,'ground uses texture');
     assert.equal(art.playerEnhancements,true,'map4 player craft art enabled');
-    assert.equal(art.tonemap,THREE.ACESFilmicToneMapping,
-      'planet-specific filmic tonemapping');
+    assert.equal(art.tonemapMatches,true,'planet-specific filmic tonemapping');
     assert(art.exposure>1.1,'planet uses dedicated tonal exposure');
     // W03 physical and strategic paths before phase-two arena.
     const canyon=await page.evaluate(()=>{
@@ -554,16 +553,16 @@ const assert = require('node:assert/strict');
     const map1Art=await page.evaluate(()=>({
       sky:h4SkyDome.visible,sun:h4SunHalo.visible,
       player:h4GeoSwordArt.visible,
-      tonemap:renderer.toneMapping,
-      encoding:renderer.outputEncoding,
+      tonemapRestored:renderer.toneMapping===THREE.NoToneMapping,
+      encodingRestored:renderer.outputEncoding===THREE.LinearEncoding,
       cloudParent:planetaryWorldGroup.visible
     }));
     assert.equal(map1Art.sky,false,'Map1 cannot see planet shader');
     assert.equal(map1Art.sun,false,'Map1 cannot see sun halo');
     assert.equal(map1Art.player,false,'Map1 GeoSword unchanged');
     assert.equal(map1Art.cloudParent,false,'planetary clouds hidden in Map1');
-    assert.equal(map1Art.tonemap,THREE.NoToneMapping,'Map1 tonemapping restored');
-    assert.equal(map1Art.encoding,THREE.LinearEncoding,'Map1 output encoding restored');
+    assert.equal(map1Art.tonemapRestored,true,'Map1 tonemapping restored');
+    assert.equal(map1Art.encodingRestored,true,'Map1 output encoding restored');
     const map1Boundary=await page.evaluate(()=>evaluateBoundaryFriction(0,0,18,0,0));
     assert.equal(map1Boundary.level,0,'Map1 boundary behavior unchanged');
     assert.equal(map1.racers,5);
