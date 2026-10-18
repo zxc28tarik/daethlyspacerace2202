@@ -141,6 +141,11 @@
     <div id="emp-flash" class="absolute inset-0 bg-cyan-400/50 pointer-events-none z-30 opacity-0 transition-opacity duration-300"></div>
 
     <div class="absolute inset-0 z-40 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+        <div id="planetary-zone-hud" class="hidden hud-box self-center text-center px-4 py-2 max-w-sm">
+            <div class="text-xs text-amber-200 font-bold">GEZEGEN GEÇİŞ OPERASYONU</div>
+            <div id="planetary-zone-name" class="text-sm text-white font-black">KAYALIK VADİLER</div>
+            <div id="planetary-destination" class="text-xs text-cyan-200">HEDEF: ASKERÎ ÜS</div>
+        </div>
         
         <!-- ÜST BÖLÜM: Tehlike Uyarısı, Kamera Modu & Boss Can Barı -->
         <div class="flex flex-col items-center w-full gap-2">
@@ -1007,6 +1012,156 @@
         }
 
 
+
+        // H4-P01: One continuous planetary theatre in four connected regions.
+        // Geometry is native Three.js, with bounded static allocations (no frame-by-frame creation).
+        const PLANETARY_REGIONS = Object.freeze([
+            {from:0,to:12500,name:'KAYALIK VADİLER',type:'canyon',ground:0x886044,sky:0xa6725c},
+            {from:12500,to:25000,name:'AÇIK SAVAŞ OVASI',type:'battlefield',ground:0x725648,sky:0x96736a},
+            {from:25000,to:37500,name:'ENDÜSTRİ BÖLGESİ',type:'industrial',ground:0x494c51,sky:0x647484},
+            {from:37500,to:50001,name:'ASKERÎ ÜS VE TAHLİYE',type:'fortress',ground:0x57434c,sky:0x735b72}
+        ]);
+        const PLANETARY_FLIGHT_RADIUS = 1340;
+        const planetaryWorldGroup = new THREE.Group();
+        const planetaryWorldRegions = [];
+        scene.add(planetaryWorldGroup);
+        planetaryWorldGroup.visible = false;
+        const H4_MESHES = Object.freeze({
+            rock: new THREE.ConeGeometry(1,1,5),
+            tower: new THREE.CylinderGeometry(1,1,1,7),
+            structure: new THREE.BoxGeometry(1,1,1),
+            dome: new THREE.SphereGeometry(1,10,6),
+            beacon: new THREE.TorusGeometry(1,0.045,5,28)
+        });
+        const H4_MATERIALS = Object.freeze({
+            rock:new THREE.MeshLambertMaterial({color:0x936746,flatShading:true}),
+            sand:new THREE.MeshLambertMaterial({color:0x61463a,flatShading:true}),
+            wreck:new THREE.MeshLambertMaterial({color:0x484b58,flatShading:true}),
+            steel:new THREE.MeshLambertMaterial({color:0x60727d,flatShading:true}),
+            wall:new THREE.MeshLambertMaterial({color:0x714f55,flatShading:true}),
+            core:new THREE.MeshBasicMaterial({color:0xf75c7c}),
+            marker:new THREE.MeshBasicMaterial({color:0xffdd91,transparent:true,opacity:0.5})
+        });
+        const H4_UP=new THREE.Vector3(0,1,0);
+        function h4WorldPosition(progress,side=0,altitude=0) {
+            const frame=getRaceFrameAtDistance(progress);
+            return frame.center.clone().addScaledVector(frame.right,side)
+                .addScaledVector(frame.up,altitude);
+        }
+        function h4GroundStrip(def) {
+            const verts=[],steps=70;
+            for(let i=0;i<steps;i++){
+                const a=def.from+(def.to-def.from)*i/steps;
+                const b=def.from+(def.to-def.from)*(i+1)/steps;
+                const p1=h4WorldPosition(a,-1800,-440),p2=h4WorldPosition(a,1800,-440);
+                const p3=h4WorldPosition(b,-1800,-440),p4=h4WorldPosition(b,1800,-440);
+                verts.push(...p1.toArray(),...p2.toArray(),...p4.toArray(),
+                    ...p1.toArray(),...p4.toArray(),...p3.toArray());
+            }
+            const geo=new THREE.BufferGeometry();
+            geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+            geo.computeVertexNormals();
+            return new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
+                color:def.ground,side:THREE.DoubleSide,flatShading:true
+            }));
+        }
+        function h4PlaceStructure(group,progress,side,altitude,geometry,material,scale) {
+            const mesh=new THREE.Mesh(geometry,material);
+            mesh.position.copy(h4WorldPosition(progress,side,altitude));
+            mesh.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
+            mesh.scale.set(scale[0],scale[1],scale[2]);
+            group.add(mesh);
+            return mesh;
+        }
+        function buildPlanetaryWorld() {
+            if(planetaryWorldRegions.length) return;
+            for(let zoneIndex=0;zoneIndex<PLANETARY_REGIONS.length;zoneIndex++){
+                const def=PLANETARY_REGIONS[zoneIndex], zone=new THREE.Group();
+                zone.userData.from=def.from;
+                zone.userData.to=def.to;
+                zone.userData.name=def.name;
+                zone.add(h4GroundStrip(def));
+                // Distinct skyline silhouettes, off the main flight axis.
+                const count=def.type==='industrial'?34:28;
+                for(let n=0;n<count;n++){
+                    const d=def.from+300+(n+0.5)*(def.to-def.from-600)/count;
+                    const sideSign=n%2?1:-1;
+                    const spread=def.type==='battlefield'?770:650;
+                    const side=sideSign*(spread+(n*103)%560);
+                    if(def.type==='canyon'){
+                        const height=230+(n*73)%510;
+                        h4PlaceStructure(zone,d,side,-440+height*0.5,H4_MESHES.rock,
+                            n%3?H4_MATERIALS.rock:H4_MATERIALS.sand,
+                            [135+(n%4)*26,height,125+(n%3)*32]);
+                    }else if(def.type==='battlefield'){
+                        const height=45+(n*33)%125;
+                        h4PlaceStructure(zone,d,side,-440+height/2,H4_MESHES.structure,
+                            n%3?H4_MATERIALS.wreck:H4_MATERIALS.sand,
+                            [110+(n%4)*30,height,145]);
+                        if(n%6===0) h4PlaceStructure(zone,d,side+sideSign*170,-365,H4_MESHES.dome,
+                            H4_MATERIALS.rock,[140,65,140]);
+                    }else if(def.type==='industrial'){
+                        const height=370+(n*53)%690;
+                        h4PlaceStructure(zone,d,side,-440+height/2,
+                            n%3===0?H4_MESHES.tower:H4_MESHES.structure,
+                            H4_MATERIALS.steel,[85+(n%5)*15,height,90+(n%4)*20]);
+                        if(n%5===0)h4PlaceStructure(zone,d,side+sideSign*170,-55,
+                            H4_MESHES.structure,H4_MATERIALS.core,[28,18,30]);
+                    }else{
+                        const height=210+(n*39)%350;
+                        h4PlaceStructure(zone,d,side,-440+height/2,H4_MESHES.structure,
+                            H4_MATERIALS.wall,[135,height,170]);
+                        if(n%5===0)h4PlaceStructure(zone,d,side+sideSign*155,-260,
+                            H4_MESHES.tower,H4_MATERIALS.core,[30,160,30]);
+                    }
+                }
+                // Large navigational altitude beacons, not collision hoops.
+                for(let k=1;k<=3;k++){
+                    const d=def.from+(def.to-def.from)*k/4;
+                    const beacon=h4PlaceStructure(zone,d,(k%2?1:-1)*315,90,
+                        H4_MESHES.beacon,H4_MATERIALS.marker,[70,70,70]);
+                    beacon.rotateX(Math.PI*0.5);
+                }
+                planetaryWorldGroup.add(zone);
+                planetaryWorldRegions.push(zone);
+            }
+        }
+        function applyPlanetaryEnvironment() {
+            const active=state.activeMap===MAP_MODES.MAP4;
+            if(active)buildPlanetaryWorld();
+            planetaryWorldGroup.visible=active;
+            corridorGuideGroup.visible=!active;
+            raceRoadGroup.visible=!active;
+            stationGroup.visible=!active;
+            starField.visible=!active;
+            nebulaGroup.visible=!active;
+            scene.background.setHex(active?0x997664:0x040310);
+            scene.fog.color.setHex(active?0xb18b76:0x09051d);
+            scene.fog.density=active?0.00026:0.00055;
+            if(!active) {
+                updateCourseVisibility(state.routeProgress);
+            }
+            document.getElementById('planetary-zone-hud').classList.toggle('hidden',!active);
+        }
+        function updatePlanetaryWorld() {
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            // Only render the active area and neighboring visible chunks.
+            const first=PLANETARY_REGIONS.findIndex(z=>state.routeProgress < z.to);
+            const idx=first>=0?first:PLANETARY_REGIONS.length-1;
+            const sector=PLANETARY_REGIONS[idx];
+            const distanceRemaining=Math.max(0,
+                RACE_ROUTE_NOMINAL_DISTANCE-state.routeProgress);
+            for(let i=0;i<planetaryWorldRegions.length;i++){
+                const def=PLANETARY_REGIONS[i];
+                planetaryWorldRegions[i].visible=def.to>state.routeProgress-3400
+                    && def.from<state.routeProgress+7800;
+            }
+            document.getElementById('planetary-zone-name').textContent=sector.name;
+            document.getElementById('planetary-destination').textContent=
+                'HEDEF: ASKERÎ ÜS · '+Math.round(distanceRemaining/1000)+' km';
+            const color=sector.sky;
+            scene.background.setHex(color);
+        }
         // AI-20: Dairesel boost/enerji toplama halkaları, checkpoint ve tehlike
         // çemberleri kaldırıldı. Sektör ve tehlike verileri görsel halkalara bağlı değil.
         const checkpointDistances = [10000, 20000, 30000, 40000];
@@ -1116,6 +1271,8 @@
             return x*x*(3-2*x);
         }
         function getCorridorRadiusAt(progress) {
+            // Map 4 flies in a wide terrain airspace, not Map 1's narrow neon tube.
+            if (state.activeMap===MAP_MODES.MAP4) return PLANETARY_FLIGHT_RADIUS;
             // Geniş uçuş bölümleri 400-410, enkaz yaklaşımları 315-335 yarıçap.
             const broadCenters = [3600, 14650, 25500, 36600, 42600];
             let radius = 360;
@@ -1130,6 +1287,7 @@
             return radius;
         }
         function upcomingWreckGate(progress, lookAhead = 2400) {
+            if(state.activeMap===MAP_MODES.MAP4) return null;
             for (const [distance, mode] of chokepointPlan) {
                 if (distance+185 < progress) continue;
                 if (distance-progress > lookAhead) return null;
@@ -1607,6 +1765,15 @@
                 progress <= currentProgress + COURSE_RENDER_AHEAD;
         }
         function updateCourseVisibility(playerProgress) {
+            if (state.activeMap===MAP_MODES.MAP4) {
+                for(const a of asteroids){a.mesh.visible=false;if(a.movementTail)a.movementTail.visible=false;}
+                for(const o of staticObstacles)o.mesh.visible=false;
+                for(const m of wreckageModules)m.group.visible=false;
+                for(const b of itemBoxes)b.mesh.visible=false;
+                for(const s of (raceRoadGroup.userData.sectors||[]))s.visible=false;
+                courseVisibility.asteroids=courseVisibility.obstacles=courseVisibility.items=courseVisibility.sectors=0;
+                return;
+            }
             let visibleAsteroids = 0, visibleObstacles = 0, visibleItems = 0, visibleSectors = 0;
             for (const a of asteroids) {
                 a.mesh.visible = !!a.active && isCourseWithinRenderRange(a.routeProgress, playerProgress);
@@ -1640,6 +1807,7 @@
         // aralığı açıkça hesaplandığı için geride kalan yarışçıların tehlikeleri atlanmaz.
         const allRaceHazards = asteroids.concat(staticObstacles);
         function getRelevantRaceHazards() {
+            if(state.activeMap===MAP_MODES.MAP4) return [];
             let minProgress = Infinity, maxProgress = -Infinity;
             if (!state.finished && !state.playerDNF) {
                 minProgress = maxProgress = state.routeProgress;
@@ -3186,7 +3354,10 @@
             state.wallCooldown = Math.max(0, state.wallCooldown - dt);
             state.wallFlash = Math.max(0, state.wallFlash - dt);
             updateVisibleCorridor();
-            if (state.activeMap === MAP_MODES.MAP4) updateHunterTargets(dt);
+            if (state.activeMap === MAP_MODES.MAP4) {
+                updatePlanetaryWorld();
+                updateHunterTargets(dt);
+            }
 
             // 1. Hız, Boost ve Oyuncu Hareketi (Bitirmiş veya DNF olmuş oyuncu hareket etmez ve kontrol almaz)
             let moveX = 0;
@@ -3369,7 +3540,7 @@
                 updateAsteroidMotion(a, dt);
                 // Yaklaşan asteroid görünür alana girdiyse bir sonraki kareyi
                 // beklemeden mesh konumunu bu karede de güncelle.
-                if (!a.mesh.visible && isCourseWithinRenderRange(a.routeProgress, state.routeProgress)) {
+                if (state.activeMap!==MAP_MODES.MAP4 && !a.mesh.visible && isCourseWithinRenderRange(a.routeProgress, state.routeProgress)) {
                     a.mesh.visible = true;
                     updateAsteroidMotion(a, 0);
                 }
@@ -4075,7 +4246,7 @@
 
             // Yüksek hızda asteroidler kareler arasında atlanmasın:
             // gemi ve asteroidin aynı karedeki göreli hareketi boyunca en yakın yaklaşımı bul.
-            asteroids.forEach(a=>{
+            if(state.activeMap!==MAP_MODES.MAP4) asteroids.forEach(a=>{
                 if(!a.active) return;
                 const test=(id,ship,prev,radius,isPlayer)=>{
                     if(!prev||ship.finished||ship.dnf||(isPlayer&&state.playerDNF)){
@@ -4123,12 +4294,12 @@
             if (!state.running) return; // Asteroit nedeniyle DNF sonrası ek hasar/ödül yazılmasın.
 
             // AI-15: sabit engel ve item kutusu kontrolleri; her gemiye ayrı hak ve temas kaydı.
-            if(!state.playerDNF && !state.finished){
+            if(state.activeMap!==MAP_MODES.MAP4 && !state.playerDNF && !state.finished){
                 applyStaticObstacleContact('PLAYER',state,prevPlayerCourse,true);
                 if(!state.running) return;
                 if(!state.playerDNF)collectItemBoxesForShip('PLAYER',state,prevPlayerCourse,true);
             }
-            racers.forEach((r,idx)=>{
+            if(state.activeMap!==MAP_MODES.MAP4) racers.forEach((r,idx)=>{
                 if(!r.finished&&!r.dnf){
                     applyStaticObstacleContact(r.name,r,prevRacerCourse[idx],false);
                     collectItemBoxesForShip(r.name,r,prevRacerCourse[idx],false);
@@ -4139,7 +4310,7 @@
 
             // Dairesel bonus toplayıcılar yok; yakın geçiş ve sektör süreleri korunur.
             if (!state.playerDNF) {
-                updatePlayerNearMisses(prevPlayerFrameProgress);
+                if(state.activeMap!==MAP_MODES.MAP4) updatePlayerNearMisses(prevPlayerFrameProgress);
                 updatePlayerCheckpoints(prevPlayerFrameProgress, prevRaceTime, dt);
             }
 
@@ -5041,6 +5212,7 @@
             resetAsteroidField();
             updateCourseVisibility(state.routeProgress);
             spawnRacerFleet();
+            applyPlanetaryEnvironment();
             if (state.activeMap === MAP_MODES.MAP4) initializeHunterTargets();
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
@@ -5213,6 +5385,7 @@
             if (mapId !== MAP_MODES.MAP1 && mapId !== MAP_MODES.MAP4) return;
             if (state.running) return; // A running race can never switch maps.
             state.activeMap = mapId;
+            applyPlanetaryEnvironment();
             const ready = MAP_AVAILABLE[mapId] === true;
             document.getElementById('map-choice-1').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP1));
             document.getElementById('map-choice-4').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP4));
@@ -5245,6 +5418,7 @@
             document.getElementById('gameover-screen').classList.add('hidden');
             document.getElementById('start-screen').classList.remove('hidden');
             selectMap(state.activeMap);
+            applyPlanetaryEnvironment();
         }
         document.getElementById('menu-btn').addEventListener('click',returnToMapSelection);
         document.getElementById('start-btn').addEventListener('click', startGame);
