@@ -257,7 +257,13 @@ const assert = require('node:assert/strict');
       const wreck=hunterTargets.find(h=>h.arenaPocketId==='WRECK'&&!h.isElite);
       const defense=hunterTargets.find(h=>h.arenaPocketId==='DEFENSE'&&h.isElite);
       const beforePlayer={points:state.hunterScore,kills:state.hunterKills};
-      center.hp=12;wreck.hp=12;defense.hp=12;
+      // Real background AI may have destroyed one of these targets in the
+      // milliseconds between arena entry and test. Reuse the SAME target
+      // slot before deterministic hit-attribution assertions (no new meshes).
+      for(const target of [center,wreck,defense]){
+        if(!target.alive)spawnHunterTarget(target,hunterTargets.indexOf(target));
+        target.hp=12;
+      }
       const centerHit=damageHunterTarget(center,12,'PLAYER');
       const wreckOwner=racers[1];
       const rivalBefore={points:wreckOwner.hunterScore,kills:wreckOwner.hunterKills};
