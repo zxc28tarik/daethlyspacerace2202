@@ -79,6 +79,15 @@
             to { opacity: 1; transform: scale(1.02); }
         }
 
+        /* AI-35: functional race warnings and pause help, same cyan HUD language. */
+        #race-warning.hidden, #flight-help-screen.hidden { display: none !important; }
+        #race-warning { border: 1px solid rgba(255,174,73,.85); box-shadow:0 0 15px rgba(255,137,67,.2); background:rgba(32,13,22,.9); }
+        #race-warning[data-tone="urgent"] { border-color:#ff5e77; box-shadow:0 0 21px rgba(255,61,94,.35); }
+        #race-warning[data-tone="info"] { border-color:#58d6ee; background:rgba(4,23,37,.85); }
+        #flight-help-screen { z-index:48; }
+        #race-hud-details { max-width: 650px; }
+        @media (max-width:640px) { #race-hud-details { max-width: 98vw; } }
+
         .cyber-btn {
             background: linear-gradient(90deg, rgba(0, 243, 255, 0.18), rgba(0, 255, 136, 0.18));
             border: 2px solid #00f3ff;
@@ -133,11 +142,20 @@
                         <span id="bonus-status" class="ml-2 text-emerald-300">ITEM BOXES / OPEN COURSE</span>
                         <span id="item-status" class="ml-2 text-fuchsia-300">ITEM BOX: READY</span>
                     </div>
+                    <div id="race-hud-details" class="mt-1 text-[11px] font-['Share_Tech_Mono'] text-slate-200">
+                        <span id="leader-gap-text" class="text-yellow-300">LİDER FARKI: —</span>
+                        <span id="active-bonus-status" class="ml-3 text-cyan-200">BONUS: YOK</span>
+                        <span id="pause-hint" class="ml-3 text-cyan-300/80">P / H: DURAKLAT & KONTROLLER</span>
+                    </div>
                 </div>
 
                 <!-- Orta Üst: DANGER Uyarısı -->
                 <div id="danger-banner" class="danger-banner hidden px-8 py-1.5 text-red-100 font-black tracking-[0.25em] text-xs sm:text-base uppercase">
                     &lt;&lt; DANGER / INCOMING PROJECTILES! &gt;&gt;
+                </div>
+                <div id="race-warning" class="hidden rounded px-4 py-1.5 text-center max-w-lg font-['Share_Tech_Mono']" data-tone="info" aria-live="off">
+                    <div id="race-warning-title" class="text-xs sm:text-sm font-bold tracking-wider text-amber-200">PARKUR UYARISI</div>
+                    <div id="race-warning-detail" class="text-[11px] text-slate-200"></div>
                 </div>
 
                 <!-- Sağ Üst: Kombo & Dalga -->
@@ -178,8 +196,8 @@
                 </div>
 
                 <div class="flex justify-between items-center text-xs font-bold tracking-wider text-cyan-300 mb-1">
-                    <span>ENERGY (BOOST / LAZER / EMP)</span>
-                    <span class="text-[10px] text-cyan-200/80">SPACE / SAĞ TIK: EMP KALKAN</span>
+                    <span>ENERGY (BOOST / LAZER) <span id="energy-text" class="text-white">100 / 100</span></span>
+                    <span class="text-[10px] text-cyan-200/80">SHIFT / W BOOST · S FREN</span>
                 </div>
                 <div class="w-full h-2.5 bg-slate-900/90 border border-cyan-400/50 p-0.5">
                     <div id="energy-bar" class="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-white transition-all duration-100" style="width: 100%;"></div>
@@ -213,7 +231,7 @@
                     <span id="laser-target-status" class="block text-[10px] text-cyan-200/90 font-['Share_Tech_Mono']">HEDEF: —</span>
                 </div>
                 <div class="flex justify-between items-center mt-1 text-xs sm:text-sm font-bold text-emerald-400">
-                    <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">WASD: UÇUŞ | SHIFT: BOOST | KUTUDAN SONRA F / SOL TIK: LAZER</span>
+                    <span class="text-[11px] text-cyan-300/80 font-['Share_Tech_Mono']">A/D ↔ · ↑/↓ ↕ · SHIFT/W BOOST · F/SOL TIK LAZER · P YARDIM</span>
                     <span id="stage-text">SECTOR 1 / 4</span>
                 </div>
             </div>
@@ -233,11 +251,11 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> DEV GÖRÜNMEZ UZAY KORİDORU</div>
-                    <p class="text-slate-300">Devasa bir görünmez boru hattı içinde ileri doğru yarışıyorsunuz! <strong>Fare</strong> veya <strong>WASD</strong> ile boru içinde sağa-sola, aşağı-yukarı serbestçe manevra yapın ve asteroitlerden kaçın.</p>
+                    <p class="text-slate-300">Neon sınırları olan bir uzay koridorunda yarışın. <strong>Fare</strong> gemiyi yönlendirir; <strong>A/D veya ←/→</strong> yatay, <strong>↑/↓</strong> dikey manevrayı destekler. <strong>W yön tuşu değil, boost tuşudur.</strong> <strong>P/H</strong> ile duraklatıp kontrolleri görün.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-emerald-400 font-bold mb-1">>> SAF HIZ YARIŞI (HARİTA 1)</div>
-                    <p class="text-slate-300">Rakiplere ateş edilemez; <strong>önce mor sürpriz kutu toplayarak 12 saniyelik lazer erişimi kazan</strong>, sonra <strong>sol tık / F</strong> ile küçük asteroitleri ve hafif metal bariyerleri parçalayabilirsiniz. <strong>Her çift lazer atışı boost havuzundan 3 enerji harcar.</strong> Enerji yetersizse lazer çalışmaz. Büyük enkaz geçitleri sağlamdır. <strong>SHIFT / W</strong> ile hızlanıp 5 rakibi geçin.</p>
+                    <p class="text-slate-300">Rakiplere ateş edilemez; <strong>önce mor sürpriz kutu toplayarak 12 saniyelik lazer erişimi kazan</strong>, sonra <strong>sol tık / F</strong> ile küçük asteroitleri ve hafif metal bariyerleri parçalayabilirsiniz. <strong>Her çift lazer atışı boost havuzundan 3 enerji harcar.</strong> Enerji yetersizse lazer çalışmaz. Büyük enkaz geçitleri sağlamdır. <strong>SHIFT / W</strong> ile boost, <strong>S</strong> ile fren yapıp 5 rakibi geçin.</p>
                 </div>
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-yellow-300 font-bold mb-1">>> EŞYA KUTULARI & YAKIN GEÇİŞLER</div>
@@ -269,14 +287,16 @@
                 PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
             </div>
 
-            <div id="race-bonus-summary" class="mb-3 text-xs text-fuchsia-300 font-['Share_Tech_Mono'] tracking-wide">NEAR MISSES 0 • SECTOR TIMES</div>
+            <div id="race-bonus-summary" class="mb-2 text-xs text-fuchsia-300 font-['Share_Tech_Mono'] tracking-wide">NEAR MISSES 0 • SECTOR TIMES</div>
+            <div id="race-sector-splits" class="mb-2 text-[11px] text-cyan-200 font-['Share_Tech_Mono'] tracking-wide"></div>
+            <div id="race-telemetry-summary" class="mb-3 text-[11px] text-amber-200 font-['Share_Tech_Mono'] tracking-wide"></div>
             <!-- 6 Yarışçılı Sonuç Tablosu -->
             <div id="race-standings-container" class="bg-slate-900/85 border border-cyan-500/40 p-3 sm:p-4 mb-5 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="grid grid-cols-12 text-cyan-400/80 border-b border-cyan-500/30 pb-1.5 mb-2 font-bold text-left">
                     <div class="col-span-2">POS</div>
                     <div class="col-span-4">PILOT</div>
                     <div class="col-span-3">PROFILE</div>
-                    <div class="col-span-3 text-right">FINISH TIME</div>
+                    <div class="col-span-3 text-right">TIME / GAP</div>
                 </div>
                 <div id="race-standings-list" class="space-y-1.5 text-left"></div>
             </div>
@@ -299,6 +319,27 @@
             <button id="restart-btn" class="cyber-btn px-10 py-3.5 text-base font-black tracking-[0.2em] uppercase">
                 SORTIE AGAIN
             </button>
+        </div>
+    </div>
+
+    <!-- AI-35: pause safely while reading actual controls; never cover the game-over overlay. -->
+    <div id="flight-help-screen" class="ScreenOverlay hidden">
+        <div class="hud-box max-w-xl w-full mx-4 p-5 sm:p-7 text-left font-['Share_Tech_Mono']">
+            <h2 class="text-xl text-emerald-300 font-bold mb-1">YARIŞ DURAKLATILDI</h2>
+            <p class="text-xs text-cyan-200 mb-4">Oyun zamanı ve gemi hareketleri bu ekranda durur.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-200 mb-5">
+                <div><strong class="text-cyan-300">FARE</strong> — serbest yönlendirme</div>
+                <div><strong class="text-cyan-300">A / D, ← / →</strong> — sağ / sol</div>
+                <div><strong class="text-cyan-300">↑ / ↓</strong> — yukarı / aşağı</div>
+                <div><strong class="text-cyan-300">SHIFT / W</strong> — boost (enerji harcar)</div>
+                <div><strong class="text-cyan-300">S</strong> — fren</div>
+                <div><strong class="text-cyan-300">F / SOL TIK</strong> — kutu sonrası lazer (3 enerji)</div>
+                <div><strong class="text-cyan-300">Q / E</strong> — barrel roll</div>
+                <div><strong class="text-cyan-300">C</strong> — kamerayı değiştir</div>
+                <div><strong class="text-cyan-300">P / H / ESC</strong> — devam et</div>
+            </div>
+            <p class="text-xs text-amber-200 mb-4">Mor kutu lazeri 12 saniyeliğine açar. Kenara sürtünme kalkan ve hız kaybettirir.</p>
+            <button id="resume-btn" class="cyber-btn px-6 py-3 font-bold uppercase">YARIŞA DEVAM ET</button>
         </div>
     </div>
 
@@ -468,6 +509,9 @@
 
         const state = {
             running: false,
+            paused: false,
+            hudWarningTick: -1,
+            hudWarning: null,
             combatEnabled: false,
             score: 0,
             kills: 0,
@@ -2632,7 +2676,7 @@
             const normMouseY = (state.mouseY / H) * 2 - 1;
 
             if (!state.finished && !state.playerDNF) {
-                const boosting = (keys['ShiftLeft'] || keys['KeyW']) && state.energy > 4;
+                const boosting = (keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyW']) && state.energy > 4;
                 const braking = keys['KeyS'];
                 const itemTurbo = state.itemTurboTimer > 0;
 
@@ -4042,12 +4086,81 @@
             }
         }
 
+        // AI-35: One compact warning at a time, based on actual route geometry.
+        // An approximate forward projection avoids inventing a safe direction.
+        function computeRaceHudWarning(progress, laneX, laneY, speed, gate, hazards) {
+            if (gate && gate.distance + 185 >= progress && gate.distance - progress <= 2400) {
+                const label = gate.mode === 'TOP_ONLY' ? 'ÜSTTEN GEÇ' :
+                    gate.mode === 'BOTTOM_ONLY' ? 'ALTTAN GEÇ' : 'ORTADAN GEÇ';
+                const remaining = Math.max(0, Math.round(gate.distance - progress));
+                return {tone: remaining < 800 ? 'urgent' : 'caution',
+                    title: `ENKAZ GEÇİDİ · ${label}`,
+                    detail: `${remaining}m · açıklığa erken hizalan`};
+            }
+            let closest = null;
+            const lookAhead = Math.min(2150, Math.max(950, speed * 1.5));
+            for (const o of hazards) {
+                if (!o.active || o.type === 'WRECK_BOX') continue;
+                const delta = o.routeProgress - progress;
+                if (delta <= 0 || delta > lookAhead + (o.radius || 0)) continue;
+                const lateral = Math.hypot(laneX-o.laneX, laneY-o.laneY);
+                if (lateral > (o.radius || 0) + 32) continue;
+                if (!closest || delta < closest.delta) closest = {o, delta};
+            }
+            if (closest) {
+                const remaining = Math.round(closest.delta);
+                return {tone: remaining < 650 ? 'urgent' : 'caution',
+                    title: closest.o.type === 'BARRIER' || closest.o.type === 'WRECK' ?
+                        'SABİT ENGEL ÖNDE' : 'ASTEROİT ÖNDE',
+                    detail: `${remaining}m · konumunu değiştir veya uygunsa lazer kullan`};
+            }
+            return null;
+        }
+        function updateRaceHudWarning() {
+            if (state.finished || state.playerDNF) return null;
+            const nextTick = Math.floor(state.raceTime * 8); // 125 ms, no costly DOM update every frame.
+            if (nextTick !== state.hudWarningTick) {
+                state.hudWarningTick = nextTick;
+                state.hudWarning = computeRaceHudWarning(state.routeProgress, state.laneX,
+                    state.laneY, state.currentSpeed, upcomingWreckGate(state.routeProgress, 2400),
+                    asteroids.concat(staticObstacles));
+            }
+            return state.hudWarning;
+        }
+        function setFlightPaused(paused) {
+            if (!state.running || state.finished || state.playerDNF) return;
+            state.paused = !!paused;
+            document.getElementById('flight-help-screen').classList.toggle('hidden', !state.paused);
+            state.isFiring = false;
+            Object.keys(keys).forEach(k => { keys[k] = false; });
+            if (state.paused) sound.updateEngine(0, false);
+            else sound.updateEngine(state.currentSpeed, true);
+        }
+        function toggleFlightPaused() { setFlightPaused(!state.paused); }
+        function makeRaceSectorSplits(checkpointTimes, finishTime) {
+            const marks = checkpointTimes.slice();
+            if (Number.isFinite(finishTime)) marks.push(finishTime);
+            return marks.map((t,i) => `S${i+1}: ${formatRaceTime(Math.max(0,t-(i?marks[i-1]:0)))}`);
+        }
+
         function updateHUD(incomingDanger) {
             document.getElementById('score-text').textContent = state.score.toLocaleString('en-US').padStart(7, '0');
             document.getElementById('obstacle-kills').textContent = state.obstaclesDestroyed;
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * SPEED_DISPLAY_SCALE);
+            const energyText = document.getElementById('energy-text');
+            energyText.textContent = `${Math.round(state.energy)} / 100`;
+            energyText.className = state.energy < 20 ? 'text-amber-300 font-bold' : 'text-white';
+            const leaderGap = document.getElementById('leader-gap-text');
+            const leaderProgress = Math.max(state.routeProgress, ...racers.map(r => r.routeProgress));
+            const gap = Math.max(0, Math.round(leaderProgress-state.routeProgress));
+            leaderGap.textContent = gap < 1 ? 'LİDER: SEN' : `LİDERE MESAFE: ${gap}m`;
+            const activeBonus = document.getElementById('active-bonus-status');
+            const activeEffects = [];
+            if (state.itemTurboTimer > 0) activeEffects.push(`HYPER ${state.itemTurboTimer.toFixed(1)}s`);
+            if (state.powerShieldTimer > 0) activeEffects.push(`KALKAN ${state.powerShieldTimer.toFixed(1)}s`);
+            activeBonus.textContent = activeEffects.length ? activeEffects.join(' · ') : 'BONUS: YOK';
             const border = document.getElementById('boundary-alert');
             if (border) {
                 if (state.boundaryLevel >= 3) {
@@ -4094,10 +4207,12 @@
             if (laserStatus) {
                 if (state.obstacleLaserTimer > 0) {
                     const ready = state.energy >= OBSTACLE_LASER_ENERGY_COST;
-                    laserStatus.textContent=ready ?
-                        `LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · F / SOL TIK · -3 ENERJİ` :
-                        `LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · ENERJİ YETERSİZ (3 GEREKLİ)`;
-                    laserStatus.className=ready ?
+                    const expiring = state.obstacleLaserTimer < 3;
+                    laserStatus.textContent=!ready ?
+                        `LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · ENERJİ YETERSİZ (3 GEREKLİ)` :
+                        expiring ? `LAZER SÜRESİ BİTİYOR · ${state.obstacleLaserTimer.toFixed(1)}s` :
+                        `LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · F / SOL TIK · -3 ENERJİ`;
+                    laserStatus.className=ready && !expiring ?
                         "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold" :
                         "block text-[11px] text-amber-300 font-['Share_Tech_Mono'] font-bold";
                 } else {
@@ -4161,6 +4276,17 @@
             const dangerBanner = document.getElementById('danger-banner');
             if (incomingDanger) dangerBanner.classList.remove('hidden');
             else dangerBanner.classList.add('hidden');
+            const raceWarning = updateRaceHudWarning();
+            const raceWarningElement = document.getElementById('race-warning');
+            raceWarningElement.classList.toggle('hidden', !raceWarning);
+            if (raceWarning) {
+                raceWarningElement.dataset.tone = raceWarning.tone;
+                document.getElementById('race-warning-title').textContent = raceWarning.title;
+                document.getElementById('race-warning-detail').textContent = raceWarning.detail;
+            }
+            window.starbladeHUDTelemetry = { warning: raceWarning ? {...raceWarning} : null,
+                paused: state.paused, energy: state.energy, leaderGap: gap,
+                itemTurbo: state.itemTurboTimer, powerShield: state.powerShieldTimer };
 
             // 360° Radar Noktaları (Düşmanlar Kırmızı/Sarı, Rakip Yarışçılar Mavi)
             const radarContainer = document.getElementById('radar-blips');
@@ -4206,6 +4332,16 @@
 
         function startGame() {
             cancelCenterAnnouncement();
+            state.paused = false;
+            state.hudWarningTick = -1;
+            state.hudWarning = null;
+            document.getElementById('flight-help-screen').classList.add('hidden');
+            document.getElementById('race-warning').classList.add('hidden');
+            document.getElementById('leader-gap-text').textContent = 'LİDER FARKI: —';
+            document.getElementById('active-bonus-status').textContent = 'BONUS: YOK';
+            document.getElementById('energy-text').textContent = '100 / 100';
+            window.starbladeHUDTelemetry = null;
+            Object.keys(keys).forEach(k => { keys[k] = false; });
             sound.init();
 
             enemies.forEach(e => scene.remove(e.mesh));
@@ -4333,6 +4469,10 @@
         function endGame(completedRoute = false) {
             // AI-31: Sonuç ekranını tek sefer oluştur; aynı karede ikinci DNF / bitiş işlenmesin.
             if (!state.running) return;
+            state.paused = false;
+            state.isFiring = false;
+            document.getElementById('flight-help-screen').classList.add('hidden');
+            document.getElementById('race-warning').classList.add('hidden');
             cancelCenterAnnouncement();
             state.running = false;
             sound.updateEngine(0, false);
@@ -4379,10 +4519,16 @@
             }
             summaryBanner.textContent = `YOUR RANK: ${ state.playerDNF ? 'DNF' : `POS ${playerRank} / ${state.totalRacers}` } | ${gapText}`;
             const bonusResult = document.getElementById('race-bonus-summary');
-            if (bonusResult) {
-                const splits = state.checkpointTimes.map((t, idx) => `S${idx + 1} ${formatRaceTime(t - (idx ? state.checkpointTimes[idx - 1] : 0))}`).join(' • ');
-                bonusResult.textContent = `NEAR MISSES ${state.nearMisses}  •  LASER ${state.obstacleLaserShots} ATIŞ / ${Math.round(state.laserEnergySpent)} ENERJİ  •  BOOST ${Math.round(state.boostEnergySpent)} ENERJİ  •  ${splits || 'NO SPLITS'}`;
-            }
+            bonusResult.textContent = `SKOR ${state.score.toLocaleString('tr-TR')} · YAKIN GEÇİŞ ${state.nearMisses} · KUTU ${state.powerUpsCollected}`;
+            const sectorTimes = makeRaceSectorSplits(state.checkpointTimes,
+                state.finished ? state.finishTime : null);
+            document.getElementById('race-sector-splits').textContent = sectorTimes.length ?
+                `SEKTÖR SÜRELERİ · ${sectorTimes.join('  ·  ')}` : 'SEKTÖR SÜRELERİ · KAYIT YOK';
+            document.getElementById('race-telemetry-summary').textContent =
+                `LAZER ${state.obstacleLaserShots} ATIŞ / ${state.laserHits} İSABET / ${state.obstaclesDestroyed} KIRILAN`+
+                ` · ENERJİ: LAZER ${Math.round(state.laserEnergySpent)}, BOOST ${Math.round(state.boostEnergySpent)}`+
+                ` · ÇARPIŞMA: ASTEROİT ${state.asteroidHits}, ENKAZ ${state.barrierHits}, GEMİ ${state.shipContacts}`+
+                ` · SINIR KALKAN KAYBI ${Math.round(state.boundaryDamageTotal)}`;
 
             // 6 Yarışçılı Sonuç Listesini Oluştur
             const listEl = document.getElementById('race-standings-list');
@@ -4402,6 +4548,9 @@
                     let timeColor = 'text-red-400';
                     if (entry.finished && entry.finishTime !== null) {
                         timeLabel = formatRaceTime(entry.finishTime);
+                        if (leader && leader.finished && leader.finishTime !== null && posNum > 1) {
+                            timeLabel += ` (+${Math.max(0,entry.finishTime-leader.finishTime).toFixed(2)}s)`;
+                        }
                         timeColor = posNum === 1 ? 'text-emerald-400' : (isPlayerRow ? 'text-cyan-200' : 'text-cyan-300');
                     }
 
@@ -4436,6 +4585,7 @@
         });
 
         window.addEventListener('mousedown', e => {
+            if (!state.running || state.paused) return;
             if (e.button === 0) state.isFiring = true;
             if (e.button === 2) triggerEMPShield();
         });
@@ -4445,11 +4595,20 @@
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         window.addEventListener('keydown', e => {
-            keys[e.code] = true;
-            if (e.code === 'Space') {
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+            if (['KeyP', 'KeyH'].includes(e.code) && !e.repeat) {
                 e.preventDefault();
-                triggerEMPShield();
+                toggleFlightPaused();
+                return;
             }
+            if (e.code === 'Escape' && state.paused) {
+                setFlightPaused(false);
+                return;
+            }
+            if (!state.running || state.paused) return;
+            keys[e.code] = true;
+            if (e.repeat) return;
+            if (e.code === 'Space') triggerEMPShield();
             if (e.code === 'KeyQ') triggerBarrelRoll(-1);
             if (e.code === 'KeyE') triggerBarrelRoll(1);
             if (e.code === 'KeyC') toggleCameraMode();
@@ -4460,6 +4619,12 @@
 
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
+        document.getElementById('resume-btn').addEventListener('click', () => setFlightPaused(false));
+        window.addEventListener('blur', () => {
+            state.isFiring = false;
+            Object.keys(keys).forEach(k => { keys[k] = false; });
+            if (state.running && !state.finished && !state.paused) setFlightPaused(true);
+        });
 
         window.addEventListener('resize', () => {
             W = window.innerWidth;
@@ -4479,9 +4644,9 @@
             const dt = Math.min(0.05, (now - lastTime) / 1000);
             lastTime = now;
 
-            if (state.running) {
+            if (state.running && !state.paused) {
                 updateGame(dt);
-            } else {
+            } else if (!state.running) {
                 // Başlangıç ekranında arka plandaki Nebula ve yıldızların sinematik dönüşü
                 camera.rotation.y = Math.sin(now * 0.00025) * 0.35;
                 camera.rotation.x = Math.cos(now * 0.0002) * 0.15;
