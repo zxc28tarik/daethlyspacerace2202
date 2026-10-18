@@ -94,3 +94,35 @@ Bu seçenekler fiziksel olarak aynı geniş vadinin farklı x bölümlerindedir,
 - [ ] Görsel kalite için kayalardaki benzeşimli köprü kemerleri ve genişlemiş canyon wall'ların son cilası (W09).
 
 Detaylı W03 teknik uygulama bu bölümde kayıtlıdır. Sıradaki W04 60 saniyelik savaş alanının gerçek çok-cepli dizaynıdır.
+
+## W04 — Tam 60 saniyelik üç cepheli savaş ovası
+
+### Fiziksel konum ve görsel içerik
+Üç cephe **aynı gezegen arenası içinde** bulunur; oyuncu veya rakiplerin farklı haritalara ışınlanması gerekmez. Oyuncu alanın ortasında sabit ileri ilerleme düzleminde manevra yapar; sağ/sol ve irtifa özgürlüğü devam eder.
+
+| Cephe | Yerel X | Hedef havuzu | Görsel/oynanış kimliği |
+|---|---:|---|---|
+| AÇIK MERKEZ | 0 | 3 normal avcı (3×24 HP) | Açık görüş; alçak ikaz direkleri, merkez ışık işaretleri; en erişilebilir savaş |
+| KRUVAZÖR ENKAZI | −1250 | 3 normal avcı (3×24 HP) | Büyük düşmüş gemi gövdesi, kırık kanatlar, motor kalıntıları; farklı yükseklikte devriyeler |
+| ELİT SAVUNMA HATTI | +1250 | 2 elit avcı (2×48 HP) | Zırhlı hatlar, iki savunma kulesi ve kırmızı ikazlar; yüksek HP, yüksek puan |
+
+- Başlangıçtaki **8 gerçek avcı havuzu** korunur; görünmez yeni avcı veya sahte imha yok.
+- Normal düşman +1, elit +3 puan. Ödül ancak gerçek silah isabeti ile ölümcül darbeyi veren pilota gider.
+- Avcıların cepheye bağlanmış ayrı **ileri/geri devriye bantları** ve x/y süzülme menzilleri vardır. İmha edilen hedef, 1,6sn sonra aynı cephede tekrar doğar (farklı konuma sıçrama yerine yerel devriye).
+- Alan başında mevcut avcı havuzu yeni sahaya taşınır. Maç içinde yeni düşman mesh'leri oluşturulmaz; tekrar başlatma hâli temizlenir.
+- **Oyun süresi:** aşama 2 tam 60 saniye; ileri ilerleme kilidi korunur. Yan ve dikey manevra engellenmez.
+- AI profilleri kendi cephe stratejileriyle savaşır: Elite yüksek değerli sağ hattan, Hunter sol enkazdan; Sprinter/Cautious açık merkezden, Balanced enkaz tarafından hedef arar.
+- Oyuncuya açık/enkaz/savunma ayrımı HUD'da, her cephedeki **gerçek imha sayıları** ile sunulur. Oyun durumu telemetrisi her cephe için canlı hedef ve pilot imhalarını taşır.
+- Yeni dekorlar ilk W04'te **görsel kompozisyondur**: yeni oluşturulmuş 3D batarya/yıkıntı yüzeyleri için görünmez hasar kutusu iddia edilmez. Bu arena etkileşiminin ana fiziksel unsuru **vuruş alanı ve hareketli uçak hedefleri**dir.
+
+### Kabul ve regresyon
+- [x] Üç ayrı adlandırılmış, statik kompozisyon ve mesafe yönetimli tek sahne.
+- [x] Gerçek 3+3+2 havuz dağılımı, iki elit yalnız savunma kanadında.
+- [x] Her cephe için kendi hız/yükseklik/genişlik karakterinde avcı devriyeleri.
+- [x] Oyuncu ve AI için aynı vuruş/hasar/puan koşulları; cepheye özel imha sayaçları.
+- [x] Tam 60sn ilerleme kilidi, ardından endüstriye devam.
+- [x] Yeniden başlatmada cephe/mesh ve sayaç birikmemesi, Harita 1 izolasyonu.
+- [ ] Oyuncu hedef erişilebilirliği / savaş temposu / hedef yoğunluğu son onayı.
+- [ ] Görsel kaplama, çevresel hasar etkileri, ek ses ve devriye dalgalarının final dengesi (W09).
+
+**Sıradaki W05:** sanayi binalarını üç boyutlu gerçek alternatif geçitlere bağlayacak boru, köprü ve fabrika çatışma sistemi.
