@@ -1834,6 +1834,8 @@
             if (escaped) hunterCounters.escaped++;
             if (state.lockedTarget &&
                 (state.lockedTarget.source || state.lockedTarget) === target) state.lockedTarget = null;
+            if (state.lastLockedTarget &&
+                (state.lastLockedTarget.source || state.lastLockedTarget) === target) state.lastLockedTarget = null;
         }
         function initializeHunterTargets() {
             clearHunterTargets();
@@ -1863,17 +1865,17 @@
                     continue;
                 }
                 target.routeProgress += target.moveSpeed * dt;
+                if (target.routeProgress < state.routeProgress - 120 ||
+                        target.routeProgress >= RACE_ROUTE_NOMINAL_DISTANCE - 30) {
+                    beginHunterRespawn(target, true); // Escaping isn't a player kill.
+                    continue;
+                }
                 target.weavePhase += target.weaveSpeed * dt;
                 const availableWidth = getCorridorRadiusAt(target.routeProgress) * 0.78;
                 target.laneX = THREE.MathUtils.clamp(target.baseLaneX +
                     Math.cos(target.weavePhase) * 25, -availableWidth, availableWidth);
                 target.laneY = THREE.MathUtils.clamp(target.baseLaneY +
                     Math.sin(target.weavePhase * 1.21) * 23, -availableWidth, availableWidth);
-                if (target.routeProgress < state.routeProgress - 120 ||
-                        target.routeProgress >= RACE_ROUTE_NOMINAL_DISTANCE - 30) {
-                    beginHunterRespawn(target, true); // Escaping isn't a player kill.
-                    continue;
-                }
                 setHunterWorldPosition(target);
             }
         }
@@ -2216,7 +2218,7 @@
             if (!state.running || state.finished || state.playerDNF || state.fireCooldown > 0) return false;
             // Gelecekteki savaş modu etkilenmez; mevcut yarışta silah ancak kutudan açılır.
             if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4 && state.obstacleLaserTimer <= 0) return false;
-            if (!state.combatEnabled && state.lockedTarget &&
+            if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4 && state.lockedTarget &&
                 !isLaserDestructible(state.lockedTarget.source || state.lockedTarget)) {
                 state.lockedTarget = null; // Gone targets must never attract new shots.
             }
@@ -2234,7 +2236,7 @@
                 state.laserEnergySpent += energyCost;
             }
             firePlayerLasers();
-            if (!state.combatEnabled) state.obstacleLaserShots++;
+            if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4) state.obstacleLaserShots++;
             state.fireCooldown = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 0.15 : 0.19;
             return true;
         }
@@ -4080,7 +4082,7 @@
             if (bestTarget && (!state.lastLockedTarget ||
                     (state.lastLockedTarget.source || state.lastLockedTarget) !== bestTarget.source)) {
                 sound.playLock();
-                if (!state.combatEnabled) state.obstacleLaserLockCount++;
+                if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4) state.obstacleLaserLockCount++;
             }
             state.lastLockedTarget = bestTarget;
         }
