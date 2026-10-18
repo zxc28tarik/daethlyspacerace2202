@@ -12,7 +12,7 @@
 | Harita | Mod | Kazanma koşulu | Durum |
 |---|---|---|---|
 | 1 | Saf hız yarışı | Aynı temel motor hızına sahip 6 yarışçı ile virajlı/engelli pistte ilk bitiren olma; rakiplere saldırma yok | **TAMAMLANDI — kullanıcı onaylı** |
-| 4 | Avcı imha yarışı | Gerçek bitirme süresi en fazla 120 saniye. Düşman avcı öldürmelerinin süre indirimi sıralamayı belirler. 120 saniyeyi aşan oyuncu indirimle sonradan kazanamaz. | **OYNANABİLİR — Chromium smoke PASS; oyuncu denge onayı bekliyor** |
+| 4 | Gezegen geçişi / avcı puanı | Tek gezegende 4 bağlı bölge; gerçek bitiş ≤120s zorunlu. Varanlar arasında avcı puanı yüksek olan kazanır (normal 1, elit 3); eşitse daha hızlı varış. | **GEZEGEN SÜRÜMÜ P01–P06 KODLANDI / fiziki kestirme, çarpışma, devriye ve oyuncu onayı bekliyor** |
 | 3 | Ana üs imhası | Ana çekirdeğe son ölümcül darbeyi indiren kazanır; yarışçılar birbirlerini vuramaz veya engelleyemez | Sırada |
 | 2 | Tehlikeli yarış | Alternatif rota/kestirme, hareketli engel ve sınırlı yavaşlatmayla yarışı kazanma | Sırada |
 | 5 | Ağır hedef avı | Süre içinde küçük avcılar ve ağır/dev hedefleri imha ederek en yüksek puanı toplama | Sırada |
@@ -38,3 +38,6 @@
 - Görsel/denge konusunda otomatik duman testi nihai kalite veya oyuncu onayı değildir. Oyuncu geri bildirimiyle H4 denge ve içerik cilası ayrıca yapılabilir.
 - Otomatik test: `tests/map4-browser-smoke.cjs`; sonraki haritalar için `main` dalında da GitHub Actions regresyon kontrolü çalışır.
 - Sonraki geliştirilecek harita: **Harita 3 — Ana üs imhası**. Harita 4 sistemlerini geri bozmadan ayrı geliştirme dalında ilerlet.
+
+## Map4 yeni gezegen tasarımı
+Bu turdaki fiziksel alan/saha çalışma notları ve sonraki görevlerin doğrusu `MAP4_PLANETARY_DESIGN.md` dosyasındadır. Önceki −2 saniye/avcı kuralı yeni tasarımda geçersizdir; artık puan önceliklidir. Dört low-poly bölgenin bulunması tam serbest dünya / üretim-kalitesi harita sanatı tamamlandı anlamına gelmez.
