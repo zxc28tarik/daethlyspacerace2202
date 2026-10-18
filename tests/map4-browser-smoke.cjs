@@ -326,6 +326,83 @@ const assert = require('node:assert/strict');
     });
     assert(building.colliders>0,'industrial buildings have collision volumes');
     assert(building.shield<100,'industrial collision damages player shield');
+    // W05: six industrial complexes, explicit visible colliders and three
+    // practical route choices. Test a 500m/frame pipe impact and two ways past.
+    const industrial=await page.evaluate(()=>{
+      const all=h4IndustrialColliders;
+      const beam=all.find(c=>c.kind==='OVERHEAD_PIPE');
+      const bridge=all.find(c=>c.kind==='TRANSFER_BRIDGE');
+      const front={routeProgress:beam.progress-350,laneX:beam.side,laneY:beam.altitude};
+      const back={routeProgress:beam.progress+350,laneX:beam.side,laneY:beam.altitude};
+      const low={...front,laneY:H4_INDUSTRY.lowY};
+      const lowAfter={...back,laneY:H4_INDUSTRY.lowY};
+      const high={...front,laneY:H4_INDUSTRY.upperY};
+      const highAfter={...back,laneY:H4_INDUSTRY.upperY};
+      const speed=1800,dt=0.1,position=21000;
+      const fast={laneX:H4_INDUSTRY.fastCenter,laneY:H4_INDUSTRY.lowY};
+      const safe={laneX:0,laneY:H4_INDUSTRY.upperY};
+      const hunt={laneX:H4_INDUSTRY.huntCenter,laneY:310};
+      const preferred=['SPRINTER','HUNTER','BALANCED','ELITE','CAUTIOUS']
+        .map(style=>({style,...h4IndustrialPreferredRoute(style)}));
+      const avoidance=h4IndustrialAvoidance({
+        routeProgress:bridge.progress-240},0,bridge.altitude);
+      // Verify new solid bridges hurt actual ships and carry no invisible shell.
+      state.routeProgress=beam.progress+40;
+      state.laneX=beam.side;state.laneY=beam.altitude;
+      state.shield=100;state.powerShieldTimer=0;state.barrelRollTimer=0;
+      state.map4ImpactCooldown=0;state.map4Phase=3;
+      updatePlanetaryBuildingContacts(front,racers.map(r=>({
+        routeProgress:r.routeProgress,laneX:r.laneX,laneY:r.laneY
+      })));
+      const shieldAfterBeam=state.shield;
+      return {
+        stations:h4IndustrialStats.stations,
+        meshes:h4IndustrialStats.meshes,
+        colliders:h4IndustrialStats.physical,
+        zones:h4IndustrialGroups.length,
+        kinds:[...new Set(all.map(c=>c.kind))],
+        link:beam.mesh.userData.h4Collider===beam,
+        swept:h4SegmentBoxHit(front,back,beam,12),
+        underClear:!h4SegmentBoxHit(low,lowAfter,beam,12),
+        aboveClear:!h4SegmentBoxHit(high,highAfter,beam,12),
+        speedFast:map4Advance(position,speed,dt,fast)-position,
+        speedSafe:map4Advance(position,speed,dt,safe)-position,
+        speedHunt:map4Advance(position,speed,dt,hunt)-position,
+        routeLabels:[h4IndustrialRoute(position,fast.laneX,fast.laneY),
+          h4IndustrialRoute(position,safe.laneX,safe.laneY),
+          h4IndustrialRoute(position,hunt.laneX,hunt.laneY)],
+        preferred,avoidance,shieldAfterBeam,
+        room:H4_INDUSTRY.to-H4_INDUSTRY.from
+      };
+    });
+    assert.equal(industrial.stations,6,'six complete industrial compounds');
+    assert.equal(industrial.zones,6,'six persistent industrial groups');
+    assert(industrial.meshes>=90&&industrial.meshes<150,'bounded industry mesh allocation');
+    assert.equal(industrial.colliders,36,'physical solids authored with real geometry');
+    assert(industrial.kinds.includes('OVERHEAD_PIPE')&&
+      industrial.kinds.includes('TRANSFER_BRIDGE')&&
+      industrial.kinds.includes('HUNTER_SIDE_TOWER'),
+      'pipes, bridges and east towers genuinely collide');
+    assert.equal(industrial.link,true,'collision registered on visible pipe mesh');
+    assert.equal(industrial.swept,true,'high-speed swept collision cannot tunnel');
+    assert.equal(industrial.underClear,true,'low fast route passes under overhead pipe');
+    assert.equal(industrial.aboveClear,true,'high route passes above pipe');
+    assert.deepEqual(industrial.routeLabels,['FAST_LOW','SAFE_UPPER','HUNTER_FLANK']);
+    assert(industrial.speedFast>industrial.speedSafe*1.11 &&
+      industrial.speedFast<industrial.speedSafe*1.13,
+      'low route earns 12% actual progress, not cosmetic speed');
+    assert.equal(industrial.speedSafe,industrial.speedHunt,
+      'safe and combat flank both have normal base speed');
+    assert.equal(industrial.preferred.length,5);
+    assert(industrial.preferred[0].x<0,'sprinter chooses low pipeline');
+    assert(industrial.preferred[1].x>0,'hunter chooses eastern factories');
+    assert(industrial.preferred[4].y>800,'cautious pilot flies high');
+    assert.equal(industrial.avoidance.avoiding,true,
+      'AI proactively diverts around a visible transfer bridge');
+    assert.notEqual(industrial.avoidance.y,290,
+      'AI never plans directly through a bridge');
+    assert(industrial.shieldAfterBeam<100,
+      'visible pipe hurts player on real high-speed contact');
     // Phase four: crossing the finish plane low is not enough; must rise into orbit.
     await page.evaluate(()=>{
       state.shield=100;
@@ -387,6 +464,8 @@ const assert = require('node:assert/strict');
       'restart reuses the same real canyon rock volumes');
     assert.equal(await page.evaluate(()=>h4ArenaWarfrontGroups.length),3,
       'restart never duplicates warfront scenery');
+    assert.equal(await page.evaluate(()=>h4IndustrialGroups.length),6,
+      'restart never duplicates industrial buildings');
     assert.deepEqual(await page.evaluate(()=>state.hunterPocketKills),
       {CENTER:0,WRECK:0,DEFENSE:0},'restart clears arena pocket kill counters');
     assert(restart.gameTime<4,'timer reset');
@@ -430,7 +509,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Map4 W04 center/wreck/elite 3-pocket battle, real scoring, AI parity, 60s, restart & Map1');
+    console.log('PASS: Map4 W05 six industrial complexes, 3 routes, +12% low passage, swept pipes, AI avoidance, W04 & Map1');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();

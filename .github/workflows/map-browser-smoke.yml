@@ -1,7 +1,7 @@
 name: Map 1 / Map 4 Browser Smoke
 on:
   push:
-    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, main]
+    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, main]
   workflow_dispatch:
 jobs:
   browser-smoke:

@@ -317,7 +317,7 @@
             <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
                     <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
-                    <p class="text-slate-300">1. Kayalık vadide üç rotadan birini seç. 2. <strong>60 saniyelik avcı arenası:</strong> açık merkezde 3 normal avcı, sol enkaz alanında 3 normal avcı, sağ savunma hattında 2 elit avcı. İleri hareket kilitli ama yanal/dikey manevra serbest. 3. Endüstriyel binalardan kaç. 4. Savaşarak uzaya yüksel.</p>
+                    <p class="text-slate-300">1. Vadide <strong>güvenli orta / hızlı batı / avcı doğu</strong> rotasını seç. 2. 60 saniye üç savaş cephesinde avcı vur. 3. <strong>Sanayi:</strong> alçak batı boru hattı +%12 hız fakat dar, yukarıdaki hat güvenli, doğu tesisleri avcı dolu; köprü ve borulara gerçekten çarpabilirsin. 4. Savaşarak uzaya yüksel.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
@@ -1245,11 +1245,12 @@
                     progress+speed*MAP4_PHASES.introSpeed*routeBonus*dt);
             }
             const factor=map4SpeedFactor(progress);
-            let next=progress+speed*factor*dt;
+            const industrialBonus=h4IndustrialAdvanceMultiplier(progress,ship);
+            let next=progress+speed*factor*industrialBonus*dt;
             // Keep accurate speed after crossing an actual sector transition.
             const boundary=MAP4_PHASES.industryEnd;
             if(progress<boundary && next>boundary){
-                const spent=(boundary-progress)/(Math.max(0.0001,speed*factor));
+                const spent=(boundary-progress)/(Math.max(0.0001,speed*factor*industrialBonus));
                 next=boundary+speed*MAP4_PHASES.ascentSpeed*Math.max(0,dt-spent);
             }
             return next;
@@ -1559,18 +1560,144 @@
             const plans=H4_LANDMARK_PLANS[regionIndex];
             for(const plan of plans) h4CreateLandmark(zone,regionIndex,plan);
         }
+
+        // W05 Industrial gauntlet: three meaningful altitude/lane options.
+        // Physics volumes are generated ONLY for visible collidable structures.
+        const H4_INDUSTRY=Object.freeze({
+            from:MAP4_PHASES.arenaEnd,to:MAP4_PHASES.industryEnd,
+            fastCenter:-800,huntCenter:900,fastBonus:1.12,
+            upperY:760,lowY:-100
+        });
+        const h4IndustrialGroups=[];
+        const h4IndustrialColliders=[];
+        const h4IndustrialStats={stations:0,meshes:0,physical:0};
+        function h4IndustrialRoute(progress,x,y){
+            if(state.activeMap!==MAP_MODES.MAP4||
+                progress<H4_INDUSTRY.from||progress>=H4_INDUSTRY.to)return 'NONE';
+            if(x<0 && Math.abs(x-H4_INDUSTRY.fastCenter)<310 && y<140)return 'FAST_LOW';
+            if(x>420 && Math.abs(x-H4_INDUSTRY.huntCenter)<480)return 'HUNTER_FLANK';
+            if(y>=470)return 'SAFE_UPPER';
+            return 'CENTRAL';
+        }
+        function h4IndustrialAdvanceMultiplier(progress,ship){
+            return ship && h4IndustrialRoute(progress,ship.laneX,ship.laneY)==='FAST_LOW'?
+                H4_INDUSTRY.fastBonus:1;
+        }
+        function h4IndustrialPreferredRoute(style){
+            if(style==='SPRINTER')return {x:H4_INDUSTRY.fastCenter,y:H4_INDUSTRY.lowY};
+            if(style==='HUNTER'||style==='ELITE')
+                return {x:H4_INDUSTRY.huntCenter,y:310};
+            if(style==='CAUTIOUS')return {x:0,y:970};
+            return {x:0,y:H4_INDUSTRY.upperY};
+        }
+        function h4IndustrialAvoidance(r,targetX,targetY){
+            if(state.activeMap!==MAP_MODES.MAP4||
+                r.routeProgress<H4_INDUSTRY.from || r.routeProgress>=H4_INDUSTRY.to)
+                return {x:targetX,y:targetY,avoiding:false};
+            // Look ahead to a visible structure spanning our intended lane.
+            // Pick a real open side, never an imaginary passage through a pipe.
+            const threat=h4IndustrialColliders.find(c=>
+                c.progress>=r.routeProgress+65 && c.progress<=r.routeProgress+850 &&
+                Math.abs(targetX-c.side)<c.halfSide+85 &&
+                Math.abs(targetY-c.altitude)<c.halfUp+75);
+            if(!threat)return {x:targetX,y:targetY,avoiding:false};
+            const upper=threat.altitude+threat.halfUp+165;
+            const lower=threat.altitude-threat.halfUp-155;
+            if(upper<=map4BoundaryProfile(r.routeProgress).safeRadius*0.65 &&
+                Math.abs(upper-targetY)<Math.abs(lower-targetY))
+                return {x:targetX,y:upper,avoiding:true};
+            if(lower>=-320)return {x:targetX,y:lower,avoiding:true};
+            const left=threat.side-threat.halfSide-190;
+            const right=threat.side+threat.halfSide+190;
+            return {x:Math.abs(left-targetX)<Math.abs(right-targetX)?left:right,
+                y:targetY,avoiding:true};
+        }
+        function h4BuildIndustrialGauntlet(zone) {
+            if(h4IndustrialGroups.length)return;
+            const stations=[15750,18750,21850,24950,28150,31500];
+            for(let i=0;i<stations.length;i++){
+                const at=stations[i],group=new THREE.Group();
+                group.name='W05_INDUSTRY_STATION_'+(i+1);
+                group.userData.progress=at;
+                const add=(dp,x,y,geo,mat,scale,solid=false,kind='DECOR')=>{
+                    const progress=at+dp;
+                    const mesh=new THREE.Mesh(geo,mat);
+                    mesh.position.copy(h4WorldPosition(progress,x,y));
+                    mesh.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
+                    mesh.scale.set(scale[0],scale[1],scale[2]);
+                    group.add(mesh);
+                    mesh.userData.w05Kind=kind;
+                    h4IndustrialStats.meshes++;
+                    if(solid){
+                        const c={progress,side:x,altitude:y,
+                            halfSide:scale[0]*0.5,halfUp:scale[1]*0.5,
+                            halfDepth:scale[2]*0.5,kind,mesh};
+                        mesh.userData.h4Collider=c;
+                        h4IndustrialColliders.push(c);
+                        h4IndustrialStats.physical++;
+                    }else mesh.userData.h4VisualOnly=true;
+                    return mesh;
+                };
+                // A tall refinery complex on the far western skyline.
+                for(const side of [-1,1]){
+                    const x=-2350+side*240;
+                    add(-170,x,-110,H4_MESHES.tower,H4_MATERIALS.steel,
+                        [110,630+(i%3)*95,130],false,'SILO');
+                    add(-170,x,270,H4_DETAIL_GEO.ring,H4_DETAIL_MAT.warning,
+                        [85,85,85],false,'BEACON');
+                }
+                add(100,-2160,-320,H4_MESHES.structure,H4_DETAIL_MAT.armor,
+                    [470,200,370],false,'REFINERY');
+                // Low gorge: two visible pylon supports with an overhead pipe.
+                // Pilots can pass UNDER the bridge at -100 or OVER around +700.
+                for(const x of [-1160,-440]){
+                    add(0,x,-130,H4_MESHES.structure,H4_MATERIALS.steel,
+                        [120,560,195],true,'SUPPORT');
+                    add(0,x,175,H4_DETAIL_GEO.hull,H4_DETAIL_MAT.cyan,
+                        [40,35,40],false,'SIGNAL');
+                }
+                add(0,H4_INDUSTRY.fastCenter,345,H4_MESHES.structure,
+                    H4_DETAIL_MAT.oxidized,[850,105,200],true,'OVERHEAD_PIPE');
+                // Midlevel cross-bridge forces meaningful altitude choices.
+                const gateX=i%2?40:-40;
+                add(390,gateX,290,H4_MESHES.structure,H4_MATERIALS.steel,
+                    [430,85,170],true,'TRANSFER_BRIDGE');
+                // East flank: tall plant pieces form dangerous but score-rich alleys.
+                for(const side of [-1,1]){
+                    add(250,H4_INDUSTRY.huntCenter+side*440,-60,
+                        H4_MESHES.tower,H4_MATERIALS.wall,
+                        [150,745,155],true,'HUNTER_SIDE_TOWER');
+                    add(250,H4_INDUSTRY.huntCenter+side*440,370,
+                        H4_DETAIL_GEO.sphere,H4_DETAIL_MAT.hazard,
+                        [53,53,53],false,'ALARM');
+                }
+                // High safe flight line is conspicuous and physically open.
+                for(const x of [-300,300]){
+                    add(-300,x,780,H4_DETAIL_GEO.ring,H4_DETAIL_MAT.cyan,
+                        [75,75,75],false,'HIGH_MARKER');
+                }
+                // A recognizable transit deck and energy conduits below the lanes.
+                add(730,0,-360,H4_MESHES.structure,H4_DETAIL_MAT.armor,
+                    [470,95,255],false,'SERVICE_DECK');
+                add(780,H4_INDUSTRY.huntCenter,-210,H4_MESHES.structure,
+                    H4_DETAIL_MAT.oxidized,[290,110,140],false,'CARGO_PLATFORM');
+                zone.add(group);
+                h4IndustrialGroups.push(group);
+                h4IndustrialStats.stations++;
+            }
+        }
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
                 if(!previous || ship.finished || ship.dnf ||
                     (isPlayer && state.playerDNF))return;
                 if((ship.map4ImpactCooldown||0)>state.raceTime)return;
-                const lower=Math.min(previous.routeProgress,ship.routeProgress)-32;
-                const upper=Math.max(previous.routeProgress,ship.routeProgress)+32;
-                for(const c of planetaryBuildingColliders){
+                const current={routeProgress:ship.routeProgress,laneX:ship.laneX,laneY:ship.laneY};
+                const lower=Math.min(previous.routeProgress,ship.routeProgress)-25;
+                const upper=Math.max(previous.routeProgress,ship.routeProgress)+25;
+                for(const c of planetaryBuildingColliders.concat(h4IndustrialColliders)){
                     if(c.progress+c.halfDepth<lower || c.progress-c.halfDepth>upper)continue;
-                    if(Math.abs(ship.laneX-c.side)>c.halfSide+(ship.radius||10))continue;
-                    if(Math.abs(ship.laneY-c.altitude)>c.halfUp+(ship.radius||10))continue;
+                    if(!h4SegmentBoxHit(previous,current,c,isPlayer?12:(ship.radius||13)))continue;
                     ship.map4ImpactCooldown=state.raceTime+0.9;
                     if(isPlayer) {
                         applyPlayerDamage(12);
@@ -1823,6 +1950,7 @@
                 h4PopulateWideScenery(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 if(zoneIndex===1)h4BuildArenaWarfront(zone);
+                if(zoneIndex===2)h4BuildIndustrialGauntlet(zone);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
             }
@@ -1890,7 +2018,16 @@
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
                 const route=h4CanyonRoute(state.routeProgress,state.laneX);
-                routeName.textContent=state.map4Phase===2?
+                routeName.textContent=state.map4Phase===3?
+                    'SANAYİ: '+(
+                        h4IndustrialRoute(state.routeProgress,state.laneX,state.laneY)==='FAST_LOW'?
+                            'ALT BORU GEÇİDİ · +%12 HIZ':
+                        h4IndustrialRoute(state.routeProgress,state.laneX,state.laneY)==='HUNTER_FLANK'?
+                            'DOĞU · AVCI TESİSLERİ':
+                        h4IndustrialRoute(state.routeProgress,state.laneX,state.laneY)==='SAFE_UPPER'?
+                            'ÜST UÇUŞ HATTI · GÜVENLİ':
+                            'MERKEZ TESİS KORİDORU'):
+                    state.map4Phase===2?
                     'SAVAŞ CEPHESİ: '+h4ArenaPocketForLane(state.laneX).name+
                         ' · İMHA M'+state.hunterPocketKills.CENTER+
                         ' / E'+state.hunterPocketKills.WRECK+
@@ -2941,12 +3078,18 @@
             const canyonHunt=state.activeMap===MAP_MODES.MAP4 &&
                 !state.map4ArenaStarted &&
                 anchorProgress<H4_CANYON.end && slot%4!==3;
+            const industryHunt=state.activeMap===MAP_MODES.MAP4 &&
+                state.map4ArenaStarted && !arenaActive &&
+                anchorProgress>=MAP4_PHASES.introEnd &&
+                anchorProgress<MAP4_PHASES.industryEnd && slot%4!==3;
             target.baseLaneX=arenaPocket ?
                 arenaPocket.side+(slot%3-1)*115 :
+                industryHunt?H4_INDUSTRY.huntCenter+(slot%3-1)*190:
                 canyonHunt?H4_CANYON.huntCenter+(slot%3-1)*210:
                     Math.cos(angle)*radius;
             target.baseLaneY=arenaPocket ?
                 arenaPocket.altitude+(slot%2?-60:95):
+                industryHunt?(slot%2?350:250):
                 canyonHunt?(slot%2===0?120:-90):
                     Math.sin(angle)*radius;
             target.laneX = target.baseLaneX;
@@ -5017,6 +5160,18 @@
                         activeTargetX += (selected.laneX-activeTargetX)*weight;
                         activeTargetY += (selected.laneY-activeTargetY)*weight;
                     }
+                    if(state.map4Phase===3 && r.routeProgress>=H4_INDUSTRY.from &&
+                            r.routeProgress<H4_INDUSTRY.to){
+                        const preferred=h4IndustrialPreferredRoute(strategy);
+                        const huntFactor=(strategy==='ELITE'||strategy==='HUNTER')&&selected?0.18:0;
+                        const x=preferred.x+(selected?selected.laneX-preferred.x:0)*huntFactor;
+                        const y=preferred.y+(selected?selected.laneY-preferred.y:0)*huntFactor;
+                        const avoidance=h4IndustrialAvoidance(r,x,y);
+                        activeTargetX=avoidance.x;
+                        activeTargetY=avoidance.y;
+                        r.w05Avoiding=avoidance.avoiding;
+                        r.w05PreferredRoute=h4IndustrialRoute(r.routeProgress,activeTargetX,activeTargetY);
+                    }
                 }
                 // Climb toward the orbital corridor while still engaging aircraft.
                 if(state.activeMap===MAP_MODES.MAP4 &&
@@ -5795,7 +5950,8 @@
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(
-                state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress));
+                state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress)*
+                h4IndustrialAdvanceMultiplier(state.routeProgress,state));
             const energyText = document.getElementById('energy-text');
             energyText.textContent = `${Math.round(state.energy)} / 100`;
             energyText.className = state.energy < 20 ? 'text-amber-300 font-bold' : 'text-white';
