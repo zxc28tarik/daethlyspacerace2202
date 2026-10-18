@@ -88,6 +88,15 @@
         #race-hud-details { max-width: 650px; }
         @media (max-width:640px) { #race-hud-details { max-width: 98vw; } }
 
+        /* H4-01: map-selection UI; flight/physics styles remain untouched. */
+        #start-screen { overflow-y: auto; }
+        #start-screen > .hud-box { margin-top: auto; margin-bottom: auto; }
+        .map-choice-btn { border: 1px solid rgba(0,243,255,.35); background: rgba(6,20,39,.83); color: #bceaf4; padding: 12px; border-radius: 6px; text-align: left; cursor: pointer; transition: border-color .18s, background .18s; }
+        .map-choice-btn[aria-pressed="true"] { border-color: #00f3ff; background: rgba(0,243,255,.15); box-shadow: inset 0 0 12px rgba(0,243,255,.10); }
+        .map-choice-btn:focus-visible { outline: 2px solid #00ff88; outline-offset: 3px; }
+        #start-btn:disabled { opacity: .48; cursor: not-allowed; filter: saturate(.35); }
+        #start-btn:disabled:hover { transform: none; box-shadow: none; }
+
         .cyber-btn {
             background: linear-gradient(90deg, rgba(0, 243, 255, 0.18), rgba(0, 255, 136, 0.18));
             border: 2px solid #00f3ff;
@@ -246,6 +255,22 @@
             </h1>
             <div class="text-sm sm:text-base font-bold text-emerald-400 tracking-[0.35em] uppercase mb-6 pb-4 border-b border-cyan-500/30">
                 OVERDRIVE: CORRIDOR COMBAT RACING
+            </div>
+
+            <!-- H4-01: select a map without allowing an unfinished mode to start Map 1. -->
+            <div id="map-selection" class="mb-5 font-['Share_Tech_Mono'] text-left">
+                <div class="text-xs text-cyan-300 font-bold tracking-widest mb-2">HARİTA SEÇİMİ</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-label="Oyun haritası seçimi">
+                    <button type="button" id="map-choice-1" class="map-choice-btn" aria-pressed="true">
+                        <strong class="block text-sm text-white">HARİTA 1 · SAF HIZ YARIŞI</strong>
+                        <span class="block text-xs text-emerald-300 mt-1">OYNANABİLİR · TAMAMLANDI</span>
+                    </button>
+                    <button type="button" id="map-choice-4" class="map-choice-btn" aria-pressed="false">
+                        <strong class="block text-sm text-white">HARİTA 4 · AVCI İMHA YARIŞI</strong>
+                        <span class="block text-xs text-amber-300 mt-1">GELİŞTİRİLİYOR · HENÜZ KAPALI</span>
+                    </button>
+                </div>
+                <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
@@ -507,7 +532,11 @@
         const ASTEROID_SIZE_SCALE = 1.23;
 
 
+        const MAP_MODES = Object.freeze({ MAP1: 'map1', MAP4: 'map4' });
+        const MAP_AVAILABLE = Object.freeze({ map1: true, map4: false });
+
         const state = {
+            activeMap: MAP_MODES.MAP1,
             running: false,
             paused: false,
             hudWarningTick: -1,
@@ -4331,6 +4360,8 @@
         }
 
         function startGame() {
+            // H4-01: never launch Map 1 under the name of an unfinished map.
+            if (state.activeMap !== MAP_MODES.MAP1) return;
             cancelCenterAnnouncement();
             state.paused = false;
             state.hudWarningTick = -1;
@@ -4617,6 +4648,26 @@
             keys[e.code] = false;
         });
 
+        // H4-01: mode selection is intentionally separate from the racing runtime.
+        function selectMap(mapId) {
+            if (mapId !== MAP_MODES.MAP1 && mapId !== MAP_MODES.MAP4) return;
+            if (state.running) return; // A running race can never switch maps.
+            state.activeMap = mapId;
+            const ready = MAP_AVAILABLE[mapId] === true;
+            document.getElementById('map-choice-1').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP1));
+            document.getElementById('map-choice-4').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP4));
+            const launch = document.getElementById('start-btn');
+            launch.disabled = !ready;
+            launch.textContent = ready ? 'LAUNCH GEOSWORD' : 'HARİTA 4 · GELİŞTİRİLİYOR';
+            const status = document.getElementById('map-selection-status');
+            status.textContent = ready
+                ? 'Harita 1 hazır: saf hız yarışını başlatabilirsiniz.'
+                : 'Harita 4 henüz oynanabilir değil. Başlamak için Harita 1’i seçin.';
+            status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
+        }
+        document.getElementById('map-choice-1').addEventListener('click', () => selectMap(MAP_MODES.MAP1));
+        document.getElementById('map-choice-4').addEventListener('click', () => selectMap(MAP_MODES.MAP4));
+        selectMap(MAP_MODES.MAP1);
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
         document.getElementById('resume-btn').addEventListener('click', () => setFlightPaused(false));
