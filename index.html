@@ -1183,23 +1183,54 @@
                 .addScaledVector(frame.up,altitude);
         }
         function h4GroundStrip(def) {
-            const verts=[],steps=70;
-            // Ground extends beyond the farthest flight boundary, not just ±1,800.
-            const halfWidth=5850;
+            // W02 layered terrain: broad, shared-color low-poly topography.
+            // Core route remains visibly open; hills rise only toward the sides.
+            // This is scenery, not a collision promise (W03/W05 own terrain hits).
+            const verts=[],colors=[],steps=80,across=16,halfWidth=5850;
+            const baseColor=new THREE.Color(def.ground);
+            const pos=(progress,side)=>{
+                const normalized=Math.abs(side)/halfWidth;
+                const ridge=Math.max(0,(normalized-0.18)/0.82);
+                const noise=Math.sin(progress*0.0016+side*0.0021)*
+                    Math.cos(progress*0.00095-side*0.0014);
+                const terrace=Math.sin(progress*0.00042+side*0.0013);
+                const type=def.type;
+                const rise=type==='canyon'?300:
+                    type==='battlefield'?115:type==='industrial'?70:160;
+                const elevation=ridge*ridge*rise+
+                    Math.max(0,noise)*ridge*(type==='canyon'?135:65)+
+                    Math.max(0,terrace)*ridge*45;
+                return h4WorldPosition(progress,side,-440+elevation);
+            };
+            const face=(points,shade)=>{
+                for(const v of points) {
+                    verts.push(v.x,v.y,v.z);
+                    const color=baseColor.clone().multiplyScalar(shade);
+                    colors.push(color.r,color.g,color.b);
+                }
+            };
             for(let i=0;i<steps;i++){
                 const a=def.from+(def.to-def.from)*i/steps;
                 const b=def.from+(def.to-def.from)*(i+1)/steps;
-                const p1=h4WorldPosition(a,-halfWidth,-440),p2=h4WorldPosition(a,halfWidth,-440);
-                const p3=h4WorldPosition(b,-halfWidth,-440),p4=h4WorldPosition(b,halfWidth,-440);
-                verts.push(...p1.toArray(),...p2.toArray(),...p4.toArray(),
-                    ...p1.toArray(),...p4.toArray(),...p3.toArray());
+                for(let x=0;x<across;x++){
+                    const left=-halfWidth+2*halfWidth*x/across;
+                    const right=-halfWidth+2*halfWidth*(x+1)/across;
+                    const p1=pos(a,left),p2=pos(a,right),p3=pos(b,left),p4=pos(b,right);
+                    const band=(x%4)*0.035;
+                    const contour=0.90+0.07*Math.sin(i*0.53+x*1.6);
+                    face([p1,p2,p4],contour-band);
+                    face([p1,p4,p3],contour-band+0.024);
+                }
             }
             const geo=new THREE.BufferGeometry();
             geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+            geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
             geo.computeVertexNormals();
-            return new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
-                color:def.ground,side:THREE.DoubleSide,flatShading:true
+            const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
+                vertexColors:true,side:THREE.DoubleSide,flatShading:true
             }));
+            mesh.userData.h4TerrainSceneryOnly=true;
+            return mesh;
         }
         function h4PlaceStructure(group,progress,side,altitude,geometry,material,scale) {
             const mesh=new THREE.Mesh(geometry,material);
