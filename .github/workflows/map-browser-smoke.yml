@@ -1,0 +1,27 @@
+name: Map 1 / Map 4 Browser Smoke
+on:
+  push:
+    branches: [feature/map4-hunter-race]
+  workflow_dispatch:
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser smoke dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Test both maps with Chromium
+        run: node tests/map4-browser-smoke.cjs
+      - name: Keep gameplay screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-browser-smoke-images
+          path: tests/map4-*.png
+          if-no-files-found: ignore
