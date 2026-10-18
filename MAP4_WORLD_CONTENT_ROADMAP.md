@@ -33,8 +33,15 @@ Normal avcı 1, elit 3 puan; geçerli bitiş yapanlar puana göre, eşitlikte s�
 - Her kullanıcıya bildirim gibi arkaplan teslimatı değil; her tamamlanan dalgada güncel **indirilebilir .html dosyası** aynı yanıt içinde verilecek. GitHub Release dağıtım bağlantısı doğrulanmalı.
 
 ## W01 hedef ve parçalar
-- [ ] Kod: 4 bölgede ayrı geometrik landmark kümeleri (sabit yapılar, çevresel kompozisyon)
-- [ ] HUD: bölgedeki sonraki belirgin landmark
-- [ ] Kaynak: düşük poligon paylaşılan geometri/materyal, tekrar başlatmada birikme yok
-- [ ] Test: 4 bölgede içerik sayıları/Map1 izolasyonu ve tarayıcı ekran görüntüsü
-- [ ] GitHub: çalışma dalı commit; başarılı CI'den sonra main ve indirilebilir HTML
+- [x] Kod: 4 bölgede ayrı geometrik landmark kümeleri (sabit yapılar, çevresel kompozisyon)
+- [x] HUD: bölgedeki sonraki belirgin landmark
+- [x] Kaynak: düşük poligon paylaşılan geometri/materyal, tekrar başlatmada birikme yok
+- [x] Test: 4 bölgede içerik sayıları/Map1 izolasyonu ve tarayıcı ekran görüntüsü
+- [x] GitHub: çalışma dalı commit; başarılı CI'den sonra main ve indirilebilir HTML
+
+## W01 uygulama sonucu
+- 12 benzersiz isme sahip kompozisyon: 3 vadi + 3 arena + 3 endüstri + 3 üs.
+- Paylaşılan 6 basit geometri + 9 paylaşılan malzeme; her cluster tek sefer oluşturulur ve uzak olduğunda kapatılır.
+- Yaklaşan içerik adı bir HUD satırında gösterilir; Map1'de world parent/HUD gizlenir.
+- Chromium doğrulama: [PASS run 39165985256](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/39165985256) — dört bölge içeriği, arena, çarpışma, yörünge, restart, Harita 1 regresyonu.
+- Bu dalgada yeni dekorlar **etkileşimli görev** değildir; W02+ sonrası fizik/rota/avcı anlamı eklenecek.
