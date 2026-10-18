@@ -236,6 +236,77 @@ const assert = require('node:assert/strict');
       'no forward progress during arena');
     assert.equal(await page.evaluate(()=>racers.every(r=>r.routeProgress===MAP4_PHASES.introEnd
       || r.finished || r.dnf)),true,'five AI pilots held in arena');
+    // W04: all three distinct combat pockets exist and spawn the shared 8
+    // hunters in 3/3/2 formation. Both elites stay in the defense wing.
+    const warfront=await page.evaluate(()=>{
+      const ids=hunterTargets.map(h=>h.arenaPocketId);
+      const perPocket=H4_ARENA_POCKETS.map(p=>({
+        id:p.id,slots:p.slots.length,
+        hunters:hunterTargets.filter(h=>h.arenaPocketId===p.id).length,
+        elite:hunterTargets.filter(h=>h.arenaPocketId===p.id&&h.isElite).length
+      }));
+      const before=hunterTargets.map(h=>({
+        id:h.id,x:h.laneX,y:h.laneY,z:h.routeProgress
+      }));
+      updateHunterTargets(0.3);
+      const moved=hunterTargets.some((h,i)=>
+        Math.abs(h.laneX-before[i].x)>0.1||
+        Math.abs(h.laneY-before[i].y)>0.1||
+        Math.abs(h.routeProgress-before[i].z)>0.1);
+      const center=hunterTargets.find(h=>h.arenaPocketId==='CENTER'&&!h.isElite);
+      const wreck=hunterTargets.find(h=>h.arenaPocketId==='WRECK'&&!h.isElite);
+      const defense=hunterTargets.find(h=>h.arenaPocketId==='DEFENSE'&&h.isElite);
+      const beforePlayer={points:state.hunterScore,kills:state.hunterKills};
+      center.hp=12;wreck.hp=12;defense.hp=12;
+      const centerHit=damageHunterTarget(center,12,'PLAYER');
+      const wreckOwner=racers[1];
+      const rivalBefore={points:wreckOwner.hunterScore,kills:wreckOwner.hunterKills};
+      const wreckHit=damageHunterTarget(wreck,12,wreckOwner.name);
+      const defenseHit=damageHunterTarget(defense,12,'PLAYER');
+      updateHunterCompetitionHUD();
+      const info=window.starbladeHunterTelemetry?.arena;
+      return {
+        groups:h4ArenaWarfrontGroups.length,
+        meshCount:h4ArenaWarfrontStats.geometryCount,
+        byPocket:h4ArenaWarfrontStats.byPocket.slice(),
+        names:h4ArenaWarfrontGroups.map(g=>g.name),
+        perPocket,moved,ids,
+        hitSuccess:[centerHit.destroyed,wreckHit.destroyed,defenseHit.destroyed],
+        playerScoreGain:state.hunterScore-beforePlayer.points,
+        playerKillGain:state.hunterKills-beforePlayer.kills,
+        playerPocketKills:{...state.hunterPocketKills},
+        rivalScoreGain:wreckOwner.hunterScore-rivalBefore.points,
+        rivalKillGain:wreckOwner.hunterKills-rivalBefore.kills,
+        rivalPocketKills:{...wreckOwner.hunterPocketKills},
+        telemetry:info,
+        hunterCount:hunterTargets.length,
+        hudText:document.getElementById('planetary-route-name').textContent
+      };
+    });
+    assert.equal(warfront.groups,3,'three independent visible warfront groups');
+    assert(warfront.meshCount>=28&&warfront.meshCount<80,'bounded set-piece geometry');
+    assert(warfront.byPocket.every(n=>n>=8),'each pocket has unique scenery');
+    assert.deepEqual(warfront.perPocket.map(p=>p.hunters),[3,3,2],
+      'three center, three wreck, two defense hunters');
+    assert.deepEqual(warfront.perPocket.map(p=>p.elite),[0,0,2],
+      'elite fighters are in the defense wing');
+    assert.equal(warfront.moved,true,'hunters fly real arena patrol routes');
+    assert(warfront.hitSuccess.every(Boolean),'only actual fatal hits get kill credit');
+    assert.equal(warfront.playerScoreGain,4,'center +1 and defense +3');
+    assert.equal(warfront.playerKillGain,2,'only two player kills');
+    assert.equal(warfront.playerPocketKills.CENTER,1);
+    assert.equal(warfront.playerPocketKills.DEFENSE,1);
+    assert.equal(warfront.rivalScoreGain,1,'rival gets equal normal kill points');
+    assert.equal(warfront.rivalKillGain,1);
+    assert.equal(warfront.rivalPocketKills.WRECK,1);
+    assert.equal(warfront.hunterCount,8,'no extra invisible targets created');
+    assert.deepEqual(warfront.telemetry.counts.map(p=>p.id),
+      ['CENTER','WRECK','DEFENSE'],'arena telemetry exposes pockets');
+    assert(warfront.telemetry.timeRemaining>0&&warfront.telemetry.timeRemaining<=60,
+      'arena is still under exact 60 second budget');
+    assert(warfront.hudText.includes('SAVAŞ CEPHESİ')||
+        warfront.hudText.includes('GÜVENLİ ANA HAT'),
+      'pocket HUD remains readable');
     await page.screenshot({path:path.resolve(__dirname,'map4-arena.png')});
     await page.evaluate(()=>{state.map4ArenaElapsed=MAP4_PHASES.arenaSeconds-0.08;});
     await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:12000});
@@ -314,6 +385,10 @@ const assert = require('node:assert/strict');
       'restart does not duplicate terrain and skyline');
     assert.equal(await page.evaluate(()=>h4CanyonColliders.length),6,
       'restart reuses the same real canyon rock volumes');
+    assert.equal(await page.evaluate(()=>h4ArenaWarfrontGroups.length),3,
+      'restart never duplicates warfront scenery');
+    assert.deepEqual(await page.evaluate(()=>state.hunterPocketKills),
+      {CENTER:0,WRECK:0,DEFENSE:0},'restart clears arena pocket kill counters');
     assert(restart.gameTime<4,'timer reset');
     assert.equal(restart.playerKills,0);
     assert.equal(await page.evaluate(()=>state.map4Phase),1,'four phase reset');
@@ -355,7 +430,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Map4 W03 3 canyon choices, +18% gorge, hunter flank, swept rock hits, 4 phases and Map1');
+    console.log('PASS: Map4 W04 center/wreck/elite 3-pocket battle, real scoring, AI parity, 60s, restart & Map1');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();
