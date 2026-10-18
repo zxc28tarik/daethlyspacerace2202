@@ -1055,6 +1055,7 @@
 
         function animateItemBoxes(dt) {
             itemBoxes.forEach((box,i)=>{
+                if (!box.mesh.visible) return; // AI-34: kutu fiziksel olarak durur, uzakta animasyon yapmaz.
                 box.spin.rotation.x += dt * 0.67;
                 box.spin.rotation.y += dt * 1.15;
                 box.mesh.scale.setScalar(1 + Math.sin(state.raceTime*3+i)*0.09);
@@ -1213,6 +1214,13 @@
             const shipRadius=isPlayer?10:(ship.radius||12.5);
             for(const o of staticObstacles){
                 if(!o.active)continue;
+                // AI-34: önce ucuz rota aralığı; sweep hesaplaması yalnızca adaylarda.
+                const pad = o.type === 'WRECK_BOX' ? o.halfDepth + shipRadius + 8 : o.radius + shipRadius + 8;
+                if (Math.max(previousState.routeProgress, ship.routeProgress) < o.routeProgress - pad ||
+                    Math.min(previousState.routeProgress, ship.routeProgress) > o.routeProgress + pad) {
+                    o.touchingShips.delete(shipId);
+                    continue;
+                }
                 const touching=courseSegmentTouch(o,previousState,ship,shipRadius);
                 if(!touching){o.touchingShips.delete(shipId);continue;}
                 if(o.touchingShips.has(shipId))continue;
@@ -1233,7 +1241,7 @@
                     ship.aiStats && (ship.aiStats.wreckHits++);
                     if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
                 }
-                createExplosion(o.mesh.position,0xff9344,10,0.8);
+                if (o.mesh.visible) createExplosion(o.mesh.position,0xff9344,10,0.8);
             }
         }
 
@@ -1291,7 +1299,14 @@
         scene.add(raceRoadGroup);
         function buildRaceRoad() {
             const sectorPalette = [0x16e7ff,0x43a5ff,0xe87eff,0x44ffaf,0xffb467];
+            raceRoadGroup.userData.sectors = [];
             for(let sector=0; sector<5; sector++) {
+                // AI-34: her 10 km bölüm bağımsız gizlenebilir, parkur geometrisi değişmez.
+                const sectorGroup = new THREE.Group();
+                sectorGroup.userData.start = sector * 10000;
+                sectorGroup.userData.end = (sector + 1) * 10000;
+                raceRoadGroup.add(sectorGroup);
+                raceRoadGroup.userData.sectors.push(sectorGroup);
                 const leftEdge=[],rightEdge=[],centerDashes=[],tris=[];
                 const from=sector*10000, to=(sector+1)*10000, step=145;
                 const roadMat = new THREE.MeshBasicMaterial({color:sectorPalette[sector],
@@ -1307,12 +1322,12 @@
                     if(Math.round(d/step)%3===0){centerDashes.push(makePt(f,0,d),makePt(f2,0,Math.min(to,d+step)));}
                 }
                 const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(tris,3));
-                const mesh=new THREE.Mesh(geo,roadMat);mesh.frustumCulled=false;raceRoadGroup.add(mesh);
+                const mesh=new THREE.Mesh(geo,roadMat);mesh.frustumCulled=false;sectorGroup.add(mesh);
                 const edgeMat=new THREE.LineBasicMaterial({color:sectorPalette[sector],transparent:true,opacity:.74});
                 for(const points of [leftEdge,rightEdge]) {
-                    raceRoadGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),edgeMat));
+                    sectorGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),edgeMat));
                 }
-                raceRoadGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(centerDashes),
+                sectorGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(centerDashes),
                     new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.33})));
             }
             // Keskin dönüşler öncesi kıvrımlara yönlendiren sarı-turuncu <<< ve >>> okları.
@@ -1339,6 +1354,65 @@
         buildVisibleCorridor();
         buildRaceRoad();
 
+        // AI-34: Görsel mesafe sınırı motoru, yarış fiziğini ve çarpışmayı değiştirmez.
+        // Kameranın 4500 birimlik far plane'inden daha geniş bir alan bırakılır;
+        // bu yüzden engel kamera görünümüne girmeden önce hazırlanmış olur.
+        const COURSE_RENDER_BEHIND = 1650;
+        const COURSE_RENDER_AHEAD = 5700;
+        const COURSE_HAZARD_AI_MARGIN = 2600;
+        const courseVisibility = { asteroids: 0, obstacles: 0, items: 0, sectors: 0 };
+        function isCourseWithinRenderRange(progress, currentProgress) {
+            return progress >= currentProgress - COURSE_RENDER_BEHIND &&
+                progress <= currentProgress + COURSE_RENDER_AHEAD;
+        }
+        function updateCourseVisibility(playerProgress) {
+            let visibleAsteroids = 0, visibleObstacles = 0, visibleItems = 0, visibleSectors = 0;
+            for (const a of asteroids) {
+                a.mesh.visible = !!a.active && isCourseWithinRenderRange(a.routeProgress, playerProgress);
+                if (a.mesh.visible) visibleAsteroids++;
+                else if (a.movementTail) a.movementTail.visible = false;
+            }
+            for (const o of staticObstacles) {
+                o.mesh.visible = !!o.active && isCourseWithinRenderRange(o.routeProgress, playerProgress);
+                if (o.mesh.visible) visibleObstacles++;
+            }
+            // Enkaz kapısı dört sahte çarpışma kaydı değil, tek gerçek Three.Group içindedir.
+            // Fizik kısmına dokunmadan gerçek 3D enkaz gövdesini de gizle.
+            for (const module of wreckageModules) {
+                module.group.visible = isCourseWithinRenderRange(module.distance, playerProgress);
+            }
+            for (const box of itemBoxes) {
+                box.mesh.visible = isCourseWithinRenderRange(box.routeProgress, playerProgress);
+                if (box.mesh.visible) visibleItems++;
+            }
+            for (const sector of (raceRoadGroup.userData.sectors || [])) {
+                sector.visible = sector.userData.end >= playerProgress - COURSE_RENDER_BEHIND &&
+                    sector.userData.start <= playerProgress + COURSE_RENDER_AHEAD;
+                if (sector.visible) visibleSectors++;
+            }
+            courseVisibility.asteroids = visibleAsteroids;
+            courseVisibility.obstacles = visibleObstacles;
+            courseVisibility.items = visibleItems;
+            courseVisibility.sectors = visibleSectors;
+        }
+        // Botların aynı karede görebileceği bütün engeller korunur. Min/max yarışçı
+        // aralığı açıkça hesaplandığı için geride kalan yarışçıların tehlikeleri atlanmaz.
+        const allRaceHazards = asteroids.concat(staticObstacles);
+        function getRelevantRaceHazards() {
+            let minProgress = Infinity, maxProgress = -Infinity;
+            if (!state.finished && !state.playerDNF) {
+                minProgress = maxProgress = state.routeProgress;
+            }
+            for (const r of racers) {
+                if (r.finished || r.dnf) continue;
+                minProgress = Math.min(minProgress, r.routeProgress);
+                maxProgress = Math.max(maxProgress, r.routeProgress);
+            }
+            if (!Number.isFinite(minProgress)) return [];
+            const lower = minProgress - 260;
+            const upper = maxProgress + COURSE_HAZARD_AI_MARGIN;
+            return allRaceHazards.filter(h => h.active && h.type !== 'WRECK_BOX' && h.routeProgress >= lower && h.routeProgress <= upper);
+        }
         function updateVisibleCorridor() {
             // Işık darbeleri sabit geometri üzerinde; rota matematiği değişmez.
             const m = corridorGuideGroup.userData;
@@ -1435,6 +1509,12 @@
                     }
                     a.routeProgress = nextProgress;
                 }
+            }
+            // Nesne uzaktayken hareketin rota/lane fiziği güncel kalır, fakat
+            // maliyetli dünya matrisi ve çizgi geometri güncellemesi atlanır.
+            if (!a.mesh.visible) {
+                if (a.movementTail) a.movementTail.visible = false;
+                return;
             }
             const f = getRaceFrameAtDistance(a.routeProgress);
             a.mesh.position.copy(f.center).addScaledVector(f.right, a.laneX).addScaledVector(f.up, a.laneY);
@@ -2715,12 +2795,21 @@
 
             // Asteroitleri yapay zekâ hesaplarından ÖNCE hareket ettir; çarpışmayı
             // bütün araçlar bu karede ilerledikten SONRA süpürmeli olarak çöz.
+            updateCourseVisibility(state.routeProgress);
             asteroids.forEach(a => {
                 if (!a.active) return;
                 a.prevCourse = {routeProgress:a.routeProgress,laneX:a.laneX,laneY:a.laneY};
-                a.mesh.rotation.x += a.rotSpeed * dt;
-                a.mesh.rotation.y += a.rotSpeed * dt;
+                if (a.mesh.visible) {
+                    a.mesh.rotation.x += a.rotSpeed * dt;
+                    a.mesh.rotation.y += a.rotSpeed * dt;
+                }
                 updateAsteroidMotion(a, dt);
+                // Yaklaşan asteroid görünür alana girdiyse bir sonraki kareyi
+                // beklemeden mesh konumunu bu karede de güncelle.
+                if (!a.mesh.visible && isCourseWithinRenderRange(a.routeProgress, state.routeProgress)) {
+                    a.mesh.visible = true;
+                    updateAsteroidMotion(a, 0);
+                }
             });
 
             // Harita 1 lazeri yalnızca parkur engellerine kilitlenebilir.
@@ -2859,7 +2948,7 @@
             // 6. Rakip Yarışçılar (Eşit Motor/Boost + 4 Pilot Profili + Asteroit Kaçınma + Gerçek Sollama + Bitiş Kontrolü)
             // AI hedefleri temel olarak güvenli iç bölgeyi kullanır; gerekirse
             // fizik, kısa süreli dışa taşmaya yine izin verir.
-            const raceHazards = asteroids.concat(staticObstacles.filter(o=>o.type!=='WRECK_BOX'));
+            const raceHazards = getRelevantRaceHazards();
 
             racers.forEach((r, rIdx) => {
                 // Bitirmiş veya DNF olmuş rakip artık hızlanmaz, frenlemez, boost kullanmaz ve parkur sonunda hareket etmez
@@ -3417,6 +3506,14 @@
                     if(!prev||ship.finished||ship.dnf||(isPlayer&&state.playerDNF)){
                         a.touchingShips.delete(id);return;
                     }
+                    // AI-34: göreli hareket aralığı çakışmıyorsa gerçek swept test gereksiz.
+                    const aPrevProgress = a.prevCourse ? a.prevCourse.routeProgress : a.routeProgress;
+                    const band = a.radius + radius + 10;
+                    if (Math.max(prev.routeProgress, ship.routeProgress) < Math.min(aPrevProgress, a.routeProgress) - band ||
+                        Math.min(prev.routeProgress, ship.routeProgress) > Math.max(aPrevProgress, a.routeProgress) + band) {
+                        a.touchingShips.delete(id);
+                        return;
+                    }
                     const hit=movingCourseTouch(a,prev,ship,radius);
                     // Yeniden çarpma ancak araç kaya bölgesinden ayrılıp tekrar yaklaşırsa mümkün.
                     if(!hit){a.touchingShips.delete(id);return;}
@@ -3441,7 +3538,7 @@
                         if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
                     }
                     if (isPlayer) state.asteroidHits++;
-                    createExplosion(a.mesh.position,0xff5500,10,0.85);
+                    if (a.mesh.visible) createExplosion(a.mesh.position,0xff5500,10,0.85);
                 };
                 if(!state.finished&&!state.playerDNF)test('PLAYER',state,prevPlayerCourse,10,true);
                 if (!state.running) return;
@@ -3482,6 +3579,19 @@
                         lastCourseImpactAt:state.lastCourseImpactAt},
                     activeAsteroids: asteroids.filter(a=>a.active).length,
                     intactStatic: staticObstacles.filter(o=>o.active).length
+                };
+                window.starbladePerformanceTelemetry = {
+                    raceTime: state.raceTime,
+                    visible: {...courseVisibility},
+                    totals: {asteroids: asteroids.length, obstacles: staticObstacles.length, items: itemBoxes.length},
+                    graphics: {
+                        drawCalls: renderer.info.render.calls,
+                        triangles: renderer.info.render.triangles,
+                        geometries: renderer.info.memory.geometries,
+                        textures: renderer.info.memory.textures
+                    },
+                    particles: particles.length, shards: obstacleShards.length,
+                    impacts: laserImpacts.length, activeLasers: playerLasers.length
                 };
                 window.starbladeRaceTelemetry={raceTime:state.raceTime,
                     player:{progress:state.routeProgress, speed:state.currentSpeed*SPEED_DISPLAY_SCALE,
@@ -4212,6 +4322,7 @@
             document.getElementById('gameover-screen').classList.add('hidden');
 
             resetAsteroidField();
+            updateCourseVisibility(state.routeProgress);
             spawnRacerFleet();
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
