@@ -50,6 +50,7 @@ W01'de 12 büyük yer işareti vardı ama bütün harita eski 1.340 yarıçaplı
 - [x] Radar uyarı halkasında sıfır hız cezası ve sıfır hasar.
 - [x] Daha dış kuşakta kademeli yavaşlama; en dış sınıra kadar geniş sahada kontrol.
 - [x] ±5.850 zemin, 226 yakın/uzak kompozisyon ve 11.500 uzak görüş.
+- [x] Zemin 80×16 sabit hücrelik yerel mesh ve verteks renk bantlarıyla yükseltilir; dekoratif relief, şu an fiziksel arazi çarpışması değildir.
 - [x] Başlangıç formasyonu yayılır; Map1 formasyonu yerinde.
 - [x] Gezegensel gün ışığı/üst atmosfer korunur; Map1 neon ışığına geri döner.
 - [ ] Gerçek oyuncunun fiziksel kontrol, FPS, kaçınma ve sınır hissi onayı.
