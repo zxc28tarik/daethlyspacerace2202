@@ -572,7 +572,8 @@
         // Provisional balance parameter, adjustable in H4-05 after playtests.
         const MAP4_RACE_RULES = Object.freeze({
             realTimeLimit: 120,
-            secondsPerHunterKill: 2,
+            normalHunterPoints: 1,
+            eliteHunterPoints: 3,
             finishTolerance: 0.000001
         });
         function validHunterFinish(finished, dnf, realTime) {
@@ -580,26 +581,20 @@
                 realTime >= 0 &&
                 realTime <= MAP4_RACE_RULES.realTimeLimit + MAP4_RACE_RULES.finishTolerance;
         }
-        function hunterAdjustedTime(realTime, kills) {
-            return Math.max(0, realTime - Math.max(0, Math.floor(kills || 0)) *
-                MAP4_RACE_RULES.secondsPerHunterKill);
-        }
         function computeHunterRaceStandings() {
             const candidates = [{
                 id: 'PLAYER', name: 'YOU', profile: 'PLAYER', isPlayer: true,
                 finished:state.finished, dnf:state.playerDNF,
                 finishTime:state.finishTime, routeProgress:state.routeProgress,
-                kills:state.hunterKills||0, shots:state.hunterShots||0, hits:state.hunterHits||0
+                kills:state.hunterKills||0, score:state.hunterScore||0, shots:state.hunterShots||0, hits:state.hunterHits||0
             }, ...racers.map(r=>({
                 id:r.name, name:r.name, profile:r.profile, isPlayer:false,
                 finished:r.finished, dnf:r.dnf, finishTime:r.finishTime,
-                routeProgress:r.routeProgress, kills:r.hunterKills||0,
+                routeProgress:r.routeProgress, kills:r.hunterKills||0, score:r.hunterScore||0,
                 shots:r.hunterShots||0, hits:r.hunterHits||0
             }))];
             for(const row of candidates) {
                 row.validFinish=validHunterFinish(row.finished,row.dnf,row.finishTime);
-                row.adjustedTime=row.validFinish ? hunterAdjustedTime(row.finishTime,row.kills) : null;
-                row.timeDiscount=row.kills * MAP4_RACE_RULES.secondsPerHunterKill;
                 row.disqualified = row.dnf || (row.finished && !row.validFinish);
             }
             // Finishers first, ranked by corrected score. Unfinished entrants
@@ -607,15 +602,14 @@
             candidates.sort((a,b)=>{
                 if(a.validFinish!==b.validFinish) return a.validFinish?-1:1;
                 if(a.validFinish) {
-                    if(Math.abs(a.adjustedTime-b.adjustedTime)>1e-7)
-                        return a.adjustedTime-b.adjustedTime;
-                    if(Math.abs(a.finishTime-b.finishTime)>1e-7) return a.finishTime-b.finishTime;
+                    if(a.score!==b.score)return b.score-a.score;
+                    if(a.finishTime!==b.finishTime)return a.finishTime-b.finishTime;
                     if(a.kills!==b.kills) return b.kills-a.kills;
                     return a.id.localeCompare(b.id);
                 }
                 if(a.disqualified!==b.disqualified) return a.disqualified?1:-1;
                 if(a.routeProgress!==b.routeProgress) return b.routeProgress-a.routeProgress;
-                if(a.kills!==b.kills) return b.kills-a.kills;
+                if(a.score!==b.score) return b.score-a.score;
                 return a.id.localeCompare(b.id);
             });
             return candidates;
@@ -707,6 +701,7 @@
         const state = {
             activeMap: MAP_MODES.MAP1,
             hunterKills: 0,
+            hunterScore: 0,
             hunterShots: 0,
             hunterHits: 0,
             lastHunterHudTick: -1,
@@ -2251,8 +2246,9 @@
             hunterCounters.destroyed++;
             createExplosion(pos, target.isElite ? 0xffaa33 : 0xff5522, target.isElite ? 30 : 22,
                 target.isElite ? 1.6 : 1.15);
-            if (attackerId === 'PLAYER') state.hunterKills++;
-            else if (creditedRacer) creditedRacer.hunterKills++;
+            const pts=target.isElite?MAP4_RACE_RULES.eliteHunterPoints:MAP4_RACE_RULES.normalHunterPoints;
+            if(attackerId==='PLAYER'){state.hunterKills++;state.hunterScore+=pts;}
+            else if(creditedRacer){creditedRacer.hunterKills++;creditedRacer.hunterScore+=pts;}
             spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
             return {hit: true, destroyed: true, targetId: target.id, attackerId};
         }
@@ -2572,6 +2568,7 @@
                     hunterFireCooldown: (i + 1) * 0.06,
                     hunterAimTargetId: null,
                     hunterKills: 0,
+                    hunterScore: 0,
                     hunterHits: 0,
                     hunterShots: 0
                 });
@@ -5105,6 +5102,7 @@
             state.score = 0;
             state.kills = 0;
             state.hunterKills = 0;
+            state.hunterScore = 0;
             state.hunterShots = 0;
             state.hunterHits = 0;
             state.lastHunterHudTick = -1;
