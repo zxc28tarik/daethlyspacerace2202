@@ -1909,6 +1909,21 @@
             spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
             return {hit: true, destroyed: true, targetId: target.id, attackerId};
         }
+        // Same target-leading computation for player magnetic aim and each AI pilot.
+        // Predict both forward movement and lateral weaving during projectile flight.
+        function predictHunterAimPoint(hunter, from) {
+            const speed = MAP4_RIVAL_GUN.projectileSpeed;
+            const time = Math.min(0.95, from.distanceTo(hunter.mesh.position) / speed);
+            const predictedProgress = Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 30,
+                hunter.routeProgress + hunter.moveSpeed * time);
+            const frame = getRaceFrameAtDistance(predictedProgress);
+            const phase = hunter.weavePhase + hunter.weaveSpeed * time;
+            const radius = getCorridorRadiusAt(predictedProgress) * 0.78;
+            const laneX = THREE.MathUtils.clamp(hunter.baseLaneX + Math.cos(phase) * 25,-radius,radius);
+            const laneY = THREE.MathUtils.clamp(hunter.baseLaneY + Math.sin(phase*1.21) * 23,-radius,radius);
+            return frame.center.clone().addScaledVector(frame.right,laneX)
+                .addScaledVector(frame.up,laneY);
+        }
         function findHunterLaserImpact(from, to) {
             if (state.activeMap !== MAP_MODES.MAP4) return null;
             let earliest = null;
@@ -1949,7 +1964,9 @@
                 if (toHunter.dot(frame.tangent) < 10) continue;
                 // Favor the nearby target that is closer to our line of flight.
                 // Small per-pilot preference spreads engagements across shared targets.
-                const cost = ahead + lateral * 1.25 +
+                const otherLocks = racers.filter(other => other !== racer &&
+                    !other.finished && !other.dnf && other.hunterAimTargetId === hunter.id).length;
+                const cost = ahead + lateral * 1.25 + otherLocks * 420 +
                     ((hunterTargets.indexOf(hunter) * 7 + racer.hunterPilotIndex * 13) % 5) * 30;
                 if (cost < lowestCost) {best = hunter; lowestCost = cost;}
             }
@@ -1960,11 +1977,7 @@
                     !hunter || !hunter.alive || racer.finished || racer.dnf ||
                     hunterRivalShots.length > MAP4_RIVAL_GUN.maxProjectiles - 2) return false;
             const start = racer.mesh.position.clone();
-            const targetVelocity = getRaceFrameAtDistance(hunter.routeProgress).tangent
-                .clone().multiplyScalar(hunter.moveSpeed);
-            const flightTime = Math.min(0.85, start.distanceTo(hunter.mesh.position) /
-                MAP4_RIVAL_GUN.projectileSpeed);
-            const aim = hunter.mesh.position.clone().addScaledVector(targetVelocity, flightTime);
+            const aim = predictHunterAimPoint(hunter, start);
             const forward = aim.clone().sub(start).normalize();
             if (forward.lengthSq() < 0.0001) return false;
             for (const side of [-1,1]) {
@@ -1991,7 +2004,8 @@
             racer.hunterFireCooldown = Math.max(0, racer.hunterFireCooldown - dt);
             if (racer.hunterFireCooldown > 0) return;
             const hunter = selectHunterForRival(racer);
-            if (!hunter) return;
+            if (!hunter) { racer.hunterAimTargetId = null; return; }
+            racer.hunterAimTargetId = hunter.id;
             if (fireHunterRivalVolley(racer, hunter)) {
                 racer.hunterFireCooldown = MAP4_RIVAL_GUN.cooldown;
             }
@@ -2209,6 +2223,7 @@
                     fireTimer: 2.2 + Math.random() * 2.5,
                     hunterPilotIndex: i,
                     hunterFireCooldown: (i + 1) * 0.06,
+                    hunterAimTargetId: null,
                     hunterKills: 0,
                     hunterHits: 0,
                     hunterShots: 0
@@ -2304,9 +2319,9 @@
             if (state.lockedTarget && state.lockedTarget.mesh) {
                 // Do not aim using a stale spread-copy: read moving obstacle's live state.
                 const liveLock = state.lockedTarget.source || state.lockedTarget;
-                aimWorldPoint = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4)
-                    ? liveLock.mesh.position.clone()
-                    : predictObstacleAimPoint(liveLock);
+                aimWorldPoint = state.activeMap === MAP_MODES.MAP4
+                    ? predictHunterAimPoint(liveLock, state.pos)
+                    : state.combatEnabled ? liveLock.mesh.position.clone() : predictObstacleAimPoint(liveLock);
             } else {
                 const ndcX = (state.mouseX / W) * 2 - 1;
                 const ndcY = -(state.mouseY / H) * 2 + 1;
