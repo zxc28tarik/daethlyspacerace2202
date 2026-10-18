@@ -537,6 +537,7 @@
 
         const state = {
             activeMap: MAP_MODES.MAP1,
+            hunterKills: 0,
             running: false,
             paused: false,
             hudWarningTick: -1,
@@ -1758,6 +1759,156 @@
             return group;
         }
 
+
+        // H4-02 — dedicated hunt targets; never share enemy/racer collections or combatEnabled.
+        // Harita 1'i etkilemez: all setup, movement and damage are map4-gated.
+        const MAP4_HUNTERS = Object.freeze({
+            count: 8, basicHp: 24, eliteHp: 48, laserDamage: 12,
+            spawnMinAhead: 600, spawnMaxAhead: 1750, respawnDelay: 1.6
+        });
+        const hunterTargets = [];
+        const hunterCounters = { spawned: 0, destroyed: 0, escaped: 0 };
+
+        function disposeHunterMesh(mesh) {
+            scene.remove(mesh);
+            const geometries = new Set();
+            mesh.traverse(part => {
+                if (part.geometry && !geometries.has(part.geometry)) {
+                    geometries.add(part.geometry);
+                    part.geometry.dispose();
+                }
+                const mats = Array.isArray(part.material) ? part.material : [part.material];
+                for (const mat of mats) {
+                    // Hull, common wings and exhaust are shared with the existing game.
+                    if (mat && mat !== enemyHullMat && mat !== enemyWingMat &&
+                            mat !== engineFlareMat && mat.dispose) mat.dispose();
+                }
+            });
+        }
+        function clearHunterTargets() {
+            for (const target of hunterTargets) disposeHunterMesh(target.mesh);
+            hunterTargets.length = 0;
+            hunterCounters.spawned = 0;
+            hunterCounters.destroyed = 0;
+            hunterCounters.escaped = 0;
+        }
+        function setHunterWorldPosition(target) {
+            const frame = getRaceFrameAtDistance(target.routeProgress);
+            target.mesh.position.copy(frame.center)
+                .addScaledVector(frame.right, target.laneX)
+                .addScaledVector(frame.up, target.laneY);
+            const noseDirection = target.mesh.position.clone().addScaledVector(frame.tangent, 30);
+            target.mesh.up.copy(frame.up);
+            target.mesh.lookAt(noseDirection);
+        }
+        function spawnHunterTarget(target, slot = 0) {
+            const room = RACE_ROUTE_NOMINAL_DISTANCE - state.routeProgress;
+            if (state.finished || state.playerDNF || room <= 180) return false;
+            const maxAhead = Math.min(MAP4_HUNTERS.spawnMaxAhead, Math.max(100, room - 85));
+            const minAhead = Math.min(MAP4_HUNTERS.spawnMinAhead, maxAhead);
+            const ahead = minAhead + Math.random() * Math.max(0, maxAhead - minAhead);
+            target.routeProgress = Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 60, state.routeProgress + ahead);
+            const radius = getCorridorRadiusAt(target.routeProgress) * (0.26 + 0.36 * Math.random());
+            const angle = ((slot * 2.399963) + Math.random() * 0.8) % (Math.PI * 2);
+            target.baseLaneX = Math.cos(angle) * radius;
+            target.baseLaneY = Math.sin(angle) * radius;
+            target.laneX = target.baseLaneX;
+            target.laneY = target.baseLaneY;
+            target.weavePhase = Math.random() * Math.PI * 2;
+            target.moveSpeed = 260 + Math.random() * 180;
+            target.weaveSpeed = 0.7 + Math.random() * 0.65;
+            target.hp = target.maxHp;
+            target.alive = true;
+            target.respawnTimer = 0;
+            target.mesh.visible = true;
+            setHunterWorldPosition(target);
+            hunterCounters.spawned++;
+            return true;
+        }
+        function beginHunterRespawn(target, escaped = false) {
+            if (!target.alive) return;
+            target.alive = false;
+            target.mesh.visible = false;
+            target.hp = 0;
+            target.respawnTimer = MAP4_HUNTERS.respawnDelay;
+            if (escaped) hunterCounters.escaped++;
+            if (state.lockedTarget &&
+                (state.lockedTarget.source || state.lockedTarget) === target) state.lockedTarget = null;
+        }
+        function initializeHunterTargets() {
+            clearHunterTargets();
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
+            for (let i = 0; i < MAP4_HUNTERS.count; i++) {
+                const elite = i % 4 === 3;
+                const mesh = createEnemyFighterMesh(elite, false);
+                const target = {
+                    id: 'H4-HUNTER-' + (i + 1),
+                    mesh, isElite: elite, maxHp: elite ? MAP4_HUNTERS.eliteHp : MAP4_HUNTERS.basicHp,
+                    hp: 0, radius: elite ? 21 : 16, alive: false, respawnTimer: 0,
+                    routeProgress: 0, laneX: 0, laneY: 0, baseLaneX: 0, baseLaneY: 0,
+                    weavePhase: 0, moveSpeed: 0, weaveSpeed: 0
+                };
+                hunterTargets.push(target);
+                scene.add(mesh);
+                spawnHunterTarget(target, i);
+            }
+        }
+        function updateHunterTargets(dt) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running || state.finished || state.playerDNF) return;
+            for (let i = 0; i < hunterTargets.length; i++) {
+                const target = hunterTargets[i];
+                if (!target.alive) {
+                    target.respawnTimer = Math.max(0, target.respawnTimer - dt);
+                    if (target.respawnTimer === 0) spawnHunterTarget(target, i);
+                    continue;
+                }
+                target.routeProgress += target.moveSpeed * dt;
+                target.weavePhase += target.weaveSpeed * dt;
+                const availableWidth = getCorridorRadiusAt(target.routeProgress) * 0.78;
+                target.laneX = THREE.MathUtils.clamp(target.baseLaneX +
+                    Math.cos(target.weavePhase) * 25, -availableWidth, availableWidth);
+                target.laneY = THREE.MathUtils.clamp(target.baseLaneY +
+                    Math.sin(target.weavePhase * 1.21) * 23, -availableWidth, availableWidth);
+                if (target.routeProgress < state.routeProgress - 120 ||
+                        target.routeProgress >= RACE_ROUTE_NOMINAL_DISTANCE - 30) {
+                    beginHunterRespawn(target, true); // Escaping isn't a player kill.
+                    continue;
+                }
+                setHunterWorldPosition(target);
+            }
+        }
+        function damageHunterTarget(target, damage, attackerId = 'PLAYER', impactPoint = null) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running || state.finished ||
+                    !target || !target.alive || !hunterTargets.includes(target) ||
+                    !Number.isFinite(damage) || damage <= 0) return {hit: false, destroyed: false};
+            target.hp = Math.max(0, target.hp - damage);
+            const point = impactPoint || target.mesh.position;
+            createExplosion(point, 0x00f3ff, 4, 0.4);
+            sound.playHit();
+            if (attackerId === 'PLAYER') state.hitMarkerTimer = 0.16;
+            if (target.hp > 0) return {hit: true, destroyed: false, remainingHp: target.hp};
+            const pos = target.mesh.position.clone();
+            beginHunterRespawn(target);
+            hunterCounters.destroyed++;
+            createExplosion(pos, target.isElite ? 0xffaa33 : 0xff5522, target.isElite ? 30 : 22,
+                target.isElite ? 1.6 : 1.15);
+            if (attackerId === 'PLAYER') state.hunterKills++;
+            spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
+            return {hit: true, destroyed: true, targetId: target.id, attackerId};
+        }
+        function findHunterLaserImpact(from, to) {
+            if (state.activeMap !== MAP_MODES.MAP4) return null;
+            let earliest = null;
+            for (const target of hunterTargets) {
+                if (!target.alive || target.mesh.visible === false) continue;
+                const swept = sweptLaserSphere(from, to, target.mesh.position, target.radius + 2);
+                if (swept && (!earliest || swept.t < earliest.t)) {
+                    earliest = {target, point: swept.point, t: swept.t};
+                }
+            }
+            return earliest;
+        }
+
         // AI-22: Paylaşılan slipstream; tüm gemiler aynı koşulda enerji kazanır.
         // Motor sınırları DEĞİŞMEZ. Arkadan takip, uzun boost için enerji sağlar.
         const DRAFT_RULES = Object.freeze({ minGap: 48, maxGap: 410, maxLateral: 105, recharge: 5.0 });
@@ -2018,7 +2169,7 @@
             if (state.lockedTarget && state.lockedTarget.mesh) {
                 // Do not aim using a stale spread-copy: read moving obstacle's live state.
                 const liveLock = state.lockedTarget.source || state.lockedTarget;
-                aimWorldPoint = state.combatEnabled
+                aimWorldPoint = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4)
                     ? liveLock.mesh.position.clone()
                     : predictObstacleAimPoint(liveLock);
             } else {
@@ -2048,8 +2199,8 @@
                 playerLasers.push({
                     mesh: laserMesh,
                     dir,
-                    speed: state.combatEnabled ? 1450 : 4550,
-                    life: state.combatEnabled ? 1.15 : 0.54
+                    speed: state.combatEnabled || state.activeMap === MAP_MODES.MAP4 ? 2050 : 4550,
+                    life: state.combatEnabled || state.activeMap === MAP_MODES.MAP4 ? 1.15 : 0.54
                 });
             });
 
@@ -2064,12 +2215,12 @@
         function tryFirePlayerLasers() {
             if (!state.running || state.finished || state.playerDNF || state.fireCooldown > 0) return false;
             // Gelecekteki savaş modu etkilenmez; mevcut yarışta silah ancak kutudan açılır.
-            if (!state.combatEnabled && state.obstacleLaserTimer <= 0) return false;
+            if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4 && state.obstacleLaserTimer <= 0) return false;
             if (!state.combatEnabled && state.lockedTarget &&
                 !isLaserDestructible(state.lockedTarget.source || state.lockedTarget)) {
                 state.lockedTarget = null; // Gone targets must never attract new shots.
             }
-            const energyCost = state.combatEnabled ? 0 : OBSTACLE_LASER_ENERGY_COST;
+            const energyCost = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 0 : OBSTACLE_LASER_ENERGY_COST;
             if (state.energy < energyCost) {
                 if (!state.combatEnabled && state.lowEnergyAlertCooldown <= 0) {
                     state.laserBlockedNoEnergy++;
@@ -2084,7 +2235,7 @@
             }
             firePlayerLasers();
             if (!state.combatEnabled) state.obstacleLaserShots++;
-            state.fireCooldown = state.combatEnabled ? 0.11 : 0.19;
+            state.fireCooldown = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 0.15 : 0.19;
             return true;
         }
 
@@ -2697,6 +2848,7 @@
             state.wallCooldown = Math.max(0, state.wallCooldown - dt);
             state.wallFlash = Math.max(0, state.wallFlash - dt);
             updateVisibleCorridor();
+            if (state.activeMap === MAP_MODES.MAP4) updateHunterTargets(dt);
 
             // 1. Hız, Boost ve Oyuncu Hareketi (Bitirmiş veya DNF olmuş oyuncu hareket etmez ve kontrol almaz)
             let moveX = 0;
@@ -2903,7 +3055,13 @@
 
                 let hit = false;
                 // Kareler arasında hızla ilerleyen ışının tüm segmentini test et.
-                if (!state.combatEnabled) {
+                if (state.activeMap === MAP_MODES.MAP4) {
+                    const impact = findHunterLaserImpact(laserFrom, l.mesh.position);
+                    if (impact) {
+                        hit = true;
+                        damageHunterTarget(impact.target, MAP4_HUNTERS.laserDamage, 'PLAYER', impact.point);
+                    }
+                } else if (!state.combatEnabled) {
                     const impact = findObstacleLaserImpact(laserFrom,l.mesh.position);
                     if(impact) {
                         hit=true;
@@ -3884,14 +4042,15 @@
 
         function findMagneticLockTarget() {
             let bestTarget = null;
-            const laserReady = state.combatEnabled || state.obstacleLaserTimer > 0;
+            const laserReady = state.combatEnabled || state.activeMap === MAP_MODES.MAP4 || state.obstacleLaserTimer > 0;
             const previousSource = state.lockedTarget && (state.lockedTarget.source || state.lockedTarget);
-            let bestDist = state.combatEnabled ? 125 : OBSTACLE_LOCK_MAX_PX;
+            let bestDist = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 125 : OBSTACLE_LOCK_MAX_PX;
             if (!state.combatEnabled && previousSource && isLaserDestructible(previousSource)) {
                 // A small retention margin prevents target blinking at crosshair edges.
                 bestDist += 18;
             }
-            const candidates = state.combatEnabled ? [...enemies, ...racers] :
+            const candidates = state.activeMap === MAP_MODES.MAP4 ? hunterTargets.filter(h => h.alive) :
+                state.combatEnabled ? [...enemies, ...racers] :
                 laserReady ? asteroids.filter(a => isLaserDestructible(a) &&
                     a.routeProgress > state.routeProgress + 24 && a.routeProgress < state.routeProgress + OBSTACLE_LASER_RANGE)
                 .concat(staticObstacles.filter(o => isLaserDestructible(o) &&
@@ -3903,7 +4062,7 @@
             const possibilities = [];
             for (const c of candidates) {
                 if (!c.mesh || c.mesh.visible === false) continue;
-                const aimPos = state.combatEnabled ? c.mesh.position : predictObstacleAimPoint(c);
+                const aimPos = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? c.mesh.position : predictObstacleAimPoint(c);
                 const scr = worldToScreen(aimPos);
                 if (!scr.visible || scr.x < 0 || scr.x > W || scr.y < 0 || scr.y > H) continue;
                 const d = Math.hypot(scr.x - state.mouseX, scr.y - state.mouseY);
@@ -3913,7 +4072,7 @@
             }
             possibilities.sort((a,b) => a.score-b.score);
             for (const p of possibilities) {
-                if (!state.combatEnabled && !hasClearObstacleLaserPath(p.source, p.aimPos)) continue;
+                if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4 && !hasClearObstacleLaserPath(p.source, p.aimPos)) continue;
                 bestTarget = {...p.source, source:p.source, screenX:p.screenX, screenY:p.screenY};
                 break;
             }
@@ -4375,6 +4534,7 @@
             Object.keys(keys).forEach(k => { keys[k] = false; });
             sound.init();
 
+            clearHunterTargets();
             enemies.forEach(e => scene.remove(e.mesh));
             enemies.length = 0;
             racers.forEach(disposeRacerMesh);
@@ -4397,6 +4557,7 @@
             state.running = true;
             state.score = 0;
             state.kills = 0;
+            state.hunterKills = 0;
             state.stage = 1;
             state.shield = 100;
             state.energy = 100;
@@ -4491,6 +4652,7 @@
             resetAsteroidField();
             updateCourseVisibility(state.routeProgress);
             spawnRacerFleet();
+            if (state.activeMap === MAP_MODES.MAP4) initializeHunterTargets();
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
             }
