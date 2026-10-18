@@ -45,3 +45,15 @@ Normal avcı 1, elit 3 puan; geçerli bitiş yapanlar puana göre, eşitlikte s�
 - Yaklaşan içerik adı bir HUD satırında gösterilir; Map1'de world parent/HUD gizlenir.
 - Chromium doğrulama: [PASS run 39165985256](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/39165985256) — dört bölge içeriği, arena, çarpışma, yörünge, restart, Harita 1 regresyonu.
 - Bu dalgada yeni dekorlar **etkileşimli görev** değildir; W02+ sonrası fizik/rota/avcı anlamı eklenecek.
+
+## W02 — Ölçek ve sınır sistemi (uygulanan kod)
+- [x] Harita 4 için bölgesel zarf: başlangıç 3700, arena 4100, endüstri 3350, çıkış 3550 yarıçap; bölgeler arası yumuşak geçiş
+- [x] 4 katmanlı yalnız Harita 4'e özgü sınır: %82 altında serbest, %82–91 uyarı, %91–100 kademeli fren, dış kuşakta yumuşak baskı
+- [x] Başlangıç rakip filonun formasyonu büyütüldü, avcı kovalamada AI yanal hedefleri genişledi
+- [x] Gezegen zemin genişliği ±5850; deterministik yükselti, renk bantları ve kabartı
+- [x] 226 yeni uzaktan/yakından görünür çevre geometrisi, 4 çevre tipi; uzak geometri çarpışmasız görseldir
+- [x] Harita 4 görüş derinliği 11500, sıcak aydınlatma; Harita 1'e dönüşte 4500/neon geri yüklenir
+- [x] HUD görev saha çapı, sınır uyarısı ve mesafe
+- [ ] Oyuncu oynanış/performans onayı bekleniyor; W03 kaya kemeri/topoloji ve gerçek kaya çarpışmalarına başlanacak
+
+Tam teknik spesifikasyon: `MAP4_WORLD_W02_IMPLEMENTATION.md`.

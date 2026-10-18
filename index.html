@@ -146,6 +146,9 @@
             <div id="planetary-zone-name" class="text-sm text-white font-black">KAYALIK VADİLER</div>
             <div id="planetary-destination" class="text-xs text-cyan-200">HEDEF: ASKERÎ ÜS</div>
             <div id="planetary-landmark-name" class="text-[10px] text-amber-200 mt-1">BÖLGE TARAMASI</div>
+            <div id="planetary-airspace-status" class="text-[10px] text-emerald-200 mt-1">
+                GENİŞ UÇUŞ SAHASI · SINIR UZAK
+            </div>
         </div>
         
         <!-- ÜST BÖLÜM: Tehlike Uyarısı, Kamera Modu & Boss Can Barı -->
@@ -1019,7 +1022,70 @@
             {from:14000,to:34000,name:'ENDÜSTRİ BÖLGESİ',type:'industrial',ground:0x494c51,sky:0x647484},
             {from:34000,to:50001,name:'ASKERÎ ÜS VE YÖRÜNGE ÇIKIŞI',type:'fortress',ground:0x57434c,sky:0x735b72}
         ]);
-        const PLANETARY_FLIGHT_RADIUS = 1340;
+        const PLANETARY_FLIGHT_RADIUS = 1340; // Legacy baseline, kept for comparison.
+        // W02: each phase has a genuinely different wide airspace envelope.
+        // These are local 3D radial flight-space units, not screen pixels.
+        const MAP4_AIRSPACE = Object.freeze({
+            opening:3700, arena:4100, industry:3350, ascent:3550,
+            safeFraction:0.82, warningFraction:0.91,
+            cautionFraction:1.00, pressureFraction:1.08, maxFraction:1.18,
+            transition:1300
+        });
+        function map4AirspaceRadius(progress) {
+            const smooth=(t)=>{const n=THREE.MathUtils.clamp(t,0,1);return n*n*(3-2*n);};
+            const edge=MAP4_PHASES.introEnd;
+            const industry=MAP4_PHASES.arenaEnd;
+            const ascent=MAP4_PHASES.industryEnd;
+            const openingToArena=smooth((progress-edge+MAP4_AIRSPACE.transition)/
+                (MAP4_AIRSPACE.transition*2));
+            const arenaToIndustry=smooth((progress-industry)/
+                (MAP4_AIRSPACE.transition*2));
+            const industryToAscent=smooth((progress-ascent)/
+                (MAP4_AIRSPACE.transition*2));
+            const first=THREE.MathUtils.lerp(MAP4_AIRSPACE.opening,MAP4_AIRSPACE.arena,openingToArena);
+            const second=THREE.MathUtils.lerp(first,MAP4_AIRSPACE.industry,arenaToIndustry);
+            return THREE.MathUtils.lerp(second,MAP4_AIRSPACE.ascent,industryToAscent);
+        }
+        function map4BoundaryProfile(progress) {
+            const radius=map4AirspaceRadius(progress);
+            return {
+                safeRadius:radius*MAP4_AIRSPACE.safeFraction,
+                softRadius:radius*MAP4_AIRSPACE.warningFraction,
+                scrapeRadius:radius*MAP4_AIRSPACE.cautionFraction,
+                outsideRadius:radius*MAP4_AIRSPACE.pressureFraction,
+                maxRadius:radius*MAP4_AIRSPACE.maxFraction
+            };
+        }
+        function evaluatePlanetaryBoundary(laneX,laneY,wingHalfSpan,roll,progress) {
+            const wingCos=Math.cos(roll)*wingHalfSpan,wingSin=Math.sin(roll)*wingHalfSpan;
+            const left=Math.hypot(laneX-wingCos,laneY-wingSin);
+            const right=Math.hypot(laneX+wingCos,laneY+wingSin);
+            const radial=Math.hypot(laneX,laneY);
+            const contactRadius=Math.max(left,right,radial);
+            const edge=map4BoundaryProfile(progress);
+            const lerp=(a,b,start,end)=>{
+                const t=THREE.MathUtils.clamp((contactRadius-start)/(end-start),0,1);
+                return THREE.MathUtils.lerp(a,b,t);
+            };
+            let level=0,factor=1,damagePerSecond=0;
+            if(contactRadius>edge.outsideRadius){
+                level=4;
+                factor=lerp(0.64,0.36,edge.outsideRadius,edge.maxRadius);
+                damagePerSecond=lerp(1.5,3.5,edge.outsideRadius,edge.maxRadius);
+            }else if(contactRadius>edge.scrapeRadius){
+                level=3;
+                factor=lerp(0.86,0.64,edge.scrapeRadius,edge.outsideRadius);
+                damagePerSecond=lerp(0,1.5,edge.scrapeRadius,edge.outsideRadius);
+            }else if(contactRadius>edge.softRadius){
+                level=2;
+                factor=lerp(1,0.86,edge.softRadius,edge.scrapeRadius);
+            }else if(contactRadius>edge.safeRadius){
+                level=1; // Radar advisory only: no friction and no damage.
+            }
+            const leftHit=left>edge.safeRadius,rightHit=right>edge.safeRadius;
+            const side=leftHit&&rightHit?'BOTH':leftHit?'LEFT':rightHit?'RIGHT':'NONE';
+            return {level,factor,damagePerSecond,side,contactRadius,radial};
+        }
         // A four-stage mission; intro and travel lengths are tuned for a 4–5 minute
         // normal run. Boost or combat choices can make the actual duration differ.
         const MAP4_PHASES = Object.freeze({
@@ -1117,21 +1183,54 @@
                 .addScaledVector(frame.up,altitude);
         }
         function h4GroundStrip(def) {
-            const verts=[],steps=70;
+            // W02 layered terrain: broad, shared-color low-poly topography.
+            // Core route remains visibly open; hills rise only toward the sides.
+            // This is scenery, not a collision promise (W03/W05 own terrain hits).
+            const verts=[],colors=[],steps=80,across=16,halfWidth=5850;
+            const baseColor=new THREE.Color(def.ground);
+            const pos=(progress,side)=>{
+                const normalized=Math.abs(side)/halfWidth;
+                const ridge=Math.max(0,(normalized-0.18)/0.82);
+                const noise=Math.sin(progress*0.0016+side*0.0021)*
+                    Math.cos(progress*0.00095-side*0.0014);
+                const terrace=Math.sin(progress*0.00042+side*0.0013);
+                const type=def.type;
+                const rise=type==='canyon'?300:
+                    type==='battlefield'?115:type==='industrial'?70:160;
+                const elevation=ridge*ridge*rise+
+                    Math.max(0,noise)*ridge*(type==='canyon'?135:65)+
+                    Math.max(0,terrace)*ridge*45;
+                return h4WorldPosition(progress,side,-440+elevation);
+            };
+            const face=(points,shade)=>{
+                for(const v of points) {
+                    verts.push(v.x,v.y,v.z);
+                    const color=baseColor.clone().multiplyScalar(shade);
+                    colors.push(color.r,color.g,color.b);
+                }
+            };
             for(let i=0;i<steps;i++){
                 const a=def.from+(def.to-def.from)*i/steps;
                 const b=def.from+(def.to-def.from)*(i+1)/steps;
-                const p1=h4WorldPosition(a,-1800,-440),p2=h4WorldPosition(a,1800,-440);
-                const p3=h4WorldPosition(b,-1800,-440),p4=h4WorldPosition(b,1800,-440);
-                verts.push(...p1.toArray(),...p2.toArray(),...p4.toArray(),
-                    ...p1.toArray(),...p4.toArray(),...p3.toArray());
+                for(let x=0;x<across;x++){
+                    const left=-halfWidth+2*halfWidth*x/across;
+                    const right=-halfWidth+2*halfWidth*(x+1)/across;
+                    const p1=pos(a,left),p2=pos(a,right),p3=pos(b,left),p4=pos(b,right);
+                    const band=(x%4)*0.035;
+                    const contour=0.90+0.07*Math.sin(i*0.53+x*1.6);
+                    face([p1,p2,p4],contour-band);
+                    face([p1,p4,p3],contour-band+0.024);
+                }
             }
             const geo=new THREE.BufferGeometry();
             geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+            geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
             geo.computeVertexNormals();
-            return new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
-                color:def.ground,side:THREE.DoubleSide,flatShading:true
+            const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({
+                vertexColors:true,side:THREE.DoubleSide,flatShading:true
             }));
+            mesh.userData.h4TerrainSceneryOnly=true;
+            return mesh;
         }
         function h4PlaceStructure(group,progress,side,altitude,geometry,material,scale) {
             const mesh=new THREE.Mesh(geometry,material);
@@ -1357,6 +1456,79 @@
                 check(state,previousPlayer,true);
             racers.forEach((r,i)=>check(r,previousRivals[i],false));
         }
+
+        // W02: large, repeatable silhouettes and mid-range scenery. Visual only.
+        // Fixed arrays, shared materials and geometries; Map4 scenery is never an
+        // invisible hitbox. Physical canyon hazards are a separate W03 deliverable.
+        const h4WideScenery={byRegion:[0,0,0,0],total:0};
+        const h4SceneryGroups=[];
+        function h4PopulateWideScenery(zone,regionIndex,def){
+            const scenery=new THREE.Group();
+            scenery.name='MAP4_W02_WIDE_SCENERY_'+regionIndex;
+            const near=new THREE.Group(),far=new THREE.Group();
+            near.name='NEAR_TERRAIN_AND_SETTLEMENT';
+            far.name='HORIZON_SILHOUETTE';
+            scenery.add(far,near);
+            const make=(progress,side,height,geometry,material,scale,target)=>{
+                const m=new THREE.Mesh(geometry,material);
+                m.position.copy(h4WorldPosition(progress,side,-440+height));
+                m.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
+                m.scale.set(scale[0],scale[1],scale[2]);
+                target.add(m);
+                h4WideScenery.total++;
+                h4WideScenery.byRegion[regionIndex]++;
+            };
+            const count=regionIndex===1?16:30;
+            for(let i=0;i<count;i++){
+                const length=def.to-def.from;
+                const progress=def.from+(i+0.3)*length/count;
+                const sign=i%2===0?-1:1;
+                const side=sign*(1680+(i*151)%1510);
+                const tall=270+(i*79)%710;
+                const geom=regionIndex===0?H4_MESHES.rock:
+                    regionIndex===1?(i%2?H4_DETAIL_GEO.wedge:H4_MESHES.structure):
+                    regionIndex===2?(i%3?H4_MESHES.structure:H4_MESHES.tower):
+                    (i%3?H4_MESHES.structure:H4_MESHES.tower);
+                const material=regionIndex===0?(i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone):
+                    regionIndex===1?(i%2?H4_DETAIL_MAT.armor:H4_MATERIALS.wreck):
+                    regionIndex===2?(i%2?H4_MATERIALS.steel:H4_DETAIL_MAT.oxidized):
+                    (i%3?H4_MATERIALS.wall:H4_DETAIL_MAT.armor);
+                const h=regionIndex===1?100+(i*17)%150:tall;
+                make(progress,side,h*0.5,geom,material,
+                    [regionIndex===1?190:180+(i%4)*75,h,170+(i%3)*60],near);
+            }
+            // Distant skyline reads even when pilots use the expanded flight zone.
+            for(let i=0;i<28;i++){
+                const progress=def.from+(i+0.4)*(def.to-def.from)/28;
+                const sign=i%2===0?-1:1;
+                const side=sign*(3850+(i*103)%950);
+                const size=regionIndex===0?450+(i*117)%750:
+                    regionIndex===1?250+(i*43)%310:
+                    regionIndex===2?580+(i*83)%880:500+(i*67)%920;
+                const geometry=regionIndex===0?H4_MESHES.rock:
+                    regionIndex===1?H4_DETAIL_GEO.wedge:
+                    regionIndex===2?H4_MESHES.tower:H4_MESHES.structure;
+                const material=regionIndex===0?H4_DETAIL_MAT.cliffShadow:
+                    regionIndex===1?H4_DETAIL_MAT.armor:
+                    regionIndex===2?H4_MATERIALS.steel:H4_MATERIALS.wall;
+                make(progress,side,size*0.5,geometry,material,
+                    [220+(i%3)*100,size,250+(i%4)*60],far);
+            }
+            // A memorable opening panorama: large formations flank the launch area
+            // but never block its central takeoff path.
+            if(regionIndex===0){
+                for(let i=0;i<8;i++){
+                    const side=(i%2?1:-1)*(1100+(i%4)*390);
+                    const d=250+Math.floor(i/2)*620;
+                    const h=360+(i%3)*210;
+                    make(d,side,h*0.5,H4_MESHES.rock,
+                        i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone,
+                        [200+(i%3)*90,h,190+(i%2)*100],near);
+                }
+            }
+            zone.add(scenery);
+            h4SceneryGroups.push({near,far,regionIndex});
+        }
         function buildPlanetaryWorld() {
             if(planetaryWorldRegions.length) return;
             for(let zoneIndex=0;zoneIndex<PLANETARY_REGIONS.length;zoneIndex++){
@@ -1407,6 +1579,7 @@
                     beacon.rotateX(Math.PI*0.5);
                 }
                 h4PopulateRegion(zone,zoneIndex);
+                h4PopulateWideScenery(zone,zoneIndex,def);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
             }
@@ -1422,11 +1595,22 @@
             nebulaGroup.visible=!active;
             scene.background.setHex(active?0x997664:0x040310);
             scene.fog.color.setHex(active?0xb18b76:0x09051d);
-            scene.fog.density=active?0.00026:0.00055;
+            scene.fog.density=active?0.00015:0.00055;
+            // Restore the exact neon lighting if the player returns to Map1.
+            ambientLight.color.setHex(active?0xa8a4a1:0x443366);
+            ambientLight.intensity=active?1.25:1.6;
+            nebulaLight1.color.setHex(active?0xffdbb0:0xff55aa);
+            nebulaLight1.intensity=active?1.7:1.8;
+            nebulaLight2.color.setHex(active?0x749cbd:0x00e5ff);
+            nebulaLight2.intensity=active?0.8:1.6;
+            camera.far=active?11500:4500;
+            camera.updateProjectionMatrix();
             if(!active) {
                 updateCourseVisibility(state.routeProgress);
             }
             document.getElementById('planetary-zone-hud').classList.toggle('hidden',!active);
+            const indicator=document.getElementById('planetary-airspace-status');
+            if(indicator)indicator.textContent='GENİŞ UÇUŞ SAHASI · SINIR UZAK';
             if(active) finishGateGroup.position.copy(
                 h4WorldPosition(RACE_ROUTE_NOMINAL_DISTANCE,0,MAP4_PHASES.orbitAltitude));
             else finishGateGroup.position.set(0,0,state.finishZ);
@@ -1441,20 +1625,43 @@
                 RACE_ROUTE_NOMINAL_DISTANCE-state.routeProgress);
             for(let i=0;i<planetaryWorldRegions.length;i++){
                 const def=PLANETARY_REGIONS[i];
-                planetaryWorldRegions[i].visible=def.to>state.routeProgress-3400
-                    && def.from<state.routeProgress+7800;
+                planetaryWorldRegions[i].visible=def.to>state.routeProgress-4900
+                    && def.from<state.routeProgress+9900;
             }
             // Cull distant compositions inside active regions to limit draw calls.
             let nextLandmark=null;
             for(const point of h4WorldLandmarks) {
-                point.group.visible=point.at>=state.routeProgress-1600 &&
-                    point.at<=state.routeProgress+4800;
+                point.group.visible=point.at>=state.routeProgress-3200 &&
+                    point.at<=state.routeProgress+7200;
                 if(point.at>=state.routeProgress-400 && point.at<=state.routeProgress+3100 &&
                     (!nextLandmark || point.at<nextLandmark.at)) nextLandmark=point;
+            }
+            for(const scenery of h4SceneryGroups){
+                // Parent region culling already handles the long-distance budget.
+                // Keep far skyline visible, but hide near clutter if region is distant.
+                const region=PLANETARY_REGIONS[scenery.regionIndex];
+                scenery.near.visible=region.to>state.routeProgress-2300 &&
+                    region.from<state.routeProgress+5200;
+                scenery.far.visible=true;
             }
             const landmarkLine=document.getElementById('planetary-landmark-name');
             if(landmarkLine) landmarkLine.textContent=nextLandmark ?
                 'YAKIN NOKTA: '+nextLandmark.name : 'BÖLGE TARAMASI · HEDEFE İLERLE';
+            const profile=map4BoundaryProfile(state.routeProgress);
+            const radial=Math.hypot(state.laneX,state.laneY);
+            const phaseWidth=Math.round(profile.maxRadius*2);
+            const airStatus=document.getElementById('planetary-airspace-status');
+            if(airStatus){
+                const status=state.boundaryLevel===0?'SERBEST UÇUŞ':
+                    state.boundaryLevel===1?'GÖREV SAHASI UYARISI':
+                    state.boundaryLevel===2?'DIŞ KUŞAK · HAFİF HIZ BASKISI':
+                    state.boundaryLevel===3?'GÖREV SINIRINA YAKIN':'GERİ DÖN · SINIR';
+                airStatus.textContent=status+' · SAHA ÇAPI '+(phaseWidth/1000).toFixed(1)+
+                    ' km · KALAN '+Math.round(Math.max(0,profile.safeRadius-radial))+' m';
+                airStatus.className='text-[10px] mt-1 '+
+                    (state.boundaryLevel>=3?'text-rose-300':
+                     state.boundaryLevel>=1?'text-amber-200':'text-emerald-200');
+            }
             document.getElementById('planetary-zone-name').textContent=sector.name;
             const phase=state.map4Phase;
             const stageLabels=['','1/4 · VADİDEN GEÇİŞ','2/4 · SERBEST AVCI SAVAŞI',
@@ -1473,8 +1680,9 @@
                     altitudeRatio>0.5?0x2e3d66:sector.sky);
                 scene.fog.color.setHex(altitudeRatio>0.75?0x192249:0x735b72);
             }
-            const color=sector.sky;
-            scene.background.setHex(color);
+            // Respect upper-atmosphere/space visuals: never overwrite phase-4
+            // altitude palette with the ground sector's constant sky color.
+            if(phase!==4) scene.background.setHex(sector.sky);
         }
         // AI-20: Dairesel boost/enerji toplama halkaları, checkpoint ve tehlike
         // çemberleri kaldırıldı. Sektör ve tehlike verileri görsel halkalara bağlı değil.
@@ -1586,7 +1794,7 @@
         }
         function getCorridorRadiusAt(progress) {
             // Map 4 flies in a wide terrain airspace, not Map 1's narrow neon tube.
-            if (state.activeMap===MAP_MODES.MAP4) return PLANETARY_FLIGHT_RADIUS;
+            if (state.activeMap===MAP_MODES.MAP4) return map4AirspaceRadius(progress);
             // Geniş uçuş bölümleri 400-410, enkaz yaklaşımları 315-335 yarıçap.
             const broadCenters = [3600, 14650, 25500, 36600, 42600];
             let radius = 360;
@@ -2835,7 +3043,8 @@
             for (let i = 0; i < 5; i++) {
                 const mesh = createEnemyFighterMesh(false, true);
                 const angle = (i / 5) * Math.PI * 2;
-                const rad = 50 + Math.random() * 110;
+                const rad = state.activeMap===MAP_MODES.MAP4 ?
+                    240+i*68 : 50+Math.random()*110;
                 const startLaneX = Math.cos(angle) * rad;
                 const startLaneY = Math.sin(angle) * rad;
 
@@ -2845,7 +3054,9 @@
 
                 // Başlangıç noktasından makul ölçüde farklı ve koridor sınırları içinde hedef koordinat belirle
                 const targetAngle = angle + (0.65 + Math.random() * 1.1) * (i % 2 === 0 ? 1 : -1);
-                const targetRad = Math.min(state.tubeRadius * 0.78, Math.max(45, 75 + ((i * 37) % 115)));
+                const targetRad = state.activeMap===MAP_MODES.MAP4 ?
+                    580+i*95 :
+                    Math.min(state.tubeRadius * 0.78, Math.max(45, 75 + ((i * 37) % 115)));
                 const targetX = Math.cos(targetAngle) * targetRad;
                 const targetY = Math.sin(targetAngle) * targetRad;
 
@@ -3512,6 +3723,9 @@
             playerWingHalfSpan: 18, rivalWingHalfSpan: 17
         });
         function evaluateBoundaryFriction(laneX, laneY, wingHalfSpan = 18, roll = 0, routeProgress = 0) {
+            // Important: do not change approved Map1 boundary equations.
+            if(state.activeMap===MAP_MODES.MAP4)
+                return evaluatePlanetaryBoundary(laneX,laneY,wingHalfSpan,roll,routeProgress);
             const wingCos = Math.cos(roll) * wingHalfSpan;
             const wingSin = Math.sin(roll) * wingHalfSpan;
             const left = Math.hypot(laneX - wingCos, laneY - wingSin);
@@ -3558,7 +3772,9 @@
         function clampToSoftBoundary(ship) {
             // Koridor fiziksel olarak 360; merkez 394.6'ya kadar çıkabilir.
             const radius = Math.hypot(ship.laneX, ship.laneY);
-            const limit=BOUNDARY_RULES.maxRadius*getCorridorRadiusAt(ship.routeProgress)/state.tubeRadius;
+            const limit=state.activeMap===MAP_MODES.MAP4 ?
+                map4BoundaryProfile(ship.routeProgress).maxRadius :
+                BOUNDARY_RULES.maxRadius*getCorridorRadiusAt(ship.routeProgress)/state.tubeRadius;
             if (radius > limit) {
                 const ratio = limit / radius;
                 ship.laneX *= ratio;
@@ -3610,9 +3826,17 @@
                 }
             }
             if (isPlayer) {
-                state.wallFlash = Math.max(state.wallFlash, Math.min(0.55, 0.10 + f.level * 0.065));
-                state.shake = Math.max(state.shake, f.level >= 3 ? 0.19 : 0.075);
-                if (previousLevel === 0) state.wallContacts++;
+                if(state.activeMap===MAP_MODES.MAP4){
+                    // Radar warnings stay non-intrusive; visible shake only in real pressure.
+                    if(f.level>=3) {
+                        state.wallFlash=Math.max(state.wallFlash,f.level===4?0.19:0.08);
+                        state.shake=Math.max(state.shake,f.level===4?0.09:0.035);
+                    }
+                }else{
+                    state.wallFlash = Math.max(state.wallFlash, Math.min(0.55, 0.10 + f.level * 0.065));
+                    state.shake = Math.max(state.shake, f.level >= 3 ? 0.19 : 0.075);
+                }
+                if(previousLevel===0) state.wallContacts++;
             }
         }
 
@@ -5262,7 +5486,9 @@
             const border = document.getElementById('boundary-alert');
             if (border) {
                 if (state.boundaryLevel >= 3) {
-                    const label = state.boundaryLevel >= 4 ? 'OUTSIDE' : 'HEAVY FRICTION';
+                    const label = state.activeMap===MAP_MODES.MAP4 ?
+                        (state.boundaryLevel>=4?'SAHA DIŞI':'DIŞ KUŞAK') :
+                        (state.boundaryLevel>=4?'OUTSIDE':'HEAVY FRICTION');
                     border.textContent = `⚠ ${label} ${state.boundarySide} / -${Math.round((1-state.boundaryFactor)*100)}% / -${Math.round(state.boundaryDamageRate)} SHIELD/s`;
                     border.className = 'ml-2 text-red-400 font-black';
                 } else if (state.boundaryLevel === 2) {
@@ -5272,7 +5498,8 @@
                     border.textContent = `EDGE FRICTION ${state.boundarySide}`;
                     border.className = 'ml-2 text-yellow-300';
                 } else {
-                    border.textContent = 'CORRIDOR SAFE';
+                    border.textContent = state.activeMap===MAP_MODES.MAP4 ?
+                        'GEZEGEN UÇUŞ SAHASI SERBEST' : 'CORRIDOR SAFE';
                     border.className = 'ml-2 text-emerald-300';
                 }
             }
