@@ -62,6 +62,49 @@ const assert = require('node:assert/strict');
       zoneName:document.getElementById('planetary-zone-name').textContent
     }));
     assert.equal(planetary.zones,4,'four distinct planetary zones');
+    const openSpace=await page.evaluate(()=>{
+      const probe=[0,12500,13500,22000,45000].map(progress=>({
+        progress,radius:map4AirspaceRadius(progress),
+        profile:map4BoundaryProfile(progress)
+      }));
+      const opening=map4BoundaryProfile(0);
+      const warn=evaluateBoundaryFriction(opening.safeRadius+25,0,18,0,0);
+      const caution=evaluateBoundaryFriction(opening.softRadius+75,0,18,0,0);
+      const pressure=evaluateBoundaryFriction(opening.outsideRadius+40,0,18,0,0);
+      const limiter={routeProgress:0,laneX:10000,laneY:0,vx:150,vy:0};
+      clampToSoftBoundary(limiter);
+      return {
+        probe,warn,caution,pressure,limiter,
+        scenery:h4WideScenery,
+        worldSize:h4GroundStrip(PLANETARY_REGIONS[0]).geometry.attributes.position.array,
+        cameraFar:camera.far,
+        light:nebulaLight1.color.getHex(),
+        firstPositions:racers.map(r=>Math.hypot(r.laneX,r.laneY))
+      };
+    });
+    assert.equal(Math.round(openSpace.probe[0].radius),3700,
+      'wide starting airspace');
+    assert(openSpace.probe[2].radius>3900,
+      'larger 60 second hunter arena');
+    assert(openSpace.probe[3].radius>=3300,'industrial area stays broad');
+    assert(openSpace.probe[4].radius>=3400,'orbital ascent stays broad');
+    assert(openSpace.probe[0].profile.safeRadius>2900,
+      'no-penalty opening radius over 2.9k');
+    assert.equal(openSpace.warn.level,1,'first ring is warning only');
+    assert.equal(openSpace.warn.factor,1,'warning never slows');
+    assert.equal(openSpace.warn.damagePerSecond,0,'warning never damages');
+    assert(openSpace.caution.level>=2&&openSpace.caution.factor<1,
+      'outer zone applies gradual slowdown');
+    assert.equal(openSpace.pressure.level,4,'true pressure at far boundary');
+    assert(openSpace.pressure.damagePerSecond>0,'far boundary damages');
+    assert(openSpace.limiter.laneX<4400&&openSpace.limiter.laneX>4200,
+      'hard clamp only at distant outer edge');
+    assert.deepEqual(openSpace.scenery.byRegion,[66,44,58,58],
+      'layered scenery across four zones');
+    assert.equal(openSpace.scenery.total,226,'bounded one-time scenery allocation');
+    assert(openSpace.cameraFar>10000,'planet draw distance increased');
+    assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
+    assert.equal(openSpace.light,0xffdbb0,'planetary daylight active');
     const content=await page.evaluate(()=>{
       const initialProgress=state.routeProgress;
       const byRegion=h4WorldContentStats.byRegion.slice();
@@ -203,6 +246,8 @@ const assert = require('node:assert/strict');
     assert.equal(restart.hunters,8);
     assert.equal(await page.evaluate(()=>h4WorldLandmarks.length),12,
       'restart reuses one-time world compositions');
+    assert.equal(await page.evaluate(()=>h4WideScenery.total),226,
+      'restart does not duplicate terrain and skyline');
     assert(restart.gameTime<4,'timer reset');
     assert.equal(restart.playerKills,0);
     assert.equal(await page.evaluate(()=>state.map4Phase),1,'four phase reset');
@@ -222,6 +267,8 @@ const assert = require('node:assert/strict');
       terrainVisible:planetaryWorldGroup.visible,
       corridorVisible:corridorGuideGroup.visible,
       flightRadius:getCorridorRadiusAt(8000),
+      cameraFar:camera.far,
+      light:nebulaLight1.color.getHex(),
       header:document.getElementById('race-standings-head').textContent
     }));
     assert.equal(map1.map,'map1');
@@ -231,6 +278,10 @@ const assert = require('node:assert/strict');
       'landmark HUD hidden in Map1');
     assert.equal(map1.corridorVisible,true,'Map1 corridor restored');
     assert(map1.flightRadius<500,'Map1 narrow flight restored');
+    assert.equal(map1.cameraFar,4500,'Map1 draw distance restored');
+    assert.equal(map1.light,0xff55aa,'Map1 lighting restored');
+    const map1Boundary=await page.evaluate(()=>evaluateBoundaryFriction(0,0,18,0,0));
+    assert.equal(map1Boundary.level,0,'Map1 boundary behavior unchanged');
     assert.equal(map1.racers,5);
     assert.equal(map1.combat,false);
     assert(map1.header.includes('TIME / GAP'),'Map1 header restored');
@@ -238,7 +289,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Map4 W01 12 landmarks/4 regions, 60s arena, collision, orbital ascent, restart and Map1 regression');
+    console.log('PASS: Map4 W02 large airspace, four-stage soft edges, panoramic scenery, no Map1 regression');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();
