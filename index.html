@@ -1090,6 +1090,7 @@
 
         const planetaryWorldGroup = new THREE.Group();
         const planetaryWorldRegions = [];
+        const planetaryBuildingColliders = [];
         scene.add(planetaryWorldGroup);
         planetaryWorldGroup.visible = false;
         const H4_MESHES = Object.freeze({
@@ -1137,7 +1138,50 @@
             mesh.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
             mesh.scale.set(scale[0],scale[1],scale[2]);
             group.add(mesh);
+            if((progress>=MAP4_PHASES.arenaEnd &&
+                progress<MAP4_PHASES.industryEnd) &&
+                geometry!==H4_MESHES.beacon && geometry!==H4_MESHES.dome){
+                const collider={
+                    progress,side,altitude,
+                    halfSide:Math.max(25,scale[0]*0.5),
+                    halfUp:Math.max(20,scale[1]*0.5),
+                    halfDepth:Math.max(35,scale[2]*0.5)
+                };
+                mesh.userData.h4Collider=collider;
+                planetaryBuildingColliders.push(collider);
+            }
             return mesh;
+        }
+        function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
+            if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
+            const check=(ship,previous,isPlayer)=>{
+                if(!previous || ship.finished || ship.dnf ||
+                    (isPlayer && state.playerDNF))return;
+                if((ship.map4ImpactCooldown||0)>state.raceTime)return;
+                const lower=Math.min(previous.routeProgress,ship.routeProgress)-32;
+                const upper=Math.max(previous.routeProgress,ship.routeProgress)+32;
+                for(const c of planetaryBuildingColliders){
+                    if(c.progress+c.halfDepth<lower || c.progress-c.halfDepth>upper)continue;
+                    if(Math.abs(ship.laneX-c.side)>c.halfSide+(ship.radius||10))continue;
+                    if(Math.abs(ship.laneY-c.altitude)>c.halfUp+(ship.radius||10))continue;
+                    ship.map4ImpactCooldown=state.raceTime+0.9;
+                    if(isPlayer) {
+                        applyPlayerDamage(12);
+                        if(!state.playerDNF){
+                            ship.currentSpeed*=0.68;
+                            spawnFloatingText(state.pos,'YAPI ÇARPIŞMASI -12 KALKAN','#ffae80');
+                        }
+                    }else{
+                        ship.shield=Math.max(0,ship.shield-12);
+                        ship.currentSpeed*=0.68;
+                        if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
+                    }
+                    break;
+                }
+            };
+            if(!state.finished&&!state.playerDNF)
+                check(state,previousPlayer,true);
+            racers.forEach((r,i)=>check(r,previousRivals[i],false));
         }
         function buildPlanetaryWorld() {
             if(planetaryWorldRegions.length) return;
@@ -4389,6 +4433,9 @@
                 updateHunterCompetitionHUD();
             }
 
+            // Physical building collision is separate from Map 1's debris hazards.
+            if(state.activeMap===MAP_MODES.MAP4)
+                updatePlanetaryBuildingContacts(prevPlayerCourse,prevRacerCourse);
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts(prevPlayerCourse,prevRacerCourse);
             if (!state.running) return; // Gemiler arası temas oyuncuyu DNF yaptıysa kareyi sonlandır.
