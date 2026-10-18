@@ -145,6 +145,7 @@
             <div class="text-xs text-amber-200 font-bold">GEZEGEN GEÇİŞ OPERASYONU</div>
             <div id="planetary-zone-name" class="text-sm text-white font-black">KAYALIK VADİLER</div>
             <div id="planetary-destination" class="text-xs text-cyan-200">HEDEF: ASKERÎ ÜS</div>
+            <div id="planetary-landmark-name" class="text-[10px] text-amber-200 mt-1">BÖLGE TARAMASI</div>
         </div>
         
         <!-- ÜST BÖLÜM: Tehlike Uyarısı, Kamera Modu & Boss Can Barı -->
@@ -1152,6 +1153,179 @@
             }
             return mesh;
         }
+
+        // W01 World content: deterministic, reusable low-poly landmark clusters.
+        // Content is generated once at world initialization, never each race.
+        const h4WorldLandmarks = [];
+        const h4WorldContentStats = {landmarks:0,decorMeshes:0,byRegion:[0,0,0,0]};
+        const H4_DETAIL_GEO = Object.freeze({
+            plate:new THREE.CylinderGeometry(1,1,0.13,12),
+            mast:new THREE.CylinderGeometry(0.19,0.30,1,7),
+            wedge:new THREE.TetrahedronGeometry(1,0),
+            ring:new THREE.TorusGeometry(1,0.1,6,24),
+            hull:new THREE.OctahedronGeometry(1,0),
+            sphere:new THREE.SphereGeometry(1,9,6)
+        });
+        const H4_DETAIL_MAT = Object.freeze({
+            sandstone:new THREE.MeshLambertMaterial({color:0xb68b65,flatShading:true}),
+            cliffShadow:new THREE.MeshLambertMaterial({color:0x5a3c36,flatShading:true}),
+            oxidized:new THREE.MeshLambertMaterial({color:0x63747c,flatShading:true}),
+            armor:new THREE.MeshLambertMaterial({color:0x3e4858,flatShading:true}),
+            warning:new THREE.MeshBasicMaterial({color:0xffb25a}),
+            hazard:new THREE.MeshBasicMaterial({color:0xff5b61}),
+            cyan:new THREE.MeshBasicMaterial({color:0x64d9ed}),
+            energy:new THREE.MeshBasicMaterial({color:0x77cce3}),
+            purple:new THREE.MeshBasicMaterial({color:0x9d91ff})
+        });
+        const H4_LANDMARK_PLANS = Object.freeze([
+            [
+                {at:1950,side:-760,name:'KIZIL KAYA KAPISI',kind:'stonegate'},
+                {at:6100,side:850,name:'KIRIK MESA SIRTI',kind:'mesa'},
+                {at:10100,side:-760,name:'KANYON GOZLEME',kind:'observation'}
+            ],
+            [
+                {at:12640,side:-570,name:'DUSMUS KRUVAZOR',kind:'crash'},
+                {at:13220,side:650,name:'HAVA SAVUNMA HATTI',kind:'defense'},
+                {at:13770,side:-540,name:'SAVAS ALANI YIKINTISI',kind:'wreck'}
+            ],
+            [
+                {at:17200,side:690,name:'TASFIYE RAFINERISI',kind:'refinery'},
+                {at:23800,side:-770,name:'MAKINE KULELERI',kind:'factory'},
+                {at:31600,side:580,name:'ENERJI AKTARIM ISTASYONU',kind:'power'}
+            ],
+            [
+                {at:36200,side:-790,name:'HUDUT KARAKOLU',kind:'outpost'},
+                {at:42600,side:820,name:'ASKERI UZAY LIMANI',kind:'spaceport'},
+                {at:48300,side:-600,name:'YORUNGE FIRLATMA KOMPLEKSI',kind:'launch'}
+            ]
+        ]);
+        function h4CreateLandmark(zone, regionIndex, plan) {
+            const group=new THREE.Group();
+            group.name='MAP4_'+plan.kind.toUpperCase()+'_'+Math.round(plan.at);
+            group.userData.landmark=true;
+            zone.add(group);
+            const add=(delta,shift,height,geo,mat,sx,sy,sz)=>{
+                const obj=h4PlaceStructure(group,plan.at+delta,plan.side+shift,
+                    -440+height,geo,mat,[sx,sy,sz]);
+                h4WorldContentStats.decorMeshes++;
+                return obj;
+            };
+            const dark=H4_DETAIL_MAT.cliffShadow;
+            const gold=H4_DETAIL_MAT.warning;
+            const metal=H4_DETAIL_MAT.oxidized;
+            const armor=H4_DETAIL_MAT.armor;
+            switch(plan.kind){
+                case 'stonegate':
+                    for(const side of [-1,1]) {
+                        add(side*115,side*185,260,H4_MESHES.rock,H4_DETAIL_MAT.sandstone,145,540,150);
+                        add(0,side*160,95,H4_DETAIL_GEO.wedge,dark,105,170,100);
+                    }
+                    add(0,0,495,H4_MESHES.structure,H4_DETAIL_MAT.sandstone,360,70,110);
+                    add(-85,0,570,H4_DETAIL_GEO.hull,gold,22,28,22);
+                    break;
+                case 'mesa':
+                    for(let i=0;i<7;i++) {
+                        const h=170+((i*67)%360);
+                        add(i*68-210,(i%2?1:-1)*(140+i*28),h*0.5,H4_MESHES.rock,
+                            i%3?H4_DETAIL_MAT.sandstone:dark,130+(i%3)*30,h,135);
+                    }
+                    break;
+                case 'observation':
+                    add(0,0,130,H4_MESHES.structure,metal,190,260,220);
+                    add(0,0,282,H4_DETAIL_GEO.plate,dark,230,80,230);
+                    for(const side of [-1,1]) {
+                        add(40,side*112,360,H4_DETAIL_GEO.mast,metal,20,180,20);
+                        add(40,side*112,454,H4_DETAIL_GEO.hull,gold,23,23,23);
+                    }
+                    break;
+                case 'crash':
+                    add(0,0,90,H4_MESHES.structure,armor,350,135,95);
+                    add(-110,0,128,H4_DETAIL_GEO.wedge,H4_DETAIL_MAT.hazard,145,90,145);
+                    for(let i=0;i<6;i++){
+                        add((i-2)*60,(i%2?1:-1)*(160+i*11),42,
+                            H4_DETAIL_GEO.wedge,metal,30+i*9,60+i*7,35+i*6);
+                    }
+                    break;
+                case 'defense':
+                    for(const side of [-1,1]){
+                        add(0,side*185,70,H4_MESHES.structure,armor,200,140,110);
+                        add(0,side*185,153,H4_MESHES.tower,metal,55,90,55);
+                        add(-35,side*185,215,H4_DETAIL_GEO.hull,H4_DETAIL_MAT.hazard,23,25,23);
+                    }
+                    add(100,0,11,H4_DETAIL_GEO.plate,metal,250,6,210);
+                    break;
+                case 'wreck':
+                    add(0,0,55,H4_MESHES.structure,armor,240,100,230);
+                    for(let i=0;i<7;i++){
+                        add((i-3)*55,(i%2?1:-1)*(75+i*26),36,
+                            H4_DETAIL_GEO.wedge,i%2?dark:metal,25+i*10,45+i*8,40+i*7);
+                    }
+                    add(70,-120,158,H4_DETAIL_GEO.ring,gold,58,58,58);
+                    break;
+                case 'refinery':
+                    add(0,0,85,H4_MESHES.structure,armor,340,170,255);
+                    for(const side of [-1,1]){
+                        add(-70,side*175,210,H4_MESHES.tower,metal,62,420,62);
+                        add(-70,side*175,435,H4_DETAIL_GEO.ring,H4_DETAIL_MAT.hazard,49,49,49);
+                        add(110,side*140,115,H4_MESHES.structure,metal,110,230,110);
+                    }
+                    add(30,0,330,H4_MESHES.structure,H4_DETAIL_MAT.cyan,70,18,60);
+                    break;
+                case 'factory':
+                    for(let i=0;i<3;i++){
+                        const pos=(i-1)*200;
+                        add(i*60,pos,185,H4_MESHES.structure,armor,180,370,190);
+                        add(i*60,pos,397,H4_DETAIL_GEO.plate,metal,210,35,215);
+                        add(i*60,pos,485,H4_DETAIL_GEO.mast,H4_DETAIL_MAT.warning,22,195,22);
+                    }
+                    break;
+                case 'power':
+                    add(0,0,65,H4_MESHES.structure,armor,300,130,230);
+                    for(const side of [-1,1]){
+                        add(0,side*190,300,H4_MESHES.tower,metal,65,600,65);
+                        add(0,side*190,612,H4_DETAIL_GEO.sphere,H4_DETAIL_MAT.cyan,42,42,42);
+                        add(0,side*190,515,H4_DETAIL_GEO.ring,H4_DETAIL_MAT.purple,90,90,90);
+                    }
+                    break;
+                case 'outpost':
+                    for(const side of [-1,1]){
+                        add(0,side*210,160,H4_MESHES.structure,H4_MATERIALS.wall,135,320,140);
+                        add(0,side*210,335,H4_DETAIL_GEO.hull,H4_DETAIL_MAT.hazard,45,45,45);
+                    }
+                    add(-110,0,55,H4_MESHES.structure,armor,270,110,145);
+                    break;
+                case 'spaceport':
+                    add(0,0,18,H4_DETAIL_GEO.plate,armor,370,22,370);
+                    add(0,0,29,H4_DETAIL_GEO.ring,H4_DETAIL_MAT.cyan,260,260,260);
+                    for(const side of [-1,1]){
+                        add(-55,side*280,170,H4_MESHES.structure,H4_MATERIALS.wall,140,340,150);
+                        add(50,side*210,75,H4_DETAIL_GEO.hull,H4_DETAIL_MAT.energy,65,30,100);
+                    }
+                    break;
+                case 'launch':
+                    add(0,0,36,H4_DETAIL_GEO.plate,armor,430,30,400);
+                    add(0,0,520,H4_MESHES.tower,metal,82,1000,82);
+                    add(0,0,1030,H4_DETAIL_GEO.ring,H4_DETAIL_MAT.purple,165,165,165);
+                    for(const side of [-1,1]){
+                        add(90,side*245,320,H4_MESHES.structure,H4_MATERIALS.wall,90,640,130);
+                        add(90,side*245,654,H4_DETAIL_GEO.hull,gold,50,50,50);
+                    }
+                    break;
+            }
+            h4WorldLandmarks.push({
+                zone:regionIndex,
+                at:plan.at,
+                name:plan.name,
+                group,
+                kind:plan.kind
+            });
+            h4WorldContentStats.landmarks++;
+            h4WorldContentStats.byRegion[regionIndex]++;
+        }
+        function h4PopulateRegion(zone,regionIndex) {
+            const plans=H4_LANDMARK_PLANS[regionIndex];
+            for(const plan of plans) h4CreateLandmark(zone,regionIndex,plan);
+        }
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -1232,6 +1406,7 @@
                         H4_MESHES.beacon,H4_MATERIALS.marker,[70,70,70]);
                     beacon.rotateX(Math.PI*0.5);
                 }
+                h4PopulateRegion(zone,zoneIndex);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
             }
@@ -1269,6 +1444,17 @@
                 planetaryWorldRegions[i].visible=def.to>state.routeProgress-3400
                     && def.from<state.routeProgress+7800;
             }
+            // Cull distant compositions inside active regions to limit draw calls.
+            let nextLandmark=null;
+            for(const point of h4WorldLandmarks) {
+                point.group.visible=point.at>=state.routeProgress-1600 &&
+                    point.at<=state.routeProgress+4800;
+                if(point.at>=state.routeProgress-400 && point.at<=state.routeProgress+3100 &&
+                    (!nextLandmark || point.at<nextLandmark.at)) nextLandmark=point;
+            }
+            const landmarkLine=document.getElementById('planetary-landmark-name');
+            if(landmarkLine) landmarkLine.textContent=nextLandmark ?
+                'YAKIN NOKTA: '+nextLandmark.name : 'BÖLGE TARAMASI · HEDEFE İLERLE';
             document.getElementById('planetary-zone-name').textContent=sector.name;
             const phase=state.map4Phase;
             const stageLabels=['','1/4 · VADİDEN GEÇİŞ','2/4 · SERBEST AVCI SAVAŞI',
