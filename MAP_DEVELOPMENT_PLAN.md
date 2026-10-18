@@ -12,7 +12,7 @@
 | Harita | Mod | Kazanma koşulu | Durum |
 |---|---|---|---|
 | 1 | Saf hız yarışı | Aynı temel motor hızına sahip 6 yarışçı ile virajlı/engelli pistte ilk bitiren olma; rakiplere saldırma yok | **TAMAMLANDI — kullanıcı onaylı** |
-| 4 | Avcı imha yarışı | Gerçek bitirme süresi en fazla 120 saniye. Düşman avcı öldürmelerinin süre indirimi sıralamayı belirler. 120 saniyeyi aşan oyuncu indirimle sonradan kazanamaz. | **SIRADAKİ — geliştirme** |
+| 4 | Avcı imha yarışı | Gerçek bitirme süresi en fazla 120 saniye. Düşman avcı öldürmelerinin süre indirimi sıralamayı belirler. 120 saniyeyi aşan oyuncu indirimle sonradan kazanamaz. | **OYNANABİLİR — Chromium smoke PASS; oyuncu denge onayı bekliyor** |
 | 3 | Ana üs imhası | Ana çekirdeğe son ölümcül darbeyi indiren kazanır; yarışçılar birbirlerini vuramaz veya engelleyemez | Sırada |
 | 2 | Tehlikeli yarış | Alternatif rota/kestirme, hareketli engel ve sınırlı yavaşlatmayla yarışı kazanma | Sırada |
 | 5 | Ağır hedef avı | Süre içinde küçük avcılar ve ağır/dev hedefleri imha ederek en yüksek puanı toplama | Sırada |
@@ -30,3 +30,11 @@
 - Her yeni harita, kendi kurallarına uygun oynanabilir mücadele, rakip yapay zekâsı, kazanma/kaybetme koşulu, yeniden başlatma, sonuç ekranı ve hata/performans kontrolüne sahip olmalı.
 - Harita 1'e dönüşte AI-35 onaylı özelliklerin hiçbiri kaybolmamalı.
 - Yayıncı için ilk oynanabilir üçlü: **Harita 1 + Harita 4 + Harita 3**; nihai hedef **6/6**.
+
+## Harita 4 uygulama/kalite raporu (18.10.2026)
+- H4-01/02/03/04/05 uygulandı; oyunun `index.html` menüsünden iki mod arasında seçim, yeniden başlatma ve sonuç ekranından harita seçimine dönüş çalışıyor.
+- Harita 4: 6 pilot, 8 ortak avcı, gerçek mermi/isabet/imha, 120 saniye gerçek bitiş limiti, geçerli bitirişe avcı başına **geçici 2 saniye** net-zaman indirimi, DNF ve altı kişilik sonuç tablosu.
+- **Playwright/Chromium tarayıcı testi başarılı:** 18 Ekim 2026, GitHub Actions run `39156789498`. Harita 4 açılış/8 avcı/5 AI, 120s DNF, 6 sonuç, restart, Harita 1'e geri dönüş, Map1 sonuç başlığı kontrol edildi; runtime JS hatası yok.
+- Görsel/denge konusunda otomatik duman testi nihai kalite veya oyuncu onayı değildir. Oyuncu geri bildirimiyle H4 denge ve içerik cilası ayrıca yapılabilir.
+- Otomatik test: `tests/map4-browser-smoke.cjs`; sonraki haritalar için `main` dalında da GitHub Actions regresyon kontrolü çalışır.
+- Sonraki geliştirilecek harita: **Harita 3 — Ana üs imhası**. Harita 4 sistemlerini geri bozmadan ayrı geliştirme dalında ilerlet.
