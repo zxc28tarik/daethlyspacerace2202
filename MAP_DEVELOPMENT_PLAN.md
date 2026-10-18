@@ -12,7 +12,7 @@
 | Harita | Mod | Kazanma koşulu | Durum |
 |---|---|---|---|
 | 1 | Saf hız yarışı | Aynı temel motor hızına sahip 6 yarışçı ile virajlı/engelli pistte ilk bitiren olma; rakiplere saldırma yok | **TAMAMLANDI — kullanıcı onaylı** |
-| 4 | Gezegen geçişi / avcı puanı | Tek gezegende 4 bağlı bölge; gerçek bitiş ≤120s zorunlu. Varanlar arasında avcı puanı yüksek olan kazanır (normal 1, elit 3); eşitse daha hızlı varış. | **GEZEGEN SÜRÜMÜ P01–P06 KODLANDI / fiziki kestirme, çarpışma, devriye ve oyuncu onayı bekliyor** |
+| 4 | Dört aşamalı gezegen geçişi | Ortalama 4–5 dk: vadiler ~40sn, kilitli avcı arenası **60sn**, bina kaçınma geçişi, yörüngeye zorunlu yükseliş; gerçek son sınır 300sn; geçerli varışlarda avcı puanı sıralaması. | **DÖRT AŞAMA KODLANDI / Chromium PASS / oyuncu onayı ve rota çeşitliliği bekliyor** |
 | 3 | Ana üs imhası | Ana çekirdeğe son ölümcül darbeyi indiren kazanır; yarışçılar birbirlerini vuramaz veya engelleyemez | Sırada |
 | 2 | Tehlikeli yarış | Alternatif rota/kestirme, hareketli engel ve sınırlı yavaşlatmayla yarışı kazanma | Sırada |
 | 5 | Ağır hedef avı | Süre içinde küçük avcılar ve ağır/dev hedefleri imha ederek en yüksek puanı toplama | Sırada |
@@ -41,3 +41,6 @@
 
 ## Map4 yeni gezegen tasarımı
 Bu turdaki fiziksel alan/saha çalışma notları ve sonraki görevlerin doğrusu `MAP4_PLANETARY_DESIGN.md` dosyasındadır. Önceki −2 saniye/avcı kuralı yeni tasarımda geçersizdir; artık puan önceliklidir. Dört low-poly bölgenin bulunması tam serbest dünya / üretim-kalitesi harita sanatı tamamlandı anlamına gelmez.
+
+## Harita 4 son karar
+Ekim 18 dört-aşama tasarımı artık 120 saniyelik geçişin yerini aldı. Güncel teknik ve oyun hedefi `MAP4_PLANETARY_DESIGN.md` dosyasındadır; eski H4-04 maddesi tarihsel uygulanmış sürümü anlatır, **güncel kural değildir**.

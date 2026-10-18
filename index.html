@@ -151,13 +151,13 @@
         <div class="flex flex-col items-center w-full gap-2">
             <div id="hunter-competition-hud" class="hidden hud-box w-full max-w-4xl px-3 py-2 text-center font-['Share_Tech_Mono']">
                 <div class="font-bold text-amber-300 text-xs tracking-widest">HARİTA 4 · AVCI İMHA SIRALAMASI</div>
-                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 02:00.00 · NORMAL +1 / ELİT +3</div>
+                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 05:00.00 · NORMAL +1 / ELİT +3</div>
                 <div id="hunter-competition-scores" class="text-cyan-100 text-xs mt-1" aria-live="off"></div>
             </div>
             <div class="w-full flex justify-between items-start">
                 <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
-                    <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">50000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
+                    <div class="text-cyan-300 font-bold tracking-wider"><span id="race-mode-heading">CORRIDOR RACE</span>: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">50000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">3000</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
                         <span id="boundary-alert" class="ml-2 text-emerald-300">CORRIDOR SAFE</span>
@@ -311,8 +311,8 @@
 
             <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
-                    <div class="text-amber-300 font-bold mb-1">>> 120 SANİYE GERÇEK SÜRE</div>
-                    <p class="text-slate-300">50.000 metrelik bitiş çizgisine gerçek yarış saati 120 saniyeyi geçmeden ulaşın. Süre aşımı DNF olur; imha indirimi bu şartı değiştirmez.</p>
+                    <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
+                    <p class="text-slate-300">1. Kayalık vadilerde yaklaşık 40 saniyelik geçiş. 2. Savaş ovasında tam 60 saniye ileri gidemez, serbestçe avcı vurursun. 3. Endüstriyel binalardan kaçarak ilerlersin. 4. Savaşırken uzay katmanına yükselirsin.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
@@ -320,7 +320,7 @@
                 </div>
                 <div class="bg-slate-900/80 border border-emerald-500/40 p-3.5 rounded">
                     <div class="text-emerald-300 font-bold mb-1">>> SAVAŞ PUANI</div>
-                    <p class="text-slate-300">120 saniyede hedefe ulaşmak zorunlu. Varanlar arasında normal avcı +1, elit avcı +3 puan kazandırır. Puan eşitliğinde daha hızlı bitiren kazanır.</p>
+                    <p class="text-slate-300">300 saniyelik üst sınıra kadar uzay katmanına çıkmak zorunlu. Normal avcı +1, elit avcı +3 puan. Geçerli çıkanlar arasında puan yüksek olan kazanır; eşitlikte en hızlı çıkan öne geçer.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
                     <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
@@ -571,7 +571,7 @@
         // crossing time, NOT the discounted time, decides eligibility.
         // Provisional balance parameter, adjustable in H4-05 after playtests.
         const MAP4_RACE_RULES = Object.freeze({
-            realTimeLimit: 120,
+            realTimeLimit: 300,
             normalHunterPoints: 1,
             eliteHunterPoints: 3,
             finishTolerance: 0.000001
@@ -643,7 +643,7 @@
             const title=document.getElementById('gameover-title');
             const success=player.validFinish && rank===1;
             const failure=!player.validFinish;
-            title.textContent = failure ? 'HARİTA 4 // DNF · 120s SINIRI'
+            title.textContent = failure ? 'HARİTA 4 // DNF · 5 DAKİKA SINIRI'
                 : success ? 'HARİTA 4 // AVCI YARISI ZAFERI!'
                 : 'HARİTA 4 // SIRALAMA ' + rank + ' / 6';
             title.className='text-2xl sm:text-4xl font-black tracking-widest uppercase mb-2 '+
@@ -657,7 +657,7 @@
                 'GERÇEK SÜRE LİMİTİ: '+MAP4_RACE_RULES.realTimeLimit+
                 's · NORMAL AVCI +1 / ELİT AVCI +3 PUAN';
             document.getElementById('race-sector-splits').textContent =
-                '120s İÇİNDE VARIŞ ZORUNLU; EN YÜKSEK PUAN KAZANIR · EŞİTLİKTE EN HIZLI';
+                '5 DAKİKADA UZAY KATMANINA ÇIKIŞ ŞART; ÖNCE PUAN · EŞİTLİKTE HIZ';
             document.getElementById('race-telemetry-summary').textContent =
                 'OYUNCU: '+player.shots+' ÇİFT ATIŞ / '+player.hits+' İSABET / '+player.kills+
                 ' AVCI İMHA';
@@ -700,6 +700,10 @@
             activeMap: MAP_MODES.MAP1,
             hunterKills: 0,
             hunterScore: 0,
+            map4Phase:1,
+            map4ArenaStarted:false,
+            map4ArenaElapsed:0,
+            map4ClimbWarningTime:0,
             hunterShots: 0,
             hunterHits: 0,
             lastHunterHudTick: -1,
@@ -1010,13 +1014,83 @@
         // Geometry is native Three.js, with bounded static allocations (no frame-by-frame creation).
         const PLANETARY_REGIONS = Object.freeze([
             {from:0,to:12500,name:'KAYALIK VADİLER',type:'canyon',ground:0x886044,sky:0xa6725c},
-            {from:12500,to:25000,name:'AÇIK SAVAŞ OVASI',type:'battlefield',ground:0x725648,sky:0x96736a},
-            {from:25000,to:37500,name:'ENDÜSTRİ BÖLGESİ',type:'industrial',ground:0x494c51,sky:0x647484},
-            {from:37500,to:50001,name:'ASKERÎ ÜS VE TAHLİYE',type:'fortress',ground:0x57434c,sky:0x735b72}
+            {from:12500,to:14000,name:'AÇIK SAVAŞ OVASI',type:'battlefield',ground:0x725648,sky:0x96736a},
+            {from:14000,to:34000,name:'ENDÜSTRİ BÖLGESİ',type:'industrial',ground:0x494c51,sky:0x647484},
+            {from:34000,to:50001,name:'ASKERÎ ÜS VE YÖRÜNGE ÇIKIŞI',type:'fortress',ground:0x57434c,sky:0x735b72}
         ]);
         const PLANETARY_FLIGHT_RADIUS = 1340;
+        // A four-stage mission; intro and travel lengths are tuned for a 4–5 minute
+        // normal run. Boost or combat choices can make the actual duration differ.
+        const MAP4_PHASES = Object.freeze({
+            introEnd:12500, arenaEnd:14000, industryEnd:34000,
+            arenaSeconds:60, orbitAltitude:850,
+            introSpeed:0.36, industrialSpeed:0.29, ascentSpeed:0.19
+        });
+        function map4PhaseFromProgress(progress){
+            if(progress<MAP4_PHASES.introEnd)return 1;
+            if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds)return 2;
+            if(progress<MAP4_PHASES.industryEnd)return 3;
+            return 4;
+        }
+        function map4SpeedFactor(progress) {
+            if(state.activeMap!==MAP_MODES.MAP4)return 1;
+            if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds &&
+                    progress>=MAP4_PHASES.introEnd-0.001)return 0;
+            if(progress<MAP4_PHASES.introEnd)return MAP4_PHASES.introSpeed;
+            if(progress<MAP4_PHASES.industryEnd)return MAP4_PHASES.industrialSpeed;
+            return MAP4_PHASES.ascentSpeed;
+        }
+        function map4Advance(progress,speed,dt) {
+            if(state.activeMap!==MAP_MODES.MAP4)return progress+speed*dt;
+            if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds) {
+                return Math.min(MAP4_PHASES.introEnd,
+                    progress+speed*MAP4_PHASES.introSpeed*dt);
+            }
+            const factor=map4SpeedFactor(progress);
+            let next=progress+speed*factor*dt;
+            // Keep accurate speed after crossing an actual sector transition.
+            const boundary=MAP4_PHASES.industryEnd;
+            if(progress<boundary && next>boundary){
+                const spent=(boundary-progress)/(Math.max(0.0001,speed*factor));
+                next=boundary+speed*MAP4_PHASES.ascentSpeed*Math.max(0,dt-spent);
+            }
+            return next;
+        }
+        function map4EnterArena() {
+            if(state.activeMap!==MAP_MODES.MAP4||state.map4ArenaStarted)return;
+            state.map4ArenaStarted=true;
+            state.map4ArenaElapsed=0;
+            state.map4Phase=2;
+            state.routeProgress=MAP4_PHASES.introEnd;
+            for(const pilot of racers){
+                if(pilot.dnf || pilot.finished)continue;
+                pilot.routeProgress=MAP4_PHASES.introEnd;
+                pilot.currentSpeed=RACE_SPEEDS.NORMAL;
+                pilot.mesh.position.copy(h4WorldPosition(pilot.routeProgress,pilot.laneX,pilot.laneY));
+            }
+            showCenterAnnouncement('İLERLEME KİLİTLENDİ','60 SANİYE SERBEST AVCI SAVAŞI');
+        }
+        function map4UpdatePhase(dt) {
+            if(state.activeMap!==MAP_MODES.MAP4||!state.running)return;
+            if(!state.map4ArenaStarted && state.routeProgress>=MAP4_PHASES.introEnd-0.001){
+                map4EnterArena();
+            }
+            if(state.map4ArenaStarted && state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds){
+                state.map4ArenaElapsed=Math.min(MAP4_PHASES.arenaSeconds,
+                    state.map4ArenaElapsed+dt);
+                if(state.map4ArenaElapsed>=MAP4_PHASES.arenaSeconds){
+                    state.map4Phase=3;
+                    showCenterAnnouncement('GEÇİŞ SERBEST','ENDÜSTRİ BÖLGESİNE ULAŞ');
+                }
+                return;
+            }
+            state.map4Phase=state.routeProgress>=MAP4_PHASES.industryEnd?4:
+                state.map4ArenaStarted?3:1;
+        }
+
         const planetaryWorldGroup = new THREE.Group();
         const planetaryWorldRegions = [];
+        const planetaryBuildingColliders = [];
         scene.add(planetaryWorldGroup);
         planetaryWorldGroup.visible = false;
         const H4_MESHES = Object.freeze({
@@ -1064,7 +1138,50 @@
             mesh.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
             mesh.scale.set(scale[0],scale[1],scale[2]);
             group.add(mesh);
+            if((progress>=MAP4_PHASES.arenaEnd &&
+                progress<MAP4_PHASES.industryEnd) &&
+                geometry!==H4_MESHES.beacon && geometry!==H4_MESHES.dome){
+                const collider={
+                    progress,side,altitude,
+                    halfSide:Math.max(25,scale[0]*0.5),
+                    halfUp:Math.max(20,scale[1]*0.5),
+                    halfDepth:Math.max(35,scale[2]*0.5)
+                };
+                mesh.userData.h4Collider=collider;
+                planetaryBuildingColliders.push(collider);
+            }
             return mesh;
+        }
+        function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
+            if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
+            const check=(ship,previous,isPlayer)=>{
+                if(!previous || ship.finished || ship.dnf ||
+                    (isPlayer && state.playerDNF))return;
+                if((ship.map4ImpactCooldown||0)>state.raceTime)return;
+                const lower=Math.min(previous.routeProgress,ship.routeProgress)-32;
+                const upper=Math.max(previous.routeProgress,ship.routeProgress)+32;
+                for(const c of planetaryBuildingColliders){
+                    if(c.progress+c.halfDepth<lower || c.progress-c.halfDepth>upper)continue;
+                    if(Math.abs(ship.laneX-c.side)>c.halfSide+(ship.radius||10))continue;
+                    if(Math.abs(ship.laneY-c.altitude)>c.halfUp+(ship.radius||10))continue;
+                    ship.map4ImpactCooldown=state.raceTime+0.9;
+                    if(isPlayer) {
+                        applyPlayerDamage(12);
+                        if(!state.playerDNF){
+                            ship.currentSpeed*=0.68;
+                            spawnFloatingText(state.pos,'YAPI ÇARPIŞMASI -12 KALKAN','#ffae80');
+                        }
+                    }else{
+                        ship.shield=Math.max(0,ship.shield-12);
+                        ship.currentSpeed*=0.68;
+                        if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
+                    }
+                    break;
+                }
+            };
+            if(!state.finished&&!state.playerDNF)
+                check(state,previousPlayer,true);
+            racers.forEach((r,i)=>check(r,previousRivals[i],false));
         }
         function buildPlanetaryWorld() {
             if(planetaryWorldRegions.length) return;
@@ -1135,6 +1252,9 @@
                 updateCourseVisibility(state.routeProgress);
             }
             document.getElementById('planetary-zone-hud').classList.toggle('hidden',!active);
+            if(active) finishGateGroup.position.copy(
+                h4WorldPosition(RACE_ROUTE_NOMINAL_DISTANCE,0,MAP4_PHASES.orbitAltitude));
+            else finishGateGroup.position.set(0,0,state.finishZ);
         }
         function updatePlanetaryWorld() {
             if(state.activeMap!==MAP_MODES.MAP4)return;
@@ -1150,8 +1270,23 @@
                     && def.from<state.routeProgress+7800;
             }
             document.getElementById('planetary-zone-name').textContent=sector.name;
+            const phase=state.map4Phase;
+            const stageLabels=['','1/4 · VADİDEN GEÇİŞ','2/4 · SERBEST AVCI SAVAŞI',
+                '3/4 · ENDÜSTRİ ENGELLERİ','4/4 · UZAYA YÜKSELİŞ'];
             document.getElementById('planetary-destination').textContent=
-                'HEDEF: ASKERÎ ÜS · '+Math.round(distanceRemaining/1000)+' km';
+                phase===2 ? stageLabels[2]+' · KALAN '+
+                    formatRaceTime(MAP4_PHASES.arenaSeconds-state.map4ArenaElapsed)+
+                    ' · İLERLEME KİLİTLİ' :
+                phase===4 ? stageLabels[4]+' · YÜKSEKLİK '+
+                    Math.round(state.laneY)+' / '+MAP4_PHASES.orbitAltitude+
+                    ' · ↑ İLE YÜKSEL' :
+                    stageLabels[phase]+' · HEDEF '+Math.round(distanceRemaining/1000)+' km';
+            if(phase===4){
+                const altitudeRatio=THREE.MathUtils.clamp((state.laneY+180)/1200,0,1);
+                scene.background.setHex(altitudeRatio>0.85?0x090e32:
+                    altitudeRatio>0.5?0x2e3d66:sector.sky);
+                scene.fog.color.setHex(altitudeRatio>0.75?0x192249:0x735b72);
+            }
             const color=sector.sky;
             scene.background.setHex(color);
         }
@@ -2140,10 +2275,14 @@
             const anchorProgress=activeProgress[Math.floor(activeProgress.length/2)];
             const room = RACE_ROUTE_NOMINAL_DISTANCE - anchorProgress;
             if (room <= 180) return false;
-            const maxAhead = Math.min(MAP4_HUNTERS.spawnMaxAhead, Math.max(100, room - 85));
-            const minAhead = Math.min(MAP4_HUNTERS.spawnMinAhead, maxAhead);
+            const arenaActive=state.map4ArenaStarted &&
+                state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds;
+            const maxAhead = Math.min(arenaActive?1200:MAP4_HUNTERS.spawnMaxAhead, Math.max(100, room - 85));
+            const minAhead = Math.min(arenaActive?180:MAP4_HUNTERS.spawnMinAhead, maxAhead);
             const ahead = minAhead + Math.random() * Math.max(0, maxAhead - minAhead);
-            target.routeProgress = Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 60, anchorProgress + ahead);
+            target.routeProgress = arenaActive ?
+                MAP4_PHASES.introEnd + ahead :
+                Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 60, anchorProgress + ahead);
             const radius = getCorridorRadiusAt(target.routeProgress) * (0.26 + 0.36 * Math.random());
             const angle = ((slot * 2.399963) + Math.random() * 0.8) % (Math.PI * 2);
             target.baseLaneX = Math.cos(angle) * radius;
@@ -2151,7 +2290,8 @@
             target.laneX = target.baseLaneX;
             target.laneY = target.baseLaneY;
             target.weavePhase = Math.random() * Math.PI * 2;
-            target.moveSpeed = 260 + Math.random() * 180;
+            target.moveSpeed = arenaActive ? 80+Math.random()*90 : 260+Math.random()*180;
+            target.arenaDirection=Math.random()<0.5?-1:1;
             target.weaveSpeed = 0.7 + Math.random() * 0.65;
             target.hp = target.maxHp;
             target.alive = true;
@@ -2200,7 +2340,17 @@
                     if (target.respawnTimer === 0) spawnHunterTarget(target, i);
                     continue;
                 }
-                target.routeProgress += target.moveSpeed * dt;
+                const arenaActive=state.map4ArenaStarted &&
+                    state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds;
+                if(arenaActive){
+                    target.routeProgress+=target.moveSpeed*target.arenaDirection*dt;
+                    const low=MAP4_PHASES.introEnd+135;
+                    const high=MAP4_PHASES.introEnd+1370;
+                    if(target.routeProgress>=high || target.routeProgress<=low){
+                        target.routeProgress=THREE.MathUtils.clamp(target.routeProgress,low,high);
+                        target.arenaDirection*=-1;
+                    }
+                }else target.routeProgress += target.moveSpeed * dt;
                 // Only escape after EVERY still-active pilot has passed the hunter.
                 // Using the finished player's 50k progress here would incorrectly
                 // despawn all targets while slower AI pilots are still hunting.
@@ -3345,6 +3495,7 @@
             const prevPlayerCourse = {routeProgress:state.routeProgress,laneX:state.laneX,laneY:state.laneY};
             const prevRacerCourse = racers.map(r=>({routeProgress:r.routeProgress,laneX:r.laneX,laneY:r.laneY}));
             state.raceTime += dt;
+            if(state.activeMap===MAP_MODES.MAP4)map4UpdatePhase(dt);
             state.itemTurboTimer = Math.max(0, state.itemTurboTimer - dt);
             state.powerShieldTimer = Math.max(0, state.powerShieldTimer - dt);
             state.lastPowerUpTimer = Math.max(0, state.lastPowerUpTimer - dt);
@@ -3402,7 +3553,7 @@
                 camera.fov += (targetFov - camera.fov) * Math.min(1, 6 * dt);
                 camera.updateProjectionMatrix();
 
-                // 2. Görünmez Dev Boru İçinde Serbest Manevra (Sağ/Sol/Aşağı/Yukarı)
+                // 2. Serbest yanal ve dikey uçuş (Harita 4 ikinci aşamada ileri hareket kilitli)
                 moveX = normMouseX * 850;
                 moveY = -normMouseY * 750;
                 if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 800;
@@ -3418,10 +3569,18 @@
                 applyBoundaryFriction(state, targetSpeed, dt, true);
                 if (state.playerDNF && state.activeMap !== MAP_MODES.MAP4) return;
                 const prevPlayerProgress = state.routeProgress;
-                const nextPlayerProgress = prevPlayerProgress + state.currentSpeed * dt;
+                const nextPlayerProgress = map4Advance(prevPlayerProgress,state.currentSpeed,dt);
 
                 // Oyuncu Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
-                if (nextPlayerProgress >= RACE_ROUTE_NOMINAL_DISTANCE) {
+                if (nextPlayerProgress >= RACE_ROUTE_NOMINAL_DISTANCE &&
+                    state.activeMap===MAP_MODES.MAP4 &&
+                    state.laneY < MAP4_PHASES.orbitAltitude) {
+                    state.routeProgress=RACE_ROUTE_NOMINAL_DISTANCE-65;
+                    if(state.map4ClimbWarningTime<state.raceTime){
+                        state.map4ClimbWarningTime=state.raceTime+3;
+                        showCenterAnnouncement('YÖRÜNGE ÇIKIŞI','↑ İLE YÜKSEL · İRTİFA GEREKLİ');
+                    }
+                } else if (nextPlayerProgress >= RACE_ROUTE_NOMINAL_DISTANCE) {
                     const progressDelta = nextPlayerProgress - prevPlayerProgress;
                     const fraction = progressDelta > 1e-6
                         ? THREE.MathUtils.clamp((RACE_ROUTE_NOMINAL_DISTANCE - prevPlayerProgress) / progressDelta, 0, 1)
@@ -4126,6 +4285,14 @@
                         activeTargetY += (selected.laneY-activeTargetY)*weight;
                     }
                 }
+                // Climb toward the orbital corridor while still engaging aircraft.
+                if(state.activeMap===MAP_MODES.MAP4 &&
+                    r.routeProgress>=MAP4_PHASES.industryEnd){
+                    const ratio=THREE.MathUtils.clamp(
+                        (r.routeProgress-MAP4_PHASES.industryEnd)/10000,0,1);
+                    activeTargetY=Math.max(activeTargetY,200+ratio*850);
+                    if(r.routeProgress>49000)activeTargetY=Math.max(activeTargetY,980);
+                }
                 // Gerçek enkaz açıklığı, bonus/sollama/asteroit kararlarından önce gelir.
                 if (gatePlan && gatePlan.gap < 1650) {
                     // Kalabalık yarışta gemiler aynı noktaya kilitlenmesin:
@@ -4202,11 +4369,15 @@
                     positionRacerOnRoute(r);
                     return;
                 }
-                const nextRacerProgress = prevRacerProgress + r.currentSpeed * dt;
-                r.aiStats.distance += r.currentSpeed * dt;
+                const nextRacerProgress = map4Advance(prevRacerProgress,r.currentSpeed,dt);
+                r.aiStats.distance += Math.max(0,nextRacerProgress-prevRacerProgress);
 
                 // Rakip Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
-                if (nextRacerProgress >= RACE_ROUTE_NOMINAL_DISTANCE) {
+                if (nextRacerProgress >= RACE_ROUTE_NOMINAL_DISTANCE &&
+                    state.activeMap===MAP_MODES.MAP4 &&
+                    r.laneY < MAP4_PHASES.orbitAltitude) {
+                    r.routeProgress=RACE_ROUTE_NOMINAL_DISTANCE-65;
+                } else if (nextRacerProgress >= RACE_ROUTE_NOMINAL_DISTANCE) {
                     const progressDelta = nextRacerProgress - prevRacerProgress;
                     const fraction = progressDelta > 1e-6
                         ? THREE.MathUtils.clamp((RACE_ROUTE_NOMINAL_DISTANCE - prevRacerProgress) / progressDelta, 0, 1)
@@ -4262,6 +4433,9 @@
                 updateHunterCompetitionHUD();
             }
 
+            // Physical building collision is separate from Map 1's debris hazards.
+            if(state.activeMap===MAP_MODES.MAP4)
+                updatePlanetaryBuildingContacts(prevPlayerCourse,prevRacerCourse);
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts(prevPlayerCourse,prevRacerCourse);
             if (!state.running) return; // Gemiler arası temas oyuncuyu DNF yaptıysa kareyi sonlandır.
@@ -4885,7 +5059,8 @@
             document.getElementById('obstacle-kills').textContent = state.obstaclesDestroyed;
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
-            document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * SPEED_DISPLAY_SCALE);
+            document.getElementById('speed-text').textContent = Math.round(
+                state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress));
             const energyText = document.getElementById('energy-text');
             energyText.textContent = `${Math.round(state.energy)} / 100`;
             energyText.className = state.energy < 20 ? 'text-amber-300 font-bold' : 'text-white';
@@ -4923,7 +5098,9 @@
                 boundaryFx.style.background = `radial-gradient(ellipse at ${edgeSide} center, transparent 45%, rgba(255,119,55,.33) 100%)`;
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
-            document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * SPEED_DISPLAY_SCALE) : '—';
+            document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ?
+                Math.round(fastestActiveRival*SPEED_DISPLAY_SCALE*
+                    map4SpeedFactor(state.routeProgress)) : '—';
             // AI-30: Read-only weapon telemetry for reproducible manual game tests.
             window.starbladeWeaponTelemetry = {
                 shots: state.obstacleLaserShots,
@@ -5128,6 +5305,10 @@
             state.kills = 0;
             state.hunterKills = 0;
             state.hunterScore = 0;
+            state.map4Phase=1;
+            state.map4ArenaStarted=false;
+            state.map4ArenaElapsed=0;
+            state.map4ClimbWarningTime=0;
             state.hunterShots = 0;
             state.hunterHits = 0;
             state.lastHunterHudTick = -1;
@@ -5224,6 +5405,8 @@
             document.getElementById('distance-text').textContent = '50000m';
             document.getElementById('obstacle-kills').textContent = '0';
             document.getElementById('race-time-text').textContent = '00:00.00';
+            document.getElementById('race-mode-heading').textContent =
+                state.activeMap===MAP_MODES.MAP4?'PLANET MISSION':'CORRIDOR RACE';
 
             const centerBox = document.getElementById('center-msg');
             centerBox.style.opacity = '0';
@@ -5241,8 +5424,8 @@
                 spawnEnemyWave(7);
             }
             showCenterAnnouncement(state.activeMap===MAP_MODES.MAP4 ?
-                "AVCI YARISI BASLADI · 120 SANİYE" : "CORRIDOR RACE ENGAGED",
-                state.activeMap===MAP_MODES.MAP4 ? "HARITA 4 · HUNTER RACE" : "STAGE 1: NEBULA FRONT");
+                "GEZEGEN GÖREVİ · 4–5 DAKİKA" : "CORRIDOR RACE ENGAGED",
+                state.activeMap===MAP_MODES.MAP4 ? "BÖLÜM 1 · KAYALIK VADİLER" : "STAGE 1: NEBULA FRONT");
         }
 
         function endGame(completedRoute = false) {
@@ -5421,7 +5604,7 @@
                 'HARİTA 4 · GELİŞTİRİLİYOR';
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
-                : isMap4 ? 'Harita 4: gezegen geçişi, 120s sınır ve avcı imha puanı.'
+                : isMap4 ? 'Harita 4: dört aşama, 60 sn avcı arenası, uzaya yükseliş ve 4–5 dk hedef.'
                 : 'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
             status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
         }

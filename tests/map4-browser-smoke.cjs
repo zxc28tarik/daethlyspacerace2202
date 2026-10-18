@@ -80,8 +80,73 @@ const assert = require('node:assert/strict');
     assert.equal(scored.points,4,'normal 1 + elite 3 points');
     assert.equal(await page.locator('#laser-status').textContent().then(t=>t.includes('HAZIR')),true);
     await page.screenshot({path:path.resolve(__dirname,'map4-running.png')});
-    // Real deadline: no discount can make an unfinished runner eligible.
-    await page.evaluate(() => {state.raceTime=119.98;state.paused=false;});
+    // Phase 1 should normally take around forty seconds at nonboost speed.
+    const nominal=await page.evaluate(()=>({
+      intro:MAP4_PHASES.introEnd/(RACE_SPEEDS.NORMAL*MAP4_PHASES.introSpeed),
+      arena:MAP4_PHASES.arenaSeconds,
+      industry:(MAP4_PHASES.industryEnd-MAP4_PHASES.introEnd)/
+        (RACE_SPEEDS.NORMAL*MAP4_PHASES.industrialSpeed),
+      ascent:(RACE_ROUTE_NOMINAL_DISTANCE-MAP4_PHASES.industryEnd)/
+        (RACE_SPEEDS.NORMAL*MAP4_PHASES.ascentSpeed)
+    }));
+    assert(nominal.intro>34 && nominal.intro<48,'intro near 40s');
+    assert.equal(nominal.arena,60,'arena is fixed 60 seconds');
+    assert(nominal.intro+nominal.arena+nominal.industry+nominal.ascent>240 &&
+      nominal.intro+nominal.arena+nominal.industry+nominal.ascent<300,
+      'normal map duration 4–5 minutes');
+    // Enter zone two, check every pilot is held in the battle area.
+    await page.evaluate(()=>{state.routeProgress=MAP4_PHASES.introEnd-2;});
+    await page.waitForFunction(()=>state.map4Phase===2,null,{timeout:14000});
+    const anchor=await page.evaluate(()=>state.routeProgress);
+    await page.waitForTimeout(300);
+    assert(Math.abs((await page.evaluate(()=>state.routeProgress))-anchor)<0.01,
+      'no forward progress during arena');
+    assert.equal(await page.evaluate(()=>racers.every(r=>r.routeProgress===MAP4_PHASES.introEnd
+      || r.finished || r.dnf)),true,'five AI pilots held in arena');
+    await page.screenshot({path:path.resolve(__dirname,'map4-arena.png')});
+    await page.evaluate(()=>{state.map4ArenaElapsed=MAP4_PHASES.arenaSeconds-0.08;});
+    await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:12000});
+    assert(await page.evaluate(()=>map4SpeedFactor(20000)>0),'forward progress unlocked in phase 3');
+    const building=await page.evaluate(()=> {
+      const collider=planetaryBuildingColliders[0];
+      state.routeProgress=collider.progress;
+      state.map4Phase=3;
+      state.laneX=collider.side;
+      state.laneY=collider.altitude;
+      state.shield=100;
+      state.map4ImpactCooldown=0;
+      updatePlanetaryBuildingContacts({routeProgress:collider.progress-10,laneX:collider.side,
+        laneY:collider.altitude},racers.map(r=>({routeProgress:r.routeProgress,
+        laneX:r.laneX,laneY:r.laneY})));
+      return {shield:state.shield,colliders:planetaryBuildingColliders.length};
+    });
+    assert(building.colliders>0,'industrial buildings have collision volumes');
+    assert(building.shield<100,'industrial collision damages player shield');
+    // Phase four: crossing the finish plane low is not enough; must rise into orbit.
+    await page.evaluate(()=>{
+      state.shield=100;
+      state.routeProgress=RACE_ROUTE_NOMINAL_DISTANCE-5;
+      state.laneX=0;state.laneY=0;
+      state.map4Phase=4;state.map4ImpactCooldown=0;
+    });
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(()=>state.finished),false,'low flight cannot finish');
+    await page.evaluate(()=>{
+      state.routeProgress=RACE_ROUTE_NOMINAL_DISTANCE-2;
+      state.laneY=MAP4_PHASES.orbitAltitude+100;
+    });
+    await page.waitForFunction(()=>state.finished,null,{timeout:14000});
+    assert(await page.evaluate(()=>state.finishTime<MAP4_RACE_RULES.realTimeLimit),
+      'orbital ascent crossing qualifies on time');
+    // End mission and restart; test deadline DNF separately.
+    await page.evaluate(()=>endGame(true));
+    assert.equal(await page.evaluate(()=>
+      window.starbladeHunterFinal.standings.find(x=>x.id==='PLAYER').validFinish),true,
+      'on-time orbital ascender appears as qualified');
+    await page.locator('#restart-btn').click();
+    await page.waitForFunction(()=>state.running&&state.raceTime>0.05,null,{timeout:15000});
+    // The 300-second real deadline disqualifies runners regardless of points.
+    await page.evaluate(() => {state.raceTime=299.96;state.paused=false;});
     try {
       await page.waitForFunction(() => !state.running,null,{timeout:12000});
     } catch (error) {
@@ -95,7 +160,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true,
       'deadline must show results; browser errors: '+errors.join(' | '));
     const result=await page.evaluate(() => window.starbladeHunterFinal);
-    assert.equal(result.realTimeLimit,120);
+    assert.equal(result.realTimeLimit,300);
     assert.equal(result.standings.length,6);
     assert(result.standings.every(e=>!e.validFinish),'no invented finish');
     assert.equal(await page.locator('#race-standings-list > div').count(),6);
@@ -112,6 +177,8 @@ const assert = require('node:assert/strict');
     assert.equal(restart.hunters,8);
     assert(restart.gameTime<4,'timer reset');
     assert.equal(restart.playerKills,0);
+    assert.equal(await page.evaluate(()=>state.map4Phase),1,'four phase reset');
+    assert.equal(await page.evaluate(()=>state.map4ArenaStarted),false,'arena reset');
     assert.equal(await page.evaluate(()=>state.hunterScore),0,'score reset');
     // Force an end for menu navigation, verify Map1 regressions.
     await page.evaluate(() => endGame(false));
@@ -141,7 +208,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Planet Map4 4 zones, wide flight, AI strategies, points, 120s DNF, restart and Map1 regression');
+    console.log('PASS: 4-phase Map4 intro/60s arena/industrial collision/orbit/300s deadline, points, restart, Map1 regression');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();
