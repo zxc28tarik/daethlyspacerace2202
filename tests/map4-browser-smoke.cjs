@@ -62,6 +62,51 @@ const assert = require('node:assert/strict');
       zoneName:document.getElementById('planetary-zone-name').textContent
     }));
     assert.equal(planetary.zones,4,'four distinct planetary zones');
+    // Map4 visual-quality proof: actual shader sky, physically lit procedural
+    // textures, enhanced aircraft, facade meshes, 36 cloud volumes and draw range.
+    const art=await page.evaluate(()=>{
+      const materials=H4_MATERIALS;
+      const detailedBuildings=planetaryWorldRegions[2].children.reduce((total,child)=>{
+        let n=0;child.traverse(mesh=>{if(mesh.userData.h4Detailed)n++});
+        return total+n;
+      },0);
+      return {
+        textures:h4VisualQuality.textures,
+        active:h4SkyDome.visible,
+        skyShader:h4SkyDome.material.type,
+        sun:h4SunHalo.visible,
+        aircraft:racers.filter(r=>r.mesh.userData.h4DetailedCraft).length,
+        cloudCount:h4Clouds.length,
+        cloudsZones:h4CloudGroups.length,
+        nearDetail:detailedBuildings,
+        rockVertices:H4_MESHES.rock.attributes.position.count,
+        rockType:H4_MESHES.rock.type,
+        rockMap:!!materials.rock.map,
+        steelMap:!!materials.steel.map,
+        groundUV:!!planetaryWorldRegions[0].children[0].geometry.attributes.uv,
+        groundMap:!!planetaryWorldRegions[0].children[0].material.map,
+        playerEnhancements:h4GeoSwordArt.visible,
+        tonemap:renderer.toneMapping,
+        exposure:renderer.toneMappingExposure
+      };
+    });
+    assert(art.textures>=7,'seven textures actually generated at runtime');
+    assert.equal(art.active,true,'planet shader sky is visible');
+    assert.equal(art.skyShader,'ShaderMaterial','custom gradient shader rendered');
+    assert.equal(art.sun,true,'sun-halo sprite visible');
+    assert.equal(art.aircraft,5,'all five rivals have enhanced 3D crafts');
+    assert.equal(art.cloudCount,36,'36 layered atmospheric cloud forms');
+    assert.equal(art.cloudsZones,4,'clouds span all regions');
+    assert(art.nearDetail>=10,'industrial architectural panels built');
+    assert(art.rockVertices>50,'rugged rock silhouettes use layered geometry');
+    assert.equal(art.rockMap,true,'rock procedural textures');
+    assert.equal(art.steelMap,true,'metal procedural textures');
+    assert.equal(art.groundUV,true,'ground UV atlas tiling');
+    assert.equal(art.groundMap,true,'ground uses texture');
+    assert.equal(art.playerEnhancements,true,'map4 player craft art enabled');
+    assert.equal(art.tonemap,THREE.ACESFilmicToneMapping,
+      'planet-specific filmic tonemapping');
+    assert(art.exposure>1.1,'planet uses dedicated tonal exposure');
     // W03 physical and strategic paths before phase-two arena.
     const canyon=await page.evaluate(()=>{
       const fast={laneX:H4_CANYON.fastCenter};
@@ -506,6 +551,19 @@ const assert = require('node:assert/strict');
     assert(map1.flightRadius<500,'Map1 narrow flight restored');
     assert.equal(map1.cameraFar,4500,'Map1 draw distance restored');
     assert.equal(map1.light,0xff55aa,'Map1 lighting restored');
+    const map1Art=await page.evaluate(()=>({
+      sky:h4SkyDome.visible,sun:h4SunHalo.visible,
+      player:h4GeoSwordArt.visible,
+      tonemap:renderer.toneMapping,
+      encoding:renderer.outputEncoding,
+      cloudParent:planetaryWorldGroup.visible
+    }));
+    assert.equal(map1Art.sky,false,'Map1 cannot see planet shader');
+    assert.equal(map1Art.sun,false,'Map1 cannot see sun halo');
+    assert.equal(map1Art.player,false,'Map1 GeoSword unchanged');
+    assert.equal(map1Art.cloudParent,false,'planetary clouds hidden in Map1');
+    assert.equal(map1Art.tonemap,THREE.NoToneMapping,'Map1 tonemapping restored');
+    assert.equal(map1Art.encoding,THREE.LinearEncoding,'Map1 output encoding restored');
     const map1Boundary=await page.evaluate(()=>evaluateBoundaryFriction(0,0,18,0,0));
     assert.equal(map1Boundary.level,0,'Map1 boundary behavior unchanged');
     assert.equal(map1.racers,5);
@@ -515,7 +573,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Map4 W05 six industrial complexes, 3 routes, +12% low passage, swept pipes, AI avoidance, W04 & Map1');
+    console.log('PASS: Map4 ART textured terrain, rugged rocks, real sky, 36 clouds, enhanced spacecraft, industrial facades and Map1 isolation');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();
