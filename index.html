@@ -1061,32 +1061,96 @@
             });
         }
 
-        // En yakın rota izdüşümü: bir karede kutu veya engel atlanmasın.
-        function courseSegmentTouch(o, prev, current, shipRadius) {
-            if (o.type === 'WRECK_BOX') {
-                // Segment-vs-expanded-AABB: çarpışma kutuları metalin GÖRÜNEN yüzeyiyle eşleşir.
-                let enter=0,leave=1;
-                const axes=[
-                    [prev.routeProgress,current.routeProgress,o.routeProgress,o.halfDepth],
-                    [prev.laneX,current.laneX,o.laneX,o.halfX],
-                    [prev.laneY,current.laneY,o.laneY,o.halfY]
-                ];
-                for(const [a,b,mid,half] of axes){
-                    const lo=mid-half-shipRadius, hi=mid+half+shipRadius,delta=b-a;
-                    if(Math.abs(delta)<1e-9){if(a<lo||a>hi)return false;continue;}
-                    const t0=(lo-a)/delta,t1=(hi-a)/delta;
-                    enter=Math.max(enter,Math.min(t0,t1));
-                    leave=Math.min(leave,Math.max(t0,t1));
-                    if(enter>leave)return false;
-                }
-                return true;
-            }
-            const dx=current.routeProgress-prev.routeProgress,dy=current.laneX-prev.laneX,dz=current.laneY-prev.laneY;
+        // AI-33: Süpürmeli çarpışma, yüksek hızda tek kare içinde geçilen nesneleri
+        // algılar. Kutu köşelerinde eksenlere genişletilmiş AABB yerine gerçek
+        // "küre merkezinin kutuya en yakın uzaklığı" kullanılır.
+        function courseSegmentSphereImpact(o, previous, current, shipRadius) {
+            const x0=previous.routeProgress-o.routeProgress;
+            const y0=previous.laneX-o.laneX, z0=previous.laneY-o.laneY;
+            const dx=current.routeProgress-previous.routeProgress;
+            const dy=current.laneX-previous.laneX, dz=current.laneY-previous.laneY;
+            const len2=dx*dx+dy*dy+dz*dz;
+            const t=len2>1e-10?THREE.MathUtils.clamp(-(x0*dx+y0*dy+z0*dz)/len2,0,1):0;
+            const x=x0+dx*t,y=y0+dy*t,z=z0+dz*t;
+            return x*x+y*y+z*z <= (o.radius+shipRadius)**2 ? t : null;
+        }
+        function movingCourseTouch(rock, prevShip, nowShip, shipRadius) {
+            const prevRock = rock.prevCourse || rock;
+            const x0=prevShip.routeProgress-prevRock.routeProgress;
+            const y0=prevShip.laneX-prevRock.laneX;
+            const z0=prevShip.laneY-prevRock.laneY;
+            const x1=nowShip.routeProgress-rock.routeProgress;
+            const y1=nowShip.laneX-rock.laneX;
+            const z1=nowShip.laneY-rock.laneY;
+            const dx=x1-x0,dy=y1-y0,dz=z1-z0;
             const lenSq=dx*dx+dy*dy+dz*dz;
-            const t=lenSq>1e-8 ? THREE.MathUtils.clamp(((o.routeProgress-prev.routeProgress)*dx+(o.laneX-prev.laneX)*dy+(o.laneY-prev.laneY)*dz)/lenSq,0,1):0;
-            const along=prev.routeProgress+dx*t-o.routeProgress;
-            const x=prev.laneX+dy*t-o.laneX, y=prev.laneY+dz*t-o.laneY;
-            return (along*along+x*x+y*y)<=Math.pow(o.radius+shipRadius,2);
+            const t=lenSq>1e-10?THREE.MathUtils.clamp(-(x0*dx+y0*dy+z0*dz)/lenSq,0,1):0;
+            const cx=x0+dx*t,cy=y0+dy*t,cz=z0+dz*t;
+            return cx*cx+cy*cy+cz*cz <= (rock.radius+shipRadius)**2;
+        }
+        function courseSegmentBoxImpact(o, previous, current, shipRadius) {
+            // 3B çizgi parçası ile gerçek AABB arasındaki en küçük kare uzaklık.
+            // Her eksenin kutu yüzeyini kestiği t değerlerinde parçaladığımız
+            // fonksiyon konveks ve parça-parça ikinci derecedir: köşe hayalet
+            // çarpışmalarını ve hızlı tünellemeyi birlikte ortadan kaldırır.
+            const dims=[
+                [previous.routeProgress-o.routeProgress,current.routeProgress-o.routeProgress,o.halfDepth],
+                [previous.laneX-o.laneX,current.laneX-o.laneX,o.halfX],
+                [previous.laneY-o.laneY,current.laneY-o.laneY,o.halfY]
+            ];
+            const cuts=[0,1];
+            for(const [a,b,h] of dims){
+                const delta=b-a;
+                if(Math.abs(delta)<1e-10)continue;
+                for(const edge of [-h,h]){
+                    const t=(edge-a)/delta;
+                    if(t>0 && t<1) cuts.push(t);
+                }
+            }
+            cuts.sort((a,b)=>a-b);
+            let bestDistSq=Infinity, bestT=0;
+            const evalDist=(t)=>{
+                let sum=0;
+                for(const [a,b,h] of dims){
+                    const v=a+(b-a)*t;
+                    const outside=Math.max(0,Math.abs(v)-h);
+                    sum+=outside*outside;
+                }
+                if(sum<bestDistSq){bestDistSq=sum;bestT=t;}
+            };
+            evalDist(0);evalDist(1);
+            for(let i=0;i<cuts.length-1;i++){
+                const lo=cuts[i],hi=cuts[i+1];
+                if(hi-lo<1e-10)continue;
+                const mid=(lo+hi)*0.5;
+                let quadratic=0,linear=0;
+                for(const [a,b,h] of dims){
+                    const slope=b-a, v=a+slope*mid;
+                    const offset=v>h?a-h:v< -h?a+h:null;
+                    if(offset===null)continue;
+                    quadratic+=slope*slope;
+                    linear+=offset*slope;
+                }
+                const t=quadratic>1e-10?THREE.MathUtils.clamp(-linear/quadratic,lo,hi):lo;
+                evalDist(t);
+            }
+            return bestDistSq <= shipRadius*shipRadius+1e-7 ? bestT : null;
+        }
+        function courseSegmentImpact(o, previous, current, shipRadius) {
+            return o.type==='WRECK_BOX' ? courseSegmentBoxImpact(o,previous,current,shipRadius) :
+                courseSegmentSphereImpact(o,previous,current,shipRadius);
+        }
+        function courseSegmentTouch(o, prev, current, shipRadius) {
+            return courseSegmentImpact(o,prev,current,shipRadius)!==null;
+        }
+        // Aynı geçidin iki farklı paneli veya panel + asteroit, tek karede
+        // art arda kalkanı tüketmesin. Oyuncu ve bütün AI için aynı 0.65 sn.
+        const COURSE_IMPACT_GRACE = 0.65;
+        function registerCourseImpact(ship) {
+            const last = ship.lastCourseImpactAt === undefined ? -Infinity : ship.lastCourseImpactAt;
+            if (state.raceTime-last < COURSE_IMPACT_GRACE) return false;
+            ship.lastCourseImpactAt=state.raceTime;
+            return true;
         }
         function chooseBalancedRaceItem(ship, roll = Math.random()) {
             // Oyuncu ve AI aynı algoritmaya tabidir; gizli hız/enerji avantajı yok.
@@ -1156,6 +1220,7 @@
                 const last=o.hitTimes[shipId];
                 if(last!==undefined&&state.raceTime-last<1.2)continue;
                 o.hitTimes[shipId]=state.raceTime;
+                if(!registerCourseImpact(ship)) continue;
                 if(ship.powerShieldTimer>0){if(isPlayer)spawnFloatingText(o.mesh.position,'SHIELD DEFLECTED','#5bfffa');continue;}
                 if(isPlayer){
                     applyPlayerDamage(13);
@@ -1668,6 +1733,7 @@
                     hp: 38,
                     maxHp: 38,
                     shield: 100,
+                    lastCourseImpactAt: -Infinity,
                     boundaryLevel: 0,
                     boundaryFactor: 1,
                     boundaryDamageRate: 0,
@@ -2165,21 +2231,29 @@
                 .addScaledVector(f.right, r.laneX)
                 .addScaledVector(f.up, r.laneY);
         }
-        function resolveShipContacts() {
+        function resolveShipContacts(prevPlayerCourse, prevRacerCourse) {
             if (state.playerDNF) return;
             const ships = [];
-            if (!state.finished) ships.push({ id: 'PLAYER', radius: 10, player: true, routeProgress: state.routeProgress, laneX: state.laneX, laneY: state.laneY, pos: state.pos });
-            racers.forEach(r => {
-                if (!r.finished && !r.dnf) ships.push({ id: r.name, radius: r.radius, player: false, racer: r, routeProgress: r.routeProgress, laneX: r.laneX, laneY: r.laneY, pos: r.mesh.position });
+            if (!state.finished) ships.push({ id: 'PLAYER', radius: 10, player: true, routeProgress: state.routeProgress, laneX: state.laneX, laneY: state.laneY, pos: state.pos,
+                prev: prevPlayerCourse });
+            racers.forEach((r,idx) => {
+                if (!r.finished && !r.dnf) ships.push({ id: r.name, radius: r.radius, player: false, racer: r, routeProgress: r.routeProgress, laneX: r.laneX, laneY: r.laneY, pos: r.mesh.position,
+                    prev: prevRacerCourse[idx] });
             });
             for (let i = 0; i < ships.length; i++) {
                 for (let j = i + 1; j < ships.length; j++) {
                     const a = ships[i], b = ships[j];
-                    const distanceAlong = Math.abs(a.routeProgress - b.routeProgress);
                     const minContact = a.radius + b.radius + 3;
-                    if (distanceAlong > minContact + 8) continue;
                     const distanceWorld = a.pos.distanceTo(b.pos);
-                    if (distanceWorld >= minContact) continue;
+                    // Mevcut konumları ayrık olsa bile bir karede birbirlerinin
+                    // içinden geçebilirler. Başlangıç/bitiş göreli segmenti tara.
+                    const relativeStart={routeProgress:a.prev.routeProgress-b.prev.routeProgress,
+                        laneX:a.prev.laneX-b.prev.laneX,laneY:a.prev.laneY-b.prev.laneY};
+                    const relativeEnd={routeProgress:a.routeProgress-b.routeProgress,
+                        laneX:a.laneX-b.laneX,laneY:a.laneY-b.laneY};
+                    const sweptShipContact=courseSegmentSphereImpact({routeProgress:0,laneX:0,laneY:0,radius:0},
+                        relativeStart,relativeEnd,minContact)!==null;
+                    if(distanceWorld>=minContact && !sweptShipContact)continue;
                     let dx = a.laneX - b.laneX, dy = a.laneY - b.laneY;
                     let sideDistance = Math.hypot(dx, dy);
                     if (sideDistance < 0.01) {
@@ -3332,25 +3406,11 @@
             });
 
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
-            resolveShipContacts();
+            resolveShipContacts(prevPlayerCourse,prevRacerCourse);
             if (!state.running) return; // Gemiler arası temas oyuncuyu DNF yaptıysa kareyi sonlandır.
 
             // Yüksek hızda asteroidler kareler arasında atlanmasın:
             // gemi ve asteroidin aynı karedeki göreli hareketi boyunca en yakın yaklaşımı bul.
-            const movingCourseTouch = (rock, prevShip, nowShip, shipRadius) => {
-                const fromRock = rock.prevCourse || rock;
-                const p0x=prevShip.routeProgress-fromRock.routeProgress;
-                const p0y=prevShip.laneX-fromRock.laneX;
-                const p0z=prevShip.laneY-fromRock.laneY;
-                const p1x=nowShip.routeProgress-rock.routeProgress;
-                const p1y=nowShip.laneX-rock.laneX;
-                const p1z=nowShip.laneY-rock.laneY;
-                const dx=p1x-p0x,dy=p1y-p0y,dz=p1z-p0z;
-                const q=dx*dx+dy*dy+dz*dz;
-                const t=q>1e-8?THREE.MathUtils.clamp(-(p0x*dx+p0y*dy+p0z*dz)/q,0,1):0;
-                const cx=p0x+dx*t,cy=p0y+dy*t,cz=p0z+dz*t;
-                return cx*cx+cy*cy+cz*cz <= (rock.radius+shipRadius)**2;
-            };
             asteroids.forEach(a=>{
                 if(!a.active) return;
                 const test=(id,ship,prev,radius,isPlayer)=>{
@@ -3364,6 +3424,7 @@
                     a.touchingShips.add(id);
                     if(a.hitTimes[id]!==undefined&&state.raceTime-a.hitTimes[id]<1.3)return;
                     a.hitTimes[id]=state.raceTime;
+                    if(!registerCourseImpact(ship)) return;
                     if(ship.powerShieldTimer>0){
                         if(isPlayer)spawnFloatingText(a.mesh.position,'SHIELD BLOCK','#5bfffa');
                         return;
@@ -3410,9 +3471,18 @@
                 updatePlayerCheckpoints(prevPlayerFrameProgress, prevRaceTime, dt);
             }
 
+            // AI-33 tanı verileri yalnızca yarım saniyelik ölçüm anlarında güncellenir;
+            // her render karesinde 500 civarı nesneyi gereksiz taramayız.
             // AI-22 yarış ölçümü; geliştirici konsolundan window.starbladeRaceTelemetry okunabilir.
             if (Math.floor(state.raceTime*2)!==state.lastTelemetryTick) {
                 state.lastTelemetryTick=Math.floor(state.raceTime*2);
+                window.starbladeCollisionTelemetry = {
+                    raceTime: state.raceTime,
+                    player: {asteroidHits:state.asteroidHits,barrierHits:state.barrierHits,
+                        lastCourseImpactAt:state.lastCourseImpactAt},
+                    activeAsteroids: asteroids.filter(a=>a.active).length,
+                    intactStatic: staticObstacles.filter(o=>o.active).length
+                };
                 window.starbladeRaceTelemetry={raceTime:state.raceTime,
                     player:{progress:state.routeProgress, speed:state.currentSpeed*SPEED_DISPLAY_SCALE,
                         energy:state.energy, shield:state.shield, draftEnergy:state.draftEnergyEarned||0},
@@ -4096,10 +4166,12 @@
             state.draftEnergyEarned = 0;
             state.lastTelemetryTick = -1;
             window.starbladeRaceTelemetry = null;
+            window.starbladeCollisionTelemetry = null;
             window.starbladeWeaponTelemetry = null;
             const boundaryFx = document.getElementById('boundary-scrape-overlay');
             if (boundaryFx) boundaryFx.style.opacity = '0';
             state.asteroidHits = 0;
+            state.lastCourseImpactAt = -Infinity;
             state.shipContacts = 0;
             state.wallContacts = 0;
             state.itemTurboTimer = 0;
