@@ -1295,19 +1295,186 @@
         const planetaryBuildingColliders = [];
         scene.add(planetaryWorldGroup);
         planetaryWorldGroup.visible = false;
+
+        // VQ01: self-contained authored surface textures. Canvas is drawn once:
+        // no external images, network downloads, per-frame texture allocations.
+        const h4VisualQuality={textures:0,enhancedAircraft:0,atmosphere:true};
+        function h4SurfaceTexture(baseHex,seed,kind){
+            const canvas=document.createElement('canvas');
+            canvas.width=canvas.height=256;
+            const ctx=canvas.getContext('2d');
+            const base=new THREE.Color(baseHex);
+            const data=ctx.createImageData(256,256);
+            let rng=seed>>>0;
+            const rand=()=>{
+                rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;
+                return ((rng>>>0)%1000000)/1000000;
+            };
+            const rgb=[base.r*255,base.g*255,base.b*255];
+            for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+                const idx=(y*256+x)*4;
+                const large=Math.sin(x*.037+seed)*Math.cos(y*.054-seed)*.17;
+                const layers=kind==='rock'?
+                    Math.sin(y*.19+Math.sin(x*.025)*2)*.10:
+                    kind==='metal'?
+                        (x%58<2||y%66<2?-.24:.02):0;
+                const grain=(rand()-.5)*(kind==='rock'?.22:.10);
+                const amount=Math.max(.4,Math.min(1.28,.90+large+layers+grain));
+                for(let c=0;c<3;c++)data.data[idx+c]=Math.min(255,rgb[c]*amount);
+                data.data[idx+3]=255;
+            }
+            ctx.putImageData(data,0,0);
+            for(let i=0;i<(kind==='rock'?115:70);i++){
+                const x=rand()*256,y=rand()*256;
+                ctx.strokeStyle=kind==='rock'?'rgba(34,21,17,.17)':'rgba(155,205,216,.13)';
+                ctx.lineWidth=kind==='rock'?1.5:.85;
+                ctx.beginPath();ctx.moveTo(x,y);
+                ctx.lineTo(x+(rand()-.5)*(kind==='rock'?85:40),
+                    y+(rand()-.5)*(kind==='rock'?21:4));
+                ctx.stroke();
+            }
+            if(kind==='metal'){
+                ctx.strokeStyle='rgba(6,19,31,.48)';
+                for(let y=28;y<256;y+=66){
+                    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();
+                    for(let x=23;x<256;x+=58){
+                        ctx.fillStyle='rgba(170,219,228,.33)';
+                        ctx.fillRect(x,y+5,3,3);
+                    }
+                }
+            }
+            const texture=new THREE.CanvasTexture(canvas);
+            texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+            texture.repeat.set(kind==='rock'?3:2,kind==='rock'?5:3);
+            texture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+            texture.encoding=THREE.sRGBEncoding;
+            h4VisualQuality.textures++;
+            return texture;
+        }
+        function h4RuggedRockGeometry(){
+            // A rugged 9-sided rock tower, tapered in tiers; same unit AABB as
+            // legacy rock, so physics authored using mesh scales still line up.
+            const g=new THREE.CylinderGeometry(.26,.47,1,9,6,false);
+            const pos=g.attributes.position;
+            for(let i=0;i<pos.count;i++){
+                const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
+                const n=1+.13*Math.sin(i*5.73)+.07*Math.cos(i*2.47);
+                const shift=.035*Math.sin(y*17+i*.31);
+                pos.setXYZ(i,x*n+shift,y,z*n-shift*.6);
+            }
+            pos.needsUpdate=true;
+            g.computeVertexNormals();
+            return g;
+        }
+        const h4SurfaceMaps={
+            rock:h4SurfaceTexture(0xb28d73,118,'rock'),
+            sandstone:h4SurfaceTexture(0xc9a178,93,'rock'),
+            soil:h4SurfaceTexture(0x9b7659,49,'rock'),
+            steel:h4SurfaceTexture(0x7e96a1,719,'metal'),
+            darkSteel:h4SurfaceTexture(0x596776,772,'metal'),
+            armor:h4SurfaceTexture(0x576274,913,'metal')
+        };
+        const h4AtmosphereUniforms={
+            zenith:{value:new THREE.Color(0x263954)},
+            horizon:{value:new THREE.Color(0xd9ac80)},
+            lower:{value:new THREE.Color(0x8c6474)},
+            sunTint:{value:new THREE.Color(0xffe7b6)},
+            sunDirection:{value:new THREE.Vector3(.55,.36,-.77).normalize()},
+            haze:{value:1}
+        };
+        const h4SkyMaterial=new THREE.ShaderMaterial({
+            uniforms:h4AtmosphereUniforms,
+            side:THREE.BackSide,depthWrite:false,depthTest:false,
+            vertexShader:`
+                varying vec3 vSkyDirection;
+                void main(){
+                    vSkyDirection=normalize(position);
+                    gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+                }`,
+            fragmentShader:`
+                varying vec3 vSkyDirection;
+                uniform vec3 zenith;
+                uniform vec3 horizon;
+                uniform vec3 lower;
+                uniform vec3 sunTint;
+                uniform vec3 sunDirection;
+                uniform float haze;
+                void main(){
+                    vec3 ray=normalize(vSkyDirection);
+                    float h=ray.y;
+                    float t=smoothstep(-.20,.64,h);
+                    vec3 sky=mix(horizon,zenith,t);
+                    sky=mix(lower,sky,smoothstep(-.55,-.04,h));
+                    float sun=max(0.,dot(ray,normalize(sunDirection)));
+                    sky+=sunTint*(pow(sun,14.)*.16+pow(sun,105.)*.60)*haze;
+                    float horizonGlow=exp(-abs(h)*7.)*.09*haze;
+                    sky+=sunTint*horizonGlow;
+                    gl_FragColor=vec4(sky,1.);
+                }`
+        });
+        const h4SkyDome=new THREE.Mesh(new THREE.SphereGeometry(7800,40,24),
+            h4SkyMaterial);
+        h4SkyDome.name='MAP4_ATMOSPHERE_GRADIENT';
+        h4SkyDome.renderOrder=-1000;
+        h4SkyDome.visible=false;
+        scene.add(h4SkyDome);
+        function h4SunSprite(){
+            const canvas=document.createElement('canvas');
+            canvas.width=canvas.height=128;
+            const c=canvas.getContext('2d');
+            const glow=c.createRadialGradient(64,64,0,64,64,64);
+            glow.addColorStop(0,'rgba(255,255,240,.98)');
+            glow.addColorStop(.12,'rgba(255,226,165,.90)');
+            glow.addColorStop(.30,'rgba(255,163,97,.43)');
+            glow.addColorStop(.68,'rgba(255,135,82,.12)');
+            glow.addColorStop(1,'rgba(255,135,82,0)');
+            c.fillStyle=glow;c.fillRect(0,0,128,128);
+            const texture=new THREE.CanvasTexture(canvas);
+            const sprite=new THREE.Sprite(new THREE.SpriteMaterial({
+                map:texture,transparent:true,depthWrite:false,depthTest:false,
+                blending:THREE.AdditiveBlending,fog:false
+            }));
+            sprite.name='MAP4_SUN_HALO';
+            sprite.scale.set(1700,1700,1);
+            sprite.visible=false;
+            scene.add(sprite);
+            return sprite;
+        }
+        const h4SunHalo=h4SunSprite();
+        function h4UpdateSkyVisuals(){
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            h4SkyDome.position.copy(camera.position);
+            h4SunHalo.position.copy(camera.position)
+                .addScaledVector(h4AtmosphereUniforms.sunDirection.value,5700);
+            const phase=state.map4Phase||1;
+            const altitude=THREE.MathUtils.clamp((state.laneY-80)/1400,0,1);
+            const upperOrbit=phase===4?altitude:0;
+            const hue=phase===1?0x283f59:phase===2?0x455b72:
+                phase===3?0x394555:0x1e3559;
+            const horizon=phase===1?0xd4a078:phase===2?0xcf9076:
+                phase===3?0xac8d79:0x887f95;
+            h4AtmosphereUniforms.zenith.value.setHex(hue)
+                .lerp(new THREE.Color(0x020b26),upperOrbit);
+            h4AtmosphereUniforms.horizon.value.setHex(horizon)
+                .lerp(new THREE.Color(0x26335a),upperOrbit);
+            h4AtmosphereUniforms.lower.value.setHex(
+                phase===1?0x89636b:phase===2?0x70545e:0x46505f);
+            h4AtmosphereUniforms.haze.value=1-upperOrbit*.8;
+            h4SunHalo.material.opacity=1-upperOrbit*.80;
+        }
         const H4_MESHES = Object.freeze({
-            rock: new THREE.ConeGeometry(1,1,5),
+            rock: h4RuggedRockGeometry(),
             tower: new THREE.CylinderGeometry(1,1,1,7),
             structure: new THREE.BoxGeometry(1,1,1),
             dome: new THREE.SphereGeometry(1,10,6),
             beacon: new THREE.TorusGeometry(1,0.045,5,28)
         });
         const H4_MATERIALS = Object.freeze({
-            rock:new THREE.MeshLambertMaterial({color:0x936746,flatShading:true}),
-            sand:new THREE.MeshLambertMaterial({color:0x61463a,flatShading:true}),
-            wreck:new THREE.MeshLambertMaterial({color:0x484b58,flatShading:true}),
-            steel:new THREE.MeshLambertMaterial({color:0x60727d,flatShading:true}),
-            wall:new THREE.MeshLambertMaterial({color:0x714f55,flatShading:true}),
+            rock:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.rock,color:0xbca694,roughness:.98,flatShading:true}),
+            sand:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.soil,color:0x8d7269,roughness:.95,flatShading:true}),
+            wreck:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.darkSteel,color:0x929ca8,roughness:.78,metalness:.34,flatShading:true}),
+            steel:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.steel,color:0xa1bac7,roughness:.56,metalness:.52,flatShading:true}),
+            wall:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.armor,color:0xa5a1a9,roughness:.72,metalness:.28,flatShading:true}),
             core:new THREE.MeshBasicMaterial({color:0xf75c7c}),
             marker:new THREE.MeshBasicMaterial({color:0xffdd91,transparent:true,opacity:0.5})
         });
@@ -1401,10 +1568,10 @@
             sphere:new THREE.SphereGeometry(1,9,6)
         });
         const H4_DETAIL_MAT = Object.freeze({
-            sandstone:new THREE.MeshLambertMaterial({color:0xb68b65,flatShading:true}),
-            cliffShadow:new THREE.MeshLambertMaterial({color:0x5a3c36,flatShading:true}),
-            oxidized:new THREE.MeshLambertMaterial({color:0x63747c,flatShading:true}),
-            armor:new THREE.MeshLambertMaterial({color:0x3e4858,flatShading:true}),
+            sandstone:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.sandstone,color:0xd0b095,roughness:.97,flatShading:true}),
+            cliffShadow:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.rock,color:0x78615c,roughness:1,flatShading:true}),
+            oxidized:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.steel,color:0x8fa7aa,roughness:.65,metalness:.38,flatShading:true}),
+            armor:new THREE.MeshStandardMaterial({map:h4SurfaceMaps.armor,color:0x818d99,roughness:.62,metalness:.49,flatShading:true}),
             warning:new THREE.MeshBasicMaterial({color:0xffb25a}),
             hazard:new THREE.MeshBasicMaterial({color:0xff5b61}),
             cyan:new THREE.MeshBasicMaterial({color:0x64d9ed}),
@@ -1959,6 +2126,11 @@
             const active=state.activeMap===MAP_MODES.MAP4;
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
+            h4SkyDome.visible=active;
+            h4SunHalo.visible=active;
+            renderer.toneMapping=active?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
+            renderer.toneMappingExposure=active?1.27:1.0;
+            renderer.outputEncoding=active?THREE.sRGBEncoding:THREE.LinearEncoding;
             corridorGuideGroup.visible=!active;
             raceRoadGroup.visible=!active;
             stationGroup.visible=!active;
@@ -6557,6 +6729,7 @@
                 camera.rotation.x = Math.cos(now * 0.0002) * 0.15;
             }
 
+            if(state.activeMap===MAP_MODES.MAP4)h4UpdateSkyVisuals();
             renderer.render(scene, camera);
         }
 
