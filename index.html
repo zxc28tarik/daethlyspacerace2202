@@ -8,6 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
+        /* Core screen visibility stays reliable even if the Tailwind CDN is unavailable. */
+        .hidden { display: none !important; }
         body {
             font-family: 'Orbitron', 'Share Tech Mono', sans-serif;
             background-color: #03030a;
@@ -88,6 +90,16 @@
         #race-hud-details { max-width: 650px; }
         @media (max-width:640px) { #race-hud-details { max-width: 98vw; } }
 
+        /* H4-01: map-selection UI; flight/physics styles remain untouched. */
+        #start-screen { overflow-y: auto; }
+        #start-screen > .hud-box { margin-top: auto; margin-bottom: auto; }
+        .map-choice-btn { border: 1px solid rgba(0,243,255,.35); background: rgba(6,20,39,.83); color: #bceaf4; padding: 12px; border-radius: 6px; text-align: left; cursor: pointer; transition: border-color .18s, background .18s; }
+        .map-choice-btn[aria-pressed="true"] { border-color: #00f3ff; background: rgba(0,243,255,.15); box-shadow: inset 0 0 12px rgba(0,243,255,.10); }
+        .map-choice-btn:focus-visible { outline: 2px solid #00ff88; outline-offset: 3px; }
+        #map1-instructions.hidden, #map4-instructions.hidden { display:none !important; }
+        #start-btn:disabled { opacity: .48; cursor: not-allowed; filter: saturate(.35); }
+        #start-btn:disabled:hover { transform: none; box-shadow: none; }
+
         .cyber-btn {
             background: linear-gradient(90deg, rgba(0, 243, 255, 0.18), rgba(0, 255, 136, 0.18));
             border: 2px solid #00f3ff;
@@ -132,6 +144,11 @@
         
         <!-- ÜST BÖLÜM: Tehlike Uyarısı, Kamera Modu & Boss Can Barı -->
         <div class="flex flex-col items-center w-full gap-2">
+            <div id="hunter-competition-hud" class="hidden hud-box w-full max-w-4xl px-3 py-2 text-center font-['Share_Tech_Mono']">
+                <div class="font-bold text-amber-300 text-xs tracking-widest">HARİTA 4 · AVCI İMHA SIRALAMASI</div>
+                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 02:00.00 · AVCI BAŞI -2s</div>
+                <div id="hunter-competition-scores" class="text-cyan-100 text-xs mt-1" aria-live="off"></div>
+            </div>
             <div class="w-full flex justify-between items-start">
                 <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
@@ -248,7 +265,23 @@
                 OVERDRIVE: CORRIDOR COMBAT RACING
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+            <!-- H4-01: select a map without allowing an unfinished mode to start Map 1. -->
+            <div id="map-selection" class="mb-5 font-['Share_Tech_Mono'] text-left">
+                <div class="text-xs text-cyan-300 font-bold tracking-widest mb-2">HARİTA SEÇİMİ</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-label="Oyun haritası seçimi">
+                    <button type="button" id="map-choice-1" class="map-choice-btn" aria-pressed="true">
+                        <strong class="block text-sm text-white">HARİTA 1 · SAF HIZ YARIŞI</strong>
+                        <span class="block text-xs text-emerald-300 mt-1">OYNANABİLİR · TAMAMLANDI</span>
+                    </button>
+                    <button type="button" id="map-choice-4" class="map-choice-btn" aria-pressed="false">
+                        <strong class="block text-sm text-white">HARİTA 4 · AVCI İMHA YARIŞI</strong>
+                        <span class="block text-xs text-amber-300 mt-1">GELİŞTİRİLİYOR · HENÜZ KAPALI</span>
+                    </button>
+                </div>
+                <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
+            </div>
+
+            <div id="map1-instructions" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> DEV GÖRÜNMEZ UZAY KORİDORU</div>
                     <p class="text-slate-300">Neon sınırları olan bir uzay koridorunda yarışın. <strong>Fare</strong> gemiyi yönlendirir; <strong>A/D veya ←/→</strong> yatay, <strong>↑/↓</strong> dikey manevrayı destekler. <strong>W yön tuşu değil, boost tuşudur.</strong> <strong>P/H</strong> ile duraklatıp kontrolleri görün.</p>
@@ -271,6 +304,24 @@
                 </div>
             </div>
 
+            <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+                <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
+                    <div class="text-amber-300 font-bold mb-1">>> 120 SANİYE GERÇEK SÜRE</div>
+                    <p class="text-slate-300">50.000 metrelik bitiş çizgisine gerçek yarış saati 120 saniyeyi geçmeden ulaşın. Süre aşımı DNF olur; imha indirimi bu şartı değiştirmez.</p>
+                </div>
+                <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
+                    <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
+                    <p class="text-slate-300">Sen ve beş rakip pilot hareketli avcıları vurmak için yarışacaksınız. Rakip gemileri vuramazsınız; avcılar ortak hedeflerdir.</p>
+                </div>
+                <div class="bg-slate-900/80 border border-emerald-500/40 p-3.5 rounded">
+                    <div class="text-emerald-300 font-bold mb-1">>> İMHA İNDİRİMİ</div>
+                    <p class="text-slate-300">Her imha, geçerli bitiş süresinden şimdilik 2 saniye düşürür. Son sıralama net süreye göredir. İndirim miktarı denge aşamasında ayarlanabilir.</p>
+                </div>
+                <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
+                    <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
+                    <p class="text-slate-300">Fareyle nişan al; sol tık / F ile avcılara ateş et. Avcı lazeri baştan açıktır, sürpriz kutu gerekmez. SHIFT/W boost, S fren, Q/E tonoz, C kamera, P/H duraklat.</p>
+                </div>
+            </div>
             <button id="start-btn" class="cyber-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">
                 LAUNCH GEOSWORD
             </button>
@@ -292,7 +343,7 @@
             <div id="race-telemetry-summary" class="mb-3 text-[11px] text-amber-200 font-['Share_Tech_Mono'] tracking-wide"></div>
             <!-- 6 Yarışçılı Sonuç Tablosu -->
             <div id="race-standings-container" class="bg-slate-900/85 border border-cyan-500/40 p-3 sm:p-4 mb-5 font-['Share_Tech_Mono'] text-xs sm:text-sm">
-                <div class="grid grid-cols-12 text-cyan-400/80 border-b border-cyan-500/30 pb-1.5 mb-2 font-bold text-left">
+                <div id="race-standings-head" class="grid grid-cols-12 text-cyan-400/80 border-b border-cyan-500/30 pb-1.5 mb-2 font-bold text-left">
                     <div class="col-span-2">POS</div>
                     <div class="col-span-4">PILOT</div>
                     <div class="col-span-3">PROFILE</div>
@@ -316,9 +367,10 @@
                     <span id="final-stage" class="text-yellow-300 font-bold">STAGE 1</span>
                 </div>
             </div>
-            <button id="restart-btn" class="cyber-btn px-10 py-3.5 text-base font-black tracking-[0.2em] uppercase">
-                SORTIE AGAIN
-            </button>
+            <div class="flex flex-wrap gap-3 justify-center">
+                <button id="restart-btn" class="cyber-btn px-7 py-3 text-sm font-black tracking-[0.1em] uppercase">TEKRAR OYNA</button>
+                <button id="menu-btn" class="cyber-btn px-7 py-3 text-sm font-black tracking-[0.1em] uppercase">HARİTA SEÇİMİ</button>
+            </div>
         </div>
     </div>
 
@@ -507,7 +559,152 @@
         const ASTEROID_SIZE_SCALE = 1.23;
 
 
+        const MAP_MODES = Object.freeze({ MAP1: 'map1', MAP4: 'map4' });
+        const MAP_AVAILABLE = Object.freeze({ map1: true, map4: true });
+
+        // H4-04 — authoritatively time-gated hunt race. IMPORTANT: the real
+        // crossing time, NOT the discounted time, decides eligibility.
+        // Provisional balance parameter, adjustable in H4-05 after playtests.
+        const MAP4_RACE_RULES = Object.freeze({
+            realTimeLimit: 120,
+            secondsPerHunterKill: 2,
+            finishTolerance: 0.000001
+        });
+        function validHunterFinish(finished, dnf, realTime) {
+            return finished === true && dnf !== true && Number.isFinite(realTime) &&
+                realTime >= 0 &&
+                realTime <= MAP4_RACE_RULES.realTimeLimit + MAP4_RACE_RULES.finishTolerance;
+        }
+        function hunterAdjustedTime(realTime, kills) {
+            return Math.max(0, realTime - Math.max(0, Math.floor(kills || 0)) *
+                MAP4_RACE_RULES.secondsPerHunterKill);
+        }
+        function computeHunterRaceStandings() {
+            const candidates = [{
+                id: 'PLAYER', name: 'YOU', profile: 'PLAYER', isPlayer: true,
+                finished:state.finished, dnf:state.playerDNF,
+                finishTime:state.finishTime, routeProgress:state.routeProgress,
+                kills:state.hunterKills||0, shots:state.hunterShots||0, hits:state.hunterHits||0
+            }, ...racers.map(r=>({
+                id:r.name, name:r.name, profile:r.profile, isPlayer:false,
+                finished:r.finished, dnf:r.dnf, finishTime:r.finishTime,
+                routeProgress:r.routeProgress, kills:r.hunterKills||0,
+                shots:r.hunterShots||0, hits:r.hunterHits||0
+            }))];
+            for(const row of candidates) {
+                row.validFinish=validHunterFinish(row.finished,row.dnf,row.finishTime);
+                row.adjustedTime=row.validFinish ? hunterAdjustedTime(row.finishTime,row.kills) : null;
+                row.timeDiscount=row.kills * MAP4_RACE_RULES.secondsPerHunterKill;
+                row.disqualified = row.dnf || (row.finished && !row.validFinish);
+            }
+            // Finishers first, ranked by corrected score. Unfinished entrants
+            // stay provisional by progress; eliminated or late entrants are last.
+            candidates.sort((a,b)=>{
+                if(a.validFinish!==b.validFinish) return a.validFinish?-1:1;
+                if(a.validFinish) {
+                    if(Math.abs(a.adjustedTime-b.adjustedTime)>1e-7)
+                        return a.adjustedTime-b.adjustedTime;
+                    if(Math.abs(a.finishTime-b.finishTime)>1e-7) return a.finishTime-b.finishTime;
+                    if(a.kills!==b.kills) return b.kills-a.kills;
+                    return a.id.localeCompare(b.id);
+                }
+                if(a.disqualified!==b.disqualified) return a.disqualified?1:-1;
+                if(a.routeProgress!==b.routeProgress) return b.routeProgress-a.routeProgress;
+                if(a.kills!==b.kills) return b.kills-a.kills;
+                return a.id.localeCompare(b.id);
+            });
+            return candidates;
+        }
+        function finalizeHunterDeadline() {
+            if(state.activeMap!==MAP_MODES.MAP4 || !state.running) return false;
+            if(state.raceTime+MAP4_RACE_RULES.finishTolerance < MAP4_RACE_RULES.realTimeLimit) return false;
+            // Never let a lap finish AFTER the real deadline qualify by discount.
+            if(!validHunterFinish(state.finished,state.playerDNF,state.finishTime)) {
+                state.finished=false;
+                state.playerDNF=true;
+                state.currentSpeed=0;
+                state.isFiring=false;
+            }
+            for (const r of racers) {
+                if(!validHunterFinish(r.finished,r.dnf,r.finishTime)) {
+                    r.finished=false;
+                    r.dnf=true;
+                    r.currentSpeed=0;
+                    r.isBoosting=false;
+                    r.isBraking=false;
+                }
+            }
+            endGame(true);
+            return true;
+        }
+        function renderHunterRaceResults(standings) {
+            const rank=standings.findIndex(row=>row.isPlayer)+1;
+            const player=standings.find(row=>row.isPlayer);
+            const leader=standings[0];
+            const title=document.getElementById('gameover-title');
+            const success=player.validFinish && rank===1;
+            const failure=!player.validFinish;
+            title.textContent = failure ? 'HARİTA 4 // DNF · 120s SINIRI'
+                : success ? 'HARİTA 4 // AVCI YARISI ZAFERI!'
+                : 'HARİTA 4 // SIRALAMA ' + rank + ' / 6';
+            title.className='text-2xl sm:text-4xl font-black tracking-widest uppercase mb-2 '+
+                (failure?'text-red-500':success?'text-emerald-400':'text-cyan-300');
+            title.style.textShadow='0 0 20px '+(failure?'#ff0044':success?'#00ff88':'#00f3ff');
+            document.getElementById('race-summary-banner').textContent =
+                'GERCEK '+(player.validFinish?formatRaceTime(player.finishTime):'DNF')+
+                ' · AVCI '+player.kills+' · INDIRIM '+player.timeDiscount+'s'+
+                ' · NET '+(player.validFinish?formatRaceTime(player.adjustedTime):'GEÇERSİZ')+
+                ' · LIDER '+(leader?leader.name:'—');
+            document.getElementById('race-bonus-summary').textContent =
+                'GERÇEK SÜRE LİMİTİ: '+MAP4_RACE_RULES.realTimeLimit+
+                's · AVCI BAŞINA İNDİRİM: '+MAP4_RACE_RULES.secondsPerHunterKill+'s (GEÇİCİ DENGE)';
+            document.getElementById('race-sector-splits').textContent =
+                'İNDİRİM 120 SANİYELİK GERÇEK BİTİŞ ŞARTINI AŞAMAZ';
+            document.getElementById('race-telemetry-summary').textContent =
+                'OYUNCU: '+player.shots+' ÇİFT ATIŞ / '+player.hits+' İSABET / '+player.kills+
+                ' AVCI İMHA';
+            document.getElementById('race-standings-head').innerHTML =
+                '<div class="col-span-2">SIRA</div><div class="col-span-3">PILOT</div>'+
+                '<div class="col-span-2">AVCI</div><div class="col-span-5 text-right">GERCEK / INDIRIM / NET</div>';
+            const list=document.getElementById('race-standings-list');
+            list.innerHTML='';
+            standings.forEach((entry,index)=>{
+                const row=document.createElement('div');
+                row.className='grid grid-cols-12 items-center gap-1 py-1.5 px-2 rounded '+
+                    (entry.isPlayer?'bg-cyan-500/20 border border-cyan-300/70 text-white font-bold':
+                        'bg-slate-950/60 border border-slate-800 text-slate-300');
+                const raw=entry.validFinish?formatRaceTime(entry.finishTime):
+                    (entry.finished && Number.isFinite(entry.finishTime)?'GEC KALDI':'DNF');
+                const adjusted=entry.validFinish?formatRaceTime(entry.adjustedTime):'GEÇERSİZ';
+                const cells=[
+                    ['col-span-2 text-yellow-300',String(index+1)],
+                    ['col-span-3 truncate',entry.name],
+                    ['col-span-2 text-amber-300',String(entry.kills)],
+                    ['col-span-5 text-right text-[10px] sm:text-xs',raw+' / -'+entry.timeDiscount+'s / '+adjusted]
+                ];
+                for(const [cls,value] of cells){
+                    const node=document.createElement('div');
+                    node.className=cls;
+                    node.textContent=value;
+                    row.appendChild(node);
+                }
+                list.appendChild(row);
+            });
+            document.getElementById('combat-stats-box').classList.add('hidden');
+            window.starbladeHunterFinal={
+                realTimeLimit:MAP4_RACE_RULES.realTimeLimit,
+                secondsPerHunterKill:MAP4_RACE_RULES.secondsPerHunterKill,
+                standings:standings.map(x=>({...x}))
+            };
+        }
+
+
         const state = {
+            activeMap: MAP_MODES.MAP1,
+            hunterKills: 0,
+            hunterShots: 0,
+            hunterHits: 0,
+            lastHunterHudTick: -1,
             running: false,
             paused: false,
             hudWarningTick: -1,
@@ -1729,6 +1926,312 @@
             return group;
         }
 
+
+        // H4-02 — dedicated hunt targets; never share enemy/racer collections or combatEnabled.
+        // Harita 1'i etkilemez: all setup, movement and damage are map4-gated.
+        const MAP4_HUNTERS = Object.freeze({
+            count: 8, basicHp: 24, eliteHp: 48, laserDamage: 12,
+            spawnMinAhead: 600, spawnMaxAhead: 1750, respawnDelay: 1.6
+        });
+        const hunterTargets = [];
+        const hunterCounters = { spawned: 0, destroyed: 0, escaped: 0 };
+
+        function disposeHunterMesh(mesh) {
+            scene.remove(mesh);
+            const geometries = new Set();
+            mesh.traverse(part => {
+                if (part.geometry && !geometries.has(part.geometry)) {
+                    geometries.add(part.geometry);
+                    part.geometry.dispose();
+                }
+                const mats = Array.isArray(part.material) ? part.material : [part.material];
+                for (const mat of mats) {
+                    // Hull, common wings and exhaust are shared with the existing game.
+                    if (mat && mat !== enemyHullMat && mat !== enemyWingMat &&
+                            mat !== engineFlareMat && mat.dispose) mat.dispose();
+                }
+            });
+        }
+        function clearHunterTargets() {
+            clearHunterRivalShots();
+            for (const target of hunterTargets) disposeHunterMesh(target.mesh);
+            hunterTargets.length = 0;
+            hunterCounters.spawned = 0;
+            hunterCounters.destroyed = 0;
+            hunterCounters.escaped = 0;
+        }
+        function setHunterWorldPosition(target) {
+            const frame = getRaceFrameAtDistance(target.routeProgress);
+            target.mesh.position.copy(frame.center)
+                .addScaledVector(frame.right, target.laneX)
+                .addScaledVector(frame.up, target.laneY);
+            const noseDirection = target.mesh.position.clone().addScaledVector(frame.tangent, 30);
+            target.mesh.up.copy(frame.up);
+            target.mesh.lookAt(noseDirection);
+        }
+        function spawnHunterTarget(target, slot = 0) {
+            // Spawn for the active pack, not only for the player (who may have finished).
+            const activeProgress = racers.filter(r=>!r.finished && !r.dnf)
+                .map(r=>r.routeProgress);
+            if(!state.finished && !state.playerDNF) activeProgress.push(state.routeProgress);
+            if(!activeProgress.length) return false;
+            activeProgress.sort((a,b)=>a-b);
+            const anchorProgress=activeProgress[Math.floor(activeProgress.length/2)];
+            const room = RACE_ROUTE_NOMINAL_DISTANCE - anchorProgress;
+            if (room <= 180) return false;
+            const maxAhead = Math.min(MAP4_HUNTERS.spawnMaxAhead, Math.max(100, room - 85));
+            const minAhead = Math.min(MAP4_HUNTERS.spawnMinAhead, maxAhead);
+            const ahead = minAhead + Math.random() * Math.max(0, maxAhead - minAhead);
+            target.routeProgress = Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 60, anchorProgress + ahead);
+            const radius = getCorridorRadiusAt(target.routeProgress) * (0.26 + 0.36 * Math.random());
+            const angle = ((slot * 2.399963) + Math.random() * 0.8) % (Math.PI * 2);
+            target.baseLaneX = Math.cos(angle) * radius;
+            target.baseLaneY = Math.sin(angle) * radius;
+            target.laneX = target.baseLaneX;
+            target.laneY = target.baseLaneY;
+            target.weavePhase = Math.random() * Math.PI * 2;
+            target.moveSpeed = 260 + Math.random() * 180;
+            target.weaveSpeed = 0.7 + Math.random() * 0.65;
+            target.hp = target.maxHp;
+            target.alive = true;
+            target.respawnTimer = 0;
+            target.mesh.visible = true;
+            setHunterWorldPosition(target);
+            hunterCounters.spawned++;
+            return true;
+        }
+        function beginHunterRespawn(target, escaped = false) {
+            if (!target.alive) return;
+            target.alive = false;
+            target.mesh.visible = false;
+            target.hp = 0;
+            target.respawnTimer = MAP4_HUNTERS.respawnDelay;
+            if (escaped) hunterCounters.escaped++;
+            if (state.lockedTarget &&
+                (state.lockedTarget.source || state.lockedTarget) === target) state.lockedTarget = null;
+            if (state.lastLockedTarget &&
+                (state.lastLockedTarget.source || state.lastLockedTarget) === target) state.lastLockedTarget = null;
+        }
+        function initializeHunterTargets() {
+            clearHunterTargets();
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
+            for (let i = 0; i < MAP4_HUNTERS.count; i++) {
+                const elite = i % 4 === 3;
+                const mesh = createEnemyFighterMesh(elite, false);
+                const target = {
+                    id: 'H4-HUNTER-' + (i + 1),
+                    mesh, isElite: elite, maxHp: elite ? MAP4_HUNTERS.eliteHp : MAP4_HUNTERS.basicHp,
+                    hp: 0, radius: elite ? 21 : 16, alive: false, respawnTimer: 0,
+                    routeProgress: 0, laneX: 0, laneY: 0, baseLaneX: 0, baseLaneY: 0,
+                    weavePhase: 0, moveSpeed: 0, weaveSpeed: 0
+                };
+                hunterTargets.push(target);
+                scene.add(mesh);
+                spawnHunterTarget(target, i);
+            }
+        }
+        function updateHunterTargets(dt) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
+            for (let i = 0; i < hunterTargets.length; i++) {
+                const target = hunterTargets[i];
+                if (!target.alive) {
+                    target.respawnTimer = Math.max(0, target.respawnTimer - dt);
+                    if (target.respawnTimer === 0) spawnHunterTarget(target, i);
+                    continue;
+                }
+                target.routeProgress += target.moveSpeed * dt;
+                // Only escape after EVERY still-active pilot has passed the hunter.
+                // Using the finished player's 50k progress here would incorrectly
+                // despawn all targets while slower AI pilots are still hunting.
+                const liveProgress = racers.filter(r=>!r.finished && !r.dnf)
+                    .map(r=>r.routeProgress);
+                if(!state.finished && !state.playerDNF) liveProgress.push(state.routeProgress);
+                const lastPilotProgress = liveProgress.length ?
+                    Math.min(...liveProgress) : RACE_ROUTE_NOMINAL_DISTANCE;
+                if (target.routeProgress < lastPilotProgress - 120 ||
+                        target.routeProgress >= RACE_ROUTE_NOMINAL_DISTANCE - 30) {
+                    beginHunterRespawn(target, true); // Escaping isn't a player kill.
+                    continue;
+                }
+                target.weavePhase += target.weaveSpeed * dt;
+                const availableWidth = getCorridorRadiusAt(target.routeProgress) * 0.78;
+                target.laneX = THREE.MathUtils.clamp(target.baseLaneX +
+                    Math.cos(target.weavePhase) * 25, -availableWidth, availableWidth);
+                target.laneY = THREE.MathUtils.clamp(target.baseLaneY +
+                    Math.sin(target.weavePhase * 1.21) * 23, -availableWidth, availableWidth);
+                setHunterWorldPosition(target);
+            }
+        }
+        function damageHunterTarget(target, damage, attackerId = 'PLAYER', impactPoint = null) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running ||
+                    state.raceTime > MAP4_RACE_RULES.realTimeLimit + MAP4_RACE_RULES.finishTolerance ||
+                    !target || !target.alive || !hunterTargets.includes(target) ||
+                    !Number.isFinite(damage) || damage <= 0) return {hit: false, destroyed: false};
+            const creditedRacer = attackerId === 'PLAYER' ? null : racers.find(r => r.name === attackerId);
+            if(attackerId === 'PLAYER' && (state.finished || state.playerDNF)) return {hit:false,destroyed:false};
+            if(creditedRacer && (creditedRacer.finished || creditedRacer.dnf)) return {hit:false,destroyed:false};
+            if(attackerId !== 'PLAYER' && !creditedRacer) return {hit:false,destroyed:false};
+            target.hp = Math.max(0, target.hp - damage);
+            const point = impactPoint || target.mesh.position;
+            createExplosion(point, 0x00f3ff, 4, 0.4);
+            sound.playHit();
+            if (attackerId === 'PLAYER') { state.hitMarkerTimer = 0.16; state.hunterHits++; }
+            else if (creditedRacer) creditedRacer.hunterHits++;
+            if (target.hp > 0) return {hit: true, destroyed: false, remainingHp: target.hp};
+            const pos = target.mesh.position.clone();
+            beginHunterRespawn(target);
+            hunterCounters.destroyed++;
+            createExplosion(pos, target.isElite ? 0xffaa33 : 0xff5522, target.isElite ? 30 : 22,
+                target.isElite ? 1.6 : 1.15);
+            if (attackerId === 'PLAYER') state.hunterKills++;
+            else if (creditedRacer) creditedRacer.hunterKills++;
+            spawnFloatingText(pos, target.isElite ? 'ELIT AVCI IMHA' : 'AVCI IMHA', '#ffdd44');
+            return {hit: true, destroyed: true, targetId: target.id, attackerId};
+        }
+        // Same target-leading computation for player magnetic aim and each AI pilot.
+        // Predict both forward movement and lateral weaving during projectile flight.
+        function predictHunterAimPoint(hunter, from) {
+            const speed = MAP4_RIVAL_GUN.projectileSpeed;
+            const time = Math.min(0.95, from.distanceTo(hunter.mesh.position) / speed);
+            const predictedProgress = Math.min(RACE_ROUTE_NOMINAL_DISTANCE - 30,
+                hunter.routeProgress + hunter.moveSpeed * time);
+            const frame = getRaceFrameAtDistance(predictedProgress);
+            const phase = hunter.weavePhase + hunter.weaveSpeed * time;
+            const radius = getCorridorRadiusAt(predictedProgress) * 0.78;
+            const laneX = THREE.MathUtils.clamp(hunter.baseLaneX + Math.cos(phase) * 25,-radius,radius);
+            const laneY = THREE.MathUtils.clamp(hunter.baseLaneY + Math.sin(phase*1.21) * 23,-radius,radius);
+            return frame.center.clone().addScaledVector(frame.right,laneX)
+                .addScaledVector(frame.up,laneY);
+        }
+        function findHunterLaserImpact(from, to) {
+            if (state.activeMap !== MAP_MODES.MAP4) return null;
+            let earliest = null;
+            for (const target of hunterTargets) {
+                if (!target.alive || target.mesh.visible === false) continue;
+                const swept = sweptLaserSphere(from, to, target.mesh.position, target.radius + 2);
+                if (swept && (!earliest || swept.t < earliest.t)) {
+                    earliest = {target, point: swept.point, t: swept.t};
+                }
+            }
+            return earliest;
+        }
+
+
+        // H4-03 — realistic rival shots with shared target competition.
+        // Every rival fires actual projectiles, uses the player's laser damage and
+        // cannot harm players or other racers. No instant/phantom kill awards.
+        const hunterRivalShots = [];
+        const MAP4_RIVAL_GUN = Object.freeze({
+            cooldown: 0.15, projectileSpeed: 2050, projectileLifetime: 1.15,
+            range: 1650, coneLateral: 440, maxProjectiles: 100
+        });
+        function clearHunterRivalShots() {
+            hunterRivalShots.forEach(shot => scene.remove(shot.mesh));
+            hunterRivalShots.length = 0;
+        }
+        function selectHunterForRival(racer) {
+            if (state.activeMap !== MAP_MODES.MAP4 || racer.finished || racer.dnf) return null;
+            let best = null, lowestCost = Infinity;
+            const frame = getRaceFrameAtDistance(racer.routeProgress);
+            for (const hunter of hunterTargets) {
+                if (!hunter.alive || !hunter.mesh.visible) continue;
+                const ahead = hunter.routeProgress - racer.routeProgress;
+                if (ahead < 55 || ahead > MAP4_RIVAL_GUN.range) continue;
+                const lateral = Math.hypot(hunter.laneX - racer.laneX, hunter.laneY - racer.laneY);
+                if (lateral > MAP4_RIVAL_GUN.coneLateral) continue;
+                const toHunter = hunter.mesh.position.clone().sub(racer.mesh.position);
+                if (toHunter.dot(frame.tangent) < 10) continue;
+                // Favor the nearby target that is closer to our line of flight.
+                // Small per-pilot preference spreads engagements across shared targets.
+                const otherLocks = racers.filter(other => other !== racer &&
+                    !other.finished && !other.dnf && other.hunterAimTargetId === hunter.id).length;
+                const cost = ahead + lateral * 1.25 + otherLocks * 420 +
+                    ((hunterTargets.indexOf(hunter) * 7 + racer.hunterPilotIndex * 13) % 5) * 30;
+                if (cost < lowestCost) {best = hunter; lowestCost = cost;}
+            }
+            return best;
+        }
+        function fireHunterRivalVolley(racer, hunter) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running ||
+                    !hunter || !hunter.alive || racer.finished || racer.dnf ||
+                    hunterRivalShots.length > MAP4_RIVAL_GUN.maxProjectiles - 2) return false;
+            const start = racer.mesh.position.clone();
+            const aim = predictHunterAimPoint(hunter, start);
+            const forward = aim.clone().sub(start).normalize();
+            if (forward.lengthSq() < 0.0001) return false;
+            for (const side of [-1,1]) {
+                const origin = start.clone().addScaledVector(
+                    getRaceFrameAtDistance(racer.routeProgress).right, side * 4);
+                const dir = aim.clone().sub(origin).normalize();
+                const mesh = new THREE.Mesh(sharedLaserGeometry,
+                    sharedLaserMaterials[racer.hunterPilotIndex % sharedLaserMaterials.length]);
+                mesh.position.copy(origin);
+                mesh.lookAt(aim);
+                scene.add(mesh);
+                hunterRivalShots.push({
+                    mesh, ownerId:racer.name, dir,
+                    speed:MAP4_RIVAL_GUN.projectileSpeed,
+                    life:MAP4_RIVAL_GUN.projectileLifetime
+                });
+            }
+            racer.hunterShots++;
+            return true;
+        }
+        function updateHunterRivalFire(racer, dt) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running ||
+                    racer.finished || racer.dnf) return;
+            racer.hunterFireCooldown = Math.max(0, racer.hunterFireCooldown - dt);
+            if (racer.hunterFireCooldown > 0) return;
+            const hunter = selectHunterForRival(racer);
+            if (!hunter) { racer.hunterAimTargetId = null; return; }
+            racer.hunterAimTargetId = hunter.id;
+            if (fireHunterRivalVolley(racer, hunter)) {
+                racer.hunterFireCooldown = MAP4_RIVAL_GUN.cooldown;
+            }
+        }
+        function updateHunterRivalShots(dt) {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
+            for (let i=hunterRivalShots.length-1;i>=0;i--) {
+                const shot=hunterRivalShots[i];
+                const from=shot.mesh.position.clone();
+                shot.mesh.position.addScaledVector(shot.dir,shot.speed*dt);
+                shot.life -= dt;
+                const hit=findHunterLaserImpact(from,shot.mesh.position);
+                if (hit) damageHunterTarget(hit.target, MAP4_HUNTERS.laserDamage,
+                    shot.ownerId, hit.point);
+                if (hit || shot.life<=0) {
+                    scene.remove(shot.mesh);
+                    hunterRivalShots.splice(i,1);
+                }
+            }
+        }
+        function getHunterContestStandings() {
+            return computeHunterRaceStandings().map(r=>({...r,progress:r.routeProgress}));
+        }
+        function updateHunterCompetitionHUD() {
+            if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
+            if (Math.floor(state.raceTime*4) === state.lastHunterHudTick) return;
+            state.lastHunterHudTick = Math.floor(state.raceTime*4);
+            const standings = getHunterContestStandings();
+            const header = document.getElementById('hunter-competition-hud');
+            const list = document.getElementById('hunter-competition-scores');
+            header.classList.remove('hidden');
+            list.textContent = standings.map((e,i) =>
+                (i+1)+'. '+e.name+' '+e.kills+' İMHA'+
+                (e.validFinish ? ' · NET '+formatRaceTime(e.adjustedTime) : e.disqualified?' · DNF':' · DEVAM')).join('   |   ');
+            document.getElementById('hunter-time-limit').textContent =
+                'KALAN '+formatRaceTime(Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime))+
+                ' · AVCI BAŞI -'+MAP4_RACE_RULES.secondsPerHunterKill+'s';
+            window.starbladeHunterTelemetry = {
+                raceTime:state.raceTime, alive:hunterTargets.filter(t=>t.alive).length,
+                spawned:hunterCounters.spawned, destroyed:hunterCounters.destroyed,
+                escaped:hunterCounters.escaped, activeShots:hunterRivalShots.length,
+                timeRemaining:Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime),
+                secondsPerHunterKill:MAP4_RACE_RULES.secondsPerHunterKill,
+                standings:standings.map(e=>({...e}))
+            };
+        }
+
         // AI-22: Paylaşılan slipstream; tüm gemiler aynı koşulda enerji kazanır.
         // Motor sınırları DEĞİŞMEZ. Arkadan takip, uzun boost için enerji sağlar.
         const DRAFT_RULES = Object.freeze({ minGap: 48, maxGap: 410, maxLateral: 105, recharge: 5.0 });
@@ -1896,7 +2399,13 @@
                     vx: 0,
                     vy: 0,
                     bankAngle: 0,
-                    fireTimer: 2.2 + Math.random() * 2.5
+                    fireTimer: 2.2 + Math.random() * 2.5,
+                    hunterPilotIndex: i,
+                    hunterFireCooldown: (i + 1) * 0.06,
+                    hunterAimTargetId: null,
+                    hunterKills: 0,
+                    hunterHits: 0,
+                    hunterShots: 0
                 });
             }
         }
@@ -1989,9 +2498,9 @@
             if (state.lockedTarget && state.lockedTarget.mesh) {
                 // Do not aim using a stale spread-copy: read moving obstacle's live state.
                 const liveLock = state.lockedTarget.source || state.lockedTarget;
-                aimWorldPoint = state.combatEnabled
-                    ? liveLock.mesh.position.clone()
-                    : predictObstacleAimPoint(liveLock);
+                aimWorldPoint = state.activeMap === MAP_MODES.MAP4
+                    ? predictHunterAimPoint(liveLock, state.pos)
+                    : state.combatEnabled ? liveLock.mesh.position.clone() : predictObstacleAimPoint(liveLock);
             } else {
                 const ndcX = (state.mouseX / W) * 2 - 1;
                 const ndcY = -(state.mouseY / H) * 2 + 1;
@@ -2019,8 +2528,8 @@
                 playerLasers.push({
                     mesh: laserMesh,
                     dir,
-                    speed: state.combatEnabled ? 1450 : 4550,
-                    life: state.combatEnabled ? 1.15 : 0.54
+                    speed: state.combatEnabled || state.activeMap === MAP_MODES.MAP4 ? 2050 : 4550,
+                    life: state.combatEnabled || state.activeMap === MAP_MODES.MAP4 ? 1.15 : 0.54
                 });
             });
 
@@ -2035,12 +2544,12 @@
         function tryFirePlayerLasers() {
             if (!state.running || state.finished || state.playerDNF || state.fireCooldown > 0) return false;
             // Gelecekteki savaş modu etkilenmez; mevcut yarışta silah ancak kutudan açılır.
-            if (!state.combatEnabled && state.obstacleLaserTimer <= 0) return false;
-            if (!state.combatEnabled && state.lockedTarget &&
+            if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4 && state.obstacleLaserTimer <= 0) return false;
+            if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4 && state.lockedTarget &&
                 !isLaserDestructible(state.lockedTarget.source || state.lockedTarget)) {
                 state.lockedTarget = null; // Gone targets must never attract new shots.
             }
-            const energyCost = state.combatEnabled ? 0 : OBSTACLE_LASER_ENERGY_COST;
+            const energyCost = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 0 : OBSTACLE_LASER_ENERGY_COST;
             if (state.energy < energyCost) {
                 if (!state.combatEnabled && state.lowEnergyAlertCooldown <= 0) {
                     state.laserBlockedNoEnergy++;
@@ -2054,8 +2563,9 @@
                 state.laserEnergySpent += energyCost;
             }
             firePlayerLasers();
-            if (!state.combatEnabled) state.obstacleLaserShots++;
-            state.fireCooldown = state.combatEnabled ? 0.11 : 0.19;
+            if (state.activeMap === MAP_MODES.MAP4) state.hunterShots++;
+            if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4) state.obstacleLaserShots++;
+            state.fireCooldown = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 0.15 : 0.19;
             return true;
         }
 
@@ -2578,7 +3088,7 @@
                 if (isPlayer && ship.shield <= 0) {
                     state.playerDNF = true;
                     state.currentSpeed = 0;
-                    endGame(false);
+                    if(state.activeMap !== MAP_MODES.MAP4) endGame(false);
                     return;
                 }
                 if (!isPlayer && ship.shield <= 0) {
@@ -2619,7 +3129,7 @@
             if (state.shield <= 0) {
                 state.playerDNF = true;
                 state.currentSpeed = 0;
-                endGame(false);
+                if(state.activeMap !== MAP_MODES.MAP4) endGame(false);
             }
         }
 
@@ -2648,6 +3158,14 @@
         }
 
         function updateGame(dt) {
+            if (state.activeMap === MAP_MODES.MAP4) {
+                if (state.raceTime >= MAP4_RACE_RULES.realTimeLimit) {
+                    finalizeHunterDeadline();
+                    return;
+                }
+                // Clock/physics cannot advance past 120; crossing times stay interpolated.
+                dt = Math.min(dt, Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime));
+            }
             const prevRaceTime = state.raceTime;
             const prevPlayerFrameProgress = state.routeProgress;
             const prevPlayerCourse = {routeProgress:state.routeProgress,laneX:state.laneX,laneY:state.laneY};
@@ -2668,6 +3186,7 @@
             state.wallCooldown = Math.max(0, state.wallCooldown - dt);
             state.wallFlash = Math.max(0, state.wallFlash - dt);
             updateVisibleCorridor();
+            if (state.activeMap === MAP_MODES.MAP4) updateHunterTargets(dt);
 
             // 1. Hız, Boost ve Oyuncu Hareketi (Bitirmiş veya DNF olmuş oyuncu hareket etmez ve kontrol almaz)
             let moveX = 0;
@@ -2720,7 +3239,7 @@
                 // Kanat sınır teması ve orantılı taşma payı. Hız cezasını
                 // ilerleme hesabından önce uygula; yüksek FPS/farklı dt'de adil kalır.
                 applyBoundaryFriction(state, targetSpeed, dt, true);
-                if (state.playerDNF) return;
+                if (state.playerDNF && state.activeMap !== MAP_MODES.MAP4) return;
                 const prevPlayerProgress = state.routeProgress;
                 const nextPlayerProgress = prevPlayerProgress + state.currentSpeed * dt;
 
@@ -2874,7 +3393,13 @@
 
                 let hit = false;
                 // Kareler arasında hızla ilerleyen ışının tüm segmentini test et.
-                if (!state.combatEnabled) {
+                if (state.activeMap === MAP_MODES.MAP4) {
+                    const impact = findHunterLaserImpact(laserFrom, l.mesh.position);
+                    if (impact) {
+                        hit = true;
+                        damageHunterTarget(impact.target, MAP4_HUNTERS.laserDamage, 'PLAYER', impact.point);
+                    }
+                } else if (!state.combatEnabled) {
                     const impact = findObstacleLaserImpact(laserFrom,l.mesh.position);
                     if(impact) {
                         hit=true;
@@ -3527,6 +4052,7 @@
                 const desiredBank = -THREE.MathUtils.clamp(r.vx / maxLateralSpeed, -1, 1) * 0.42;
                 r.bankAngle = (r.bankAngle || 0) + (desiredBank - (r.bankAngle || 0)) * Math.min(1, 6.0 * dt);
                 r.mesh.rotateZ(r.bankAngle);
+                if (state.activeMap === MAP_MODES.MAP4) updateHunterRivalFire(r,dt);
 
                 // Rakipler de birbirine veya oyuncuya ateş edebilir (yalnızca combatEnabled açıkken)
                 if (state.combatEnabled && !r.finished) {
@@ -3537,6 +4063,11 @@
                     }
                 }
             });
+
+            if (state.activeMap === MAP_MODES.MAP4) {
+                updateHunterRivalShots(dt);
+                updateHunterCompetitionHUD();
+            }
 
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts(prevPlayerCourse,prevRacerCourse);
@@ -3646,12 +4177,21 @@
             }
 
             // Gerçek Zamanlı Sıralama Hesabı (Bitirenler finishTime'a, yarışanlar routeProgress'e göre)
-            const liveStandings = computeLiveRaceStandings();
+            const liveStandings = state.activeMap === MAP_MODES.MAP4 ? computeHunterRaceStandings() : computeLiveRaceStandings();
             const playerStandingIdx = liveStandings.findIndex(e => e.isPlayer);
             state.rank = playerStandingIdx >= 0 ? (playerStandingIdx + 1) : 1;
 
+            // H4 is governed by the full 120 real seconds, not Map1's 18s waiting cap.
+            if(state.activeMap === MAP_MODES.MAP4){
+                if(finalizeHunterDeadline()) return;
+                if((state.finished || state.playerDNF) &&
+                    racers.every(r=>r.finished || r.dnf)){
+                    endGame(true);
+                    return;
+                }
+            }
             // Oyuncu Bitişi Geçtikten Sonra Kalan Rakiplerin Bitişini Bekleme Akışı
-            if (state.finished && state.running) {
+            if (state.finished && state.running && state.activeMap !== MAP_MODES.MAP4) {
                 const unfinishedRacers = racers.filter(r => !r.finished && !r.dnf);
                 if (unfinishedRacers.length === 0) {
                     endGame(true);
@@ -3855,14 +4395,15 @@
 
         function findMagneticLockTarget() {
             let bestTarget = null;
-            const laserReady = state.combatEnabled || state.obstacleLaserTimer > 0;
+            const laserReady = state.combatEnabled || state.activeMap === MAP_MODES.MAP4 || state.obstacleLaserTimer > 0;
             const previousSource = state.lockedTarget && (state.lockedTarget.source || state.lockedTarget);
-            let bestDist = state.combatEnabled ? 125 : OBSTACLE_LOCK_MAX_PX;
+            let bestDist = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 125 : OBSTACLE_LOCK_MAX_PX;
             if (!state.combatEnabled && previousSource && isLaserDestructible(previousSource)) {
                 // A small retention margin prevents target blinking at crosshair edges.
                 bestDist += 18;
             }
-            const candidates = state.combatEnabled ? [...enemies, ...racers] :
+            const candidates = state.activeMap === MAP_MODES.MAP4 ? hunterTargets.filter(h => h.alive) :
+                state.combatEnabled ? [...enemies, ...racers] :
                 laserReady ? asteroids.filter(a => isLaserDestructible(a) &&
                     a.routeProgress > state.routeProgress + 24 && a.routeProgress < state.routeProgress + OBSTACLE_LASER_RANGE)
                 .concat(staticObstacles.filter(o => isLaserDestructible(o) &&
@@ -3874,7 +4415,7 @@
             const possibilities = [];
             for (const c of candidates) {
                 if (!c.mesh || c.mesh.visible === false) continue;
-                const aimPos = state.combatEnabled ? c.mesh.position : predictObstacleAimPoint(c);
+                const aimPos = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? c.mesh.position : predictObstacleAimPoint(c);
                 const scr = worldToScreen(aimPos);
                 if (!scr.visible || scr.x < 0 || scr.x > W || scr.y < 0 || scr.y > H) continue;
                 const d = Math.hypot(scr.x - state.mouseX, scr.y - state.mouseY);
@@ -3884,7 +4425,7 @@
             }
             possibilities.sort((a,b) => a.score-b.score);
             for (const p of possibilities) {
-                if (!state.combatEnabled && !hasClearObstacleLaserPath(p.source, p.aimPos)) continue;
+                if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4 && !hasClearObstacleLaserPath(p.source, p.aimPos)) continue;
                 bestTarget = {...p.source, source:p.source, screenX:p.screenX, screenY:p.screenY};
                 break;
             }
@@ -3892,7 +4433,7 @@
             if (bestTarget && (!state.lastLockedTarget ||
                     (state.lastLockedTarget.source || state.lastLockedTarget) !== bestTarget.source)) {
                 sound.playLock();
-                if (!state.combatEnabled) state.obstacleLaserLockCount++;
+                if (!state.combatEnabled && state.activeMap !== MAP_MODES.MAP4) state.obstacleLaserLockCount++;
             }
             state.lastLockedTarget = bestTarget;
         }
@@ -4049,7 +4590,7 @@
 
             // AI-26: Reticle açıkça silah kilidini, hedefin dayanıklılığını ve
             // isabet/sekme/parçalanma sonucunu gösterir. Rakip yarışçılar kilitlenmez.
-            const weaponReady=state.combatEnabled || state.obstacleLaserTimer>0;
+            const weaponReady=state.combatEnabled || state.activeMap===MAP_MODES.MAP4 || state.obstacleLaserTimer>0;
             fxCtx.font = 'bold 13px Orbitron, monospace';
             fxCtx.textAlign = 'center';
             fxCtx.fillStyle = !weaponReady ? '#fb7185' : isLocked ? '#00ff88' : '#00f3ff';
@@ -4058,7 +4599,10 @@
             fxCtx.fillText(!weaponReady ? 'LAZER KİLİTLİ' : isLocked ? 'LOCK ON' : 'FREE AIM', 0, isLocked ? 64 : 70);
             if(!state.combatEnabled && isLocked) {
                 fxCtx.font='bold 11px Share Tech Mono, monospace';
-                fxCtx.fillText(`${state.lockedTarget.durability} / ${state.lockedTarget.maxDurability} HP`,0,82);
+                const locked=state.lockedTarget.source || state.lockedTarget;
+                const hp=state.activeMap===MAP_MODES.MAP4 ? locked.hp : locked.durability;
+                const max=state.activeMap===MAP_MODES.MAP4 ? locked.maxHp : locked.maxDurability;
+                fxCtx.fillText(`${hp} / ${max} HP`,0,82);
             }
             if(state.laserFeedbackTimer>0 && !state.combatEnabled) {
                 fxCtx.fillStyle=state.laserFeedback.startsWith('ZIRH')?'#ff9b69':'#faffaa';
@@ -4205,7 +4749,10 @@
             };
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
-                if (state.obstacleLaserTimer > 0) {
+                if (state.activeMap === MAP_MODES.MAP4) {
+                    laserStatus.textContent='AVCI LAZERİ HAZIR · F / SOL TIK · ÜCRETSİZ';
+                    laserStatus.className="block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold";
+                } else if (state.obstacleLaserTimer > 0) {
                     const ready = state.energy >= OBSTACLE_LASER_ENERGY_COST;
                     const expiring = state.obstacleLaserTimer < 3;
                     laserStatus.textContent=!ready ?
@@ -4222,8 +4769,13 @@
             }
             const targetStatus=document.getElementById('laser-target-status');
             if(targetStatus) {
-                const hasLaser=state.obstacleLaserTimer>0;
-                targetStatus.textContent=hasLaser?getLaserTargetLabel(state.lockedTarget && (state.lockedTarget.source || state.lockedTarget)):'HEDEF: LAZER KİLİTLİ';
+                const isHunt = state.activeMap===MAP_MODES.MAP4;
+                const hasLaser=isHunt || state.obstacleLaserTimer>0;
+                const target=state.lockedTarget && (state.lockedTarget.source || state.lockedTarget);
+                targetStatus.textContent=isHunt ? (target && target.alive ?
+                    'AVCI: '+(target.isElite?'ELİT · ':'')+target.hp+'/'+target.maxHp+' HP' :
+                    'AVCI HEDEFİ ARA') :
+                    hasLaser?getLaserTargetLabel(target):'HEDEF: LAZER KİLİTLİ';
                 targetStatus.className=hasLaser && state.lockedTarget?
                     "block text-[10px] text-emerald-300 font-['Share_Tech_Mono']":
                     "block text-[10px] text-cyan-200/90 font-['Share_Tech_Mono']";
@@ -4303,6 +4855,18 @@
                     dot.style.top = `calc(50% + ${rz}px - 4px)`;
                     radarContainer.appendChild(dot);
                 });
+                if (state.activeMap===MAP_MODES.MAP4) hunterTargets.forEach(h => {
+                    if(!h.alive) return;
+                    const rel=h.mesh.position.clone().sub(state.pos).applyQuaternion(invQuat);
+                    const rx=Math.max(-48,Math.min(48,(rel.x/650)*48));
+                    const rz=Math.max(-48,Math.min(48,(rel.z/650)*48));
+                    const dot=document.createElement('div');
+                    dot.className='absolute w-2 h-2 rounded-full '+
+                        (h.isElite?'bg-yellow-400':'bg-red-500');
+                    dot.style.left=`calc(50% + ${rx}px - 4px)`;
+                    dot.style.top=`calc(50% + ${rz}px - 4px)`;
+                    radarContainer.appendChild(dot);
+                });
                 racers.forEach(r => {
                     const rel = r.mesh.position.clone().sub(state.pos).applyQuaternion(invQuat);
                     const rx = Math.max(-48, Math.min(48, (rel.x / 650) * 48));
@@ -4331,6 +4895,8 @@
         }
 
         function startGame() {
+            // H4-05: only launch modes explicitly released in MAP_AVAILABLE.
+            if (MAP_AVAILABLE[state.activeMap] !== true) return;
             cancelCenterAnnouncement();
             state.paused = false;
             state.hudWarningTick = -1;
@@ -4344,6 +4910,7 @@
             Object.keys(keys).forEach(k => { keys[k] = false; });
             sound.init();
 
+            clearHunterTargets();
             enemies.forEach(e => scene.remove(e.mesh));
             enemies.length = 0;
             racers.forEach(disposeRacerMesh);
@@ -4366,6 +4933,13 @@
             state.running = true;
             state.score = 0;
             state.kills = 0;
+            state.hunterKills = 0;
+            state.hunterShots = 0;
+            state.hunterHits = 0;
+            state.lastHunterHudTick = -1;
+            window.starbladeHunterTelemetry = null;
+            window.starbladeHunterFinal = null;
+            document.getElementById('hunter-competition-hud').classList.add('hidden');
             state.stage = 1;
             state.shield = 100;
             state.energy = 100;
@@ -4429,12 +5003,19 @@
             state.obstacleLaserTimer = 0;
             state.laserPickups = 0;
             const laserTargetStatus=document.getElementById('laser-target-status');
-            if(laserTargetStatus)laserTargetStatus.textContent='HEDEF: LAZER KİLİTLİ';
+            if(laserTargetStatus)laserTargetStatus.textContent=state.activeMap===MAP_MODES.MAP4?'AVCI HEDEFİ ARA':'HEDEF: LAZER KİLİTLİ';
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
-                laserStatus.textContent='LAZER KİLİTLİ — MOR KUTU TOPLA';
-                laserStatus.className="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
+                laserStatus.textContent=state.activeMap===MAP_MODES.MAP4 ?
+                    'AVCI LAZERİ HAZIR · F / SOL TIK · ÜCRETSİZ' : 'LAZER KİLİTLİ — MOR KUTU TOPLA';
+                laserStatus.className=state.activeMap===MAP_MODES.MAP4 ?
+                    "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold" :
+                    "block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
             }
+            // H4 result headers must not bleed into the approved Map1 scoreboard.
+            document.getElementById('race-standings-head').innerHTML=
+                '<div class="col-span-2">POS</div><div class="col-span-4">PILOT</div>'+
+                '<div class="col-span-3">PROFILE</div><div class="col-span-3 text-right">TIME / GAP</div>';
             resetItemAndBarrierCourse();
             state.nearMisses = 0;
             state.checkpointTimes = [];
@@ -4460,10 +5041,13 @@
             resetAsteroidField();
             updateCourseVisibility(state.routeProgress);
             spawnRacerFleet();
+            if (state.activeMap === MAP_MODES.MAP4) initializeHunterTargets();
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
             }
-            showCenterAnnouncement("CORRIDOR RACE ENGAGED", "STAGE 1: NEBULA FRONT");
+            showCenterAnnouncement(state.activeMap===MAP_MODES.MAP4 ?
+                "AVCI YARISI BASLADI · 120 SANİYE" : "CORRIDOR RACE ENGAGED",
+                state.activeMap===MAP_MODES.MAP4 ? "HARITA 4 · HUNTER RACE" : "STAGE 1: NEBULA FRONT");
         }
 
         function endGame(completedRoute = false) {
@@ -4489,7 +5073,14 @@
                 state.playerDNF = true;
             }
 
-            const standings = computeLiveRaceStandings();
+            const standings = state.activeMap === MAP_MODES.MAP4 ? computeHunterRaceStandings() : computeLiveRaceStandings();
+            if (state.activeMap === MAP_MODES.MAP4) {
+                state.rank = standings.findIndex(e=>e.isPlayer)+1;
+                renderHunterRaceResults(standings);
+                document.getElementById('gameover-screen').classList.remove('hidden');
+                clearHunterRivalShots();
+                return;
+            }
             const playerIndex = standings.findIndex(e => e.isPlayer);
             const playerRank = playerIndex >= 0 ? (playerIndex + 1) : 6;
             state.rank = playerRank;
@@ -4617,6 +5208,45 @@
             keys[e.code] = false;
         });
 
+        // H4-01: mode selection is intentionally separate from the racing runtime.
+        function selectMap(mapId) {
+            if (mapId !== MAP_MODES.MAP1 && mapId !== MAP_MODES.MAP4) return;
+            if (state.running) return; // A running race can never switch maps.
+            state.activeMap = mapId;
+            const ready = MAP_AVAILABLE[mapId] === true;
+            document.getElementById('map-choice-1').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP1));
+            document.getElementById('map-choice-4').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP4));
+            const launch = document.getElementById('start-btn');
+            launch.disabled = !ready;
+            const isMap4=mapId===MAP_MODES.MAP4;
+            document.getElementById('map1-instructions').classList.toggle('hidden',isMap4);
+            document.getElementById('map4-instructions').classList.toggle('hidden',!isMap4);
+            launch.textContent = ready ? (isMap4?'HARİTA 4 · AVCI YARIŞINI BAŞLAT':'HARİTA 1 · YARIŞI BAŞLAT') :
+                'HARİTA 4 · GELİŞTİRİLİYOR';
+            const status = document.getElementById('map-selection-status');
+            status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
+                : isMap4 ? 'Harita 4 oynanabilir test sürümü: 120s süre sınırı, avcı imhası ve net süre.'
+                : 'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
+            status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
+        }
+        document.getElementById('map-choice-1').addEventListener('click', () => selectMap(MAP_MODES.MAP1));
+        document.getElementById('map-choice-4').addEventListener('click', () => selectMap(MAP_MODES.MAP4));
+        selectMap(MAP_MODES.MAP1);
+        // Return from either results screen to the chooser without launching a race.
+        function returnToMapSelection() {
+            if (state.running) return;
+            cancelCenterAnnouncement();
+            clearHunterTargets();
+            state.isFiring=false;
+            state.paused=false;
+            Object.keys(keys).forEach(k=>{keys[k]=false;});
+            document.getElementById('hunter-competition-hud').classList.add('hidden');
+            document.getElementById('flight-help-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            selectMap(state.activeMap);
+        }
+        document.getElementById('menu-btn').addEventListener('click',returnToMapSelection);
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
         document.getElementById('resume-btn').addEventListener('click', () => setFlightPaused(false));
