@@ -2200,6 +2200,7 @@
             const active=state.activeMap===MAP_MODES.MAP4;
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
+            h4GeoSwordArt.visible=active;
             h4SkyDome.visible=active;
             h4SunHalo.visible=active;
             renderer.toneMapping=active?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
@@ -3213,6 +3214,59 @@
         geoSwordMesh.visible = false;
         playerRig.add(geoSwordMesh);
 
+        // Map4-specific 3D detail kit. Does not alter the approved Map1 craft.
+        const h4GeoSwordArt=new THREE.Group();
+        h4GeoSwordArt.name='MAP4_GEOSWORD_ART';
+        h4GeoSwordArt.visible=false;
+        const h4PlayerGlass=new THREE.MeshStandardMaterial({
+            color:0x246083,metalness:.8,roughness:.12,
+            emissive:0x0d5078,emissiveIntensity:.48});
+        const h4PlayerTrim=new THREE.MeshStandardMaterial({
+            map:h4SurfaceMaps.steel,color:0xd7e8f1,metalness:.7,roughness:.27});
+        const h4ShipLight=new THREE.MeshBasicMaterial({color:0x6ff9ff});
+        function h4PlayerDetail(geo,mat,x,y,z,sx,sy,sz){
+            const part=new THREE.Mesh(geo,mat);part.position.set(x,y,z);
+            part.scale.set(sx,sy,sz);h4GeoSwordArt.add(part);return part;
+        }
+        h4PlayerDetail(new THREE.SphereGeometry(1,14,8),h4PlayerGlass,
+            0,.83,.7,1.1,.58,2.3);
+        h4PlayerDetail(new THREE.BoxGeometry(1,1,1),h4PlayerTrim,
+            0,-.26,1.5,3,.65,8);
+        for(const side of [-1,1]){
+            h4PlayerDetail(new THREE.BoxGeometry(1,1,1),h4PlayerTrim,
+                side*4.9,.22,2.2,3.2,.26,2.5).rotation.z=side*.11;
+            h4PlayerDetail(new THREE.BoxGeometry(1,1,1),h4ShipLight,
+                side*6.1,.46,2.0,.23,.14,2.2);
+            h4PlayerDetail(new THREE.TorusGeometry(.70,.12,6,14),h4ShipLight,
+                side*1.5,-.20,4.5,1,1,1);
+        }
+        geoSwordMesh.add(h4GeoSwordArt);
+        function h4EnrichFighter(group,isElite,isRacer){
+            const shell=new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,color:isRacer?0xc9dceb:0x9f9da0,
+                metalness:.61,roughness:.42});
+            const canopy=new THREE.MeshStandardMaterial({
+                color:0x1a4666,metalness:.78,roughness:.12,
+                emissive:0x045678,emissiveIntensity:.38});
+            const signal=new THREE.MeshBasicMaterial({
+                color:isRacer?0x64ecff:isElite?0xffc47d:0xff685b});
+            const add=(g,m,x,y,z,sx,sy,sz)=>{
+                const q=new THREE.Mesh(g,m);q.position.set(x,y,z);
+                q.scale.set(sx,sy,sz);group.add(q);return q;
+            };
+            add(new THREE.SphereGeometry(1,12,8),canopy,0,.75,1,1.35,.52,2.1);
+            add(new THREE.BoxGeometry(1,1,1),shell,0,-.21,-.45,3.2,.9,5);
+            for(const side of [-1,1]){
+                add(new THREE.BoxGeometry(1,1,1),shell,side*5,.3,-1.7,4.5,.25,2.5)
+                    .rotation.z=side*.10;
+                add(new THREE.BoxGeometry(1,1,1),signal,side*7,.53,-1.6,.2,.12,2.2);
+                add(new THREE.TorusGeometry(.7,.14,6,12),signal,
+                    side*2.3,-.2,-5.2,1,1,1);
+            }
+            group.userData.h4DetailedCraft=true;
+            h4VisualQuality.enhancedAircraft++;
+        }
+
         const enemies = [];
         const racers = [];
         const playerLasers = [];
@@ -3249,6 +3303,7 @@
             engR.position.x = 1.6;
 
             group.add(fuselage, wings, engL, engR);
+            if(state.activeMap===MAP_MODES.MAP4)h4EnrichFighter(group,isElite,isRacer);
             const scale = isRacer ? 1.45 : (isElite ? 1.55 : 1.25);
             group.scale.setScalar(scale);
             return group;
