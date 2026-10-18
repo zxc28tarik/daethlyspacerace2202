@@ -1425,6 +1425,79 @@
                 check(state,previousPlayer,true);
             racers.forEach((r,i)=>check(r,previousRivals[i],false));
         }
+
+        // W02: large, repeatable silhouettes and mid-range scenery. Visual only.
+        // Fixed arrays, shared materials and geometries; Map4 scenery is never an
+        // invisible hitbox. Physical canyon hazards are a separate W03 deliverable.
+        const h4WideScenery={byRegion:[0,0,0,0],total:0};
+        const h4SceneryGroups=[];
+        function h4PopulateWideScenery(zone,regionIndex,def){
+            const scenery=new THREE.Group();
+            scenery.name='MAP4_W02_WIDE_SCENERY_'+regionIndex;
+            const near=new THREE.Group(),far=new THREE.Group();
+            near.name='NEAR_TERRAIN_AND_SETTLEMENT';
+            far.name='HORIZON_SILHOUETTE';
+            scenery.add(far,near);
+            const make=(progress,side,height,geometry,material,scale,target)=>{
+                const m=new THREE.Mesh(geometry,material);
+                m.position.copy(h4WorldPosition(progress,side,-440+height));
+                m.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
+                m.scale.set(scale[0],scale[1],scale[2]);
+                target.add(m);
+                h4WideScenery.total++;
+                h4WideScenery.byRegion[regionIndex]++;
+            };
+            const count=regionIndex===1?16:30;
+            for(let i=0;i<count;i++){
+                const length=def.to-def.from;
+                const progress=def.from+(i+0.3)*length/count;
+                const sign=i%2===0?-1:1;
+                const side=sign*(1680+(i*151)%1510);
+                const tall=270+(i*79)%710;
+                const geom=regionIndex===0?H4_MESHES.rock:
+                    regionIndex===1?(i%2?H4_DETAIL_GEO.wedge:H4_MESHES.structure):
+                    regionIndex===2?(i%3?H4_MESHES.structure:H4_MESHES.tower):
+                    (i%3?H4_MESHES.structure:H4_MESHES.tower);
+                const material=regionIndex===0?(i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone):
+                    regionIndex===1?(i%2?H4_DETAIL_MAT.armor:H4_MATERIALS.wreck):
+                    regionIndex===2?(i%2?H4_MATERIALS.steel:H4_DETAIL_MAT.oxidized):
+                    (i%3?H4_MATERIALS.wall:H4_DETAIL_MAT.armor);
+                const h=regionIndex===1?100+(i*17)%150:tall;
+                make(progress,side,h*0.5,geom,material,
+                    [regionIndex===1?190:180+(i%4)*75,h,170+(i%3)*60],near);
+            }
+            // Distant skyline reads even when pilots use the expanded flight zone.
+            for(let i=0;i<28;i++){
+                const progress=def.from+(i+0.4)*(def.to-def.from)/28;
+                const sign=i%2===0?-1:1;
+                const side=sign*(3850+(i*103)%950);
+                const size=regionIndex===0?450+(i*117)%750:
+                    regionIndex===1?250+(i*43)%310:
+                    regionIndex===2?580+(i*83)%880:500+(i*67)%920;
+                const geometry=regionIndex===0?H4_MESHES.rock:
+                    regionIndex===1?H4_DETAIL_GEO.wedge:
+                    regionIndex===2?H4_MESHES.tower:H4_MESHES.structure;
+                const material=regionIndex===0?H4_DETAIL_MAT.cliffShadow:
+                    regionIndex===1?H4_DETAIL_MAT.armor:
+                    regionIndex===2?H4_MATERIALS.steel:H4_MATERIALS.wall;
+                make(progress,side,size*0.5,geometry,material,
+                    [220+(i%3)*100,size,250+(i%4)*60],far);
+            }
+            // A memorable opening panorama: large formations flank the launch area
+            // but never block its central takeoff path.
+            if(regionIndex===0){
+                for(let i=0;i<8;i++){
+                    const side=(i%2?1:-1)*(1100+(i%4)*390);
+                    const d=250+Math.floor(i/2)*620;
+                    const h=360+(i%3)*210;
+                    make(d,side,h*0.5,H4_MESHES.rock,
+                        i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone,
+                        [200+(i%3)*90,h,190+(i%2)*100],near);
+                }
+            }
+            zone.add(scenery);
+            h4SceneryGroups.push({near,far,regionIndex});
+        }
         function buildPlanetaryWorld() {
             if(planetaryWorldRegions.length) return;
             for(let zoneIndex=0;zoneIndex<PLANETARY_REGIONS.length;zoneIndex++){
@@ -1475,6 +1548,7 @@
                     beacon.rotateX(Math.PI*0.5);
                 }
                 h4PopulateRegion(zone,zoneIndex);
+                h4PopulateWideScenery(zone,zoneIndex,def);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
             }
@@ -1490,7 +1564,9 @@
             nebulaGroup.visible=!active;
             scene.background.setHex(active?0x997664:0x040310);
             scene.fog.color.setHex(active?0xb18b76:0x09051d);
-            scene.fog.density=active?0.00026:0.00055;
+            scene.fog.density=active?0.00015:0.00055;
+            camera.far=active?11500:4500;
+            camera.updateProjectionMatrix();
             if(!active) {
                 updateCourseVisibility(state.routeProgress);
             }
@@ -1511,16 +1587,24 @@
                 RACE_ROUTE_NOMINAL_DISTANCE-state.routeProgress);
             for(let i=0;i<planetaryWorldRegions.length;i++){
                 const def=PLANETARY_REGIONS[i];
-                planetaryWorldRegions[i].visible=def.to>state.routeProgress-3400
-                    && def.from<state.routeProgress+7800;
+                planetaryWorldRegions[i].visible=def.to>state.routeProgress-4900
+                    && def.from<state.routeProgress+9900;
             }
             // Cull distant compositions inside active regions to limit draw calls.
             let nextLandmark=null;
             for(const point of h4WorldLandmarks) {
-                point.group.visible=point.at>=state.routeProgress-1600 &&
-                    point.at<=state.routeProgress+4800;
+                point.group.visible=point.at>=state.routeProgress-3200 &&
+                    point.at<=state.routeProgress+7200;
                 if(point.at>=state.routeProgress-400 && point.at<=state.routeProgress+3100 &&
                     (!nextLandmark || point.at<nextLandmark.at)) nextLandmark=point;
+            }
+            for(const scenery of h4SceneryGroups){
+                // Parent region culling already handles the long-distance budget.
+                // Keep far skyline visible, but hide near clutter if region is distant.
+                const region=PLANETARY_REGIONS[scenery.regionIndex];
+                scenery.near.visible=region.to>state.routeProgress-2300 &&
+                    region.from<state.routeProgress+5200;
+                scenery.far.visible=true;
             }
             const landmarkLine=document.getElementById('planetary-landmark-name');
             if(landmarkLine) landmarkLine.textContent=nextLandmark ?
