@@ -2018,7 +2018,15 @@
                     continue;
                 }
                 target.routeProgress += target.moveSpeed * dt;
-                if (target.routeProgress < state.routeProgress - 120 ||
+                // Only escape after EVERY still-active pilot has passed the hunter.
+                // Using the finished player's 50k progress here would incorrectly
+                // despawn all targets while slower AI pilots are still hunting.
+                const liveProgress = racers.filter(r=>!r.finished && !r.dnf)
+                    .map(r=>r.routeProgress);
+                if(!state.finished && !state.playerDNF) liveProgress.push(state.routeProgress);
+                const lastPilotProgress = liveProgress.length ?
+                    Math.min(...liveProgress) : RACE_ROUTE_NOMINAL_DISTANCE;
+                if (target.routeProgress < lastPilotProgress - 120 ||
                         target.routeProgress >= RACE_ROUTE_NOMINAL_DISTANCE - 30) {
                     beginHunterRespawn(target, true); // Escaping isn't a player kill.
                     continue;
