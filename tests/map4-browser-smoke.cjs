@@ -44,9 +44,19 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#laser-status').textContent().then(t=>t.includes('HAZIR')),true);
     await page.screenshot({path:path.resolve(__dirname,'map4-running.png')});
     // Real deadline: no discount can make an unfinished runner eligible.
-    await page.evaluate(() => {state.raceTime=119.98;});
-    await page.waitForTimeout(350);
-    assert.equal(await page.locator('#gameover-screen').isVisible(),true);
+    await page.evaluate(() => {state.raceTime=119.98;state.paused=false;});
+    try {
+      await page.waitForFunction(() => !state.running,null,{timeout:12000});
+    } catch (error) {
+      console.error('Deadline diagnostic', await page.evaluate(() => ({
+        running:state.running,paused:state.paused,realClock:state.raceTime,
+        finished:state.finished,playerDNF:state.playerDNF,map:state.activeMap,
+        gameOverHidden:document.getElementById('gameover-screen').classList.contains('hidden')
+      })), errors);
+      throw error;
+    }
+    assert.equal(await page.locator('#gameover-screen').isVisible(),true,
+      'deadline must show results; browser errors: '+errors.join(' | '));
     const result=await page.evaluate(() => window.starbladeHunterFinal);
     assert.equal(result.realTimeLimit,120);
     assert.equal(result.standings.length,6);
