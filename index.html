@@ -317,7 +317,7 @@
             <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
                     <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
-                    <p class="text-slate-300">1. Kayalık vadide üç rotadan birini seç. 2. <strong>60 saniyelik avcı arenası:</strong> açık merkezde 3 normal avcı, sol enkaz alanında 3 normal avcı, sağ savunma hattında 2 elit avcı. İleri hareket kilitli ama yanal/dikey manevra serbest. 3. Endüstriyel binalardan kaç. 4. Savaşarak uzaya yüksel.</p>
+                    <p class="text-slate-300">1. Vadide <strong>güvenli orta / hızlı batı / avcı doğu</strong> rotasını seç. 2. 60 saniye üç savaş cephesinde avcı vur. 3. <strong>Sanayi:</strong> alçak batı boru hattı +%12 hız fakat dar, yukarıdaki hat güvenli, doğu tesisleri avcı dolu; köprü ve borulara gerçekten çarpabilirsin. 4. Savaşarak uzaya yüksel.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
@@ -5950,7 +5950,8 @@
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(
-                state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress));
+                state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress)*
+                h4IndustrialAdvanceMultiplier(state.routeProgress,state));
             const energyText = document.getElementById('energy-text');
             energyText.textContent = `${Math.round(state.energy)} / 100`;
             energyText.className = state.energy < 20 ? 'text-amber-300 font-bold' : 'text-white';
