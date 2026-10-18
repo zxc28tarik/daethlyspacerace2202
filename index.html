@@ -1123,6 +1123,7 @@
                 if(ship.powerShieldTimer>0){if(isPlayer)spawnFloatingText(o.mesh.position,'SHIELD DEFLECTED','#5bfffa');continue;}
                 if(isPlayer){
                     applyPlayerDamage(13);
+                    if(!state.running) return;
                     if(!state.playerDNF){ship.currentSpeed*=0.55;state.shake=Math.max(state.shake,0.85);}
                     state.barrierHits++;
                 }else{
@@ -1573,8 +1574,23 @@
             return -penalty;
         }
 
+        function disposeRacerMesh(r) {
+            scene.remove(r.mesh);
+            const geometries = new Set();
+            r.mesh.traverse(child => {
+                if (child.geometry && !geometries.has(child.geometry)) {
+                    geometries.add(child.geometry);
+                    child.geometry.dispose();
+                }
+            });
+            // Each pilot's exhaust material is private; shared hull materials remain.
+            if (r.speedTrailGroup && r.speedTrailGroup.children.length) {
+                const exhaustMat = r.speedTrailGroup.children[0].material;
+                if (exhaustMat && exhaustMat.dispose) exhaustMat.dispose();
+            }
+        }
         function spawnRacerFleet() {
-            racers.forEach(r => scene.remove(r.mesh));
+            racers.forEach(disposeRacerMesh);
             racers.length = 0;
             const racerNames = ["VIPER-01", "NOVA-X", "CYBER-7", "BLAZE-9", "ZERO-G"];
             // B — Dört Pilot Karakter Profili Dağılımı: 1 SPEED, 2 BALANCED, 1 CAUTIOUS, 1 AGGRESSIVE
@@ -2055,6 +2071,14 @@
             }
         }
 
+        // AI-31: Geçici patlama parçalarının geometri ve materyallerini serbest bırak.
+        // Paylaşılan lazer/enkaz geometrileri bu fonksiyonla temizlenmez.
+        function disposeExplosionParticle(p) {
+            scene.remove(p.mesh);
+            if (p.mesh.geometry && p.mesh.geometry.dispose) p.mesh.geometry.dispose();
+            const mats = Array.isArray(p.mesh.material) ? p.mesh.material : [p.mesh.material];
+            mats.forEach(m => { if (m && m.dispose) m.dispose(); });
+        }
         function createExplosion(pos, color = 0xff8800, count = 22, scaleMul = 1) {
             sound.playExplosion(scaleMul > 1.5);
 
@@ -2355,13 +2379,25 @@
             }
         }
 
+        // AI-31: Eski yarışın duyuru zamanlayıcısı yeni yarış ekranına dokunamaz.
+        let centerAnnouncementTimeout = null;
+        function cancelCenterAnnouncement() {
+            if (centerAnnouncementTimeout !== null) {
+                clearTimeout(centerAnnouncementTimeout);
+                centerAnnouncementTimeout = null;
+            }
+        }
         function showCenterAnnouncement(sub, title) {
+            cancelCenterAnnouncement();
             const box = document.getElementById('center-msg');
             document.getElementById('center-msg-sub').textContent = sub;
             document.getElementById('center-msg-title').textContent = title;
             box.style.opacity = '1';
             box.style.transform = 'scale(1)';
-            setTimeout(() => {
+            centerAnnouncementTimeout = setTimeout(() => {
+                centerAnnouncementTimeout = null;
+                // Yarış bitiş ekranı başka bir duyuruyla kapatılmaz.
+                if (!state.running || state.finished) return;
                 box.style.opacity = '0';
                 box.style.transform = 'scale(0.9)';
             }, 2400);
@@ -3248,6 +3284,7 @@
 
             // AI-13: bütün gemiler yeni dünya pozisyonlarındayken çarpışmaları çöz.
             resolveShipContacts();
+            if (!state.running) return; // Gemiler arası temas oyuncuyu DNF yaptıysa kareyi sonlandır.
 
             // Yüksek hızda asteroidler kareler arasında atlanmasın:
             // gemi ve asteroidin aynı karedeki göreli hareketi boyunca en yakın yaklaşımı bul.
@@ -3285,6 +3322,7 @@
                     if(isPlayer){
                         if(state.barrelRollTimer>0){applyPlayerDamage(16);return;}
                         applyPlayerDamage(16);
+                        if(!state.running) return;
                         if(!state.playerDNF)ship.currentSpeed*=0.45;
                     }else{
                         ship.currentSpeed*=0.45;
@@ -3292,16 +3330,20 @@
                         ship.aiStats && (ship.aiStats.obstacleHits++);
                         if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;}
                     }
-                    state.asteroidHits++;
+                    if (isPlayer) state.asteroidHits++;
                     createExplosion(a.mesh.position,0xff5500,10,0.85);
                 };
                 if(!state.finished&&!state.playerDNF)test('PLAYER',state,prevPlayerCourse,10,true);
+                if (!state.running) return;
                 racers.forEach((r,i)=>test(r.name,r,prevRacerCourse[i],r.radius,false));
             });
+
+            if (!state.running) return; // Asteroit nedeniyle DNF sonrası ek hasar/ödül yazılmasın.
 
             // AI-15: sabit engel ve item kutusu kontrolleri; her gemiye ayrı hak ve temas kaydı.
             if(!state.playerDNF && !state.finished){
                 applyStaticObstacleContact('PLAYER',state,prevPlayerCourse,true);
+                if(!state.running) return;
                 if(!state.playerDNF)collectItemBoxesForShip('PLAYER',state,prevPlayerCourse,true);
             }
             racers.forEach((r,idx)=>{
@@ -3310,6 +3352,8 @@
                     collectItemBoxesForShip(r.name,r,prevRacerCourse[idx],false);
                 }
             });
+
+            if (!state.running) return; // Metal enkaz teması sonucu DNF sonrası istatistikleri değiştirme.
 
             // Dairesel bonus toplayıcılar yok; yakın geçiş ve sektör süreleri korunur.
             if (!state.playerDNF) {
@@ -3491,7 +3535,7 @@
                 }
                 p.mesh.material.opacity = Math.max(0, p.life / p.maxLife);
                 if (p.life <= 0) {
-                    scene.remove(p.mesh);
+                    disposeExplosionParticle(p);
                     particles.splice(i, 1);
                 }
             }
@@ -3921,17 +3965,18 @@
         }
 
         function startGame() {
+            cancelCenterAnnouncement();
             sound.init();
 
             enemies.forEach(e => scene.remove(e.mesh));
             enemies.length = 0;
-            racers.forEach(r => scene.remove(r.mesh));
+            racers.forEach(disposeRacerMesh);
             racers.length = 0;
             playerLasers.forEach(l => scene.remove(l.mesh));
             playerLasers.length = 0;
             enemyProjectiles.forEach(ep => scene.remove(ep.mesh));
             enemyProjectiles.length = 0;
-            particles.forEach(p => scene.remove(p.mesh));
+            particles.forEach(disposeExplosionParticle);
             particles.length = 0;
             clearObstacleShards();
             clearLaserImpacts();
@@ -4036,6 +4081,9 @@
         }
 
         function endGame(completedRoute = false) {
+            // AI-31: Sonuç ekranını tek sefer oluştur; aynı karede ikinci DNF / bitiş işlenmesin.
+            if (!state.running) return;
+            cancelCenterAnnouncement();
             state.running = false;
             sound.updateEngine(0, false);
             const centerBox = document.getElementById('center-msg');
