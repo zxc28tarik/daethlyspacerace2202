@@ -151,13 +151,13 @@
         <div class="flex flex-col items-center w-full gap-2">
             <div id="hunter-competition-hud" class="hidden hud-box w-full max-w-4xl px-3 py-2 text-center font-['Share_Tech_Mono']">
                 <div class="font-bold text-amber-300 text-xs tracking-widest">HARİTA 4 · AVCI İMHA SIRALAMASI</div>
-                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 02:00.00 · NORMAL +1 / ELİT +3</div>
+                <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 05:00.00 · NORMAL +1 / ELİT +3</div>
                 <div id="hunter-competition-scores" class="text-cyan-100 text-xs mt-1" aria-live="off"></div>
             </div>
             <div class="w-full flex justify-between items-start">
                 <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
                 <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
-                    <div class="text-cyan-300 font-bold tracking-wider">CORRIDOR RACE: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">50000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
+                    <div class="text-cyan-300 font-bold tracking-wider"><span id="race-mode-heading">CORRIDOR RACE</span>: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">50000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">3000</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
                         <span id="boundary-alert" class="ml-2 text-emerald-300">CORRIDOR SAFE</span>
@@ -311,8 +311,8 @@
 
             <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
-                    <div class="text-amber-300 font-bold mb-1">>> 120 SANİYE GERÇEK SÜRE</div>
-                    <p class="text-slate-300">50.000 metrelik bitiş çizgisine gerçek yarış saati 120 saniyeyi geçmeden ulaşın. Süre aşımı DNF olur; imha indirimi bu şartı değiştirmez.</p>
+                    <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
+                    <p class="text-slate-300">1. Kayalık vadilerde yaklaşık 40 saniyelik geçiş. 2. Savaş ovasında tam 60 saniye ileri gidemez, serbestçe avcı vurursun. 3. Endüstriyel binalardan kaçarak ilerlersin. 4. Savaşırken uzay katmanına yükselirsin.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
@@ -320,7 +320,7 @@
                 </div>
                 <div class="bg-slate-900/80 border border-emerald-500/40 p-3.5 rounded">
                     <div class="text-emerald-300 font-bold mb-1">>> SAVAŞ PUANI</div>
-                    <p class="text-slate-300">120 saniyede hedefe ulaşmak zorunlu. Varanlar arasında normal avcı +1, elit avcı +3 puan kazandırır. Puan eşitliğinde daha hızlı bitiren kazanır.</p>
+                    <p class="text-slate-300">300 saniyelik üst sınıra kadar uzay katmanına çıkmak zorunlu. Normal avcı +1, elit avcı +3 puan. Geçerli çıkanlar arasında puan yüksek olan kazanır; eşitlikte en hızlı çıkan öne geçer.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
                     <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
@@ -5059,7 +5059,8 @@
             document.getElementById('obstacle-kills').textContent = state.obstaclesDestroyed;
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
-            document.getElementById('speed-text').textContent = Math.round(state.currentSpeed * SPEED_DISPLAY_SCALE);
+            document.getElementById('speed-text').textContent = Math.round(
+                state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress));
             const energyText = document.getElementById('energy-text');
             energyText.textContent = `${Math.round(state.energy)} / 100`;
             energyText.className = state.energy < 20 ? 'text-amber-300 font-bold' : 'text-white';
@@ -5097,7 +5098,9 @@
                 boundaryFx.style.background = `radial-gradient(ellipse at ${edgeSide} center, transparent 45%, rgba(255,119,55,.33) 100%)`;
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
-            document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ? Math.round(fastestActiveRival * SPEED_DISPLAY_SCALE) : '—';
+            document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ?
+                Math.round(fastestActiveRival*SPEED_DISPLAY_SCALE*
+                    map4SpeedFactor(state.routeProgress)) : '—';
             // AI-30: Read-only weapon telemetry for reproducible manual game tests.
             window.starbladeWeaponTelemetry = {
                 shots: state.obstacleLaserShots,
@@ -5402,6 +5405,8 @@
             document.getElementById('distance-text').textContent = '50000m';
             document.getElementById('obstacle-kills').textContent = '0';
             document.getElementById('race-time-text').textContent = '00:00.00';
+            document.getElementById('race-mode-heading').textContent =
+                state.activeMap===MAP_MODES.MAP4?'PLANET MISSION':'CORRIDOR RACE';
 
             const centerBox = document.getElementById('center-msg');
             centerBox.style.opacity = '0';
@@ -5599,7 +5604,7 @@
                 'HARİTA 4 · GELİŞTİRİLİYOR';
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
-                : isMap4 ? 'Harita 4: gezegen geçişi, 120s sınır ve avcı imha puanı.'
+                : isMap4 ? 'Harita 4: dört aşama, 60 sn avcı arenası, uzaya yükseliş ve 4–5 dk hedef.'
                 : 'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
             status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
         }
