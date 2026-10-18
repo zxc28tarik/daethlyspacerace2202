@@ -448,6 +448,12 @@
         });
         // AI-24: Engel lazeri iki namludan aynı anda çıkar; her çift atış boost enerjisinden harcar.
         const OBSTACLE_LASER_ENERGY_COST = 3;
+        // AI-32: Her pilot için AYNI ihtiyaç-temelli kutu havuzu. Temel oranlar
+        // korunur; dolu enerji ve hâlen aktif kalkan/turbo için boşa giden kutular azalır.
+        const RACE_ITEM_BALANCE = Object.freeze({
+            energyAmount: 42, hyperSeconds: 1.25, shieldSeconds: 5,
+            lowEnergy: 30, mediumEnergy: 55, fullEnergy: 95
+        });
         // AI-25: Oyuncu yalnızca sürpriz kutusu aldıktan sonra 12 saniye boyunca ateş edebilir.
         // Her yeni kutu süreyi tazeler. Süre bittiğinde lazer kilitlenir; enerji tüketimi değişmez.
         const OBSTACLE_LASER_PICKUP_SECONDS = 12;
@@ -538,6 +544,13 @@
             obstacleLaserShots: 0,
             obstacleLaserLockCount: 0,
             laserSalvageEnergy: 0,
+            laserEnergySpent: 0,
+            boostEnergySpent: 0,
+            itemEnergyGained: 0,
+            itemEnergyWasted: 0,
+            itemCounts: {HYPER_TURBO:0, SHIELD:0, ENERGY:0},
+            laserBlockedNoEnergy: 0,
+            lowEnergyAlertCooldown: 0,
             gunSide: 0,
             shake: 0,
 
@@ -1075,23 +1088,46 @@
             const x=prev.laneX+dy*t-o.laneX, y=prev.laneY+dz*t-o.laneY;
             return (along*along+x*x+y*y)<=Math.pow(o.radius+shipRadius,2);
         }
+        function chooseBalancedRaceItem(ship, roll = Math.random()) {
+            // Oyuncu ve AI aynı algoritmaya tabidir; gizli hız/enerji avantajı yok.
+            // Standart durumda eski 45/27/28 oranlarına döner.
+            const energy = THREE.MathUtils.clamp(ship.energy || 0, 0, 100);
+            const turboWeight = (ship.itemTurboTimer || 0) > 0.35 ? 10 : 45;
+            const shieldWeight = (ship.powerShieldTimer || 0) > 1.0 ? 7 :
+                (Number.isFinite(ship.shield) && ship.shield < 45 ? 48 : 27);
+            const energyWeight = energy >= RACE_ITEM_BALANCE.fullEnergy ? 3 :
+                energy < RACE_ITEM_BALANCE.lowEnergy ? 80 :
+                energy < RACE_ITEM_BALANCE.mediumEnergy ? 55 : 28;
+            const total = turboWeight + shieldWeight + energyWeight;
+            const pick = THREE.MathUtils.clamp(Number.isFinite(roll) ? roll : 0.5, 0, 0.999999) * total;
+            return pick < turboWeight ? 'HYPER_TURBO' :
+                pick < turboWeight + shieldWeight ? 'SHIELD' : 'ENERGY';
+        }
         function grantRandomItem(box, ship, isPlayer) {
-            // Tek yarış içinde her gemi adil ağırlıklarla aynı havuzdan ödül alır.
-            const roll=Math.random();
-            const item=roll<0.45?'HYPER_TURBO':roll<0.72?'SHIELD':'ENERGY';
-            if(item==='HYPER_TURBO') ship.itemTurboTimer=Math.max(ship.itemTurboTimer||0,1.25);
-            if(item==='SHIELD') ship.powerShieldTimer=Math.max(ship.powerShieldTimer||0,5);
-            if(item==='ENERGY') ship.energy=Math.min(100,ship.energy+42);
+            const item=chooseBalancedRaceItem(ship);
+            let energyGained = 0;
+            if(item==='HYPER_TURBO') ship.itemTurboTimer=Math.max(ship.itemTurboTimer||0,RACE_ITEM_BALANCE.hyperSeconds);
+            if(item==='SHIELD') ship.powerShieldTimer=Math.max(ship.powerShieldTimer||0,RACE_ITEM_BALANCE.shieldSeconds);
+            if(item==='ENERGY') {
+                const before=ship.energy;
+                ship.energy=Math.min(100,ship.energy+RACE_ITEM_BALANCE.energyAmount);
+                energyGained=Math.max(0,ship.energy-before);
+            }
             if(isPlayer) {
-                // Kutunun türü ne olursa olsun lazer erişimi verir; şans faktörü kilidi engellemez.
-                // Aynı kutu yalnızca bir kez toplanabilir (claimed koruması).
+                // Kullanıcının kararı korunur: HER mor kutu lazeri 12 sn için açar.
+                // Her kutu oyuncu/bot başına tek defa toplanabilir (claimed koruması).
                 state.obstacleLaserTimer=OBSTACLE_LASER_PICKUP_SECONDS;
                 state.laserPickups++;
                 state.powerUpsCollected++;
+                state.itemCounts[item]=(state.itemCounts[item]||0)+1;
+                if(item==='ENERGY') {
+                    state.itemEnergyGained+=energyGained;
+                    state.itemEnergyWasted+=RACE_ITEM_BALANCE.energyAmount-energyGained;
+                }
                 state.lastPowerUp=item;
                 state.lastPowerUpTimer=2.4;
                 state.score+=350;
-                const name=item==='HYPER_TURBO'?'HYPER TURBO 1.25s':item==='SHIELD'?'ENERGY SHIELD 5s':'ENERGY +42';
+                const name=item==='HYPER_TURBO'?'HYPER TURBO 1.25s':item==='SHIELD'?'ENERGY SHIELD 5s':`ENERGY +${Math.round(energyGained)}`;
                 spawnFloatingText(box.mesh.position,`${name} / LASER ${OBSTACLE_LASER_PICKUP_SECONDS}s / +350`,'#ffb8ff');
             }
             return item;
@@ -1815,8 +1851,18 @@
                 state.lockedTarget = null; // Gone targets must never attract new shots.
             }
             const energyCost = state.combatEnabled ? 0 : OBSTACLE_LASER_ENERGY_COST;
-            if (state.energy < energyCost) return false;
-            if (energyCost) state.energy = Math.max(0, state.energy - energyCost);
+            if (state.energy < energyCost) {
+                if (!state.combatEnabled && state.lowEnergyAlertCooldown <= 0) {
+                    state.laserBlockedNoEnergy++;
+                    state.lowEnergyAlertCooldown = 0.8;
+                    setLaserFeedback('LAZER: ENERJİ YETERSİZ',0.6);
+                }
+                return false;
+            }
+            if (energyCost) {
+                state.energy = Math.max(0, state.energy - energyCost);
+                state.laserEnergySpent += energyCost;
+            }
             firePlayerLasers();
             if (!state.combatEnabled) state.obstacleLaserShots++;
             state.fireCooldown = state.combatEnabled ? 0.11 : 0.19;
@@ -2412,6 +2458,7 @@
             state.itemTurboTimer = Math.max(0, state.itemTurboTimer - dt);
             state.powerShieldTimer = Math.max(0, state.powerShieldTimer - dt);
             state.lastPowerUpTimer = Math.max(0, state.lastPowerUpTimer - dt);
+            state.lowEnergyAlertCooldown = Math.max(0, state.lowEnergyAlertCooldown - dt);
             if (!state.finished && !state.playerDNF) {
                 state.obstacleLaserTimer = Math.max(0, state.obstacleLaserTimer - dt);
             }
@@ -2445,7 +2492,9 @@
                     state.energy = Math.min(100, state.energy + dt * 10);
                 } else if (boosting) {
                     targetSpeed = RACE_SPEEDS.BOOST;
+                    const beforeBoostEnergy = state.energy;
                     state.energy = Math.max(0, state.energy - dt * 16);
+                    state.boostEnergySpent += beforeBoostEnergy - state.energy;
                 } else {
                     state.energy = Math.min(100, state.energy + dt * 10);
                 }
@@ -3851,6 +3900,12 @@
                 hits: state.laserHits,
                 destroyed: state.obstaclesDestroyed,
                 recoveredEnergy: Number(state.laserSalvageEnergy.toFixed(2)),
+                laserEnergySpent: Number(state.laserEnergySpent.toFixed(2)),
+                boostEnergySpent: Number(state.boostEnergySpent.toFixed(2)),
+                itemEnergyGained: Number(state.itemEnergyGained.toFixed(2)),
+                itemEnergyWasted: Number(state.itemEnergyWasted.toFixed(2)),
+                itemCounts: {...state.itemCounts},
+                lowEnergyWarnings: state.laserBlockedNoEnergy,
                 activeSeconds: Number(state.obstacleLaserTimer.toFixed(2)),
                 locked: !!state.lockedTarget,
                 energy: Number(state.energy.toFixed(2))
@@ -3858,8 +3913,13 @@
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
                 if (state.obstacleLaserTimer > 0) {
-                    laserStatus.textContent=`LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · F / SOL TIK · -3 ENERJİ`;
-                    laserStatus.className="block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold";
+                    const ready = state.energy >= OBSTACLE_LASER_ENERGY_COST;
+                    laserStatus.textContent=ready ?
+                        `LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · F / SOL TIK · -3 ENERJİ` :
+                        `LAZER AKTİF ${state.obstacleLaserTimer.toFixed(1)}s · ENERJİ YETERSİZ (3 GEREKLİ)`;
+                    laserStatus.className=ready ?
+                        "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold" :
+                        "block text-[11px] text-amber-300 font-['Share_Tech_Mono'] font-bold";
                 } else {
                     laserStatus.textContent='LAZER KİLİTLİ — MOR KUTU TOPLA';
                     laserStatus.className="block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
@@ -4013,6 +4073,13 @@
             state.obstacleLaserShots = 0;
             state.obstacleLaserLockCount = 0;
             state.laserSalvageEnergy = 0;
+            state.laserEnergySpent = 0;
+            state.boostEnergySpent = 0;
+            state.itemEnergyGained = 0;
+            state.itemEnergyWasted = 0;
+            state.itemCounts = {HYPER_TURBO:0, SHIELD:0, ENERGY:0};
+            state.laserBlockedNoEnergy = 0;
+            state.lowEnergyAlertCooldown = 0;
             state.lockedTarget = null;
             state.lastLockedTarget = null;
             state.barrelRollTimer = 0;
@@ -4131,7 +4198,7 @@
             const bonusResult = document.getElementById('race-bonus-summary');
             if (bonusResult) {
                 const splits = state.checkpointTimes.map((t, idx) => `S${idx + 1} ${formatRaceTime(t - (idx ? state.checkpointTimes[idx - 1] : 0))}`).join(' • ');
-                bonusResult.textContent = `NEAR MISSES ${state.nearMisses}  •  ${splits || 'NO SPLITS'}`;
+                bonusResult.textContent = `NEAR MISSES ${state.nearMisses}  •  LASER ${state.obstacleLaserShots} ATIŞ / ${Math.round(state.laserEnergySpent)} ENERJİ  •  BOOST ${Math.round(state.boostEnergySpent)} ENERJİ  •  ${splits || 'NO SPLITS'}`;
             }
 
             // 6 Yarışçılı Sonuç Listesini Oluştur
