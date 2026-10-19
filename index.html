@@ -3527,6 +3527,56 @@
         geoSwordMesh.visible = false;
         playerRig.add(geoSwordMesh);
 
+
+        // VQ03: a true swept-forward ship hull + fins. No change to
+        // hit radius, pilot AI, coordinates or normal Map1 craft.
+        const h4CraftArtStats={sweptWings:0,ventralFins:0};
+        function h4SweptWingGeometry(span,depth){
+            const outline=new THREE.Shape();
+            outline.moveTo(0,-depth*.45);
+            outline.lineTo(span*.22,-depth*.67);
+            outline.lineTo(span*.82,-depth*.22);
+            outline.lineTo(span,depth*.10);
+            outline.lineTo(span*.73,depth*.47);
+            outline.lineTo(span*.34,depth*.20);
+            outline.lineTo(0,depth*.42);
+            outline.closePath();
+            const geo=new THREE.ExtrudeGeometry(outline,{
+                depth:.18,steps:1,bevelEnabled:true,
+                bevelSize:.065,bevelThickness:.08,bevelSegments:1
+            });
+            geo.translate(0,0,-.09);
+            geo.rotateX(Math.PI/2);
+            geo.computeVertexNormals();
+            return geo;
+        }
+        function h4AddSweptFins(group,materials,span=7,depth=5){
+            for(const side of [-1,1]){
+                const geo=h4SweptWingGeometry(span,depth);
+                if(side<0)geo.scale(-1,1,1);
+                const wing=new THREE.Mesh(geo,materials.hull);
+                wing.position.set(0,-.18,0);
+                wing.rotation.y=side*.06;
+                wing.name='VQ03_SCULPTED_WING';
+                group.add(wing);
+                const band=new THREE.Mesh(
+                    new THREE.BoxGeometry(.13,.11,depth*.52),materials.trim);
+                band.position.set(side*span*.78,-.04,-depth*.09);
+                band.rotation.y=side*.25;
+                band.name='VQ03_WING_EDGE_LIGHT';
+                group.add(band);
+                h4CraftArtStats.sweptWings++;
+            }
+            for(const side of [-1,1]){
+                const fin=new THREE.Mesh(new THREE.ConeGeometry(.6,2.3,5),
+                    materials.hull);
+                fin.position.set(side*2.1,1.4,-3.2);
+                fin.rotation.z=side*.32;
+                fin.name='VQ03_VENTRAL_FIN';
+                group.add(fin);
+                h4CraftArtStats.ventralFins++;
+            }
+        }
         // Map4-specific 3D detail kit. Does not alter the approved Map1 craft.
         const h4GeoSwordArt=new THREE.Group();
         h4GeoSwordArt.name='MAP4_GEOSWORD_ART';
@@ -3553,6 +3603,7 @@
             h4PlayerDetail(new THREE.TorusGeometry(.70,.12,6,14),h4ShipLight,
                 side*1.5,-.20,4.5,1,1,1);
         }
+        h4AddSweptFins(h4GeoSwordArt,{hull:h4PlayerTrim,trim:h4ShipLight},6.4,5.2);
         geoSwordMesh.add(h4GeoSwordArt);
         function h4EnrichFighter(group,isElite,isRacer){
             const shell=new THREE.MeshStandardMaterial({
@@ -3576,6 +3627,8 @@
                 add(new THREE.TorusGeometry(.7,.14,6,12),signal,
                     side*2.3,-.2,-5.2,1,1,1);
             }
+            h4AddSweptFins(group,{hull:shell,trim:signal},
+                isElite?8.2:isRacer?7.7:7.0,isElite?6.0:5.4);
             group.userData.h4DetailedCraft=true;
             h4VisualQuality.enhancedAircraft++;
         }
