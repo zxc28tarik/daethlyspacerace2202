@@ -106,6 +106,49 @@ const assert = require('node:assert/strict');
     assert.equal(art.playerEnhancements,true,'map4 player craft art enabled');
     assert.equal(art.tonemapMatches,true,'planet-specific filmic tonemapping');
     assert(art.exposure>1.1,'planet uses dedicated tonal exposure');
+    // VQ02: exactly twelve distinct non-generic landmark signatures, new
+    // sculpted compound hull geometry, coherent six-station factory networks.
+    const signatures=await page.evaluate(()=>{
+      const shapes=h4SignatureStats;
+      const sigGroup=h4WorldLandmarks.find(x=>x.kind==='crash').group;
+      let signatureCount=0;
+      sigGroup.traverse(g=>{if(g.userData.signature)signatureCount++});
+      const w05=h4IndustrialArtStats;
+      const refinery=h4IndustrialGroups[0];
+      let refineryDetail=0;
+      refinery.traverse(g=>{if(g.userData.vq02IndustrialDetail)refineryDetail++});
+      const idx=planetaryWorldRegions[0].children[0].geometry.index;
+      return {
+        sites:shapes.sites,
+        byRegion:shapes.byRegion.slice(),
+        uniqueTypes:[...new Set(shapes.types)].length,
+        parts:shapes.parts,
+        crashSignature:signatureCount,
+        customHull:H4_HERO_GEOMETRY.carvedHull.type,
+        hullVerts:H4_HERO_GEOMETRY.carvedHull.attributes.position.count,
+        refineryDetail,
+        industrialStations:w05.stations,
+        industrialParts:w05.parts,
+        colliderCount:h4IndustrialColliders.length,
+        builtWithH1Inactive:!corridorGuideGroup.visible,
+        groundIndices:idx?idx.count:0
+      };
+    });
+    assert.equal(signatures.sites,12,'all twelve landmarks have bespoke forms');
+    assert.deepEqual(signatures.byRegion,[3,3,3,3],
+      'three unique signatures per region');
+    assert.equal(signatures.uniqueTypes,12,'non-repeated landmark silhouettes');
+    assert(signatures.parts>=85&&signatures.parts<160,
+      'bounded compound hero meshes rather than thousands of primitives');
+    assert.equal(signatures.crashSignature,1,'crashed cruiser has custom signature');
+    assert.equal(signatures.customHull,'ExtrudeGeometry','wedge hull truly modeled');
+    assert(signatures.hullVerts>40,'angular custom 3D hull has real faces');
+    assert.equal(signatures.industrialStations,6,'six detailed factory nodes');
+    assert(signatures.industrialParts>=70&&signatures.industrialParts<135,
+      'pipe/gantry detailing bounded');
+    assert(signatures.refineryDetail>=10,'refinery has connected structures');
+    assert.equal(signatures.colliderCount,36,'gameplay solids kept intact');
+    assert.equal(signatures.builtWithH1Inactive,true,'art only in planetary mode');
     // W03 physical and strategic paths before phase-two arena.
     const canyon=await page.evaluate(()=>{
       const fast={laneX:H4_CANYON.fastCenter};
@@ -516,6 +559,10 @@ const assert = require('node:assert/strict');
       'restart never duplicates warfront scenery');
     assert.equal(await page.evaluate(()=>h4IndustrialGroups.length),6,
       'restart never duplicates industrial buildings');
+    assert.equal(await page.evaluate(()=>h4SignatureStats.sites),12,
+      'restart never duplicates twelve hero signatures');
+    assert.equal(await page.evaluate(()=>h4IndustrialArtStats.stations),6,
+      'restart never duplicates refinery gantries');
     assert.deepEqual(await page.evaluate(()=>state.hunterPocketKills),
       {CENTER:0,WRECK:0,DEFENSE:0},'restart clears arena pocket kill counters');
     assert(restart.gameTime<4,'timer reset');
@@ -572,7 +619,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Map4 ART textured terrain, rugged rocks, real sky, 36 clouds, enhanced spacecraft, industrial facades and Map1 isolation');
+    console.log('PASS: Map4 ART VQ02 12 bespoke silhouettes, modeled wreck hull, six refinery gantries, 36 colliders and Map1 isolation');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();
