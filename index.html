@@ -1351,6 +1351,76 @@
             h4VisualQuality.textures++;
             return texture;
         }
+
+        // VQ03: authored procedural microstructure; normal + roughness vary
+        // per tile without remote textures, generated ONCE, GPU reused forever.
+        const h4MaterialMicroStats={textures:0,meanRoughness:{},surfaceKinds:[]};
+        function h4MicroSurface(kind,seed){
+            const size=256,heights=new Float32Array(size*size);
+            let rng=seed>>>0;
+            const random=()=>{
+                rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;
+                return (rng>>>0)/4294967295;
+            };
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const u=x/size,v=y/size;
+                const low=Math.sin(u*35+seed*.13)*Math.sin(v*23-seed*.04)*.26;
+                const broad=Math.sin(u*9+v*5)*.16;
+                const strata=kind==='rock'?Math.sin(v*75+Math.sin(u*9)*4)*.19:
+                    Math.cos(u*39)*Math.cos(v*39)*.055;
+                const plate=kind==='metal'?
+                    ((x%64<2||y%64<2)?-.19:0):0;
+                heights[y*size+x]=low+broad+strata+plate+(random()-.5)*.11;
+            }
+            const normalCanvas=document.createElement('canvas');
+            const roughCanvas=document.createElement('canvas');
+            normalCanvas.width=normalCanvas.height=roughCanvas.width=roughCanvas.height=size;
+            const nctx=normalCanvas.getContext('2d'),rctx=roughCanvas.getContext('2d');
+            const normal=nctx.createImageData(size,size),rough=rctx.createImageData(size,size);
+            let sum=0;
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const at=(yy,xx)=>heights[((yy+size)%size)*size+((xx+size)%size)];
+                const gx=(at(y,x+1)-at(y,x-1))*(kind==='rock'?1.7:.85);
+                const gy=(at(y+1,x)-at(y-1,x))*(kind==='rock'?1.7:.85);
+                const len=Math.hypot(gx,gy,1);
+                const idx=(y*size+x)*4;
+                normal.data[idx]=Math.round(128+(gx/len)*127);
+                normal.data[idx+1]=Math.round(128+(gy/len)*127);
+                normal.data[idx+2]=Math.round(128+(1/len)*127);
+                normal.data[idx+3]=255;
+                const surfaceRough=THREE.MathUtils.clamp(
+                    (kind==='rock'?.85:.62)+heights[y*size+x]*.16,.25,.99);
+                const q=Math.round(surfaceRough*255);
+                rough.data[idx]=rough.data[idx+1]=rough.data[idx+2]=q;
+                rough.data[idx+3]=255;
+                sum+=surfaceRough;
+            }
+            nctx.putImageData(normal,0,0);rctx.putImageData(rough,0,0);
+            const texture=(canvas)=>{
+                const t=new THREE.CanvasTexture(canvas);
+                t.wrapS=t.wrapT=THREE.RepeatWrapping;
+                t.repeat.set(kind==='rock'?3:2,kind==='rock'?5:3);
+                t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+                t.encoding=THREE.LinearEncoding;
+                return t;
+            };
+            h4MaterialMicroStats.textures+=2;
+            h4MaterialMicroStats.meanRoughness[kind]=sum/(size*size);
+            h4MaterialMicroStats.surfaceKinds.push(kind);
+            return {normal:texture(normalCanvas),roughness:texture(roughCanvas)};
+        }
+        const h4MicroMaps=Object.freeze({
+            rock:h4MicroSurface('rock',14572),
+            metal:h4MicroSurface('metal',79364)
+        });
+        function h4PbrDetails(material,kind){
+            const micro=h4MicroMaps[kind];
+            material.normalMap=micro.normal;
+            material.roughnessMap=micro.roughness;
+            material.normalScale=new THREE.Vector2(kind==='rock'?.42:.19,kind==='rock'?.42:.19);
+            material.needsUpdate=true;
+            return material;
+        }
         function h4RuggedRockGeometry(){
             // A rugged 9-sided rock tower, tapered in tiers; same unit AABB as
             // legacy rock, so physics authored using mesh scales still line up.
@@ -1481,6 +1551,8 @@
             core:new THREE.MeshBasicMaterial({color:0xf75c7c}),
             marker:new THREE.MeshBasicMaterial({color:0xffdd91,transparent:true,opacity:0.5})
         });
+        for(const k of ['rock','sand'])h4PbrDetails(H4_MATERIALS[k],'rock');
+        for(const k of ['wreck','steel','wall'])h4PbrDetails(H4_MATERIALS[k],'metal');
         const H4_UP=new THREE.Vector3(0,1,0);
         function h4WorldPosition(progress,side=0,altitude=0) {
             const frame=getRaceFrameAtDistance(progress);
@@ -1536,7 +1608,9 @@
             geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
             geo.computeVertexNormals();
             const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
-                map:h4SurfaceMaps.ground,vertexColors:true,roughness:.99,
+                map:h4SurfaceMaps.ground,normalMap:h4MicroMaps.rock.normal,
+                roughnessMap:h4MicroMaps.rock.roughness,
+                normalScale:new THREE.Vector2(.30,.30),vertexColors:true,roughness:.99,
                 side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
@@ -1649,6 +1723,8 @@
             energy:new THREE.MeshBasicMaterial({color:0x77cce3}),
             purple:new THREE.MeshBasicMaterial({color:0x9d91ff})
         });
+        for(const k of ['sandstone','cliffShadow'])h4PbrDetails(H4_DETAIL_MAT[k],'rock');
+        for(const k of ['oxidized','armor'])h4PbrDetails(H4_DETAIL_MAT[k],'metal');
         const H4_LANDMARK_PLANS = Object.freeze([
             [
                 {at:1950,side:-760,name:'KIZIL KAYA KAPISI',kind:'stonegate'},
@@ -1722,6 +1798,12 @@
             amberLight:new THREE.MeshBasicMaterial({color:0xffb871}),
             emergencyLight:new THREE.MeshBasicMaterial({color:0xff6262})
         });
+        for(const k of ['weatheredRock','deepRock'])h4PbrDetails(H4_HERO_MATERIAL[k],'rock');
+        for(const k of ['paintedSteel','shadowSteel'])h4PbrDetails(H4_HERO_MATERIAL[k],'metal');
+        const h4TerrainPBR={
+            rockNormal:h4MicroMaps.rock.normal,
+            rockRoughness:h4MicroMaps.rock.roughness
+        };
         function h4AddSignatureArchitecture(group,regionIndex,plan){
             const content=new THREE.Group();
             content.name='VQ02_SIGNATURE_'+plan.kind.toUpperCase();
