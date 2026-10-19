@@ -149,6 +149,60 @@ const assert = require('node:assert/strict');
     assert(signatures.refineryDetail>=10,'refinery has connected structures');
     assert.equal(signatures.colliderCount,36,'gameplay solids kept intact');
     assert.equal(signatures.builtWithH1Inactive,true,'art only in planetary mode');
+    // VQ03: tileable normal + roughness surfaces and sculpted wing silhouettes.
+    const vq03=await page.evaluate(()=>{
+      const rock=H4_MATERIALS.rock;
+      const steel=H4_MATERIALS.steel;
+      const ground=planetaryWorldRegions[0].children[0].material;
+      return {
+        microTextures:h4MaterialMicroStats.textures,
+        microKinds:[...h4MaterialMicroStats.surfaceKinds],
+        roughRock:h4MaterialMicroStats.meanRoughness.rock,
+        roughMetal:h4MaterialMicroStats.meanRoughness.metal,
+        normalRock:!!rock.normalMap,
+        roughnessRock:!!rock.roughnessMap,
+        normalSteel:!!steel.normalMap,
+        roughnessSteel:!!steel.roughnessMap,
+        terrainNormal:!!ground.normalMap,
+        terrainRoughness:!!ground.roughnessMap,
+        encoding:rock.normalMap.encoding,
+        normalScale:rock.normalScale.x,
+        wings:h4CraftArtStats.sweptWings,
+        fins:h4CraftArtStats.ventralFins,
+        playerWing:h4GeoSwordArt.children.filter(c=>c.name==='VQ03_SCULPTED_WING').length,
+        enemyWings:racers.every(r=>r.mesh.children.filter(c=>c.name==='VQ03_SCULPTED_WING').length===2),
+        wingType:racers[0].mesh.children.find(c=>c.name==='VQ03_SCULPTED_WING')?.geometry.type,
+        smokeAtlas:h4SmokeAtlas.isTexture
+      };
+    });
+    assert.equal(vq03.microTextures,4,'two normal and two roughness texture maps');
+    assert.deepEqual(vq03.microKinds,['rock','metal']);
+    assert(vq03.roughRock>.65&&vq03.roughRock<.98,'stone actually rough');
+    assert(vq03.roughMetal>.35&&vq03.roughMetal<.9,'metal surface variance');
+    assert(vq03.normalRock&&vq03.roughnessRock,'rock normal+roughness enabled');
+    assert(vq03.normalSteel&&vq03.roughnessSteel,'steel normal+roughness enabled');
+    assert(vq03.terrainNormal&&vq03.terrainRoughness,'terrain relief maps enabled');
+    assert(vq03.normalScale>.25,'perceived rock bump surface configured');
+    assert(vq03.wings>=28&&vq03.fins>=28,'player, racers and hunters gain wing details');
+    assert.equal(vq03.playerWing,2,'player craft has two sculpted wings');
+    assert.equal(vq03.enemyWings,true,'rivals use 3D sculpted wings');
+    assert.equal(vq03.wingType,'ExtrudeGeometry','wings have genuine 3D custom shape');
+    assert.equal(vq03.smokeAtlas,true,'self-contained smoke texture');
+    const blast=await page.evaluate(()=>{
+      const before={...h4ExplosionStats};
+      createExplosion(state.pos.clone().add(new THREE.Vector3(0,10,-100)),
+        0xff9654,22,1.2);
+      return {smoke:h4ExplosionStats.smokeSprites-before.smokeSprites,
+        rings:h4ExplosionStats.shockRings-before.shockRings,
+        emissions:h4ExplosionStats.emissions-before.emissions,
+        activeSmoke:particles.filter(p=>p.vq03Smoke).length,
+        activeRings:particles.filter(p=>p.vq03Shock).length};
+    });
+    assert.equal(blast.smoke,6,'six layered smoke sprites per qualifying explosion');
+    assert.equal(blast.rings,1,'visible shockwave ring');
+    assert.equal(blast.emissions,1,'real explosion event');
+    assert(blast.activeSmoke>=6&&blast.activeRings>=1,'VFX participates in frame particles');
+
     // W03 physical and strategic paths before phase-two arena.
     const canyon=await page.evaluate(()=>{
       const fast={laneX:H4_CANYON.fastCenter};
@@ -563,6 +617,10 @@ const assert = require('node:assert/strict');
       'restart never duplicates twelve hero signatures');
     assert.equal(await page.evaluate(()=>h4IndustrialArtStats.stations),6,
       'restart never duplicates refinery gantries');
+    assert.equal(await page.evaluate(()=>h4MaterialMicroStats.textures),4,
+      'restart shares same four micro-surface GPU textures');
+    assert.equal(await page.evaluate(()=>particles.filter(p=>p.vq03Smoke||p.vq03Shock).length),
+      0,'restart clears all VQ03 explosion effects');
     assert.deepEqual(await page.evaluate(()=>state.hunterPocketKills),
       {CENTER:0,WRECK:0,DEFENSE:0},'restart clears arena pocket kill counters');
     assert(restart.gameTime<4,'timer reset');
@@ -619,7 +677,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#gameover-screen').isVisible(),true);
     assert(!((await page.locator('#gameover-title').textContent()).includes('HARİTA 4')));
     assert.equal(errors.length,0,'browser JavaScript errors: '+errors.join(' | '));
-    console.log('PASS: Map4 ART VQ02 12 bespoke silhouettes, modeled wreck hull, six refinery gantries, 36 colliders and Map1 isolation');
+    console.log('PASS: Map4 VQ03 PBR microtextures, sculpted ship wings, layered smoke/explosion, VQ02 and Map1 isolation');
   } finally {
     if (errors.length) console.error('Browser errors:',errors.join('\n'));
     await browser.close();

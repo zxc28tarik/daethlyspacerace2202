@@ -1351,6 +1351,76 @@
             h4VisualQuality.textures++;
             return texture;
         }
+
+        // VQ03: authored procedural microstructure; normal + roughness vary
+        // per tile without remote textures, generated ONCE, GPU reused forever.
+        const h4MaterialMicroStats={textures:0,meanRoughness:{},surfaceKinds:[]};
+        function h4MicroSurface(kind,seed){
+            const size=256,heights=new Float32Array(size*size);
+            let rng=seed>>>0;
+            const random=()=>{
+                rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;
+                return (rng>>>0)/4294967295;
+            };
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const u=x/size,v=y/size;
+                const low=Math.sin(u*35+seed*.13)*Math.sin(v*23-seed*.04)*.26;
+                const broad=Math.sin(u*9+v*5)*.16;
+                const strata=kind==='rock'?Math.sin(v*75+Math.sin(u*9)*4)*.19:
+                    Math.cos(u*39)*Math.cos(v*39)*.055;
+                const plate=kind==='metal'?
+                    ((x%64<2||y%64<2)?-.19:0):0;
+                heights[y*size+x]=low+broad+strata+plate+(random()-.5)*.11;
+            }
+            const normalCanvas=document.createElement('canvas');
+            const roughCanvas=document.createElement('canvas');
+            normalCanvas.width=normalCanvas.height=roughCanvas.width=roughCanvas.height=size;
+            const nctx=normalCanvas.getContext('2d'),rctx=roughCanvas.getContext('2d');
+            const normal=nctx.createImageData(size,size),rough=rctx.createImageData(size,size);
+            let sum=0;
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const at=(yy,xx)=>heights[((yy+size)%size)*size+((xx+size)%size)];
+                const gx=(at(y,x+1)-at(y,x-1))*(kind==='rock'?1.7:.85);
+                const gy=(at(y+1,x)-at(y-1,x))*(kind==='rock'?1.7:.85);
+                const len=Math.hypot(gx,gy,1);
+                const idx=(y*size+x)*4;
+                normal.data[idx]=Math.round(128+(gx/len)*127);
+                normal.data[idx+1]=Math.round(128+(gy/len)*127);
+                normal.data[idx+2]=Math.round(128+(1/len)*127);
+                normal.data[idx+3]=255;
+                const surfaceRough=THREE.MathUtils.clamp(
+                    (kind==='rock'?.85:.62)+heights[y*size+x]*.16,.25,.99);
+                const q=Math.round(surfaceRough*255);
+                rough.data[idx]=rough.data[idx+1]=rough.data[idx+2]=q;
+                rough.data[idx+3]=255;
+                sum+=surfaceRough;
+            }
+            nctx.putImageData(normal,0,0);rctx.putImageData(rough,0,0);
+            const texture=(canvas)=>{
+                const t=new THREE.CanvasTexture(canvas);
+                t.wrapS=t.wrapT=THREE.RepeatWrapping;
+                t.repeat.set(kind==='rock'?3:2,kind==='rock'?5:3);
+                t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+                t.encoding=THREE.LinearEncoding;
+                return t;
+            };
+            h4MaterialMicroStats.textures+=2;
+            h4MaterialMicroStats.meanRoughness[kind]=sum/(size*size);
+            h4MaterialMicroStats.surfaceKinds.push(kind);
+            return {normal:texture(normalCanvas),roughness:texture(roughCanvas)};
+        }
+        const h4MicroMaps=Object.freeze({
+            rock:h4MicroSurface('rock',14572),
+            metal:h4MicroSurface('metal',79364)
+        });
+        function h4PbrDetails(material,kind){
+            const micro=h4MicroMaps[kind];
+            material.normalMap=micro.normal;
+            material.roughnessMap=micro.roughness;
+            material.normalScale=new THREE.Vector2(kind==='rock'?.42:.19,kind==='rock'?.42:.19);
+            material.needsUpdate=true;
+            return material;
+        }
         function h4RuggedRockGeometry(){
             // A rugged 9-sided rock tower, tapered in tiers; same unit AABB as
             // legacy rock, so physics authored using mesh scales still line up.
@@ -1481,6 +1551,8 @@
             core:new THREE.MeshBasicMaterial({color:0xf75c7c}),
             marker:new THREE.MeshBasicMaterial({color:0xffdd91,transparent:true,opacity:0.5})
         });
+        for(const k of ['rock','sand'])h4PbrDetails(H4_MATERIALS[k],'rock');
+        for(const k of ['wreck','steel','wall'])h4PbrDetails(H4_MATERIALS[k],'metal');
         const H4_UP=new THREE.Vector3(0,1,0);
         function h4WorldPosition(progress,side=0,altitude=0) {
             const frame=getRaceFrameAtDistance(progress);
@@ -1536,7 +1608,9 @@
             geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
             geo.computeVertexNormals();
             const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
-                map:h4SurfaceMaps.ground,vertexColors:true,roughness:.99,
+                map:h4SurfaceMaps.ground,normalMap:h4MicroMaps.rock.normal,
+                roughnessMap:h4MicroMaps.rock.roughness,
+                normalScale:new THREE.Vector2(.30,.30),vertexColors:true,roughness:.99,
                 side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
@@ -1649,6 +1723,8 @@
             energy:new THREE.MeshBasicMaterial({color:0x77cce3}),
             purple:new THREE.MeshBasicMaterial({color:0x9d91ff})
         });
+        for(const k of ['sandstone','cliffShadow'])h4PbrDetails(H4_DETAIL_MAT[k],'rock');
+        for(const k of ['oxidized','armor'])h4PbrDetails(H4_DETAIL_MAT[k],'metal');
         const H4_LANDMARK_PLANS = Object.freeze([
             [
                 {at:1950,side:-760,name:'KIZIL KAYA KAPISI',kind:'stonegate'},
@@ -1722,6 +1798,12 @@
             amberLight:new THREE.MeshBasicMaterial({color:0xffb871}),
             emergencyLight:new THREE.MeshBasicMaterial({color:0xff6262})
         });
+        for(const k of ['weatheredRock','deepRock'])h4PbrDetails(H4_HERO_MATERIAL[k],'rock');
+        for(const k of ['paintedSteel','shadowSteel'])h4PbrDetails(H4_HERO_MATERIAL[k],'metal');
+        const h4TerrainPBR={
+            rockNormal:h4MicroMaps.rock.normal,
+            rockRoughness:h4MicroMaps.rock.roughness
+        };
         function h4AddSignatureArchitecture(group,regionIndex,plan){
             const content=new THREE.Group();
             content.name='VQ02_SIGNATURE_'+plan.kind.toUpperCase();
@@ -3445,6 +3527,56 @@
         geoSwordMesh.visible = false;
         playerRig.add(geoSwordMesh);
 
+
+        // VQ03: a true swept-forward ship hull + fins. No change to
+        // hit radius, pilot AI, coordinates or normal Map1 craft.
+        const h4CraftArtStats={sweptWings:0,ventralFins:0};
+        function h4SweptWingGeometry(span,depth){
+            const outline=new THREE.Shape();
+            outline.moveTo(0,-depth*.45);
+            outline.lineTo(span*.22,-depth*.67);
+            outline.lineTo(span*.82,-depth*.22);
+            outline.lineTo(span,depth*.10);
+            outline.lineTo(span*.73,depth*.47);
+            outline.lineTo(span*.34,depth*.20);
+            outline.lineTo(0,depth*.42);
+            outline.closePath();
+            const geo=new THREE.ExtrudeGeometry(outline,{
+                depth:.18,steps:1,bevelEnabled:true,
+                bevelSize:.065,bevelThickness:.08,bevelSegments:1
+            });
+            geo.translate(0,0,-.09);
+            geo.rotateX(Math.PI/2);
+            geo.computeVertexNormals();
+            return geo;
+        }
+        function h4AddSweptFins(group,materials,span=7,depth=5){
+            for(const side of [-1,1]){
+                const geo=h4SweptWingGeometry(span,depth);
+                if(side<0)geo.scale(-1,1,1);
+                const wing=new THREE.Mesh(geo,materials.hull);
+                wing.position.set(0,-.18,0);
+                wing.rotation.y=side*.06;
+                wing.name='VQ03_SCULPTED_WING';
+                group.add(wing);
+                const band=new THREE.Mesh(
+                    new THREE.BoxGeometry(.13,.11,depth*.52),materials.trim);
+                band.position.set(side*span*.78,-.04,-depth*.09);
+                band.rotation.y=side*.25;
+                band.name='VQ03_WING_EDGE_LIGHT';
+                group.add(band);
+                h4CraftArtStats.sweptWings++;
+            }
+            for(const side of [-1,1]){
+                const fin=new THREE.Mesh(new THREE.ConeGeometry(.6,2.3,5),
+                    materials.hull);
+                fin.position.set(side*2.1,1.4,-3.2);
+                fin.rotation.z=side*.32;
+                fin.name='VQ03_VENTRAL_FIN';
+                group.add(fin);
+                h4CraftArtStats.ventralFins++;
+            }
+        }
         // Map4-specific 3D detail kit. Does not alter the approved Map1 craft.
         const h4GeoSwordArt=new THREE.Group();
         h4GeoSwordArt.name='MAP4_GEOSWORD_ART';
@@ -3471,6 +3603,7 @@
             h4PlayerDetail(new THREE.TorusGeometry(.70,.12,6,14),h4ShipLight,
                 side*1.5,-.20,4.5,1,1,1);
         }
+        h4AddSweptFins(h4GeoSwordArt,{hull:h4PlayerTrim,trim:h4ShipLight},6.4,5.2);
         geoSwordMesh.add(h4GeoSwordArt);
         function h4EnrichFighter(group,isElite,isRacer){
             const shell=new THREE.MeshStandardMaterial({
@@ -3494,6 +3627,8 @@
                 add(new THREE.TorusGeometry(.7,.14,6,12),signal,
                     side*2.3,-.2,-5.2,1,1,1);
             }
+            h4AddSweptFins(group,{hull:shell,trim:signal},
+                isElite?8.2:isRacer?7.7:7.0,isElite?6.0:5.4);
             group.userData.h4DetailedCraft=true;
             h4VisualQuality.enhancedAircraft++;
         }
@@ -4517,6 +4652,74 @@
 
         // AI-31: Geçici patlama parçalarının geometri ve materyallerini serbest bırak.
         // Paylaşılan lazer/enkaz geometrileri bu fonksiyonla temizlenmez.
+
+        // VQ03: layered battlefield explosion FX, Map4 only.
+        // Smoke texture shared by sprites. Each sprite material is disposable,
+        // while geometry and graphics stays self-contained in index.html.
+        const h4ExplosionStats={smokeSprites:0,shockRings:0,emissions:0};
+        const h4SmokeAtlas=(()=>{
+            const canvas=document.createElement('canvas');
+            canvas.width=canvas.height=128;
+            const c=canvas.getContext('2d');
+            const img=c.createImageData(128,128);
+            for(let y=0;y<128;y++)for(let x=0;x<128;x++){
+                const dx=(x-64)/64,dy=(y-64)/64;
+                const r=Math.hypot(dx,dy);
+                const eddies=Math.sin(x*.18+Math.sin(y*.12)*2)*.08+
+                    Math.sin(y*.11-x*.07)*.09;
+                const density=THREE.MathUtils.clamp(1-r*1.12+eddies,0,1);
+                const i=(y*128+x)*4,noise=Math.sin(x*1.32+y*1.77)*10;
+                img.data[i]=Math.round(100+noise);
+                img.data[i+1]=Math.round(109+noise);
+                img.data[i+2]=Math.round(127+noise);
+                img.data[i+3]=Math.round(density*density*165);
+            }
+            c.putImageData(img,0,0);
+            const t=new THREE.CanvasTexture(canvas);
+            t.encoding=THREE.sRGBEncoding;
+            return t;
+        })();
+        function h4SpawnExplosionLayers(pos,scaleMul){
+            if(state.activeMap!==MAP_MODES.MAP4 ||
+                particles.length>230)return;
+            // Reuse existing lifetime/cleanup logic: no permanent smoke fields.
+            const shock=new THREE.Mesh(
+                new THREE.TorusGeometry(7*scaleMul,1.0*scaleMul,7,30),
+                new THREE.MeshBasicMaterial({color:0xffc48d,transparent:true,
+                    opacity:.74,depthWrite:false,side:THREE.DoubleSide})
+            );
+            shock.position.copy(pos);
+            shock.lookAt(camera.position);
+            scene.add(shock);
+            particles.push({
+                mesh:shock,vel:new THREE.Vector3(),life:.44,maxLife:.44,
+                grow:0,vq03Shock:true,
+                baseSize:1
+            });
+            h4ExplosionStats.shockRings++;
+            for(let i=0;i<6;i++){
+                const sprite=new THREE.Sprite(new THREE.SpriteMaterial({
+                    map:h4SmokeAtlas,color:i%2?0xcbb4ab:0x7a8a9b,
+                    transparent:true,opacity:.58,depthWrite:false,fog:true
+                }));
+                const a=(i*2.399963);
+                sprite.position.copy(pos).add(new THREE.Vector3(
+                    Math.cos(a)*5*scaleMul,
+                    (i%3-1)*7*scaleMul,
+                    Math.sin(a)*5*scaleMul
+                ));
+                sprite.scale.setScalar((15+i*3)*scaleMul);
+                scene.add(sprite);
+                particles.push({
+                    mesh:sprite,
+                    vel:new THREE.Vector3(Math.cos(a)*7,10+i*2,Math.sin(a)*7),
+                    life:.82+i*.10,maxLife:.82+i*.10,grow:0,vq03Smoke:true,
+                    baseSize:(15+i*3)*scaleMul
+                });
+                h4ExplosionStats.smokeSprites++;
+            }
+            h4ExplosionStats.emissions++;
+        }
         function disposeExplosionParticle(p) {
             scene.remove(p.mesh);
             if (p.mesh.geometry && p.mesh.geometry.dispose) p.mesh.geometry.dispose();
@@ -4525,6 +4728,8 @@
         }
         function createExplosion(pos, color = 0xff8800, count = 22, scaleMul = 1) {
             sound.playExplosion(scaleMul > 1.5);
+            if(state.activeMap===MAP_MODES.MAP4 && scaleMul>=.65 &&
+                    count>=10)h4SpawnExplosionLayers(pos,scaleMul);
 
             // Parlak Merkez Alev Topu
             const flash = new THREE.Mesh(
@@ -6130,12 +6335,21 @@
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.life -= dt;
-                if (p.grow > 0) {
+                if(p.vq03Smoke){
+                    p.mesh.position.addScaledVector(p.vel,dt);
+                    const t=THREE.MathUtils.clamp(1-p.life/p.maxLife,0,1);
+                    const d=p.baseSize*(1+t*2.1);
+                    p.mesh.scale.set(d,d,1);
+                }else if(p.vq03Shock){
+                    const t=THREE.MathUtils.clamp(1-p.life/p.maxLife,0,1);
+                    p.mesh.scale.setScalar(1+t*3.8);
+                }else if (p.grow > 0) {
                     p.mesh.scale.addScalar(p.grow * dt);
                 } else {
                     p.mesh.position.addScaledVector(p.vel, dt);
                 }
-                p.mesh.material.opacity = Math.max(0, p.life / p.maxLife);
+                p.mesh.material.opacity = Math.max(0, p.life / p.maxLife)*
+                    (p.vq03Smoke?.58:1);
                 if (p.life <= 0) {
                     disposeExplosionParticle(p);
                     particles.splice(i, 1);
