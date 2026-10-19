@@ -2036,6 +2036,50 @@
             return {x:Math.abs(left-targetX)<Math.abs(right-targetX)?left:right,
                 y:targetY,avoiding:true};
         }
+
+        // VQ02: visually continuous refinery pipes, crane arms and exposed
+        // structure across six W05 buildings. Not gameplay hitboxes.
+        const h4IndustrialArtStats={stations:0,parts:0};
+        function h4IndustrialModelDetail(group,at,serial){
+            const geo=H4_HERO_GEOMETRY,mat=H4_HERO_MATERIAL;
+            const add=(delta,x,y,geometry,material,scale)=>{
+                const mesh=h4PlaceStructure(group,at+delta,x,y,geometry,material,scale);
+                mesh.userData.vq02IndustrialDetail=true;
+                mesh.userData.w05VisualOnly=true;
+                h4IndustrialArtStats.parts++;
+                return mesh;
+            };
+            const pipe=(delta,x,y,span,thickness)=>{
+                const mesh=add(delta,x,y,geo.column,mat.copper,[thickness,span,thickness]);
+                mesh.rotateZ(Math.PI/2);
+                return mesh;
+            };
+            // Separate all six silhouettes with different gantry heights.
+            const gantryY=390+(serial%3)*85;
+            for(const x of [-1570,0,1700]){
+                add(90,x,gantryY*.5,geo.column,mat.shadowSteel,[52,gantryY,65]);
+                add(90,x,gantryY,geo.mesaShelf,mat.paintedSteel,[156,24,140]);
+            }
+            pipe(90,0,gantryY+46,1510,54);
+            pipe(105,0,gantryY+96,1430,22);
+            for(const x of [-500,500]){
+                const platform=add(-70,x,530,geo.mesaShelf,
+                    mat.shadowSteel,[230,35,300]);
+                platform.userData.vq02Platform=true;
+                add(-70,x,660,geo.dish,mat.atmosphereGlass,[135,44,140]);
+                const glow=add(-70,x,680,geo.turbine,
+                    mat.cyanLight,[148,148,148]);
+                glow.rotateX(Math.PI/2);
+            }
+            // Wall panels / light columns direct flight without extra collisions.
+            for(const sign of [-1,1]){
+                add(300,sign*1350,365,geo.column,
+                    mat.paintedSteel,[65,650,65]);
+                add(300,sign*1350,710,geo.dome,
+                    mat.amberLight,[105,35,105]);
+            }
+            h4IndustrialArtStats.stations++;
+        }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
             const stations=[15750,18750,21850,24950,28150,31500];
@@ -2107,6 +2151,7 @@
                     [470,95,255],false,'SERVICE_DECK');
                 add(780,H4_INDUSTRY.huntCenter,-210,H4_MESHES.structure,
                     H4_DETAIL_MAT.oxidized,[290,110,140],false,'CARGO_PLATFORM');
+                h4IndustrialModelDetail(group,at,i);
                 zone.add(group);
                 h4IndustrialGroups.push(group);
                 h4IndustrialStats.stations++;
