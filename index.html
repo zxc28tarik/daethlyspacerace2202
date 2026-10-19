@@ -1671,6 +1671,191 @@
                 {at:48300,side:-600,name:'YORUNGE FIRLATMA KOMPLEKSI',kind:'launch'}
             ]
         ]);
+
+        // VQ02: bespoke, recognizable silhouettes for all 12 authored hero sites.
+        // Unlike generic repeated boxes these are constructed out of original
+        // compound forms, each with its own visual hierarchy and art purpose.
+        const h4SignatureStats={sites:0,byRegion:[0,0,0,0],parts:0,types:[]};
+        function h4MakeWedgeHull(){
+            const outline=new THREE.Shape();
+            outline.moveTo(-.52,-.34);
+            outline.lineTo(-.36,.23);
+            outline.lineTo(-.12,.43);
+            outline.lineTo(.16,.40);
+            outline.lineTo(.46,-.06);
+            outline.lineTo(.53,-.34);
+            outline.lineTo(.0,-.18);
+            outline.closePath();
+            const geometry=new THREE.ExtrudeGeometry(outline,{
+                steps:1,depth:.25,bevelEnabled:true,
+                bevelSegments:2,bevelThickness:.045,bevelSize:.038,curveSegments:1
+            });
+            geometry.translate(0,0,-.125);
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+        const H4_HERO_GEOMETRY=Object.freeze({
+            carvedHull:h4MakeWedgeHull(),
+            mesaShelf:new THREE.CylinderGeometry(.54,.40,1,11,2),
+            column:new THREE.CylinderGeometry(.19,.32,1,10,2),
+            dish:new THREE.SphereGeometry(.5,16,8,0,Math.PI*2,0,Math.PI*.47),
+            truss:new THREE.CylinderGeometry(.045,.045,1,6),
+            turbine:new THREE.TorusGeometry(.5,.075,8,20),
+            dome:new THREE.SphereGeometry(.5,14,8),
+            taperedBlock:new THREE.CylinderGeometry(.33,.49,1,6,2)
+        });
+        const H4_HERO_MATERIAL=Object.freeze({
+            weatheredRock:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.sandstone,color:0xc29b76,roughness:.98,flatShading:true}),
+            deepRock:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.rock,color:0x916c64,roughness:.99,flatShading:true}),
+            paintedSteel:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.steel,color:0xaec7d1,metalness:.66,roughness:.43}),
+            shadowSteel:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,color:0x677482,metalness:.58,roughness:.59}),
+            copper:new THREE.MeshStandardMaterial({
+                color:0xbe9873,metalness:.72,roughness:.40}),
+            atmosphereGlass:new THREE.MeshStandardMaterial({
+                color:0x2c637f,metalness:.72,roughness:.18,transparent:true,opacity:.83,
+                emissive:0x14547b,emissiveIntensity:.25}),
+            cyanLight:new THREE.MeshBasicMaterial({color:0x75e6fc}),
+            amberLight:new THREE.MeshBasicMaterial({color:0xffb871}),
+            emergencyLight:new THREE.MeshBasicMaterial({color:0xff6262})
+        });
+        function h4AddSignatureArchitecture(group,regionIndex,plan){
+            const content=new THREE.Group();
+            content.name='VQ02_SIGNATURE_'+plan.kind.toUpperCase();
+            content.userData.signature=plan.kind;
+            group.add(content);
+            const g=H4_HERO_GEOMETRY,m=H4_HERO_MATERIAL;
+            const add=(d,x,height,geo,mat,w,h,l,rotate=0)=>{
+                const child=h4PlaceStructure(content,plan.at+d,plan.side+x,
+                    -440+height,geo,mat,[w,h,l]);
+                if(rotate)child.rotateZ(rotate);
+                child.userData.vq02SceneryOnly=true;
+                h4SignatureStats.parts++;
+                return child;
+            };
+            const ring=(d,x,y,radius,color)=>{
+                const child=add(d,x,y,g.turbine,color,radius,radius,radius);
+                child.rotateX(Math.PI/2);
+            };
+            switch(plan.kind){
+                case 'stonegate':{
+                    // Staggered eroded arch and layered cliff, not a box bridge.
+                    for(let i=0;i<7;i++){
+                        const a=Math.PI*(i/6);
+                        const x=Math.cos(a)*210;
+                        const y=215+Math.sin(a)*205;
+                        add(-130,x,y,g.mesaShelf,
+                            i%2?m.deepRock:m.weatheredRock,125,90,155,.12*Math.cos(a));
+                    }
+                    add(-260,-370,220,g.taperedBlock,m.deepRock,180,430,180,-.17);
+                    add(-260,370,300,g.taperedBlock,m.weatheredRock,220,600,170,.13);
+                    break;
+                }
+                case 'mesa':
+                    for(let i=0;i<5;i++){
+                        const h=130+i*76;
+                        add((i-2)*48,0,h,g.mesaShelf,
+                            i%2?m.weatheredRock:m.deepRock,
+                            540-i*67,42,420-i*49,.06*i);
+                    }
+                    add(0,0,465,g.taperedBlock,m.deepRock,155,150,138);
+                    break;
+                case 'observation':
+                    add(40,0,545,g.column,m.shadowSteel,64,425,64);
+                    add(40,0,765,g.dish,m.paintedSteel,240,65,220,.25);
+                    add(40,0,798,g.dome,m.atmosphereGlass,88,64,95);
+                    for(const x of [-150,150]){
+                        add(85,x,400,g.truss,m.paintedSteel,22,350,22);
+                        ring(85,x,600,100,m.cyanLight);
+                    }
+                    break;
+                case 'crash':
+                    // Visible triangular carrier prow, fractured lateral wings,
+                    // exhaust rings and exposed bright plasma core.
+                    add(0,0,260,g.carvedHull,m.shadowSteel,850,420,360,-.28);
+                    for(const sign of [-1,1]){
+                        add(-145,sign*490,165,g.carvedHull,m.paintedSteel,
+                            440,210,215,sign*.18);
+                        ring(250,sign*185,230,130,m.amberLight);
+                    }
+                    add(300,0,185,g.dome,m.atmosphereGlass,195,90,180);
+                    break;
+                case 'defense':
+                    for(const sign of [-1,1]){
+                        add(0,sign*250,400,g.column,m.shadowSteel,165,720,165);
+                        add(0,sign*250,775,g.dish,m.paintedSteel,195,64,205,sign*.23);
+                        ring(0,sign*250,810,92,m.emergencyLight);
+                    }
+                    add(220,0,180,g.carvedHull,m.shadowSteel,550,210,235);
+                    break;
+                case 'wreck':
+                    for(let i=0;i<6;i++){
+                        add((i-2)*120,(i%2?1:-1)*(75+i*48),115+i*28,
+                            g.carvedHull,i%2?m.shadowSteel:m.paintedSteel,
+                            230+i*34,120+i*11,170+i*15,(i%2?-.34:.25));
+                    }
+                    ring(-250,0,290,125,m.amberLight);
+                    break;
+                case 'refinery':
+                    for(const sign of [-1,1]){
+                        add(40,sign*280,300,g.column,m.shadowSteel,200,680,200);
+                        for(let i=0;i<3;i++)
+                            ring(40,sign*280,180+i*190,190,m.copper);
+                    }
+                    add(-240,0,275,g.mesaShelf,m.paintedSteel,420,90,280);
+                    ring(-240,0,420,240,m.cyanLight);
+                    break;
+                case 'factory':
+                    for(let i=0;i<3;i++){
+                        const x=(i-1)*270;
+                        add(0,x,335,g.taperedBlock,m.shadowSteel,225,630,195);
+                        add(0,x,672,g.mesaShelf,m.copper,255,45,230);
+                        ring(0,x,730,135,i===1?m.cyanLight:m.amberLight);
+                    }
+                    break;
+                case 'power':
+                    for(const sign of [-1,1]){
+                        add(0,sign*350,375,g.column,m.paintedSteel,100,760,105);
+                        ring(0,sign*350,735,240,m.cyanLight);
+                    }
+                    add(0,0,400,g.dome,m.atmosphereGlass,400,470,300);
+                    ring(0,0,680,380,m.cyanLight);
+                    break;
+                case 'outpost':
+                    for(const sign of [-1,1]){
+                        add(-110,sign*265,315,g.taperedBlock,m.shadowSteel,230,580,230);
+                        ring(-110,sign*265,640,155,m.emergencyLight);
+                    }
+                    add(120,0,220,g.carvedHull,m.paintedSteel,520,210,360);
+                    break;
+                case 'spaceport':
+                    for(let i=0;i<3;i++){
+                        const x=(i-1)*310;
+                        add(0,x,74,g.mesaShelf,m.shadowSteel,260,32,260);
+                        ring(0,x,130,230,i===1?m.cyanLight:m.amberLight);
+                    }
+                    add(-190,0,445,g.carvedHull,m.paintedSteel,700,430,300);
+                    break;
+                case 'launch':
+                    add(0,0,920,g.taperedBlock,m.shadowSteel,175,1830,175);
+                    for(let i=0;i<4;i++){
+                        const h=230+i*440;
+                        add(0,0,h,g.mesaShelf,m.paintedSteel,440-i*36,44,440-i*36);
+                        ring(0,0,h+75,420-i*38,i===3?m.cyanLight:m.amberLight);
+                    }
+                    for(const sign of [-1,1]){
+                        add(0,sign*380,600,g.column,m.paintedSteel,75,1190,75);
+                        add(0,sign*380,1150,g.dish,m.atmosphereGlass,160,82,160);
+                    }
+                    break;
+            }
+            h4SignatureStats.sites++;
+            h4SignatureStats.byRegion[regionIndex]++;
+            h4SignatureStats.types.push(plan.kind);
+        }
         function h4CreateLandmark(zone, regionIndex, plan) {
             const group=new THREE.Group();
             group.name='MAP4_'+plan.kind.toUpperCase()+'_'+Math.round(plan.at);
@@ -1784,6 +1969,7 @@
                     }
                     break;
             }
+            h4AddSignatureArchitecture(group,regionIndex,plan);
             h4WorldLandmarks.push({
                 zone:regionIndex,
                 at:plan.at,
