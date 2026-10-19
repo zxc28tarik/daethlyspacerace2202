@@ -1451,7 +1451,12 @@
             lower:{value:new THREE.Color(0x8c6474)},
             sunTint:{value:new THREE.Color(0xffe7b6)},
             sunDirection:{value:new THREE.Vector3(.55,.36,-.77).normalize()},
-            haze:{value:1}
+            haze:{value:1},
+            // VQ04: cinematic scattering, high-orbit reveal and cirrus modulation.
+            orbitFade:{value:0},
+            cloudiness:{value:0.6},
+            horizonDust:{value:0.7},
+            atmosTime:{value:0}
         };
         const h4SkyMaterial=new THREE.ShaderMaterial({
             uniforms:h4AtmosphereUniforms,
@@ -1470,17 +1475,39 @@
                 uniform vec3 sunTint;
                 uniform vec3 sunDirection;
                 uniform float haze;
+                uniform float orbitFade;
+                uniform float cloudiness;
+                uniform float horizonDust;
+                uniform float atmosTime;
+                float h4Hash(vec3 p){
+                    return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);
+                }
                 void main(){
                     vec3 ray=normalize(vSkyDirection);
                     float h=ray.y;
-                    float t=smoothstep(-.20,.64,h);
-                    vec3 sky=mix(horizon,zenith,t);
-                    sky=mix(lower,sky,smoothstep(-.55,-.04,h));
+                    float up=smoothstep(-.23,.74,h);
+                    vec3 sky=mix(horizon,zenith,up);
+                    sky=mix(lower,sky,smoothstep(-.54,-.035,h));
                     float sun=max(0.,dot(ray,normalize(sunDirection)));
-                    sky+=sunTint*(pow(sun,14.)*.16+pow(sun,105.)*.60)*haze;
-                    float horizonGlow=exp(-abs(h)*7.)*.09*haze;
-                    sky+=sunTint*horizonGlow;
-                    gl_FragColor=vec4(sky,1.);
+                    float broadCorona=pow(sun,12.)*.22*haze;
+                    float sharpCorona=pow(sun,140.)*.74*haze;
+                    float solarDisk=smoothstep(.9994,.99985,sun)*.74*haze;
+                    float atmosphericBand=exp(-abs(h)*9.5)*horizonDust;
+                    sky+=sunTint*(broadCorona+sharpCorona+solarDisk);
+                    sky+=sunTint*atmosphericBand*.115;
+                    // Two frequency-distinct, softly separated cirrus bands.
+                    float w1=sin(ray.x*29.+ray.z*13.+sin(ray.z*19.)*1.7+atmosTime*.006);
+                    float w2=sin(ray.z*43.-ray.x*22.+sin(ray.x*17.)*.8-atmosTime*.004);
+                    float cirrus=smoothstep(.45,.85,(w1+w2)*.33+.47);
+                    cirrus*=smoothstep(-.04,.15,h)*(1.-smoothstep(.58,.91,h))*cloudiness;
+                    sky=mix(sky,sky+sunTint*.21,cirrus*.60);
+                    // Space reveals discrete, stable stars as atmospheric haze thins.
+                    vec3 cell=floor(ray*260.);
+                    float star=step(.9977,h4Hash(cell));
+                    star*=.70+.30*h4Hash(cell+17.);
+                    star*=smoothstep(-.12,.26,h)*orbitFade;
+                    sky+=vec3(.69,.80,1.)*star*.74;
+                    gl_FragColor=vec4(max(sky,vec3(0.)),1.);
                 }`
         });
         const h4SkyDome=new THREE.Mesh(new THREE.SphereGeometry(7800,40,24),
@@ -1535,6 +1562,79 @@
             for(const cloudGroup of h4CloudGroups)
                 cloudGroup.visible=phase<4||upperOrbit<.52;
         }
+
+        // VQ04 cinematic atmosphere: smoothly interpolate the entire planet's
+        // light rig, fog and sky. Reuses colors/uniforms, allocates nothing per frame.
+        const H4_VQ04_PALETTES=[
+            {zenith:0x243f60,horizon:0xd1a07a,lower:0x88605c,
+                sun:0xffd1a0,fog:0xb68d75,ambient:0xb9afa0,
+                key:0xffd8b8,rim:0x86a9bf,density:.000160,cloud:.48,dust:.92},
+            {zenith:0x3b4a5d,horizon:0xc08669,lower:0x66545b,
+                sun:0xffb88a,fog:0x94746b,ambient:0xb9a49c,
+                key:0xffc4a4,rim:0x93a2ac,density:.000122,cloud:.62,dust:.72},
+            {zenith:0x34445b,horizon:0x9c8d82,lower:0x414e5d,
+                sun:0xffd2aa,fog:0x79848b,ambient:0xa8b2ba,
+                key:0xffd2b5,rim:0x81b4c8,density:.000116,cloud:.68,dust:.50},
+            {zenith:0x112946,horizon:0x8c7487,lower:0x424b67,
+                sun:0xffbba6,fog:0x66708d,ambient:0x9daac5,
+                key:0xffd0ae,rim:0x7f9fd2,density:.000088,cloud:.40,dust:.27}
+        ].map(p=>({
+            zenith:new THREE.Color(p.zenith),horizon:new THREE.Color(p.horizon),
+            lower:new THREE.Color(p.lower),sun:new THREE.Color(p.sun),
+            fog:new THREE.Color(p.fog),ambient:new THREE.Color(p.ambient),
+            key:new THREE.Color(p.key),rim:new THREE.Color(p.rim),
+            density:p.density,cloud:p.cloud,dust:p.dust
+        }));
+        const h4VQ04Stats={atmosphereUpdates:0,lastOrbitFade:0,lastFogDensity:0,
+            particleFields:0,particleCount:0,contactShadows:0};
+        const h4VQ04ScratchColor=new THREE.Color();
+        function h4UpdateCinematicAtmosphere(time){
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            const smooth=(a,b)=>THREE.MathUtils.smoothstep(state.routeProgress,a,b);
+            const w1=smooth(11900,13000),w2=smooth(13800,15400),w3=smooth(33200,35600);
+            const p=H4_VQ04_PALETTES;
+            const color=(out,key)=>out.copy(p[0][key]).lerp(p[1][key],w1)
+                .lerp(p[2][key],w2).lerp(p[3][key],w3);
+            const lerpNumber=(key)=>THREE.MathUtils.lerp(
+                THREE.MathUtils.lerp(
+                    THREE.MathUtils.lerp(p[0][key],p[1][key],w1),
+                    p[2][key],w2),p[3][key],w3);
+            const orbit=THREE.MathUtils.smoothstep(state.laneY,380,1460)*w3;
+            color(h4AtmosphereUniforms.zenith.value,'zenith')
+                .lerp(h4VQ04ScratchColor.setHex(0x030c24),orbit);
+            color(h4AtmosphereUniforms.horizon.value,'horizon')
+                .lerp(h4VQ04ScratchColor.setHex(0x2b3e67),orbit*.92);
+            color(h4AtmosphereUniforms.lower.value,'lower')
+                .lerp(h4VQ04ScratchColor.setHex(0x0c1532),orbit);
+            color(h4AtmosphereUniforms.sunTint.value,'sun');
+            h4AtmosphereUniforms.haze.value=1-orbit*.85;
+            h4AtmosphereUniforms.orbitFade.value=orbit;
+            h4AtmosphereUniforms.cloudiness.value=lerpNumber('cloud')*(1-orbit*.86);
+            h4AtmosphereUniforms.horizonDust.value=lerpNumber('dust')*(1-orbit*.96);
+            h4AtmosphereUniforms.atmosTime.value=time;
+            color(scene.fog.color,'fog').lerp(h4VQ04ScratchColor.setHex(0x091329),orbit);
+            scene.fog.density=lerpNumber('density')*(1-orbit*.88);
+            color(ambientLight.color,'ambient');
+            ambientLight.intensity=1.18-orbit*.35;
+            color(nebulaLight1.color,'key');
+            nebulaLight1.intensity=1.72-orbit*.35;
+            color(nebulaLight2.color,'rim');
+            nebulaLight2.intensity=.83+orbit*.22;
+            color(h4SunHalo.material.color,'sun');
+            h4SunHalo.material.opacity=(1-orbit*.87)*(1-w2*.11);
+            h4SunHalo.scale.setScalar(1750+180*w1);
+            renderer.toneMappingExposure=1.23-orbit*.14;
+            // Orbit clouds fade, rather than popping at an altitude threshold.
+            for(let i=0;i<h4CloudGroups.length;i++){
+                h4CloudGroups[i].visible=i!==3 || orbit<.92;
+                if(i===3)for(const cloud of h4CloudGroups[i].children)
+                    cloud.material=h4CloudMaterials[2];
+            }
+            h4VQ04Stats.atmosphereUpdates++;
+            h4VQ04Stats.lastOrbitFade=orbit;
+            h4VQ04Stats.lastFogDensity=scene.fog.density;
+        }
+
         const H4_MESHES = Object.freeze({
             rock: h4RuggedRockGeometry(),
             tower: new THREE.CylinderGeometry(1,1,1,7),
@@ -1677,6 +1777,83 @@
             zone.add(clouds);
             h4CloudGroups.push(clouds);
         }
+
+        // VQ04: four independent deterministic dust/embers/industrial haze/ice
+        // fields. One draw call per sector, no invisible collision geometry.
+        const h4AtmosphericFields=[];
+        const h4DustCanvas=document.createElement('canvas');
+        h4DustCanvas.width=h4DustCanvas.height=64;
+        const h4DustCtx=h4DustCanvas.getContext('2d');
+        const h4DustGradient=h4DustCtx.createRadialGradient(32,32,0,32,32,32);
+        h4DustGradient.addColorStop(0,'rgba(255,255,255,.85)');
+        h4DustGradient.addColorStop(.27,'rgba(255,255,255,.33)');
+        h4DustGradient.addColorStop(1,'rgba(255,255,255,0)');
+        h4DustCtx.fillStyle=h4DustGradient;
+        h4DustCtx.fillRect(0,0,64,64);
+        const h4DustTex=new THREE.CanvasTexture(h4DustCanvas);
+        const H4_AIR_COLORS=[0xd8ab80,0xc1a49c,0xb5bec8,0xa2c6eb];
+        function h4AddAtmosphericField(zone,index,def){
+            if(h4AtmosphericFields[index])return;
+            let seed=(0x71f3c1a5+index*0x9e3779b9)>>>0;
+            const rnd=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;
+                return (seed>>>0)/4294967295;};
+            const count=[460,360,430,290][index];
+            const positions=new Float32Array(count*3);
+            for(let i=0;i<count;i++){
+                const progress=def.from+100+rnd()*Math.max(10,def.to-def.from-200);
+                const side=(rnd()-.5)*(index===1?5200:6500);
+                const altitude=index===3?180+rnd()*1620:
+                    index===2?-320+rnd()*850:-300+rnd()*740;
+                const point=h4WorldPosition(progress,side,altitude);
+                positions[i*3]=point.x;positions[i*3+1]=point.y;
+                positions[i*3+2]=point.z;
+            }
+            const geometry=new THREE.BufferGeometry();
+            geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
+            geometry.computeBoundingSphere();
+            const material=new THREE.PointsMaterial({
+                map:h4DustTex,color:H4_AIR_COLORS[index],
+                size:[40,29,34,19][index],opacity:[.32,.24,.19,.27][index],
+                transparent:true,depthWrite:false,sizeAttenuation:true,
+                alphaTest:.012,fog:true
+            });
+            const field=new THREE.Points(geometry,material);
+            field.name='MAP4_VQ04_ATMOSPHERIC_FIELD_'+index;
+            field.userData.visualOnly=true;
+            zone.add(field);
+            h4AtmosphericFields[index]=field;
+            h4VQ04Stats.particleFields++;
+            h4VQ04Stats.particleCount+=count;
+        }
+        // Ground contact on authored landmarks: cheap baked radial decals,
+        // not high-cost dynamic shadow maps or fake hitboxes.
+        const h4ShadowCanvas=document.createElement('canvas');
+        h4ShadowCanvas.width=h4ShadowCanvas.height=128;
+        const h4ShadowCtx=h4ShadowCanvas.getContext('2d');
+        const h4Radial=h4ShadowCtx.createRadialGradient(64,64,6,64,64,63);
+        h4Radial.addColorStop(0,'rgba(15,16,22,.67)');
+        h4Radial.addColorStop(.48,'rgba(15,16,22,.38)');
+        h4Radial.addColorStop(1,'rgba(15,16,22,0)');
+        h4ShadowCtx.fillStyle=h4Radial;
+        h4ShadowCtx.fillRect(0,0,128,128);
+        const h4ShadowAtlas=new THREE.CanvasTexture(h4ShadowCanvas);
+        const h4ShadowPlane=new THREE.PlaneGeometry(1,1);
+        const h4ShadowMat=new THREE.MeshBasicMaterial({map:h4ShadowAtlas,
+            transparent:true,opacity:.52,depthWrite:false,side:THREE.DoubleSide,
+            polygonOffset:true,polygonOffsetFactor:-1});
+        const H4_DECAL_UP=new THREE.Vector3(0,0,1);
+        function h4AddContactShadow(group,plan){
+            const shadow=new THREE.Mesh(h4ShadowPlane,h4ShadowMat);
+            shadow.name='MAP4_VQ04_CONTACT_SHADOW';
+            shadow.position.copy(h4WorldPosition(plan.at,plan.side,-434));
+            shadow.quaternion.setFromUnitVectors(H4_DECAL_UP,
+                getRaceFrameAtDistance(plan.at).up);
+            shadow.scale.set(930,620,1);
+            shadow.userData.visualOnly=true;
+            group.add(shadow);
+            h4VQ04Stats.contactShadows++;
+        }
+
         function h4PlaceStructure(group,progress,side,altitude,geometry,material,scale) {
             const mesh=new THREE.Mesh(geometry,material);
             mesh.position.copy(h4WorldPosition(progress,side,altitude));
@@ -1943,6 +2120,7 @@
             group.name='MAP4_'+plan.kind.toUpperCase()+'_'+Math.round(plan.at);
             group.userData.landmark=true;
             zone.add(group);
+            h4AddContactShadow(group,plan);
             const add=(delta,shift,height,geo,mat,sx,sy,sz)=>{
                 const obj=h4PlaceStructure(group,plan.at+delta,plan.side+shift,
                     -440+height,geo,mat,[sx,sy,sz]);
@@ -2502,6 +2680,7 @@
                 h4PopulateRegion(zone,zoneIndex);
                 h4PopulateWideScenery(zone,zoneIndex,def);
                 h4AddCloudLayer(zone,zoneIndex,def);
+                h4AddAtmosphericField(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 if(zoneIndex===1)h4BuildArenaWarfront(zone);
                 if(zoneIndex===2)h4BuildIndustrialGauntlet(zone);
@@ -7303,7 +7482,10 @@
                 camera.rotation.x = Math.cos(now * 0.0002) * 0.15;
             }
 
-            if(state.activeMap===MAP_MODES.MAP4)h4UpdateSkyVisuals();
+            if(state.activeMap===MAP_MODES.MAP4){
+                h4UpdateSkyVisuals();
+                h4UpdateCinematicAtmosphere(now*.001);
+            }
             renderer.render(scene, camera);
         }
 
