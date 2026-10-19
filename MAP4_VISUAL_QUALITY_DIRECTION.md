@@ -17,7 +17,7 @@
 
 ## Daha yüksek görsel kalite için sıradaki üretim işleri
 
-### VQ02 — Özgün profesyonel model dili
+### VQ02 — Özgün 3D model dili (ikinci grafik geçişi kodlandı)
 Kaya/dağ kitleri için doğal erozyon, özgün kaya kümeleri ve gerçek geçit formu; endüstri için tekrar etmeyen fabrika modülleri ve rafinerinin okunur silüetleri. Tekrarlı küp + silindir yaklaşımı azaltılacak. Silah/gemi modeli için tutarlı orta detay ana gövde, kanat kesitleri ve exhaust anatomisi. Collider'lar görünür katı elemanlarla eşlenmeli.
 
 ### VQ03 — Malzeme ve yüzey kütüphanesi
@@ -37,3 +37,14 @@ Vadi: kuru sıcak ufuk/toz; savaş arenası: toz/siyah duman/enkaz; sanayi: soğ
 - Harita 1 görsel/fizik kuralları ayrı ve onaylı kalır; restart sonrası Map4 mesh/texture sızıntısı olmamalı.
 - Tek oynanabilir HTML çıktısı sürdürülür; uzaktan PNG/GLTF gerekirse kendi içinde paketleme veya açıkça belirtilmiş bağımlılıklar gerekir.
 - Mevcut 4–5 dakika görev, 60s savaş arenası, 300s bitiş ve 850 yerel irtifa kuralı değişmez.
+
+## VQ02 — Mevcut değişikliğin tam dökümü
+- [x] 12 ana çevre işaretinin **her birine ayrı model kompozisyonu**. Kaya kemeri, katmanlı mesa, gözlemevi anteni, düşmüş kruvazörün üçgen gövdesi, savunma dish/radar antenleri, yıkılmış gemi parçaları, rafineri tankları, fabrika kuleleri, yüksek enerji halkaları, sınır karakolu, üçlü iniş platformu, dev yörünge fırlatma kulesi.
+- [x] Özel **ExtrudeGeometry poligon gövde**, mesa/erozyon sekizgenleri, geniş güneş diski ve silüeti okunur çok-katmanlı modüler form kütüphanesi.
+- [x] Altı sanayi düğümünün her birine çelik vinç/truss, bakır borular, yükseltilmiş bakım platformları, enerji halkaları ve sinyal tepe lambaları. Aynı malzeme ve geometri yeniden kullanılır.
+- [x] 12 hero grup × ilk kayıttan sonra tekrar yapılmayan üretim; restart sistemi değişmez.
+- [x] Var olan fizik çarpışması 36 endüstri hacmi, alt geçit bonusu, kaya boğazları, 60s arena ve dört faz **değişmedi**.
+- [ ] Oyuncu görsel puanlaması ve perspektif içi görüntü kontrolü.
+- [ ] VQ03 profesyonel texture atlas/normal yüzey detayı, VQ04 hacimli atmosfer, VQ05 parçacık patlama/far VFX, VQ06 son kamera ve HUD cilası.
+
+Bu aşamada 12 büyük yapıya özgün silüetler eklense de modeller hâlâ Three.js geometrilerinden procedural olarak üretilen düşük/orta detaylı gerçek zamanlı placeholder çalışmasıdır. 8/10 grafik standardı veya tam bitmiş sanat hedefi ilanı yoktur.
