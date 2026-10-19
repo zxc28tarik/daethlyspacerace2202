@@ -203,6 +203,60 @@ const assert = require('node:assert/strict');
     assert.equal(blast.emissions,1,'real explosion event');
     assert(blast.activeSmoke>=6&&blast.activeRings>=1,'VFX participates in frame particles');
 
+
+    // VQ04: ensure the actual game world has four bounded atmospheric fields,
+    // persistent contact shadows and smooth atmosphere/orbit palette states.
+    const vq04=await page.evaluate(()=>{
+      const before={progress:state.routeProgress,laneY:state.laneY};
+      const step=(progress,laneY)=>{
+        state.routeProgress=progress;state.laneY=laneY;
+        h4UpdateSkyVisuals();
+        h4UpdateCinematicAtmosphere(9.7);
+        return {
+          fog:scene.fog.density,zenith:h4AtmosphereUniforms.zenith.value.getHex(),
+          orbit:h4AtmosphereUniforms.orbitFade.value,
+          clouds:h4AtmosphereUniforms.cloudiness.value,
+          haze:h4AtmosphereUniforms.horizonDust.value
+        };
+      };
+      const valley=step(2400,60);
+      const arena=step(12700,75);
+      const industrial=step(23000,240);
+      const orbit=step(45700,1650);
+      state.routeProgress=before.progress;state.laneY=before.laneY;
+      h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(9.8);
+      const fieldPoints=h4AtmosphericFields.map(f=>f.geometry.attributes.position.count);
+      const shadowObjects=h4WorldLandmarks.reduce((n,point)=>{
+        let k=0;point.group.traverse(m=>{if(m.name==='MAP4_VQ04_CONTACT_SHADOW')k++});
+        return n+k;
+      },0);
+      return {valley,arena,industrial,orbit,fields:h4AtmosphericFields.length,
+        fieldPoints,particleTotal:h4VQ04Stats.particleCount,
+        shadows:h4VQ04Stats.contactShadows,shadowObjects,
+        texture:h4DustTex.isTexture,starUniform:h4AtmosphereUniforms.orbitFade.value,
+        revisions:h4VQ04Stats.atmosphereUpdates,
+        map1Exclusion:planetaryWorldGroup.visible && !corridorGuideGroup.visible};
+    });
+    assert.equal(vq04.fields,4,'one atmospheric particle draw-call per phase');
+    assert.deepEqual(vq04.fieldPoints,[460,360,430,290],
+      'four reproducible differentiated atmospheric populations');
+    assert.equal(vq04.particleTotal,1540,'particles allocated only once');
+    assert.equal(vq04.shadows,12,'twelve baked hero-site contact shadows');
+    assert.equal(vq04.shadowObjects,12,'contact decals physically placed in scene');
+    assert.equal(vq04.texture,true,'embedded soft alpha dust atlas');
+    assert(vq04.valley.fog>vq04.industrial.fog,
+      'canyon distance haze higher than clean industrial palette');
+    assert(vq04.valley.zenith!==vq04.arena.zenith &&
+      vq04.arena.zenith!==vq04.industrial.zenith,
+      'distinct cinematic sky palettes for three ground phases');
+    assert(vq04.orbit.orbit>.96,'orbital altitude actually reveals outer space');
+    assert(vq04.orbit.fog<vq04.industrial.fog*.3,
+      'upper atmosphere fog fades instead of remaining opaque');
+    assert(vq04.orbit.haze<vq04.valley.haze*.15,
+      'horizon dust extinguishes naturally in orbit');
+    assert(vq04.revisions>4,'runtime cinematic sky updated during transitions');
+    assert.equal(vq04.map1Exclusion,true,'planetary VQ04 art stays map4-scoped');
+
     // W03 physical and strategic paths before phase-two arena.
     const canyon=await page.evaluate(()=>{
       const fast={laneX:H4_CANYON.fastCenter};
@@ -309,7 +363,7 @@ const assert = require('node:assert/strict');
     assert.equal(openSpace.terrain.sceneryOnly,true,'no invented terrain hitboxes');
     assert(openSpace.cameraFar>10000,'planet draw distance increased');
     assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
-    assert.equal(openSpace.light,0xffdbb0,'planetary daylight active');
+    assert.equal(openSpace.light,0xffd8b8,'VQ04 canyon daylight palette active');
     const content=await page.evaluate(()=>{
       const initialProgress=state.routeProgress;
       const byRegion=h4WorldContentStats.byRegion.slice();

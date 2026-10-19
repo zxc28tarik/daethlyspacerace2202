@@ -63,3 +63,22 @@ Kullanıcının görsel kaliteyi artırmaya devam etme talebi üzerine sonraki t
 
 ### Sonraki kritik üretim
 **VQ04**: atmosferin yüksek kalite sinematik geçişi; gerçek gölge, daha özgün büyük çevre modeli ve renk bütünlüğü. **VQ05**: performans bütçesine göre optimizasyon ve patlama izi/yanık izi zenginliği. **VQ06**: üçüncü şahıs kamera/arayüz son sunum.
+
+## VQ04 — Sinematik atmosfer ve derinlik geçişi (19 Ekim 2026)
+
+Dördüncü grafik geliştirme dalgasında eklenen gerçek zamanlı işlevler:
+
+- [x] Geçiş bölgelerinde sabit renk sıçraması yerine rotadaki konuma bağlı **kademeli atmosferik renk dönüşümü** (vadi → arena → endüstri → askerî üs).
+- [x] Gökyüzü shader'ında güneş diski, iki ölçekli korona, yumuşak ufuk saçılımı ve iki ince cirrus bandı. **VQ01 shader'ı değiştirilip genişletildi**, ikinci bir gökyüzü/kubbe oluşturulmadı.
+- [x] Üst atmosfere çıkışta irtifaya bağlı **yıldız görünürlüğü**, koyu gökyüzü ve silinen pus; yıldızlar kamera yönünden üretilen deterministik shader desenidir.
+- [x] Geniş alanın dört evresine özgü **4 deterministik hava parçacığı kümesi / toplam 1.540 nokta**, sektör başına tek Points mesh/draw-call: vadi kumu, arena külü, endüstri pus parçacığı, yükselişte soğuk atmosfer parçacıkları.
+- [x] 12 benzersiz büyük yapının çevresinde procedurally üretilen **yumuşak zemin temas gölgesi**; ortak texture/material/plane, dinamik shadow map gerekmez.
+- [x] Atmosfere uyumlu ortam ışığı, ana güneş, kenar ışığı, sis rengi ve sis yoğunluğu; yörüngede yoğunluk azalır.
+- [x] Tüm VQ04 varlıkları yalnız Harita 4 içinde; fiziksel çarpışma, avcı HP/puan, süre, rota veya Harita 1 ışık parametreleri değişmedi.
+- [x] Tek-kare başına mesh/texture/geometry yaratımı yok. Güncellemeler renk objesi, uniform ve fog değerleri üzerinden yapılır.
+- [ ] Oyuncunun ekran görüntüsü üzerinden görsel estetik onayı ve gerçek donanımda FPS değerlendirmesi.
+
+### Doğrulama ve görsel dürüstlük
+Otomatik testler shader'ın çalışmasını, dört atmosferik alanın oluşmasını, temas gölgelerini, dört palet arasındaki değişimi ve yörüngede sisin azalmasını ölçer. Bunlar tek başına fotogerçekçilik veya belirli bir **/10 estetik puan** kanıtı değildir. Harita hâlâ prosedürel Three.js tabanlıdır ve daha zengin özgün modeller, ekran-kamera düzenlemesi ve optimizasyon için VQ05/VQ06 çalışmaları gerektirir.
+
+Sıradaki büyük üretim: **VQ05** motor/atış VFX ve parçacık optimizasyonu; ardından **VQ06** kamera, renk tutarlılığı ve HUD.
