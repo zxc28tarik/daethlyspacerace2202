@@ -363,7 +363,7 @@ const assert = require('node:assert/strict');
     assert.equal(openSpace.terrain.sceneryOnly,true,'no invented terrain hitboxes');
     assert(openSpace.cameraFar>10000,'planet draw distance increased');
     assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
-    assert.equal(openSpace.light,0xffdbb0,'planetary daylight active');
+    assert.equal(openSpace.light,0xffd8b8,'VQ04 canyon daylight palette active');
     const content=await page.evaluate(()=>{
       const initialProgress=state.routeProgress;
       const byRegion=h4WorldContentStats.byRegion.slice();
