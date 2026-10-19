@@ -48,3 +48,18 @@ Vadi: kuru sıcak ufuk/toz; savaş arenası: toz/siyah duman/enkaz; sanayi: soğ
 - [ ] VQ03 profesyonel texture atlas/normal yüzey detayı, VQ04 hacimli atmosfer, VQ05 parçacık patlama/far VFX, VQ06 son kamera ve HUD cilası.
 
 Bu aşamada 12 büyük yapıya özgün silüetler eklense de modeller hâlâ Three.js geometrilerinden procedural olarak üretilen düşük/orta detaylı gerçek zamanlı placeholder çalışmasıdır. 8/10 grafik standardı veya tam bitmiş sanat hedefi ilanı yoktur.
+
+## VQ03 — Üçüncü grafik kalite geçişi (19 Ekim 2026)
+Kullanıcının görsel kaliteyi artırmaya devam etme talebi üzerine sonraki teknik katmanlar eklendi.
+
+### Doğrudan oyun içindeki yeni görüntü unsurları
+- [x] **2 ayrı 256² tileable normal map + 2 roughness map**: kaya/metal için farklı mikro yüzeyler, katmanlı stratalar, pas/panel hatları, normal varyasyonu. Tek kez oluşturulur; internet gerektirmez.
+- [x] Normal+roughness haritaları **yer zemini, kaya, kumtaşı, zırh, çelik, hurda, fabrika, ana landmark malzemelerinde** MeshStandardMaterial üzerinden kullanılır. Tonlama ve ışık değişince kabartı farkı görünür.
+- [x] **Özel 3D süpürülmüş kanat kesiti** (ExtrudeGeometry) oyuncu GeoSword, 5 rakip ve 8 düşman avcısının Harita 4 modellerinde; kanat uçlarında ışık hatları ve yardımcı dengeleyiciler bulunur. Fiziksel uçak çarpışma sınırları değişmez.
+- [x] Harita 4 patlamalarında **6 kademeli duman sprite'ı + bir genişleyen şok halkası**. Sprite doku tek kez oluşturulur, geçici materyaller/mesh'ler ortak parçacık temizleyicisinde kaldırılır, yeniden başlatmada kalmaz.
+- [x] Efekt yükü sınırlandırılır; 230'dan fazla aktif parçacık varsa yeni duman katmanı oluşturulmaz. Harita 1'in eski patlama sistemi, neon ışığı, gemi görünümü, kontrol, yarış kuralları aynı kalır.
+- [x] Tarayıcı testleri: normal/roughness atlasları, 3D kanat anatomisi, aktif gerçek patlama efektleri, dört aşamalı oyun kuralları ve Harita 1 regresyonu.
+- [ ] Kullanıcının oyun içi görsel kalite puanı ve gerçek FPS kontrolü. Otomatik test görsel estetiği objektif puanlamaz.
+
+### Sonraki kritik üretim
+**VQ04**: atmosferin yüksek kalite sinematik geçişi; gerçek gölge, daha özgün büyük çevre modeli ve renk bütünlüğü. **VQ05**: performans bütçesine göre optimizasyon ve patlama izi/yanık izi zenginliği. **VQ06**: üçüncü şahıs kamera/arayüz son sunum.
