@@ -526,6 +526,55 @@ const assert = require('node:assert/strict');
       'no forward progress during arena');
     assert.equal(await page.evaluate(()=>racers.every(r=>r.routeProgress===MAP4_PHASES.introEnd
       || r.finished || r.dnf)),true,'five AI pilots held in arena');
+
+    // GFX-04: three substantial, non-generic warfront compositions must
+    // replace old repeated boxes without touching hunter/collision systems.
+    const gfx04=await page.evaluate(()=>{
+      const pockets=H4_ARENA_POCKETS.map(p=>{
+        const parent=h4ArenaWarfrontGroups.find(g=>g.userData.pocketId===p.id);
+        const hero=parent.children.find(g=>g.userData.h4Gfx04Pocket===p.id);
+        const pieces=hero?.children||[];
+        return {id:p.id,art:hero?.name,visible:hero?.visible,
+          pieces:pieces.length,hiddenOld:parent.children.filter(
+            x=>x!==hero).every(x=>!x.visible),
+          visualOnly:pieces.every(x=>x.userData.w04VisualOnly===true &&
+            x.userData.h4Collider===undefined && x.userData.visualOnly===true),
+          customHulls:pieces.filter(x=>x.geometry.type==='ExtrudeGeometry').length,
+          materialKinds:new Set(pieces.map(x=>x.material.uuid)).size,
+          highest:Math.max(...pieces.map(x=>x.position.y))};
+      });
+      const old= h4WorldLandmarks.filter(l=>l.zone===1).map(l=>({
+        type:l.kind,legacyHidden:l.group.children.find(
+          c=>c.name.startsWith('MAP4_LEGACY_W01_'))?.visible===false,
+        signatureHidden:l.group.children.find(
+          c=>c.userData.signature===l.kind)?.visible===false
+      }));
+      return {stats:{...h4Gfx04Stats},pockets,old,
+        rockColliders:h4CanyonColliders.length,
+        factoryColliders:h4IndustrialColliders.length,
+        physicalCityColliders:planetaryBuildingColliders.length};
+    });
+    assert.equal(gfx04.stats.sites,3,'all three warfronts receive new GFX04 art');
+    assert.deepEqual(gfx04.pockets.map(p=>p.id),['CENTER','WRECK','DEFENSE']);
+    assert(gfx04.pockets.every(p=>p.visible===true &&
+      p.hiddenOld && p.visualOnly && p.materialKinds>=3),
+      'warfronts replace their original primitive props with independent art');
+    assert(gfx04.pockets[0].pieces>=13 && gfx04.pockets[0].pieces<=20,
+      'centre remains deliberately sparse with legible hunter space');
+    assert(gfx04.pockets[1].pieces>=20 &&
+      gfx04.pockets[1].customHulls>=5,'cruiser wreck has five modeled hull sections');
+    assert(gfx04.pockets[2].pieces>=20 &&
+      gfx04.pockets[2].customHulls>=3,'defense has modeled layered fortification');
+    assert(gfx04.stats.customHullFaces>40,'custom cruiser has real sculpted faces');
+    assert.equal(gfx04.stats.hiddenOldLandmarks,6,
+      'three redundant old W01+VQ02 battlefield landmarks hidden');
+    assert(gfx04.old.every(p=>p.legacyHidden&&p.signatureHidden));
+    assert.equal(gfx04.rockColliders,6,'canyon hazards preserved');
+    assert.equal(gfx04.factoryColliders,36,'industrial solids preserved');
+    assert.equal(gfx04.physicalCityColliders,
+      await page.evaluate(()=>planetaryBuildingColliders.length),
+      'warfront visual meshes add no unexpected building collision volumes');
+
     // W04: all three distinct combat pockets exist and spawn the shared 8
     // hunters in 3/3/2 formation. Both elites stay in the defense wing.
     const warfront=await page.evaluate(()=>{
@@ -766,6 +815,8 @@ const assert = require('node:assert/strict');
       'restart never duplicates twelve hero signatures');
     assert.equal(await page.evaluate(()=>h4IndustrialArtStats.stations),6,
       'restart never duplicates refinery gantries');
+    assert.equal(await page.evaluate(()=>h4Gfx04Stats.sites),3,
+      'restart reuses three hero warfront compositions without duplicating art');
     assert.equal(await page.evaluate(()=>h4CanyonHeroStats.sites),3,
       'restart never duplicates the three sculpted canyon hero sites');
     assert.equal(await page.evaluate(()=>h4MaterialMicroStats.textures),4,
