@@ -328,11 +328,150 @@ function build({model,lod,tri,quad,solid,panel}){
     }
   }
  }
+
+ function armoredBattery(){
+  // Directional fortified emplacement: armor core, flared base, twin guns,
+  // rear radiator, dish and servicing gantry. Faceted geometry is authored
+  // directly for glTF, never fabricated as invisible collision.
+  const levels=high?10:medium?6:3;
+  const radial=high?12:medium?9:6;
+  const towerRing=(height,radius,phase=0)=>{
+   const points=[];
+   for(let j=0;j<radial;j++){
+    const a=2*Math.PI*j/radial+phase;
+    const variation=1+.07*Math.cos(3*a)+.045*Math.sin(5*a);
+    points.push(vec(Math.cos(a)*radius*variation,height,
+      Math.sin(a)*radius*.86*variation));
+   }
+   return points;
+  };
+  const layers=[];
+  for(let k=0;k<=levels;k++){
+   const t=k/levels;
+   const taper=(.36-t*.10)+(t<.19?.065:0);
+   const shelf=t>.62 && t<.81?.07:0;
+   layers.push(towerRing(-.48+t*.88,taper+shelf,t*.044));
+  }
+  for(let k=0;k<levels;k++)for(let j=0;j<radial;j++){
+   const next=(j+1)%radial;
+   const material=k%5===0?4:k%3===0?1:0;
+   quad(material,layers[k][j],layers[k][next],
+     layers[k+1][next],layers[k+1][j]);
+  }
+  panel(1,layers[0],.035);
+  panel(0,layers[levels].slice().reverse(),.05);
+  // Interlocking armoured skirts encase the tapered foot. High LOD uses
+  // independent irregular plates, middle two, far keeps core silhouette.
+  for(const side of [-1,1]){
+   const x=side*.32;
+   panel(4,[vec(x,-.44,.29),vec(x+side*.13,-.32,.24),
+     vec(x+side*.12,-.26,-.22),vec(x,-.45,-.26)],.05);
+   panel(1,[vec(x*.80,.0,.31),vec(x+side*.09,.065,.25),
+     vec(x+side*.08,.24,-.2),vec(x*.8,.18,-.27)],.04);
+   if(medium||high){
+    beam(2,vec(x*.76,-.35,.36),vec(x*.60,.19,.38),
+      .028,high?8:5);
+    beam(2,vec(x*.76,-.35,-.34),vec(x*.60,.19,-.36),
+      .027,high?8:5);
+    for(let k=0;k<(high?6:3);k++){
+     const y=-.35+k*.113;
+     solid(k%3===0?4:0,x+side*.026,y,
+       .10-k*.018,.078,.052,.13,side*.02);
+    }
+   }
+  }
+  // Wide gun platform and asymmetric rotator cradle.
+  solid(1,0,.225,-.045,.74,.105,.65);
+  panel(0,[vec(-.46,.27,.26),vec(.46,.27,.26),
+    vec(.38,.31,-.29),vec(-.40,.31,-.29)],.065);
+  solid(4,-.07,.335,-.065,.42,.19,.36);
+  solid(0,.025,.405,-.065,.33,.13,.31);
+  // Dual anti-air rails: true elongated 3D bores with open muzzle rings.
+  const gunCount=high?2:2;
+  for(let gun=0;gun<gunCount;gun++){
+   const side=gun===0?-1:1;
+   const x=side*.16;
+   beam(0,vec(x,.38,-.18),vec(x*.84,.57,.55),
+     high?.050:medium?.057:.068,high?12:medium?8:6);
+   beam(1,vec(x*.84,.57,.54),vec(x*.82,.575,.67),
+     .028,high?10:6);
+   if(high||medium){
+    beam(2,vec(x,.40,.03),vec(x*.86,.60,.50),.015,high?7:5);
+    solid(2,x,.425,.15,.13,.053,.16);
+   }
+   if(high){
+    for(let k=0;k<5;k++){
+     const t=k/5;
+     solid(k%2?0:1,x*(1-.14*t),.43+.12*t,.06+t*.44,
+       .105,.028,.064);
+    }
+   }
+  }
+  // Platform supports and exposed mechanical braces.
+  for(const side of [-1,1]){
+   beam(2,vec(side*.23,.18,.22),vec(side*.31,.37,-.13),
+     .024,medium||high?8:5);
+   if(high){
+    beam(2,vec(side*.31,.14,-.27),vec(side*.37,-.16,-.32),.017);
+    solid(2,side*.37,.075,.10,.055,.14,.055);
+   }
+  }
+  // An articulated radar scanner rises behind the turret but does not
+  // turn this anti-air defence module into a perfect symmetric cone.
+  beam(1,vec(-.20,.32,-.24),vec(-.24,.65,-.24),
+    .021,high?8:5);
+  const radarSegments=high?30:medium?18:10;
+  const radarRings=high?8:medium?5:3;
+  const radii=[];
+  for(let k=0;k<=radarRings;k++){
+   const radius=.19*k/radarRings;
+   const ring=[];
+   for(let j=0;j<radarSegments;j++){
+    const angle=j*2*Math.PI/radarSegments;
+    ring.push(vec(-.24+radius*Math.cos(angle),
+      .63+.11*(radius/.19)**2,
+      -.22+radius*.77*Math.sin(angle)));
+   }
+   radii.push(ring);
+  }
+  for(let k=0;k<radarRings;k++)for(let j=0;j<radarSegments;j++){
+   const n=(j+1)%radarSegments;
+   quad(k===radarRings-1?4:0,
+     radii[k][j],radii[k][n],radii[k+1][n],radii[k+1][j]);
+  }
+  loop(2,radii[radarRings],high?.011:.018);
+  solid(3,-.24,.69,-.22,.080,.065,.075);
+  // Rear cooling fins provide recognizable angular silhouette and
+  // make the tower read as machinery, not an isolated stone turret.
+  const fins=high?11:medium?6:3;
+  for(let k=0;k<fins;k++){
+   const x=(k-(fins-1)/2)*(.58/fins);
+   panel(k%3===0?2:1,[
+     vec(x-.012,-.25,-.35),vec(x+.012,-.25,-.35),
+     vec(x+.01,.20,-.45),vec(x-.012,.17,-.49)
+   ],.014);
+  }
+  if(high){
+   // Exposed side access ladder, ceramic wear and scattered armor cracks.
+   for(let k=0;k<9;k++){
+    const y=-.23+k*.062;
+    beam(k%4===0?4:2,vec(.28,y,-.29),vec(.36,y,-.29),.009,5);
+   }
+   beam(2,vec(.28,-.30,-.29),vec(.28,.27,-.29),.012,5);
+   beam(2,vec(.36,-.30,-.29),vec(.36,.27,-.29),.012,5);
+   for(let k=0;k<8;k++){
+    const a=2*Math.PI*k/8;
+    const x=Math.cos(a)*.295,z=Math.sin(a)*.24;
+    solid(k%3===0?4:1,x,-.10+k*.054,z,.07,.023,.05);
+   }
+  }
+ }
  switch(model.recipe){
   case 'stratified_arch':arch();break;
   case 'radar_head':dish();break;
   case 'landed_fighter':fighter();break;
   case 'fractured_carrier':shatteredCarrier();break;
+  case 'armored_battery':armoredBattery();break;
   default:throw Error('Unknown sculpt recipe: '+model.recipe);
  }
 }
