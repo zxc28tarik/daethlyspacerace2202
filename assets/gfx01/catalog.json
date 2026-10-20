@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "note": "Authored deterministic GLB test assets; replace with artist-made models/*.glb without changing runtime integration.",
+  "models": [
+    {
+      "id": "canyon_arch",
+      "category": "rock",
+      "recipe": "stratified_arch",
+      "name": "Kızıl Kaya kemer çekirdeği",
+      "license": "Project original procedural placeholder",
+      "replacementPath": "assets/gfx01/models/canyon_arch.glb",
+      "anchor": "stonegate",
+      "site": "KIZIL KAYA KAPISI",
+      "materials": [
+        {
+          "id": "sand",
+          "color": [
+            0.53,
+            0.35,
+            0.26,
+            1
+          ],
+          "metallic": 0,
+          "roughness": 0.98
+        },
+        {
+          "id": "shade",
+          "color": [
+            0.29,
+            0.18,
+            0.16,
+            1
+          ],
+          "metallic": 0,
+          "roughness": 1
+        }
+      ]
+    },
+    {
+      "id": "observatory_module",
+      "category": "industrial",
+      "recipe": "radar_head",
+      "name": "Gözleme anten başlığı",
+      "license": "Project original procedural placeholder",
+      "replacementPath": "assets/gfx01/models/observatory_module.glb",
+      "anchor": "observation",
+      "site": "KANYON GOZLEME",
+      "materials": [
+        {
+          "id": "steel",
+          "color": [
+            0.4,
+            0.52,
+            0.59,
+            1
+          ],
+          "metallic": 0.61,
+          "roughness": 0.46
+        },
+        {
+          "id": "brass",
+          "color": [
+            0.73,
+            0.49,
+            0.28,
+            1
+          ],
+          "metallic": 0.74,
+          "roughness": 0.38
+        },
+        {
+          "id": "glass",
+          "color": [
+            0.14,
+            0.46,
+            0.62,
+            1
+          ],
+          "metallic": 0.38,
+          "roughness": 0.24
+        }
+      ]
+    },
+    {
+      "id": "patrol_fighter",
+      "category": "ship",
+      "recipe": "landed_fighter",
+      "name": "Liman statik avcı modeli",
+      "license": "Project original procedural placeholder",
+      "replacementPath": "assets/gfx01/models/patrol_fighter.glb",
+      "anchor": "spaceport",
+      "site": "ASKERI UZAY LIMANI",
+      "materials": [
+        {
+          "id": "hull",
+          "color": [
+            0.35,
+            0.43,
+            0.52,
+            1
+          ],
+          "metallic": 0.64,
+          "roughness": 0.45
+        },
+        {
+          "id": "canopy",
+          "color": [
+            0.05,
+            0.27,
+            0.44,
+            1
+          ],
+          "metallic": 0.41,
+          "roughness": 0.15
+        },
+        {
+          "id": "engine",
+          "color": [
+            0.65,
+            0.35,
+            0.18,
+            1
+          ],
+          "metallic": 0.75,
+          "roughness": 0.35
+        }
+      ]
+    }
+  ]
+}
