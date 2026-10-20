@@ -3083,6 +3083,185 @@
             if(laneX>570)return H4_ARENA_POCKETS[2];
             return H4_ARENA_POCKETS[0];
         }
+
+        // GFX04: Three purpose-built warfront silhouettes, each built once.
+        // Original W04 decorative meshes stay as hidden fallback groups. None
+        // of these parts registers collision volumes, damage or a new hunter.
+        const h4Gfx04Stats={sites:0,parts:0,partsByPocket:{CENTER:0,WRECK:0,DEFENSE:0},
+            hiddenOldPockets:0,hiddenOldLandmarks:0,
+            customHullFaces:0,materials:7};
+        function h4Gfx04CarrierGeometry(){
+            // Custom fractured spacecraft footprint; not a scaled primitive.
+            const shape=new THREE.Shape();
+            shape.moveTo(-.54,-.20);shape.lineTo(-.39,.16);
+            shape.lineTo(-.21,.43);shape.lineTo(-.10,.31);
+            shape.lineTo(.10,.34);shape.lineTo(.34,.22);
+            shape.lineTo(.47,.31);shape.lineTo(.55,-.17);
+            shape.lineTo(.35,-.39);shape.lineTo(.14,-.28);
+            shape.lineTo(-.06,-.43);shape.lineTo(-.30,-.27);
+            shape.closePath();
+            const geometry=new THREE.ExtrudeGeometry(shape,{
+                steps:1,depth:.22,bevelEnabled:true,
+                bevelThickness:.018,bevelSize:.026,bevelSegments:2,curveSegments:1
+            });
+            geometry.translate(0,0,-.11);
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+        function h4Gfx04JaggedPlateGeometry(){
+            const shape=new THREE.Shape();
+            shape.moveTo(-.50,-.20);shape.lineTo(-.46,.19);
+            shape.lineTo(-.21,.42);shape.lineTo(.11,.34);
+            shape.lineTo(.28,.12);shape.lineTo(.5,-.16);
+            shape.lineTo(.21,-.32);shape.lineTo(-.10,-.27);
+            shape.closePath();
+            const geo=new THREE.ExtrudeGeometry(shape,{
+                depth:.10,steps:1,bevelEnabled:true,
+                bevelThickness:.013,bevelSize:.013,bevelSegments:1
+            });
+            geo.translate(0,0,-.05);geo.computeVertexNormals();
+            return geo;
+        }
+        const H4_GFX04_GEO=Object.freeze({
+            fracturedCarrier:h4Gfx04CarrierGeometry(),
+            brokenPlate:h4Gfx04JaggedPlateGeometry(),
+            deck:new THREE.BoxGeometry(1,1,1),
+            support:new THREE.CylinderGeometry(.08,.11,1,6,1),
+            cannon:new THREE.CylinderGeometry(.2,.31,1,10,2),
+            engine:new THREE.TorusGeometry(.50,.10,9,24),
+            charredCore:new THREE.IcosahedronGeometry(.50,1),
+            radar:new THREE.SphereGeometry(.5,20,12,0,Math.PI*2,0,Math.PI*.43),
+            beacon:new THREE.SphereGeometry(.5,10,8)
+        });
+        const H4_GFX04_MAT=Object.freeze({
+            armor:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,normalMap:h4MicroMaps.metal.normal,
+                roughnessMap:h4MicroMaps.metal.roughness,color:0x788895,
+                roughness:.72,metalness:.48,flatShading:true}),
+            exposed:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.steel,normalMap:h4MicroMaps.metal.normal,
+                color:0xa7a69c,roughness:.66,metalness:.60}),
+            soot:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.armor,color:0x363941,roughness:.95,
+                metalness:.14,flatShading:true}),
+            rock:new THREE.MeshStandardMaterial({
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
+                color:0x938173,roughness:1,flatShading:true}),
+            copper:new THREE.MeshStandardMaterial({
+                color:0xb28b6c,metalness:.71,roughness:.48}),
+            defense:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.armor,normalMap:h4MicroMaps.metal.normal,
+                color:0x8397a6,roughness:.50,metalness:.58}),
+            ember:new THREE.MeshBasicMaterial({color:0xe88551}),
+            red:new THREE.MeshBasicMaterial({color:0xf0524d}),
+            blue:new THREE.MeshBasicMaterial({color:0x91cfe6})
+        });
+        function h4BuildGfx04Pocket(group,pocket,index){
+            const artist=new THREE.Group();
+            artist.name='MAP4_GFX04_'+pocket.id+'_ART';
+            artist.userData.h4Gfx04Pocket=pocket.id;
+            artist.userData.visualOnly=true;
+            group.add(artist);
+            const g=H4_GFX04_GEO,m=H4_GFX04_MAT;
+            const put=(distance,dx,alt,geo,mat,scale,rotation=0,name='')=>{
+                const obj=h4PlaceStructure(artist,
+                    MAP4_PHASES.introEnd+distance,pocket.side+dx,
+                    alt,geo,mat,scale);
+                if(rotation)obj.rotateZ(rotation);
+                if(name)obj.name='MAP4_GFX04_'+name;
+                obj.userData.w04VisualOnly=true;
+                obj.userData.visualOnly=true;
+                h4Gfx04Stats.parts++;
+                h4Gfx04Stats.partsByPocket[pocket.id]++;
+                return obj;
+            };
+            if(pocket.id==='CENTER'){
+                // Sparse, readable centre: two sides of broken cover and a
+                // wide open view to all three ordinary hunter patrols.
+                for(const side of [-1,1]){
+                    const x=side*780;
+                    put(440,x,-355,g.brokenPlate,m.rock,[270,95,220],
+                        side*.16,'CENTER_SHATTERED_WALL');
+                    put(720,x+side*120,-370,g.deck,m.armor,[210,85,290],
+                        side*.09,'CENTER_LOW_COVER');
+                    put(870,x-side*95,-320,g.support,m.exposed,[30,250,30],
+                        side*.18,'CENTER_DAMAGED_PYLON');
+                    put(870,x-side*95,-190,g.beacon,m.blue,[25,25,25],0,
+                        'CENTER_GUIDE_LAMP');
+                }
+                put(670,0,-432,g.engine,m.soot,[300,300,220],.12,
+                    'CENTER_CRATER_RIM');
+                put(675,0,-427,g.charredCore,m.soot,[240,22,220],0,
+                    'CENTER_BURNT_IMPACT');
+                for(let i=0;i<4;i++){
+                    const a=i*1.57;
+                    put(560+i*95,Math.cos(a)*380,-422,
+                        g.brokenPlate,i%2?m.rock:m.soot,
+                        [135+i*13,25,110+i*12],a*.14,'CENTER_GROUND_DEBRIS');
+                }
+            }else if(pocket.id==='WRECK'){
+                // An actual visibly fractured carrier with an angular bow,
+                // detached flight decks, exposed ribs and twin exhaust pods.
+                const bow=put(675,-80,-240,g.fracturedCarrier,m.armor,
+                    [820,360,660],-.19,'CARRIER_FRACTURED_HULL');
+                bow.userData.gfx04HeroHull=true;
+                h4Gfx04Stats.customHullFaces=
+                    g.fracturedCarrier.attributes.position.count;
+                put(930,10,-304,g.fracturedCarrier,m.soot,
+                    [555,195,390],.16,'CARRIER_AFT_BREAK');
+                for(const side of [-1,1]){
+                    put(710,side*455,-295,g.brokenPlate,m.armor,
+                        [530,105,360],side*.24,'CARRIER_BROKEN_WING');
+                    put(470,side*380,-355,g.brokenPlate,m.soot,
+                        [360,63,215],side*.19,'CARRIER_WING_TIP');
+                    put(840,side*170,-235,g.engine,m.copper,
+                        [172,172,172],.10,'CARRIER_ENGINE_RING');
+                    put(846,side*170,-228,g.charredCore,m.ember,
+                        [56,56,56],0,'CARRIER_CORE');
+                    for(let rib=0;rib<3;rib++){
+                        put(535+rib*115,side*(116+rib*48),-260+rib*25,
+                            g.support,m.exposed,[30,200+rib*23,30],
+                            side*(.22+rib*.06),'CARRIER_EXPOSED_RIB');
+                    }
+                }
+                for(let i=0;i<5;i++){
+                    put(390+i*172,(i%2?-1:1)*(410+i*32),-419+i*12,
+                        g.brokenPlate,i%3?m.soot:m.exposed,
+                        [170+(i%3)*34,46,145+(i%2)*30],
+                        (i-2)*.13,'CARRIER_FRAGMENT');
+                }
+            }else{
+                // Fortified command battery: radar domes and real layered
+                // armored towers flank the open elite hunter approach.
+                put(930,0,-393,g.fracturedCarrier,m.defense,
+                    [700,160,330],.01,'DEFENSE_COMMAND_BUNKER');
+                for(const side of [-1,1]){
+                    const x=side*445;
+                    put(600,x,-210,g.cannon,m.defense,
+                        [200,500,195],side*.07,'DEFENSE_TAPERED_TOWER');
+                    put(600,x,80,g.deck,m.exposed,
+                        [255,58,230],0,'DEFENSE_BATTERY_PLATFORM');
+                    const dish=put(580,x,224,g.radar,m.copper,
+                        [230,160,200],side*.11,'DEFENSE_RADAR_DISH');
+                    dish.rotation.x=-.45;
+                    put(570,x,278,g.engine,m.red,
+                        [165,165,165],.15,'DEFENSE_TARGET_RING');
+                    put(390,x+side*185,-349,g.brokenPlate,m.defense,
+                        [260,140,340],side*.18,'DEFENSE_ANGLED_WALL');
+                    put(880,x-side*135,-410,g.deck,m.armor,
+                        [250,60,360],side*.12,'DEFENSE_TRENCH_COVER');
+                    for(let i=0;i<3;i++){
+                        put(550+i*180,x+side*(60+i*48),-428,
+                            g.deck,m.soot,[95,35,120],0,'DEFENSE_ARMOR_SLAB');
+                    }
+                }
+                put(1040,0,-240,g.support,m.defense,[65,520,65],
+                    0,'DEFENSE_CONTROL_MAST');
+                put(1040,0,50,g.beacon,m.red,[44,44,44],
+                    0,'DEFENSE_WARNING_LAMP');
+            }
+            h4Gfx04Stats.sites++;
+        }
         function h4BuildArenaWarfront(zone){
             if(h4ArenaWarfrontGroups.length)return;
             // Each pocket has its own readable silhouettes, ground-level cover
@@ -3159,6 +3338,12 @@
                             H4_MATERIALS.wall,[145,225,120]);
                     }
                 }
+                // Replace repetitive W04 boxes with bespoke visible art,
+                // keeping old meshes as hidden, deterministic fallback data.
+                const oldChildren=group.children.slice();
+                oldChildren.forEach(obj=>{obj.visible=false;});
+                h4Gfx04Stats.hiddenOldPockets+=oldChildren.length;
+                h4BuildGfx04Pocket(group,pocket,index);
                 h4ArenaWarfrontGroups.push(group);
                 h4ArenaWarfrontStats.groups++;
             }
@@ -3225,7 +3410,21 @@
                 h4AddCloudLayer(zone,zoneIndex,def);
                 h4AddAtmosphericField(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
-                if(zoneIndex===1)h4BuildArenaWarfront(zone);
+                if(zoneIndex===1){
+                    h4BuildArenaWarfront(zone);
+                    // Old W01 and VQ02 crash/defense/wreck silhouettes overlap
+                    // new GFX04 set pieces. Keep the HUD landmark identities.
+                    for(const lm of h4WorldLandmarks.filter(l=>l.zone===1)){
+                        for(const child of lm.group.children){
+                            if(child.userData.landmark || child.name==='MAP4_VQ04_CONTACT_SHADOW')continue;
+                            if(child.name.startsWith('MAP4_LEGACY_W01_') ||
+                                child.userData.signature){
+                                child.visible=false;
+                                h4Gfx04Stats.hiddenOldLandmarks++;
+                            }
+                        }
+                    }
+                }
                 if(zoneIndex===2)h4BuildIndustrialGauntlet(zone);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
