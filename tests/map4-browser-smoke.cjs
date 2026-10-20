@@ -703,6 +703,29 @@ const assert = require('node:assert/strict');
         hudText:document.getElementById('planetary-route-name').textContent
       };
     });
+    // GFX04C in SOURCE HTML deliberately stays on original artwork,
+    // while offline release loads the 3-LOD battery assets. The factory
+    // source must never fake imported collision or extra game targets.
+    const batteryFallback=await page.evaluate(()=>{
+      const pocket=h4ArenaWarfrontGroups.find(g=>g.userData.pocketId==='DEFENSE');
+      const art=pocket.children.find(x=>x.userData.h4Gfx04Pocket==='DEFENSE');
+      const originals=art.children.filter(x=>h4Gfx04DefenseOldNames.has(x.name));
+      return {scheduled:h4Gfx04DefenseStats.scheduled,
+        fallback:h4Gfx04DefenseStats.fallback,
+        hidden:h4Gfx04DefenseStats.hiddenLegacy,
+        mounts:h4Gfx04DefenseStats.mounted,
+        decals:h4Gfx04DefenseStats.scorchDecals,
+        oldTotal:originals.length,oldVisible:originals.every(x=>x.visible),
+        noNewColliders:h4Gfx04DefenseStats.noNewColliders};
+    });
+    assert.equal(batteryFallback.scheduled,1,'defense GLB attempted only once');
+    assert.equal(batteryFallback.fallback,1,'source HTML has visual-only legacy fallback');
+    assert.equal(batteryFallback.mounts,0,'no bundled GLB in source HTML');
+    assert.equal(batteryFallback.oldTotal,8,'exactly eight original defense pieces');
+    assert.equal(batteryFallback.oldVisible,true,'source defense retains safe original visuals');
+    assert.equal(batteryFallback.hidden,0,'legacy remains visible if GLB unavailable');
+    assert.equal(batteryFallback.decals,0,'unloaded art does not create ground marks');
+    assert.equal(batteryFallback.noNewColliders,true,'defense GLB never changes game physics');
     assert.equal(warfront.groups,3,'three independent visible warfront groups');
     assert(warfront.meshCount>=28&&warfront.meshCount<80,'bounded set-piece geometry');
     assert(warfront.byPocket.every(n=>n>=8),'each pocket has unique scenery');
