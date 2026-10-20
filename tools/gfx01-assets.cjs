@@ -173,8 +173,16 @@ function validateGLB(buf,id){
  const json=JSON.parse(buf.toString('utf8',20,20+jslen));
  if(json.asset?.version!=='2.0'||!json.scenes?.length || !json.meshes?.length)
   throw Error('Not valid glTF2 scene: '+id);
+ if((json.buffers?.[0]?.byteLength||0)>3_000_000)
+  throw Error('Untrusted oversized GLB buffer: '+id);
+ if(!json.images?.length||!json.textures?.length)
+  throw Error('GFX01B GLB needs embedded atlas: '+id);
+ const uvSets=json.meshes.reduce((n,m)=>n+m.primitives.filter(p=>
+  p.attributes?.TEXCOORD_0!==undefined).length,0);
+ if(!uvSets)throw Error('Missing textured UV accessor: '+id);
  return {triangles:json.meshes.reduce((t,m)=>t+m.primitives.reduce((q,p)=>
-   q+(json.accessors[p.indices].count/3),0),0),nodes:json.nodes.length};
+   q+(json.accessors[p.indices].count/3),0),0),
+   nodes:json.nodes.length,images:json.images.length,uvSets};
 }
 function makePack(){
  const out={};
