@@ -5104,13 +5104,6 @@
                 side*1.5,-.20,4.5,1,1,1);
         }
         h4AddSweptFins(h4GeoSwordArt,{hull:h4PlayerTrim,trim:h4ShipLight},6.4,5.2);
-        // GFX05 new model takes over Map4 renderer while legacy detailed
-        // pieces remain retained for stable Map1/source fallback behavior.
-        h4GeoSwordArt.children.forEach(obj=>{obj.visible=false;});
-        const h4PlayerGfx05=h4Gfx05CreateCraft('PLAYER',0);
-        h4PlayerGfx05.position.set(0,0,0);
-        h4GeoSwordArt.userData.h4Gfx05Craft=h4PlayerGfx05;
-        h4GeoSwordArt.add(h4PlayerGfx05);
         geoSwordMesh.add(h4GeoSwordArt);
 
         // GFX-05: real 3D aeroplane/spacecraft silhouettes, distinct pilot
@@ -5343,6 +5336,12 @@
             });
             h4Gfx05Stats.animationFrames++;
         }
+        // Assemble the single GFX05 player model after the shared geometry
+        // and material atlases above have finished initializing.
+        h4GeoSwordArt.children.forEach(obj=>{obj.visible=false;});
+        const h4PlayerGfx05=h4Gfx05CreateCraft('PLAYER',0);
+        h4GeoSwordArt.userData.h4Gfx05Craft=h4PlayerGfx05;
+        h4GeoSwordArt.add(h4PlayerGfx05);
         function h4EnrichFighter(group,isElite,isRacer,liveryIndex=0){
             const shell=new THREE.MeshStandardMaterial({
                 map:h4SurfaceMaps.darkSteel,color:isRacer?0xc9dceb:0x9f9da0,
@@ -5435,7 +5434,8 @@
             scene.remove(mesh);
             const geometries = new Set();
             mesh.traverse(part => {
-                if (part.geometry && !geometries.has(part.geometry)) {
+                if (part.geometry && !geometries.has(part.geometry) &&
+                        !h4Gfx05SharedGeometries.has(part.geometry)) {
                     geometries.add(part.geometry);
                     part.geometry.dispose();
                 }
@@ -5443,7 +5443,8 @@
                 for (const mat of mats) {
                     // Hull, common wings and exhaust are shared with the existing game.
                     if (mat && mat !== enemyHullMat && mat !== enemyWingMat &&
-                            mat !== engineFlareMat && mat.dispose) mat.dispose();
+                            mat !== engineFlareMat &&
+                            !h4Gfx05SharedMaterials.has(mat) && mat.dispose) mat.dispose();
                 }
             });
         }
@@ -5878,7 +5879,8 @@
             scene.remove(r.mesh);
             const geometries = new Set();
             r.mesh.traverse(child => {
-                if (child.geometry && !geometries.has(child.geometry)) {
+                if (child.geometry && !geometries.has(child.geometry) &&
+                        !h4Gfx05SharedGeometries.has(child.geometry)) {
                     geometries.add(child.geometry);
                     child.geometry.dispose();
                 }
