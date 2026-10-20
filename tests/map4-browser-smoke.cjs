@@ -622,8 +622,20 @@ const assert = require('node:assert/strict');
     assert(gfx04.pockets.every(p=>p.visible===true &&
       p.hiddenOld && p.visualOnly && p.materialKinds>=3),
       'warfronts replace their original primitive props with independent art');
-    assert(gfx04.pockets[0].pieces>=13 && gfx04.pockets[0].pieces<=20,
+    assert(gfx04.pockets[0].pieces>=18 && gfx04.pockets[0].pieces<=20,
       'centre remains deliberately sparse with legible hunter space');
+    const centerMarkers=await page.evaluate(()=>{
+      const group=h4ArenaWarfrontGroups[0].children.find(c=>c.userData.h4Gfx04Pocket==='CENTER');
+      return {
+        masts:group.children.filter(c=>c.name==='MAP4_GFX04_CENTER_FLANK_SIGNAL_MAST').length,
+        lamps:group.children.filter(c=>c.name==='MAP4_GFX04_CENTER_FLANK_SIGNAL_LAMP').length,
+        farWreck:group.children.filter(c=>c.name==='MAP4_GFX04_CENTER_DISTANT_CRUISER_FRAGMENT').length,
+        colliderFree:group.children.every(c=>!c.userData.h4Collider)
+      };
+    });
+    assert.deepEqual([centerMarkers.masts,centerMarkers.lamps,centerMarkers.farWreck],
+      [2,2,1],'first person arena sightline has two flank markers and one far wreck');
+    assert.equal(centerMarkers.colliderFree,true,'visual markers never become hitboxes');
     assert(gfx04.pockets[1].pieces>=20 &&
       gfx04.pockets[1].customHulls>=5,'cruiser wreck has five modeled hull sections');
     assert(gfx04.pockets[2].pieces>=20 &&
