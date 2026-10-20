@@ -5247,7 +5247,12 @@
             };
             const result={
                 hull:make(paint,.39,.67),
-                wing:make(paint,.48,.54),
+                // A true opaque body-color livery across the entire upper
+                // wing is more legible from actual chase-camera distance.
+                wing:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
+                    color:trim,metalness:.52,roughness:.48,
+                    side:THREE.DoubleSide
+                })),
                 trim:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
                     color:trim,metalness:.36,roughness:.43,
                     emissive:trim,emissiveIntensity:.18,
