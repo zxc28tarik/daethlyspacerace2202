@@ -267,6 +267,72 @@ const assert = require('node:assert/strict');
     assert(gfx05.stats.sharedGeometries<=14,'strict once-built GPU craft kit');
     assert.equal(gfx05.stats.enginePairs,14,'each of 14 craft models has two engines');
 
+    // GFX05B: real paint/normal/roughness atlases shared by all 14
+    // visual-only aircraft. Texture pixels genuinely differ across the atlas.
+    const craftSurfaces=await page.evaluate(()=>{
+      const gfx=h4Gfx05bMaps,states={...h4Gfx05bStats};
+      const ctx=gfx.albedo.image.getContext('2d');
+      const pixels=ctx.getImageData(0,0,256,256).data;
+      const values=new Set();
+      for(let i=0;i<pixels.length;i+=4*257)values.add(pixels[i]);
+      const models=[h4GeoSwordArt.userData.h4Gfx05Craft,
+        ...racers.map(x=>x.mesh.userData.h4Gfx05Craft),
+        ...hunterTargets.map(x=>x.mesh.userData.h4Gfx05Craft)];
+      const geomMat=(root)=>root.children.find(x=>
+        x.name==='GFX05_TAPERED_3D_HULL')?.material;
+      const wingMat=(root)=>root.children.find(x=>
+        x.name.startsWith('GFX05_SWEPT_WING_'))?.material;
+      const sameMaterials=models.every(root=>
+        geomMat(root)?.map===gfx.albedo &&
+        geomMat(root)?.normalMap===gfx.normal &&
+        geomMat(root)?.roughnessMap===gfx.roughness &&
+        wingMat(root)?.map===gfx.albedo &&
+        wingMat(root)?.normalMap===gfx.normal);
+      const details=models.map(root=>({
+        armor:root.children.filter(x=>x.name==='GFX05_HEEL_ARMOR_STRIP').length,
+        heat:root.children.filter(x=>x.name==='GFX05_THERMAL_ENGINE_SHROUD').length,
+        allVisual:root.children.every(x=>x.userData.visualOnly)
+      }));
+      return {
+        ...states,
+        sameMaterials,
+        models:models.length,
+        details,
+        pixelVariance:values.size,
+        namedMaps:[gfx.albedo.name,gfx.normal.name,gfx.roughness.name],
+        normalLinear:gfx.normal.encoding===THREE.LinearEncoding,
+        roughnessLinear:gfx.roughness.encoding===THREE.LinearEncoding,
+        albedoSRGB:gfx.albedo.encoding===THREE.sRGBEncoding,
+        colorUniqueLiveries:new Set(racers.map(x=>
+          geomMat(x.mesh.userData.h4Gfx05Craft).color.getHex())).size,
+        atlasTexturesUnique:new Set([
+          gfx.albedo.uuid,gfx.normal.uuid,gfx.roughness.uuid]).size,
+        extraGPUBufferCount:h4Gfx05SharedGeometries.size
+      };
+    });
+    assert.equal(craftSurfaces.atlasSets,1,'all aircraft reuse one generated atlas set');
+    assert.equal(craftSurfaces.textures,3,'neutral paint, relief and wear maps');
+    assert.equal(craftSurfaces.palettes,8,'eight intentionally separate craft liveries');
+    assert.equal(craftSurfaces.models,14,'player five rivals eight hunters');
+    assert.equal(craftSurfaces.details.length,14);
+    assert(craftSurfaces.details.every(x=>x.armor===2&&x.heat===2&&x.allVisual),
+      'two readable armor panels and two shrouds per craft, all visual');
+    assert.equal(craftSurfaces.details.length*4,56,
+      'GFX05B adds exactly 56 bounded silhouette details');
+    assert.equal(craftSurfaces.sameMaterials,true,
+      'each hull/wing uses shared texture objects');
+    assert(craftSurfaces.pixelVariance>25,
+      'the paint atlas contains genuine nondestructive wear variation');
+    assert(craftSurfaces.normalLinear && craftSurfaces.roughnessLinear,
+      'normal/roughness maps are linear data');
+    assert(craftSurfaces.albedoSRGB,'albedo interpreted as sRGB');
+    assert.equal(craftSurfaces.colorUniqueLiveries,5,
+      'individual racer colours remain distinct');
+    assert.equal(craftSurfaces.atlasTexturesUnique,3);
+    assert(craftSurfaces.extraGPUBufferCount<=14,
+      'surface quality does not create a unique VBO for each craft');
+
+
     const blast=await page.evaluate(()=>{
       const before={...h4ExplosionStats};
       createExplosion(state.pos.clone().add(new THREE.Vector3(0,10,-100)),
@@ -1192,6 +1258,10 @@ const assert = require('node:assert/strict');
     assert.equal(gfx05Restart.hullUUID,gfx05.registered,
       'same GPU hull reused after all hunters and AI were recreated');
     assert.equal(gfx05Restart.racerColors,5,'restart retains distinctive pilot palettes');
+    assert.equal(await page.evaluate(()=>h4Gfx05bStats.atlasSets),1,
+      'restart reuses the same PBR atlas canvases and GPU textures');
+    assert.equal(await page.evaluate(()=>h4Gfx05bStats.textures),3,
+      'restart never creates duplicate 2D normal or roughness maps');
     assert.equal(await page.evaluate(()=>h4Gfx04Stats.sites),3,
       'restart reuses three hero warfront compositions without duplicating art');
     assert.equal(await page.evaluate(()=>h4CanyonHeroStats.sites),3,

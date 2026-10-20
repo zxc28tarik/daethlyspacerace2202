@@ -376,6 +376,44 @@ const percentile=(numbers,p)=>{
     }
   });
   assert(out.craftGallery.every(x=>x.wings===2&&x.engines===2));
+  // GFX05B geometry/material consistency: same rendering camera, varied
+  // pilot liveries, shared microtexture surfaces, no edited glamour image.
+  out.gfx05bCloseups=[];
+  for(const spec of [
+    {name:'player-texture',progress:14100,kind:'PLAYER',lane:0},
+    {name:'racer-texture',progress:14100,kind:'RACER',lane:240},
+    {name:'hunter-texture',progress:14100,kind:'HUNTER',lane:-260}
+  ]){
+    const m=await page.evaluate(info=>{
+      state.paused=true;state.routeProgress=info.progress;state.map4Phase=2;
+      const target=info.kind==='PLAYER'?h4GeoSwordArt:
+        info.kind==='RACER'?racers[0].mesh:hunterTargets[0].mesh;
+      target.updateWorldMatrix(true,false);
+      const center=new THREE.Vector3();
+      target.getWorldPosition(center);
+      const rot=getRaceFrameAtDistance(info.progress);
+      camera.position.copy(center)
+        .addScaledVector(rot.right,info.kind==='PLAYER'?46:64)
+        .addScaledVector(rot.up,info.kind==='PLAYER'?30:37)
+        .addScaledVector(rot.tangent,48);
+      camera.lookAt(center);
+      camera.fov=52;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();h4UpdateGfx04D(0,7.3);
+      renderer.render(scene,camera);
+      return {name:info.name,geometryCount:h4Gfx05SharedGeometries.size,
+        materialCount:h4Gfx05SharedMaterials.size,
+        paintTextures:h4Gfx05bStats.textures,
+        calls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles};
+    },spec);
+    await page.screenshot({path:path.join(directory,'gfx05b-'+spec.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,'gfx05b-'+spec.name+'-art.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.gfx05bCloseups.push(m);
+  }
+  assert.equal(out.gfx05bCloseups.length,3);
+  assert(out.gfx05bCloseups.every(x=>x.paintTextures===3));
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];
