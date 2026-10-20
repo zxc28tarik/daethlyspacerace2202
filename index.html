@@ -3527,7 +3527,11 @@
             for(let i=0;i<planetaryWorldRegions.length;i++){
                 const def=PLANETARY_REGIONS[i];
                 planetaryWorldRegions[i].visible=def.to>state.routeProgress-4900
-                    && def.from<state.routeProgress+9900;
+                    && def.from<state.routeProgress+9900
+                    // During the fixed combat phase the NEXT industrial
+                    // region's generic factories used to fill the skyline
+                    // behind all three warfronts. Reveal it when phase 3 starts.
+                    && !(state.map4Phase===2 && i===2);
             }
             // Cull distant compositions inside active regions to limit draw calls.
             let nextLandmark=null;
