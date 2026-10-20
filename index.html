@@ -3265,6 +3265,122 @@
                 console.warn('GFX04 carrier fallback remains available:',err);
             });
         }
+
+        // GFX-04C: two independent fortified battery placements share a single
+        // loaded GLB asset family (LOD0/LOD1/LOD2). The old eight large defence
+        // primitives stay visible until ALL replacements have loaded.
+        const h4Gfx04DefenseStats={scheduled:0,mounted:0,failed:0,
+            fallback:0,hiddenLegacy:0,lodGroups:0,scorchDecals:0,
+            noNewColliders:true};
+        const h4Gfx04DefenseOldNames=new Set([
+            'MAP4_GFX04_DEFENSE_TAPERED_TOWER',
+            'MAP4_GFX04_DEFENSE_BATTERY_PLATFORM',
+            'MAP4_GFX04_DEFENSE_RADAR_DISH',
+            'MAP4_GFX04_DEFENSE_TARGET_RING'
+        ]);
+        const h4Gfx04BurnCanvas=document.createElement('canvas');
+        h4Gfx04BurnCanvas.width=h4Gfx04BurnCanvas.height=128;
+        const h4Gfx04BurnCtx=h4Gfx04BurnCanvas.getContext('2d');
+        const h4Gfx04BurnData=h4Gfx04BurnCtx.createImageData(128,128);
+        for(let y=0;y<128;y++)for(let x=0;x<128;x++){
+            const dx=(x-64)/64,dy=(y-64)/64;
+            const r=Math.sqrt(dx*dx+dy*dy);
+            const irregular=.82+.12*Math.sin(Math.atan2(dy,dx)*7.0)+
+                .06*Math.cos(Math.atan2(dy,dx)*13);
+            const darkness=Math.max(0,1-r/irregular);
+            const alpha=Math.pow(darkness,1.60)*.50+
+                Math.pow(darkness,3.5)*.28;
+            const k=(y*128+x)*4;
+            h4Gfx04BurnData.data[k]=30;
+            h4Gfx04BurnData.data[k+1]=25;
+            h4Gfx04BurnData.data[k+2]=22;
+            h4Gfx04BurnData.data[k+3]=Math.round(alpha*255);
+        }
+        h4Gfx04BurnCtx.putImageData(h4Gfx04BurnData,0,0);
+        const h4Gfx04BurnTexture=new THREE.CanvasTexture(h4Gfx04BurnCanvas);
+        const h4Gfx04BurnMaterial=new THREE.MeshBasicMaterial({
+            map:h4Gfx04BurnTexture,transparent:true,depthWrite:false,
+            side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,
+            opacity:.75
+        });
+        function h4MountGfx04Defense(artist,pocket){
+            if(artist.userData.h4Gfx04DefenseRequested)return;
+            artist.userData.h4Gfx04DefenseRequested=true;
+            h4Gfx04DefenseStats.scheduled++;
+            const provider=window.Map4ArtAssets;
+            const ids=['elite_battery','elite_battery_lod1','elite_battery_lod2'];
+            if(!provider||ids.some(id=>!provider.has(id))){
+                h4Gfx04DefenseStats.fallback++;
+                return;
+            }
+            Promise.all([-1,1].map(()=>Promise.all(ids.map(id=>provider.load(id)))))
+                .then(wingRoots=>{
+                    if(wingRoots.some(roots=>roots.some(root=>
+                        !root||!root.children.length)))
+                        throw new Error('Incomplete elite battery LODs');
+                    const holders=[];
+                    for(let wing=0;wing<wingRoots.length;wing++){
+                        const side=wing===0?-1:1;
+                        const progress=MAP4_PHASES.introEnd+600;
+                        const holder=new THREE.Group();
+                        holder.name=side<0?'MAP4_GFX04C_LEFT_BATTERY_GLB':
+                            'MAP4_GFX04C_RIGHT_BATTERY_GLB';
+                        holder.position.copy(h4WorldPosition(progress,
+                            pocket.side+side*445,-145));
+                        holder.quaternion.setFromUnitVectors(H4_UP,
+                            getRaceFrameAtDistance(progress).up);
+                        holder.scale.set(470,600,460);
+                        holder.userData.h4Gfx01Model=
+                            side<0?'elite_battery_left':'elite_battery_right';
+                        holder.userData.h4Gfx01LOD=0;
+                        holder.userData.h4Gfx04Defense=true;
+                        holder.userData.visualOnly=true;
+                        wingRoots[wing].forEach((root,lod)=>{
+                            root.name='MAP4_GFX04C_DEFENSE_LOD'+lod;
+                            root.visible=lod===0;
+                            root.traverse(obj=>{
+                                obj.userData.h4Gfx04DefenseArt=true;
+                                obj.userData.visualOnly=true;
+                            });
+                            holder.add(root);
+                        });
+                        holders.push(holder);
+                    }
+                    for(const holder of holders){
+                        artist.add(holder);
+                        h4Gfx01LODGroups.push(holder);
+                        h4Gfx01Stats.lodGroups++;
+                        h4Gfx01Stats.activeLevels[holder.userData.h4Gfx01Model]=0;
+                        h4Gfx04DefenseStats.lodGroups++;
+                        h4Gfx04DefenseStats.mounted++;
+                    }
+                    // Apply new non-colliding burn decals to the actual bases.
+                    for(const side of [-1,1]){
+                        const progress=MAP4_PHASES.introEnd+600;
+                        const ground=new THREE.Mesh(h4ShadowPlane,h4Gfx04BurnMaterial);
+                        ground.name='MAP4_GFX04C_SCORCHED_PAD';
+                        ground.position.copy(h4WorldPosition(progress,
+                            pocket.side+side*445,-434));
+                        ground.quaternion.setFromUnitVectors(H4_DECAL_UP,
+                            getRaceFrameAtDistance(progress).up);
+                        ground.scale.set(650,850,1);
+                        ground.userData.visualOnly=true;
+                        artist.add(ground);
+                        h4Gfx04DefenseStats.scorchDecals++;
+                    }
+                    for(const old of artist.children){
+                        if(h4Gfx04DefenseOldNames.has(old.name)&&old.visible){
+                            old.visible=false;
+                            h4Gfx04DefenseStats.hiddenLegacy++;
+                        }
+                    }
+                }).catch(err=>{
+                    h4Gfx04DefenseStats.failed++;
+                    h4Gfx04DefenseStats.fallback++;
+                    console.warn('GFX04C legacy defense remains visible:',err);
+                });
+        }
+
         function h4BuildGfx04Pocket(group,pocket,index){
             const artist=new THREE.Group();
             artist.name='MAP4_GFX04_'+pocket.id+'_ART';
@@ -3382,6 +3498,7 @@
                     0,'DEFENSE_WARNING_LAMP');
             }
             if(pocket.id==='WRECK')h4MountGfx04Carrier(artist,pocket);
+            if(pocket.id==='DEFENSE')h4MountGfx04Defense(artist,pocket);
             h4Gfx04Stats.sites++;
         }
         function h4BuildArenaWarfront(zone){

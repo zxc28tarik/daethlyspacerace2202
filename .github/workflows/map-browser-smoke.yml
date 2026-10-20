@@ -1,7 +1,7 @@
 name: Map 1 / Map 4 Browser Smoke
 on:
   push:
-    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, codex/map4-gfx00-baseline-gfx02-canyon, codex/map4-gfx03-canyon-hero-models, codex/map4-gfx01-asset-pipeline, codex/map4-gfx01b-sculpted-glb-lods, codex/map4-gfx03b-hero-cleanup-hud, codex/map4-gfx04-arena-hero-art, codex/map4-gfx04b-carrier-glb-damage, main]
+    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, codex/map4-gfx00-baseline-gfx02-canyon, codex/map4-gfx03-canyon-hero-models, codex/map4-gfx01-asset-pipeline, codex/map4-gfx01b-sculpted-glb-lods, codex/map4-gfx03b-hero-cleanup-hud, codex/map4-gfx04-arena-hero-art, codex/map4-gfx04b-carrier-glb-damage, codex/map4-gfx04c-elite-battery-glb, main]
   workflow_dispatch:
 jobs:
   browser-smoke:

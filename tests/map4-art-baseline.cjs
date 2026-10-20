@@ -207,6 +207,44 @@ const percentile=(numbers,p)=>{
     assert(out.carrierGallery.every(x=>x.imported && x.replacements===8),
       'two carrier views show complete imported model and hidden old hull');
   }
+  // GFX04C detailed evidence: twin defense structures from approach and
+  // flank, with normal HUD and an art-only view at matching camera settings.
+  if(await page.evaluate(()=>!!window.Map4ArtAssets?.has('elite_battery')))
+    await page.waitForFunction(()=>h4Gfx04DefenseStats.mounted===2 ||
+      h4Gfx04DefenseStats.failed>0,null,{timeout:30000});
+  out.batteryGallery=[];
+  for(const shot of [
+    {name:'defense-twins-approach',at:12600,x:890,y:420,
+      targetProgress:13100,targetX:1250,targetY:30},
+    {name:'defense-tower-flank',at:13160,x:2630,y:560,
+      targetProgress:13100,targetX:1695,targetY:60}
+  ]){
+    const snapshot=await page.evaluate(p=>{
+      state.paused=true;state.routeProgress=13200;
+      state.map4Phase=2;
+      camera.position.copy(h4WorldPosition(p.at,p.x,p.y));
+      const focal=h4WorldPosition(p.targetProgress,p.targetX,p.targetY);
+      camera.lookAt(focal);camera.fov=62;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(19);
+      h4UpdateGfx01LOD();renderer.render(scene,camera);
+      const group=h4ArenaWarfrontGroups.find(x=>x.userData.pocketId==='DEFENSE');
+      const art=group.children.find(x=>x.userData.h4Gfx04Pocket==='DEFENSE');
+      return {name:p.name,groupVisible:group.visible,
+        mounted:h4Gfx04DefenseStats.mounted,
+        decals:h4Gfx04DefenseStats.scorchDecals,
+        artVisible:art.visible,
+        drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+    },shot);
+    await page.screenshot({path:path.join(directory,shot.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,shot.name+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.batteryGallery.push(snapshot);
+  }
+  assert.equal(out.batteryGallery.length,2);
+  if(await page.evaluate(()=>!!window.Map4ArtAssets?.has('elite_battery')))
+    assert(out.batteryGallery.every(v=>v.mounted===2&&v.decals===2),
+      'two fortified batteries and two scorched bases appear in release');
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];

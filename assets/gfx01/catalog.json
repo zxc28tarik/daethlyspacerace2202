@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "Deterministic placeholder GLBs for four subjects, each with LOD 0/1/2. Artist-made models can replace generated resources via replacementPath.",
+  "note": "Five art families with 3 LODs each. Procedural placeholder models can be replaced with licensed artist-made GLBs via catalog paths.",
   "models": [
     {
       "id": "canyon_arch",
@@ -179,6 +179,73 @@
           ],
           "metallic": 0.28,
           "roughness": 0.65
+        }
+      ]
+    },
+    {
+      "id": "elite_battery",
+      "category": "defense",
+      "recipe": "armored_battery",
+      "name": "Arena doğu cephesi zırhlı savunma bataryası",
+      "license": "Original project-generated provisional art, not Blender sculpt",
+      "replacementPath": "assets/gfx01/models/elite_battery.glb",
+      "anchor": "arena_defense",
+      "site": "ELIT SAVUNMA HATTI",
+      "materials": [
+        {
+          "id": "titanium_armor",
+          "color": [
+            0.59,
+            0.71,
+            0.78,
+            1
+          ],
+          "metallic": 0.65,
+          "roughness": 0.51
+        },
+        {
+          "id": "dark_recesses",
+          "color": [
+            0.27,
+            0.34,
+            0.39,
+            1
+          ],
+          "metallic": 0.55,
+          "roughness": 0.78
+        },
+        {
+          "id": "brass_hydraulics",
+          "color": [
+            0.78,
+            0.6,
+            0.39,
+            1
+          ],
+          "metallic": 0.75,
+          "roughness": 0.47
+        },
+        {
+          "id": "warning_lights",
+          "color": [
+            0.93,
+            0.25,
+            0.18,
+            1
+          ],
+          "metallic": 0.15,
+          "roughness": 0.33
+        },
+        {
+          "id": "edge_ceramic",
+          "color": [
+            0.78,
+            0.81,
+            0.79,
+            1
+          ],
+          "metallic": 0.36,
+          "roughness": 0.68
         }
       ]
     }

@@ -35,8 +35,9 @@ function periodicNoise(size,seed,frequency,x,y){
 }
 function create(kind,size=256){
  const scan=Buffer.alloc(size*(1+size*4));
- const rock=kind==='rock',wreck=kind==='wreck';
- const base=rock?[218,200,180]:wreck?[145,162,176]:[201,210,220];
+ const rock=kind==='rock',wreck=kind==='wreck',defense=kind==='defense';
+ const base=rock?[218,200,180]:wreck?[145,162,176]:
+   defense?[165,188,202]:[201,210,220];
  for(let y=0;y<size;y++){
   const off=y*(1+4*size);
   scan[off]=0;
@@ -51,7 +52,21 @@ function create(kind,size=256){
      ((y%64===0||x%64===0)?-.1:0);
    const p=1+(n-.5)*(rock?.32:wreck?.37:.16)+band;
    const idx=off+1+4*x;
-   if(wreck){
+   if(defense){
+     const seamHorizontal=Math.min((y/size*7)%1,1-(y/size*7)%1);
+     const seamVertical=Math.min((x/size*5)%1,1-(x/size*5)%1);
+     const oil=.6*periodicNoise(size,3012,5,x,y)+
+       .4*periodicNoise(size,4233,17,x,y);
+     const abrasion=periodicNoise(size,9931,40,x,y);
+     const mark=(seamHorizontal<.014||seamVertical<.013)?.095:0;
+     const stain=Math.max(0,oil-.57)*.36;
+     const scratch=abrasion>.89?.10:0;
+     const brightness=p*(1-mark-stain-scratch);
+     for(let c=0;c<3;c++){
+       scan[idx+c]=Math.max(0,Math.min(255,
+         Math.round(base[c]*brightness)));
+     }
+   }else if(wreck){
      // Periodic pseudo-art treatment: scorch fields, oxide, directional
      // scratches and intermittent plate seams. No externally loaded atlas.
      const u=x/size,v=y/size,tau=2*Math.PI;

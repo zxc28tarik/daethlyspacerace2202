@@ -11,7 +11,7 @@ const html=fs.readFileSync(game,'utf8');
 const manifest=JSON.parse(fs.readFileSync(build,'utf8'));
 assert(!/<script[^>]+src=["']https?:/i.test(html),'external script in offline file');
 assert(!/<link[^>]+href=["']https?:/i.test(html),'external stylesheet in offline file');
-assert.equal(Object.keys(manifest.assets).length,12,'4 subjects x 3 sculpted LODs');
+assert.equal(Object.keys(manifest.assets).length,15,'5 subjects x 3 sculpted LODs');
 const {makePack,validateGLB}=require('../tools/gfx01-assets.cjs');
 const pack=makePack();
 for(const [id,v] of Object.entries(pack)){
@@ -43,6 +43,8 @@ for(const [id,v] of Object.entries(pack)){
    h4Gfx01Stats.failed>0,null,{timeout:30000});
   await page.waitForFunction(()=>h4Gfx04CarrierStats.mounted===1 ||
    h4Gfx04CarrierStats.failed>0,null,{timeout:30000});
+  await page.waitForFunction(()=>h4Gfx04DefenseStats.mounted===2 ||
+   h4Gfx04DefenseStats.failed>0,null,{timeout:30000});
   const art=await page.evaluate(()=>{
    const root=h4WorldLandmarks;
    const imported=[];
@@ -70,8 +72,8 @@ for(const [id,v] of Object.entries(pack)){
   assert.equal(art.state.mounted,3,'three GLB instances mounted');
   assert.equal(art.state.failed,0,'no GLB loader failure');
   assert.equal(art.state.fallback,0,'all three sample GLBs provided');
-  assert.equal(art.cache.decoded,12,'four GLB assets each have 3 decoded LODs');
-  assert.equal(art.cache.cacheEntries,12,'twelve decoded model cache entries');
+  assert.equal(art.cache.decoded,15,'five GLB assets each have three decoded LODs');
+  assert.equal(art.cache.cacheEntries,15,'fifteen decoded model cache entries');
   assert.deepEqual(art.imported.map(x=>x.id).sort(),
    ['canyon_arch','observatory_module','patrol_fighter']);
   assert(art.oldHidden,'fallback rock arch hides only after model loaded');
@@ -143,6 +145,44 @@ for(const [id,v] of Object.entries(pack)){
   assert.equal(flagship.loadedVisualOnly,true,'no physical GLB collision volumes');
   assert.equal(flagship.collider,null);
   assert.equal(flagship.sceneNested,true,'cruiser belongs to original warfront scene');
+  // GFX04C: left/right towers have individual transforms, share parsed
+  // geometry/material buffers, and replace exactly the 8 previous primitives.
+  const defense=await page.evaluate(()=>{
+    const pocket=h4ArenaWarfrontGroups.find(g=>g.userData.pocketId==='DEFENSE');
+    const sculpt=pocket.children.find(g=>g.name==='MAP4_GFX04_DEFENSE_ART');
+    const holders=sculpt.children.filter(x=>x.userData.h4Gfx04Defense);
+    const old=sculpt.children.filter(x=>h4Gfx04DefenseOldNames.has(x.name));
+    const decals=sculpt.children.filter(x=>x.name==='MAP4_GFX04C_SCORCHED_PAD');
+    const left=holders.find(x=>x.name.includes('LEFT'));
+    const right=holders.find(x=>x.name.includes('RIGHT'));
+    const shared=left&&right?left.children[0].children[0].geometry===
+      right.children[0].children[0].geometry:false;
+    return {stats:{...h4Gfx04DefenseStats},
+      holders:holders.map(x=>({name:x.name,position:x.position.toArray(),
+        lods:x.children.length,artOnly:x.children.every(y=>y.userData.visualOnly)})),
+      oldTotal:old.length,oldHidden:old.every(x=>!x.visible),
+      scorch:decals.length,
+      scorchDecorative:decals.every(x=>x.userData.visualOnly&&!x.userData.h4Collider),
+      collider:holders.some(x=>x.userData.h4Collider),
+      geometryShared:shared,
+      positionsIndependent:left&&right?
+        left.position.distanceTo(right.position)>500:false};
+  });
+  assert.equal(defense.stats.scheduled,1,'defense site mounted exactly once');
+  assert.equal(defense.stats.mounted,2,'both armored towers loaded');
+  assert.equal(defense.stats.failed,0,'no defense GLB load failed');
+  assert.equal(defense.stats.fallback,0,'model replacement succeeded');
+  assert.equal(defense.stats.hiddenLegacy,8,'eight former tower/radar pieces hidden');
+  assert.equal(defense.oldTotal,8,'all eight superseded elements accounted for');
+  assert(defense.oldHidden,'legacy blocks hidden only after new art ready');
+  assert.equal(defense.holders.length,2);
+  assert(defense.holders.every(x=>x.lods===3 && x.artOnly));
+  assert.equal(defense.stats.lodGroups,2,'two independently culled 3-LOD models');
+  assert.equal(defense.scorch,2,'two grounded burn marks installed');
+  assert.equal(defense.scorchDecorative,true,'scorch decals never collide');
+  assert.equal(defense.collider,false,'defense models never create invisible hitboxes');
+  assert(defense.geometryShared,'both imported towers share GPU buffer geometry');
+  assert(defense.positionsIndependent,'two batteries visibly separated in world');
   const reuses=await page.evaluate(async()=>{
    const a=await Map4ArtAssets.load('canyon_arch');
    const b=await Map4ArtAssets.load('canyon_arch');
@@ -150,7 +190,7 @@ for(const [id,v] of Object.entries(pack)){
    return {decoded:now.decoded,clone: a!==b,
     sameGeometry:a.children[0].geometry===b.children[0].geometry};
   });
-  assert.equal(reuses.decoded,12,'cache prevents GLB reparse');
+  assert.equal(reuses.decoded,15,'cache prevents GLB reparse');
   assert.equal(reuses.clone,true,'separate scene clones per use');
   assert.equal(reuses.sameGeometry,true,'GPU geometry is shared across clones');
   const levels=await page.evaluate(()=>{
@@ -173,11 +213,11 @@ for(const [id,v] of Object.entries(pack)){
     levels.returnNear.level],[0,1,2,0],'actual runtime LOD transition order');
   assert.deepEqual(levels.far.visible,[false,false,true],
     'only a single LOD renders at far distance');
-  assert.equal(levels.groups,4,'four anchored model groups with LOD');
+  assert.equal(levels.groups,6,'four sites plus two independent defensive GLB LOD groups');
   assert(levels.switches>=3,'LOD updates replace visible model without GLB parse');
   assert.equal(levels.geometryShared,true);
   const geometryBudget={};
-  for(const id of ['canyon_arch','observatory_module','patrol_fighter','wreck_carrier']){
+  for(const id of ['canyon_arch','observatory_module','patrol_fighter','wreck_carrier','elite_battery']){
     const p0=manifest.assets[id].triangles;
     const p1=manifest.assets[id+'_lod1'].triangles;
     const p2=manifest.assets[id+'_lod2'].triangles;
@@ -207,6 +247,7 @@ for(const [id,v] of Object.entries(pack)){
    bytes:manifest.bundleBytes,glbLoaded:art.state.mounted,
    models:art.imported.map(x=>x.id),cacheDecodes:art.cache.decoded,
    LODTriangles:geometryBudget,carrierHiddenLegacy:flagship.stats.hiddenLegacy,
+   twinBatteryMounts:defense.stats.mounted,decals:defense.scorch,
    networkRequests:network.length,map1Isolated:true
   }));
  }finally{await browser.close();}
