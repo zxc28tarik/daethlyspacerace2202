@@ -127,6 +127,31 @@ const percentile=(numbers,p)=>{
   }
   assert.deepEqual(out.heroGallery.map(x=>x.kind),['stonegate','mesa','observation']);
   assert(out.heroGallery.every(x=>x.childCount>=12&&x.drawCalls>0));
+  out.warfrontGallery=[];
+  for(const site of [
+    {name:'center',x:0,focus:13280,view:12650,side:0},
+    {name:'wreck',x:-1250,focus:13320,view:12720,side:-400},
+    {name:'defense',x:1250,focus:13400,view:12750,side:400}
+  ]){
+    const info=await page.evaluate(data=>{
+      state.paused=true;state.map4Phase=2;state.routeProgress=13200;
+      camera.position.copy(h4WorldPosition(data.view,data.side,360));
+      camera.lookAt(h4WorldPosition(data.focus,data.x,-100));
+      camera.fov=64;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(16);
+      renderer.render(scene,camera);
+      const grp=planetaryWorldRegions[1].children.find(
+        x=>x.name==='MAP4_GFX04_'+data.name.toUpperCase()+'_SCULPT');
+      return {name:data.name,parts:grp.children.length,
+        calls:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+    },site);
+    await page.screenshot({path:path.join(directory,'warfront-'+site.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,'warfront-'+site.name+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.warfrontGallery.push(info);
+  }
+  assert.equal(out.warfrontGallery.length,3);
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];
