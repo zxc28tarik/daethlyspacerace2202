@@ -1812,6 +1812,8 @@
                     getRaceFrameAtDistance(progress).up);
                 mesh.scale.set(width,height,depth);
                 mesh.userData.visualOnly=true;
+                mesh.userData.h4CliffProgress=progress;
+                mesh.userData.h4CliffSide=center;
                 cliffs.add(mesh);
                 h4TerrainArtStats.cliffs++;
             }
