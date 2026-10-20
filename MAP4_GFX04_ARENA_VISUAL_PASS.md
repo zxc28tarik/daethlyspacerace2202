@@ -23,6 +23,12 @@ Savaşın ikinci fazı kesin 60 saniye sürer; oyuncu ve beş rakip ileri gideme
 - Yüksek radar çanakları, kırmızı hedef işaretleri, açılı zırhlı cepheler, yarı gömülü tahkimatlar.
 - Tek tip blok barikat dizisi yerine basamaklı fiziksel mühendislik hissi hedeflendi.
 
+## Ek kalite geçişi: arka plandaki tekrarlı kutular
+- Arena çerçevesinde eski otomatik üretilmiş **28 benzer dikdörtgen bina** görünümü kaldırıldı; yalnız 10 düşük, parçalı zırh/enkaz formu aynı alan boyunca konumlandı. Bu dekoratif kütleler fiziksel engel değildir.
+- W02 geniş çevredeki 16 yakın obje artık düz kutular yerine yıkık plaka/yanık çekirdek geometri; 28 uzak silüet, açısal kruvazör/enkaz geometrileriyle değiştirildi. **44 obje sayısı aynıdır**, ancak görünüş ve materyaller savaş alanına özgüdür.
+- Her bölgede görülen anlamsız büyük dekoratif yön halkaları, bu arenada tek bir merkezi navigasyon halkasına indirildi; üç savaş cebi oyun HUD'undan seçilebilir.
+- Amaç, ana savaş enkazı ve elit savunma kütlelerinin tekrarlı binalar arasında kaybolmasını önlemek. Dinamik avcı hedefleri hiçbir dekor nedeniyle görünmez mermi isabeti almaz.
+
 ## Teknik sınırlar
 - Her cephe GFX-04 sanat çocuk grubunu tek sefer oluşturur: `MAP4_GFX04_CENTER_ART`, `MAP4_GFX04_WRECK_ART`, `MAP4_GFX04_DEFENSE_ART`.
 - Eski W04 kütleleri saklanır fakat görünmez; 3 eski W01 landmark + 3 VQ02 signature dekorları görünmez bırakılır. Landmark isimleri, zone HUD ve önceki test sayaçları kalır.
