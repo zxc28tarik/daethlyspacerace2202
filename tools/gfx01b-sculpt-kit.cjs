@@ -187,10 +187,152 @@ function build({model,lod,tri,quad,solid,panel}){
    }
   }
  }
+
+ function shatteredCarrier(){
+  // A dedicated high/medium/far wrecked battleship surface, authored in its
+  // own local [-1,1] coordinates; no colliders or functional weapons.
+  const lengthSegments=high?28:medium?16:9;
+  const ringSides=high?14:medium?10:7;
+  const hull=(t,angle)=>{
+   const z=.77-t*1.49;
+   const bow=Math.max(.18,Math.min(1,(t+.04)*5));
+   const stern=Math.max(.33,Math.min(1,(1.11-t)*3));
+   const width=(.20+.14*Math.sin(Math.PI*t*.98))*bow*stern;
+   const heigh=.16+.045*Math.sin(Math.PI*t);
+   const crumple=.018*Math.sin(t*57+angle*6.7)+
+      (high?.012:medium?.007:0)*Math.sin(t*101-angle*13);
+   return vec((width+crumple)*Math.cos(angle),
+      -.01+(heigh+crumple*.3)*Math.sin(angle)+t*.035,
+      z);
+  };
+  for(let k=0;k<lengthSegments;k++){
+   const t=k/lengthSegments,next=(k+1)/lengthSegments;
+   for(let j=0;j<ringSides;j++){
+    const a=2*Math.PI*j/ringSides,b=2*Math.PI*(j+1)/ringSides;
+    const inRupture=t>.42&&t<.61 && j>=2&&j<=Math.floor(ringSides*.47);
+    if(inRupture)continue; // torn open plate exposes the ship's inner ribs
+    const mat=inRupture?1:(k%9===0&&j%3===0?1:0);
+    quad(mat,hull(t,a),hull(t,b),hull(next,b),hull(next,a));
+   }
+  }
+  // Deep central fracture; broken face plates lean away from the breach.
+  for(const sign of [-1,1]){
+    panel(1,[vec(sign*.15,.21,.18),vec(sign*.33,.29,.04),
+      vec(sign*.46,.08,-.06),vec(sign*.22,.12,-.20)],.025);
+    panel(2,[vec(sign*.07,.045,.08),vec(sign*.25,-.12,-.06),
+      vec(sign*.24,-.18,-.32),vec(sign*.065,-.04,-.16)],.025);
+  }
+  // Structural ribs and visible internal deck beams across the torn opening.
+  for(let i=0;i<(high?11:medium?6:3);i++){
+    const z=.24-i*.073;
+    const w=.22+Math.sin(i*1.7)*.075;
+    beam(i%4===0?2:1,vec(-w,-.13,z),vec(w,-.13,z),.011,high?8:5);
+    if(high||medium){
+     beam(2,vec(-w,-.13,z),vec(-w*.65,.20,z),.012,5);
+     beam(2,vec(w,-.13,z),vec(w*.65,.20,z),.012,5);
+    }
+  }
+  // Port wing mostly intact but scorched; starboard wing fractured in pieces.
+  for(const sign of [-1,1]){
+    panel(0,[vec(sign*.16,-.06,.28),
+      vec(sign*.42,-.035,.24),vec(sign*.87,-.048,-.11),
+      vec(sign*.92,-.085,-.24),vec(sign*.36,-.10,-.34),
+      vec(sign*.16,-.075,-.22)],.060);
+    if(sign>0){
+      // jagged break and exposed spars instead of a perfect mirrored tip
+      panel(1,[vec(.53,-.02,-.27),vec(.83,.06,-.38),
+        vec(.99,-.19,-.48),vec(.67,-.12,-.51)],.026);
+      beam(2,vec(.42,-.02,-.17),vec(1.03,.01,-.38),.015,7);
+    }else{
+      panel(1,[vec(-.70,-.02,.0),vec(-.95,.01,-.09),
+        vec(-.83,-.06,-.21),vec(-.68,-.10,-.16)],.032);
+      if(high)beam(2,vec(-.36,.0,.05),vec(-.86,-.045,-.14),.013,7);
+    }
+    if(medium||high){
+      panel(2,[vec(sign*.25,.015,-.03),vec(sign*.39,.01,-.04),
+        vec(sign*.65,.028,-.27),vec(sign*.46,.006,-.21)],.013);
+      for(let j=0;j<(high?5:2);j++){
+       const a=j/(high?5:2);
+       beam(j%2?2:1,
+        vec(sign*(.27+.35*a),-.002,.035-.18*a),
+        vec(sign*(.37+.39*a),-.02,-.26-.17*a),.005,5);
+      }
+    }
+  }
+  // Stacked bridge sections; one side deliberately collapsed.
+  const count=high?7:medium?4:2;
+  for(let i=0;i<count;i++){
+    const t=i/count,z=.43-t*.59;
+    solid(i%3===0?1:0,-.055+t*.07,.19+t*.035,z,
+      .19-t*.025,.05+.012*(i%3),.135,
+      -.015*i);
+  }
+  if(high){
+    for(let i=0;i<11;i++){
+      const z=.36-i*.088;
+      solid(i%3===0?2:0,.01,.255,z,.095,.018,.05);
+    }
+  }
+  // Two scorched drive nozzles, each with a true faceted hollow opening,
+  // a darker internal ring and discontinuous armored petals.
+  for(const sign of [-1,1]){
+    const cx=sign*.21,centerY=-.06;
+    const ring=(z,r,n)=>{
+      const pts=[];
+      for(let i=0;i<n;i++){
+       const a=2*Math.PI*i/n;
+       pts.push(vec(cx+Math.cos(a)*r,centerY+Math.sin(a)*r,z));
+      }
+      return pts;
+    };
+    const n=high?24:medium?16:9;
+    const front=ring(-.66,.135,n),rear=ring(-.81,.14,n),
+      throat=ring(-.84,.08,n);
+    for(let j=0;j<n;j++){
+      if(high&&j%7===0)continue; // missing heatshield petal
+      const next=(j+1)%n;
+      quad(j%5===0?1:0,front[j],front[next],rear[next],rear[j]);
+      quad(1,rear[j],rear[next],throat[next],throat[j]);
+    }
+    loop(2,throat,high?.008:.012);
+    if(medium||high){
+      const cap=ring(-.90,.04,n);
+      for(let j=0;j<n;j++){
+       if(j%6===0)continue;
+       quad(3,throat[j],throat[(j+1)%n],cap[(j+1)%n],cap[j]);
+      }
+      for(let j=0;j<(high?8:4);j++){
+       const a=j*Math.PI*2/(high?8:4);
+       const p=i=>vec(cx+Math.cos(a)*i,centerY+Math.sin(a)*i,-.74);
+       beam(2,p(.155),p(.205),.009,5);
+      }
+    }
+  }
+  // Detached armor/antenna fragments stay integrated in the flagship GLB.
+  if(medium||high){
+    for(let i=0;i<(high?14:6);i++){
+      const side=i%2?1:-1,z=.48-i*.088;
+      solid(i%4===0?2:1,side*(.40+(i%5)*.068),
+        -.19+Math.sin(i*2.3)*.075,z,.08+(i%3)*.02,
+        .023+(i%4)*.01,.14+(i%3)*.02,(i%4-1)*.11);
+    }
+  }
+  // Destroyed bridge mast, etched radiator covers and burnt vent slots.
+  if(high){
+    beam(2,vec(-.08,.20,.22),vec(-.32,.42,.10),.014,7);
+    beam(1,vec(.09,.19,-.17),vec(.24,.33,-.32),.011,7);
+    for(let j=0;j<9;j++){
+      const z=.20-j*.085;
+      solid(j%4===0?1:2,-.17,.126,z,.063,.012,.024);
+      solid(j%3===0?1:2,.17,.126,z,.063,.012,.024);
+    }
+  }
+ }
  switch(model.recipe){
   case 'stratified_arch':arch();break;
   case 'radar_head':dish();break;
   case 'landed_fighter':fighter();break;
+  case 'fractured_carrier':shatteredCarrier();break;
   default:throw Error('Unknown sculpt recipe: '+model.recipe);
  }
 }

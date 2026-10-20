@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "Authored deterministic GLB test assets; replace with artist-made models/*.glb without changing runtime integration.",
+  "note": "Deterministic placeholder GLBs for four subjects, each with LOD 0/1/2. Artist-made models can replace generated resources via replacementPath.",
   "models": [
     {
       "id": "canyon_arch",
@@ -123,6 +123,62 @@
           ],
           "metallic": 0.75,
           "roughness": 0.35
+        }
+      ]
+    },
+    {
+      "id": "wreck_carrier",
+      "category": "wreck",
+      "recipe": "fractured_carrier",
+      "name": "Arena batı cephesi dev kırık kruvazör",
+      "license": "Project-authored procedural art placeholder, not hand-sculpted",
+      "replacementPath": "assets/gfx01/models/wreck_carrier.glb",
+      "anchor": "arena_wreck",
+      "site": "DUSMUS KRUVAZOR",
+      "materials": [
+        {
+          "id": "charcoal_hull",
+          "color": [
+            0.58,
+            0.67,
+            0.76,
+            1
+          ],
+          "metallic": 0.62,
+          "roughness": 0.75
+        },
+        {
+          "id": "burnt_edges",
+          "color": [
+            0.35,
+            0.38,
+            0.43,
+            1
+          ],
+          "metallic": 0.28,
+          "roughness": 0.91
+        },
+        {
+          "id": "exposed_titanium",
+          "color": [
+            0.78,
+            0.82,
+            0.84,
+            1
+          ],
+          "metallic": 0.71,
+          "roughness": 0.52
+        },
+        {
+          "id": "reactor_heat",
+          "color": [
+            0.81,
+            0.38,
+            0.2,
+            1
+          ],
+          "metallic": 0.28,
+          "roughness": 0.65
         }
       ]
     }

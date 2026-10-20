@@ -135,7 +135,8 @@ function glbFromGeometry(model,lod=0){
   const indices=accessor(Array.from({length:vertexCount},(_,j)=>j),'SCALAR',5123,34963);
   primitives.push({attributes:{POSITION:pos,NORMAL:nor,TEXCOORD_0:uv},indices,material:i,mode:4});
  });
- const texturePNG=atlas.create(model.category==='rock'?'rock':'metal');
+ const texturePNG=atlas.create(model.category==='rock'?'rock':
+  model.category==='wreck'?'wreck':'metal',model.category==='wreck'?512:256);
  const textureView=append(texturePNG);
  const binary=Buffer.concat(pieces);
  const materials=model.materials.map(m=>({

@@ -128,6 +128,9 @@ const percentile=(numbers,p)=>{
   assert.deepEqual(out.heroGallery.map(x=>x.kind),['stonegate','mesa','observation']);
   assert(out.heroGallery.every(x=>x.childCount>=12&&x.drawCalls>0));
 
+  if(await page.evaluate(()=>!!window.Map4ArtAssets?.has('wreck_carrier')))
+    await page.waitForFunction(()=>h4Gfx04CarrierStats.mounted===1 ||
+      h4Gfx04CarrierStats.failed>0,null,{timeout:25000});
   // GFX-04 fixed warfront gallery: same camera/progress every subsequent wave.
   // Save both normal HUD and art-only images, never fabricate a quality score.
   out.warfrontGallery=[];
@@ -169,6 +172,41 @@ const percentile=(numbers,p)=>{
   assert.equal(out.warfrontGallery.length,3);
   assert(out.warfrontGallery.every(x=>x.artVisible && x.customParts>=13 &&
     x.triangles>1000),'three GFX04 warfront models render');
+  // GFX-04B: dedicated hero evidence from two real camera angles, including
+  // fully unobstructed art. All standard GFX00/GFX04 viewpoints stay unchanged.
+  out.carrierGallery=[];
+  for(const probe of [
+    {name:'carrier-near',at:12640,x:-250,y:410},
+    {name:'carrier-flank',at:13520,x:-2180,y:430}
+  ]){
+    const info=await page.evaluate(p=>{
+      state.paused=true;state.map4Phase=2;state.routeProgress=13250;
+      camera.position.copy(h4WorldPosition(p.at,p.x,p.y));
+      const focal=h4WorldPosition(13175,-1330,-240);
+      camera.lookAt(focal);
+      camera.fov=58;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(18);
+      h4UpdateGfx01LOD();renderer.render(scene,camera);
+      const wreck=h4ArenaWarfrontGroups.find(g=>g.userData.pocketId==='WRECK');
+      const art=wreck.children.find(g=>g.userData.h4Gfx04Pocket==='WRECK');
+      const carrier=art?.children.find(o=>o.userData.h4Gfx04Carrier);
+      return {name:p.name,artVisible:art?.visible!==false,
+        imported:!!carrier,LOD:carrier?.userData.h4Gfx01LOD,
+        replacements:h4Gfx04CarrierStats.hiddenLegacy,
+        distance:camera.position.distanceTo(focal),
+        calls:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+    },probe);
+    await page.screenshot({path:path.join(directory,probe.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,probe.name+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.carrierGallery.push(info);
+  }
+  assert.equal(out.carrierGallery.length,2);
+  if(await page.evaluate(()=>!!window.Map4ArtAssets?.has('wreck_carrier'))){
+    assert(out.carrierGallery.every(x=>x.imported && x.replacements===8),
+      'two carrier views show complete imported model and hidden old hull');
+  }
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];

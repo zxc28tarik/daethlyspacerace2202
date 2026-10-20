@@ -3197,6 +3197,74 @@
             red:new THREE.MeshBasicMaterial({color:0xf0524d}),
             blue:new THREE.MeshBasicMaterial({color:0x91cfe6})
         });
+
+        // GFX-04B: a complete textured GLB flagship substitutes ONLY the
+        // redundant GFX04 hull/engine pieces after all 3 LODs are parsed.
+        // Fragments, exposed ribs, nearby scene and W04 targets remain intact.
+        const h4Gfx04CarrierStats={scheduled:0,mounted:0,failed:0,
+            fallback:0,hiddenLegacy:0,distinctLOD:0};
+        const h4Gfx04CarrierLegacyNames=new Set([
+            'MAP4_GFX04_CARRIER_FRACTURED_HULL',
+            'MAP4_GFX04_CARRIER_AFT_BREAK',
+            'MAP4_GFX04_CARRIER_BROKEN_WING',
+            'MAP4_GFX04_CARRIER_ENGINE_RING',
+            'MAP4_GFX04_CARRIER_CORE'
+        ]);
+        function h4MountGfx04Carrier(artist,pocket){
+            if(artist.userData.h4Gfx04CarrierRequested)return;
+            artist.userData.h4Gfx04CarrierRequested=true;
+            h4Gfx04CarrierStats.scheduled++;
+            const provider=window.Map4ArtAssets;
+            const ids=['wreck_carrier','wreck_carrier_lod1','wreck_carrier_lod2'];
+            if(!provider||ids.some(id=>!provider.has(id))){
+                h4Gfx04CarrierStats.fallback++;
+                return;
+            }
+            Promise.all(ids.map(id=>provider.load(id))).then(roots=>{
+                if(roots.some(x=>!x||!x.children.length))
+                    throw new Error('Invalid GFX04 carrier LOD');
+                const frameDistance=MAP4_PHASES.introEnd+675;
+                const holder=new THREE.Group();
+                holder.name='MAP4_GFX04B_CARRIER_GLB';
+                holder.position.copy(h4WorldPosition(frameDistance,
+                    pocket.side-80,-240));
+                holder.quaternion.setFromUnitVectors(H4_UP,
+                    getRaceFrameAtDistance(frameDistance).up);
+                holder.scale.set(660,340,670);
+                holder.userData.h4Gfx01Model='wreck_carrier';
+                holder.userData.h4Gfx01LOD=0;
+                holder.userData.h4Gfx04Carrier=true;
+                holder.userData.visualOnly=true;
+                roots.forEach((root,lod)=>{
+                    root.name='MAP4_GFX04B_CARRIER_LOD'+lod;
+                    root.visible=lod===0;
+                    root.traverse(obj=>{
+                        obj.userData.visualOnly=true;
+                        obj.userData.h4Gfx04CarrierArt=true;
+                    });
+                    holder.add(root);
+                });
+                // Mount before hiding previous art. No new collider or targets.
+                artist.add(holder);
+                h4Gfx01LODGroups.push(holder);
+                h4Gfx01Stats.lodGroups++;
+                h4Gfx01Stats.activeLevels.wreck_carrier=0;
+                h4Gfx04CarrierStats.distinctLOD=roots.length;
+                for(const mesh of artist.children){
+                    if(mesh===holder)continue;
+                    if(h4Gfx04CarrierLegacyNames.has(mesh.name) &&
+                        mesh.visible){
+                        mesh.visible=false;
+                        h4Gfx04CarrierStats.hiddenLegacy++;
+                    }
+                }
+                h4Gfx04CarrierStats.mounted++;
+            }).catch(err=>{
+                h4Gfx04CarrierStats.failed++;
+                h4Gfx04CarrierStats.fallback++;
+                console.warn('GFX04 carrier fallback remains available:',err);
+            });
+        }
         function h4BuildGfx04Pocket(group,pocket,index){
             const artist=new THREE.Group();
             artist.name='MAP4_GFX04_'+pocket.id+'_ART';
@@ -3313,6 +3381,7 @@
                 put(1040,0,50,g.beacon,m.red,[44,44,44],
                     0,'DEFENSE_WARNING_LAMP');
             }
+            if(pocket.id==='WRECK')h4MountGfx04Carrier(artist,pocket);
             h4Gfx04Stats.sites++;
         }
         function h4BuildArenaWarfront(zone){
