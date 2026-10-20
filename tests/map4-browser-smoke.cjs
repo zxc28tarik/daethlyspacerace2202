@@ -559,6 +559,92 @@ const assert = require('node:assert/strict');
     assert.equal(gfx04d.oneSparkBatch,1,'spark VFX uses one draw-call mesh');
     assert.equal(gfx04d.sparkAttributes,96,'preallocated GPU vertex budget');
 
+    // GFX04E: smoke has genuinely different opacity/size/temperature layers.
+    // Heat lighting is phase-scoped, decorative, and cleared on restart.
+    const gfx04e=await page.evaluate(()=>{
+      const arena=planetaryWorldRegions[1];
+      const smoke=h4Gfx04DState.smoke;
+      const g=smoke.geometry;
+      const attrIds={
+        position:g.attributes.position.uuid,
+        size:g.attributes.aSize.uuid,
+        fade:g.attributes.aFade.uuid,
+        tint:g.attributes.aTint.uuid,
+        mat:smoke.material.uuid
+      };
+      const decal=arena.children.filter(x=>
+        x.name==='MAP4_GFX04E_BATTLE_SCORCH');
+      const lights=arena.children.filter(x=>
+        x.name.startsWith('MAP4_GFX04E_LOCAL_HEAT_LIGHT'));
+      const glows=arena.children.filter(x=>
+        x.name.startsWith('MAP4_GFX04E_HOT_CORE'));
+      const phaseBefore=state.map4Phase;
+      state.map4Phase=2;
+      h4UpdateGfx04D(.016,20.4);
+      const positions=g.attributes.position,sz=g.attributes.aSize,
+        fade=g.attributes.aFade,tint=g.attributes.aTint;
+      const samples=Array.from({length:sz.count},(_,i)=>({
+        size:sz.getX(i),fade:fade.getX(i),
+        color:[tint.getX(i),tint.getY(i),tint.getZ(i)]
+      }));
+      const fireOn=lights.map(x=>x.intensity);
+      const glowOn=glows.map(x=>x.visible);
+      h4UpdateGfx04D(.018,21.0);
+      const changed=lights.some((x,i)=>Math.abs(x.intensity-fireOn[i])>.0001);
+      state.map4Phase=phaseBefore;
+      h4UpdateGfx04D(.016,21.2);
+      const dark=lights.every(x=>x.intensity===0) &&
+        glows.every(x=>!x.visible);
+      return {
+        shader:smoke.material.type,
+        shaderAtlas:smoke.material.uniforms.uAtlas.value===h4SmokeAtlas,
+        texHeights:smoke.material.uniforms.uViewportHeight.value>100,
+        uniformCount:h4Gfx04EStats.smokeUniforms,
+        attrs:Object.keys(g.attributes),
+        sizes:[Math.min(...samples.map(x=>x.size)),
+          Math.max(...samples.map(x=>x.size))],
+        opacity:[Math.min(...samples.map(x=>x.fade)),
+          Math.max(...samples.map(x=>x.fade))],
+        warmVsCool:samples[0].color[2]<samples[12].color[2],
+        positions:positions.count,
+        idsStable:attrIds.position===g.attributes.position.uuid &&
+          attrIds.size===g.attributes.aSize.uuid &&
+          attrIds.fade===g.attributes.aFade.uuid &&
+          attrIds.tint===g.attributes.aTint.uuid &&
+          attrIds.mat===smoke.material.uuid,
+        scorchDecals:decal.length,
+        scorchGeometry:decal.every(x=>x.userData.visualOnly &&
+          x.geometry===h4ShadowPlane && !x.userData.h4Collider),
+        warmLights:lights.length,coreGlows:glows.length,
+        lightOn:fireOn.every(x=>x>.2),
+        glowsOn:glowOn.every(Boolean),flicker:changed,dark,
+        stageRestored:state.map4Phase===phaseBefore,
+        atlasOnce:h4Gfx04EStats.shaderSmokeFields,
+        visualOnly:h4Gfx04EStats.decorativeOnly
+      };
+    });
+    assert.equal(gfx04e.shader,'ShaderMaterial','one authored smoke shader replaces flat points');
+    assert.equal(gfx04e.shaderAtlas,true,'existing smoke atlas reused without texture duplication');
+    assert.equal(gfx04e.texHeights,true,'smoke billboards use real render viewport');
+    assert(gfx04e.attrs.includes('aSize')&&gfx04e.attrs.includes('aFade')&&
+      gfx04e.attrs.includes('aTint'),'per-point size, fade and tint attributes exist');
+    assert(gfx04e.sizes[1]>gfx04e.sizes[0]*1.6,'smoke changes size across vertical layers');
+    assert(gfx04e.opacity[1]>gfx04e.opacity[0]*1.8,'smoke opacity fades at rising crest');
+    assert.equal(gfx04e.positions,72,'existing bounded smoke point population kept');
+    assert.equal(gfx04e.idsStable,true,'no per-frame buffer/material reallocation');
+    assert.equal(gfx04e.scorchDecals,3,'three extra burned-ground decals');
+    assert.equal(gfx04e.scorchGeometry,true,'burnt ground decals have no collision');
+    assert.equal(gfx04e.warmLights,2,'two localized actual Three point lights');
+    assert.equal(gfx04e.coreGlows,2,'two flare glows share the existing dust atlas');
+    assert.equal(gfx04e.lightOn,true,'thermal lights activate in battle phase');
+    assert.equal(gfx04e.glowsOn,true,'localized hot cores are visible during battle');
+    assert.equal(gfx04e.flicker,true,'thermal light intensity changes naturally');
+    assert.equal(gfx04e.dark,true,'local lights are disabled outside battle phase');
+    assert.equal(gfx04e.stageRestored,true,'test does not alter race phase');
+    assert.equal(gfx04e.atlasOnce,1,'one smoke shader allocated once');
+    assert.equal(gfx04e.visualOnly,true,'all added VFX is non-physical');
+
+
     assert.equal(await page.locator('#laser-status').textContent().then(t=>t.includes('HAZIR')),true);
     await page.screenshot({path:path.resolve(__dirname,'map4-running.png')});
     // Phase 1 should normally take around forty seconds at nonboost speed.
@@ -991,6 +1077,22 @@ const assert = require('node:assert/strict');
     assert.equal(vfxReset.plumes,4,'restart reuses smoke anchors');
     assert.equal(vfxReset.particleBuffers,1,'no duplicate battlefield smoke mesh');
     assert.equal(vfxReset.sparks,1,'no duplicate spark GPU buffer');
+    const g04eReset=await page.evaluate(()=>({
+      decals:planetaryWorldRegions[1].children.filter(x=>
+        x.name==='MAP4_GFX04E_BATTLE_SCORCH').length,
+      lights:h4Gfx04EState.lights.length,
+      glows:h4Gfx04EState.glows.length,
+      active:h4Gfx04EStats.activeLights,
+      warm:h4Gfx04EState.lights.map(x=>x.light.intensity),
+      visible:h4Gfx04EState.glows.map(x=>x.visible)
+    }));
+    assert.equal(g04eReset.decals,3,'restart reuses three existing ground decals');
+    assert.equal(g04eReset.lights,2,'restart reuses two warm lights');
+    assert.equal(g04eReset.glows,2,'restart reuses two hot-core sprites');
+    assert.equal(g04eReset.active,0,'restart never leaves combat lighting enabled');
+    assert(g04eReset.warm.every(x=>x===0)&&g04eReset.visible.every(x=>!x),
+      'no stale warfront lighting in another phase');
+
     assert(vfxReset.resets>=2,'pooled hit effects reset on each launch');
     assert.equal(await page.evaluate(()=>h4Gfx04Stats.sites),3,
       'restart reuses three hero warfront compositions without duplicating art');
