@@ -579,6 +579,38 @@ const assert = require('node:assert/strict');
         hudText:document.getElementById('planetary-route-name').textContent
       };
     });
+    // GFX04: three genuinely different static hero compositions in the same
+    // arena. No new gameplay colliders or scoring channels.
+    const gfx04=await page.evaluate(()=>{
+      const roots=planetaryWorldRegions[1].children.filter(g=>g.userData.h4Gfx04Hero);
+      const by=roots.map(g=>({
+        name:g.name,parts:g.children.length,
+        materials:new Set(g.children.map(x=>x.material.uuid)).size,
+        allDecorative:g.children.every(x=>x.userData.visualOnly &&
+          !x.userData.h4Collider && !x.userData.h4CanyonCollider),
+        forms:new Set(g.children.map(x=>x.geometry.type)).size
+      }));
+      return {
+        heroGroups:h4Gfx04Stats.heroGroups,
+        sculptParts:h4Gfx04Stats.parts,
+        byPocket:h4Gfx04Stats.byPocket.slice(),
+        visualOnly:h4Gfx04Stats.worldVisualOnly,
+        colliderAdds:h4Gfx04Stats.collidersAdded,
+        groups:by,
+        hunters:hunterTargets.length,
+        arenaColliders:planetaryBuildingColliders.length+h4IndustrialColliders.length
+      };
+    });
+    assert.equal(gfx04.heroGroups,3,'three GFX04 sculpted battle zones');
+    assert(gfx04.sculptParts>=55&&gfx04.sculptParts<105,
+      'bounded but geometrically richer battle structures');
+    assert.deepEqual(gfx04.groups.map(g=>g.name),
+      ['MAP4_GFX04_CENTER_SCULPT','MAP4_GFX04_WRECK_SCULPT',
+       'MAP4_GFX04_DEFENSE_SCULPT']);
+    assert(gfx04.groups.every(g=>g.allDecorative&&g.materials>=2&&g.forms>=2),
+      'unique silhouette and materials with no phantom collider');
+    assert.equal(gfx04.colliderAdds,0,'art does not modify physics');
+    assert.equal(gfx04.hunters,8,'original hunter slots preserved');
     assert.equal(warfront.groups,3,'three independent visible warfront groups');
     assert(warfront.meshCount>=28&&warfront.meshCount<80,'bounded set-piece geometry');
     assert(warfront.byPocket.every(n=>n>=8),'each pocket has unique scenery');
@@ -758,6 +790,8 @@ const assert = require('node:assert/strict');
       'restart does not duplicate terrain and skyline');
     assert.equal(await page.evaluate(()=>h4CanyonColliders.length),6,
       'restart reuses the same real canyon rock volumes');
+    assert.equal(await page.evaluate(()=>h4Gfx04Stats.heroGroups),3,
+      'restart does not duplicate the sculpted warfront');
     assert.equal(await page.evaluate(()=>h4ArenaWarfrontGroups.length),3,
       'restart never duplicates warfront scenery');
     assert.equal(await page.evaluate(()=>h4IndustrialGroups.length),6,
