@@ -571,6 +571,24 @@ const assert = require('node:assert/strict');
         collisions:h4IndustrialColliders.length
       };
     });
+    const arenaGround=await page.evaluate(()=>{
+      const mat=planetaryWorldRegions[1].children[0].material;
+      return {atlas:mat.map===h4Gfx04BattleGroundAtlas,
+        name:mat.map?.name,normalScale:mat.normalScale.x,
+        atlasWidth:mat.map?.image?.width,atlasHeight:mat.map?.image?.height,
+        colliderFree:planetaryWorldRegions[1].children[0].userData.h4TerrainSceneryOnly,
+        map1GroundUntouched:planetaryWorldRegions[0].children[0].material.map===
+          h4SurfaceMaps.ground};
+    });
+    assert.equal(arenaGround.atlas,true,'battlefield has distinct tileable dust map');
+    assert.equal(arenaGround.name,'MAP4_GFX04_BATTLEFIELD_DUST_ALBEDO');
+    assert.equal(arenaGround.atlasWidth,256);
+    assert.equal(arenaGround.atlasHeight,256);
+    assert(arenaGround.normalScale<.2,'battlefield striped normal bump suppressed');
+    assert.equal(arenaGround.colliderFree,true,'new battlefield ground is decorative');
+    assert.equal(arenaGround.map1GroundUntouched,true,
+      'canyon existing terrain map unchanged');
+
     assert.equal(arenaSkyline.wreckForms,10,
       'arena old rectangular middle skyline replaced by ten low wreck forms');
     assert.equal(arenaSkyline.nearWreckPieces,16,
