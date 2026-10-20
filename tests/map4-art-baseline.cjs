@@ -79,6 +79,16 @@ const percentile=(numbers,p)=>{
    await page.screenshot({path:path.join(directory,item.name+'.png')});
    out.cases.push({...item,...info});
   }
+  // Non-gameplay camera evidence: photograph the new silhouettes without
+  // masking their shapes behind the player HUD, alongside HUD-on screenshots.
+  await page.addStyleTag({content:`
+    body.map4-photo-probe .hud-box,
+    body.map4-photo-probe #shield-ring,
+    body.map4-photo-probe #fx-canvas,
+    body.map4-photo-probe #boundary-scrape-overlay {
+      visibility:hidden !important;
+    }
+  `});
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
@@ -110,6 +120,9 @@ const percentile=(numbers,p)=>{
       };
     },hero);
     await page.screenshot({path:path.join(directory,'hero-'+hero.kind+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,'hero-'+hero.kind+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
     out.heroGallery.push(detail);
   }
   assert.deepEqual(out.heroGallery.map(x=>x.kind),['stonegate','mesa','observation']);

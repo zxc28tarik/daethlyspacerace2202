@@ -76,6 +76,44 @@ for(const [id,v] of Object.entries(pack)){
   assert.equal(art.smokeVisible,true);
   assert.equal(art.shaders,true);
   assert.equal(art.meshesImported,3);
+  // GFX03B: the three new landmarks are not masked by the old W01 / VQ02
+  // silhouettes. Only the actual imported radar surface replaces GFX03 dish.
+  const composition=await page.evaluate(()=>{
+    const sites=h4WorldLandmarks.filter(lm=>lm.zone===0);
+    const count=sites.map(lm=>{
+      const legacy=lm.group.children.find(c=>c.name==='MAP4_LEGACY_W01_'+lm.kind.toUpperCase());
+      const signature=lm.group.children.find(c=>c.userData.signature===lm.kind);
+      const sculpt=lm.group.children.find(c=>c.userData.h4Gfx03Hero);
+      return {kind:lm.kind,legacyHidden:legacy?.visible===false,
+        signatureHidden:signature?.visible===false,
+        sculptVisible:sculpt?.visible!==false};
+    });
+    const obs=sites.find(lm=>lm.kind==='observation');
+    let hiddenDish=0;
+    obs.group.traverse(o=>{
+      if(o.userData.h4Gfx01Replaced==='observation'&&!o.visible)hiddenDish++;
+    });
+    const overlay=document.getElementById('hunter-competition-hud').getBoundingClientRect();
+    const sector=document.getElementById('planetary-zone-hud').getBoundingClientRect();
+    const flight=document.querySelector('.map4-flight-status').getBoundingClientRect();
+    return {sites:count,hiddenDish,stats:{...h4Gfx03bCompositionStats},
+      viewport:window.innerWidth,overlay:{x:overlay.x,top:overlay.top,width:overlay.width},
+      sector:{x:sector.x,top:sector.top,width:sector.width},
+      flight:{x:flight.x,top:flight.top,width:flight.width},
+      hudEnabled:document.body.classList.contains('map4-composition')};
+  });
+  assert(composition.sites.every(s=>s.legacyHidden && s.signatureHidden &&
+    s.sculptVisible),'three canyon heroes hide their superseded art');
+  assert.equal(composition.stats.hiddenLegacy,3);
+  assert.equal(composition.stats.hiddenSignatures,3);
+  assert.equal(composition.hiddenDish,3,'loaded radar replaces three overlapping dish parts');
+  assert(composition.stats.sightlineProps>=1,'hero sightlines decluttered');
+  assert.equal(composition.hudEnabled,true);
+  assert(composition.overlay.top<110 && composition.overlay.width<390,
+    'ranking is a compact top-right panel');
+  assert(composition.sector.top<32 && composition.sector.width<330,
+    'sector guidance stays small and centered');
+  assert(composition.flight.width<=430,'flight metrics no longer cover half the sky');
   const reuses=await page.evaluate(async()=>{
    const a=await Map4ArtAssets.load('canyon_arch');
    const b=await Map4ArtAssets.load('canyon_arch');
@@ -132,6 +170,8 @@ for(const [id,v] of Object.entries(pack)){
   assert.equal(map1.visible,false,'Map1 must not leak imported GLB world');
   assert.equal(map1.tonemap,true);
   assert.equal(map1.glow,false);
+  assert.equal(await page.evaluate(()=>document.body.classList.contains('map4-composition')),
+    false,'Map1 must not retain the Map4 art HUD mode');
   assert.deepEqual(network,[],'no remote requests in packaged game');
   assert.equal(errors.length,0,errors.join(' | '));
   console.log('GFX01 OFFLINE PASS',JSON.stringify({
