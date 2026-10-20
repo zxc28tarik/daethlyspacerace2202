@@ -35,7 +35,8 @@ function periodicNoise(size,seed,frequency,x,y){
 }
 function create(kind,size=256){
  const scan=Buffer.alloc(size*(1+size*4));
- const rock=kind==='rock',base=rock?[218,200,180]:[201,210,220];
+ const rock=kind==='rock',wreck=kind==='wreck';
+ const base=rock?[218,200,180]:wreck?[165,153,144]:[201,210,220];
  for(let y=0;y<size;y++){
   const off=y*(1+4*size);
   scan[off]=0;
@@ -46,10 +47,34 @@ function create(kind,size=256){
     .08*periodicNoise(size,12789,52,x,y);
    const band=rock?Math.sin(y/size*Math.PI*2*15+
        periodicNoise(size,1937,4,x,y)*2.8)*.032:
+     wreck?Math.sin(y/size*Math.PI*2*5+periodicNoise(size,1937,4,x,y)*4)*.028:
      ((y%64===0||x%64===0)?-.1:0);
-   const p=1+(n-.5)*(rock?.32:.16)+band;
+   const p=1+(n-.5)*(rock?.32:wreck?.37:.16)+band;
    const idx=off+1+4*x;
-   for(let c=0;c<3;c++)scan[idx+c]=Math.max(0,Math.min(255,
+   if(wreck){
+     // Periodic pseudo-art treatment: scorch fields, oxide, directional
+     // scratches and intermittent plate seams. No externally loaded atlas.
+     const u=x/size,v=y/size,tau=2*Math.PI;
+     const scorching=periodicNoise(size,7631,5,x,y)*.63+
+       periodicNoise(size,9234,17,x,y)*.37;
+     const soot=Math.pow(Math.max(0,(scorching-.49)*2.9),1.9);
+     const corrode=periodicNoise(size,2277,22,x,y);
+     const seamX=Math.pow(Math.max(0,.012-Math.min(
+       (u*6)%1,1-(u*6)%1))/.012,1.2);
+     const seamY=Math.pow(Math.max(0,.015-Math.min(
+       (v*8)%1,1-(v*8)%1))/.015,1.2);
+     const scratches=Math.pow(Math.max(0,Math.cos(
+       tau*(u*34+Math.sin(tau*v*3)*.018+
+       periodicNoise(size,5673,8,x,y)*.07))),32);
+     const heat=.30*Math.max(0,corrode-.68);
+     const dark=soot*.70+Math.max(seamX,seamY)*.20+scratches*.20;
+     for(let c=0;c<3;c++){
+       const baseValue=base[c]*p*(1-dark);
+       const corrosionColor=[184,91,52][c];
+       const value=baseValue*(1-heat)+corrosionColor*heat;
+       scan[idx+c]=Math.max(0,Math.min(255,Math.round(value)));
+     }
+   }else for(let c=0;c<3;c++)scan[idx+c]=Math.max(0,Math.min(255,
      Math.round(base[c]*p+(rock?0:Math.sin(y*.19)*2.8))));
    scan[idx+3]=255;
   }
