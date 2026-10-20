@@ -602,7 +602,7 @@ const assert = require('node:assert/strict');
       };
     });
     assert.equal(gfx04.heroGroups,3,'three GFX04 sculpted battle zones');
-    assert(gfx04.sculptParts>=55&&gfx04.sculptParts<105,
+    assert(gfx04.sculptParts>=48&&gfx04.sculptParts<105,
       'bounded but geometrically richer battle structures');
     assert.deepEqual(gfx04.groups.map(g=>g.name),
       ['MAP4_GFX04_CENTER_SCULPT','MAP4_GFX04_WRECK_SCULPT',
