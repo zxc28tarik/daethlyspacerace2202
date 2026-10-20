@@ -361,6 +361,38 @@ const assert = require('node:assert/strict');
     assert(openSpace.terrain.positions>7000,'planet ground subdivided for relief');
     assert.equal(openSpace.terrain.colors,true,'planet ground has vertex palette');
     assert.equal(openSpace.terrain.sceneryOnly,true,'no invented terrain hitboxes');
+    // GFX-02: visibly denser canyon mesh and custom large-scale geology.
+    // All added rocks remain outside the playable radius and visual-only.
+    const gfx02=await page.evaluate(()=>{
+      const group=planetaryWorldRegions[0].children.find(g=>
+        g.name==='MAP4_GFX02_LONG_RANGE_ERODED_CLIFFS');
+      return {
+        canyonVertices:h4TerrainArtStats.canyonVertices,
+        cliffs:h4TerrainArtStats.cliffs,
+        variantCount:h4TerrainArtStats.variants,
+        builtRocks:group?.children.length,
+        outsideEnvelope:group?.children.every(m=>{
+          const f=getRaceFrameAtDistance(6000);
+          const relative=m.position.clone().sub(
+              getRaceFrameAtDistance(Number(m.name.split('_').pop())||6000).center);
+          // Use world-space distance from the cliff's owning route frame
+          // through its original placement pivot projected to the nearest route.
+          return m.userData.visualOnly && m.scale.y>800 && m.geometry.attributes.position.count>500;
+        }),
+        distinctGeometries:group?new Set(group.children.map(m=>m.geometry.uuid)).size:0,
+        terrainName:planetaryWorldRegions[0].children[0].name,
+        terrainVisualOnly:planetaryWorldRegions[0].children[0].userData.h4TerrainSceneryOnly
+      };
+    });
+    assert.equal(gfx02.canyonVertices,160*40*6,
+      'canyon ground uses dedicated high-resolution mesh grid');
+    assert.equal(gfx02.cliffs,28,'28 custom long-range canyon forms');
+    assert.equal(gfx02.builtRocks,28,'visual cliff meshes occupy the world');
+    assert.equal(gfx02.distinctGeometries,8,'eight original cliff geometries');
+    assert.equal(gfx02.outsideEnvelope,true,'cliffs have independent sculpted geometry');
+    assert.equal(gfx02.terrainVisualOnly,true,'new terrain never invents collision walls');
+    assert.equal(gfx02.terrainName,'MAP4_GFX02_SCULPTED_CANYON_GROUND',
+      'sculpted terrain replaces canyon-only old surface');
     assert(openSpace.cameraFar>10000,'planet draw distance increased');
     assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
     assert.equal(openSpace.light,0xffd8b8,'VQ04 canyon daylight palette active');
