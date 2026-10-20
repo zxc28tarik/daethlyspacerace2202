@@ -3083,6 +3083,125 @@
             if(laneX>570)return H4_ARENA_POCKETS[2];
             return H4_ARENA_POCKETS[0];
         }
+
+        // GFX-04: distinctive long-range silhouettes for the three true
+        // battlefield pockets. Existing W04 scene and hunter rules stay intact.
+        const h4Gfx04Stats={heroGroups:0,parts:0,byPocket:[0,0,0],
+            worldVisualOnly:true,collidersAdded:0};
+        const H4_GFX04_GEOMETRY=Object.freeze({
+            spine:new THREE.CylinderGeometry(.18,.31,1,8),
+            hull:H4_HERO_GEOMETRY.carvedHull,
+            plate:new THREE.BoxGeometry(1,1,1),
+            engine:new THREE.CylinderGeometry(.44,.56,1,12),
+            dish:H4_HERO_GEOMETRY.dish,
+            ring:H4_HERO_GEOMETRY.turbine,
+            truss:H4_HERO_GEOMETRY.truss,
+            fractured:new THREE.TetrahedronGeometry(1,0)
+        });
+        const H4_GFX04_MATERIAL=Object.freeze({
+            burnt:new THREE.MeshStandardMaterial({
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.metal.normal,
+                color:0x444b58,metalness:.62,roughness:.84,flatShading:true
+            }),
+            hull:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,normalMap:h4MicroMaps.metal.normal,
+                color:0x8a949c,metalness:.67,roughness:.56
+            }),
+            military:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.armor,normalMap:h4MicroMaps.metal.normal,
+                color:0x798a87,metalness:.52,roughness:.70
+            }),
+            rust:new THREE.MeshStandardMaterial({
+                color:0xb36e50,metalness:.42,roughness:.83
+            }),
+            soot:new THREE.MeshStandardMaterial({
+                color:0x30343d,metalness:.12,roughness:.95
+            }),
+            caution:new THREE.MeshBasicMaterial({color:0xf5a46c}),
+            danger:new THREE.MeshBasicMaterial({color:0xee6a60}),
+            beacon:new THREE.MeshBasicMaterial({color:0xb0e0e3})
+        });
+        function h4AddGfx04WarfrontArt(zone){
+            const g=H4_GFX04_GEOMETRY,m=H4_GFX04_MATERIAL;
+            const heroKinds=['CENTER','WRECK','DEFENSE'];
+            for(let index=0;index<3;index++){
+                const id=heroKinds[index],pocket=H4_ARENA_POCKETS[index];
+                const root=new THREE.Group();
+                root.name='MAP4_GFX04_'+id+'_SCULPT';
+                root.userData.h4Gfx04Hero=true;
+                root.userData.visualOnly=true;
+                zone.add(root);
+                const add=(d,x,y,geometry,material,scale,rot=0)=>{
+                    const obj=h4PlaceStructure(root,MAP4_PHASES.introEnd+d,
+                        pocket.side+x,y,geometry,material,scale);
+                    if(rot)obj.rotateZ(rot);
+                    obj.userData.visualOnly=true;
+                    obj.userData.h4Gfx04Part=id;
+                    h4Gfx04Stats.parts++;h4Gfx04Stats.byPocket[index]++;
+                    return obj;
+                };
+                if(index===0){
+                    // Readable empty flight volume with flanking broken relief;
+                    // mark ground and sides instead of obscuring hunters.
+                    for(let sign of [-1,1]){
+                        for(let k=0;k<4;k++){
+                            const distance=300+k*230;
+                            add(distance,sign*(860+k*46),-345,
+                                g.fractured,k%2?m.soot:m.military,
+                                [100+k*16,160+k*28,175],sign*.2);
+                        }
+                        add(510,sign*1120,-320,g.plate,m.military,[300,28,210]);
+                        add(540,sign*1120,-268,g.truss,m.beacon,[28,90,28]);
+                    }
+                }else if(index===1){
+                    // Massive shattered cruiser, intentionally off-centre and
+                    // below the active target flight volume.
+                    add(750,-200,-275,g.hull,m.burnt,[820,310,1050],-.10);
+                    add(380,-170,-300,g.hull,m.hull,[650,235,470],.17);
+                    add(1030,30,-300,g.hull,m.soot,[500,200,440],-.17);
+                    for(let sign of [-1,1]){
+                        add(720,sign*590,-325,g.hull,m.hull,
+                            [670,90,270],sign*.16);
+                        add(900,sign*270,-240,g.engine,m.soot,
+                            [240,220,320],sign*.1);
+                        add(900,sign*270,-150,g.ring,m.caution,
+                            [148,148,148]);
+                        for(let k=0;k<3;k++){
+                            add(390+k*220,sign*(310+k*95),-365,
+                                g.fractured,k%2?m.rust:m.burnt,
+                                [155+k*22,105+k*24,190],sign*.32);
+                        }
+                    }
+                    add(650,-150,-30,g.spine,m.rust,[70,530,70],-.21);
+                    add(830,140,-10,g.spine,m.burnt,[55,465,55],.24);
+                }else{
+                    // Twin battery towers, radar platforms, bunkers, armoured
+                    // screen and aerial antennae: three recognisable tiers.
+                    for(let sign of [-1,1]){
+                        add(780,sign*610,-215,g.plate,m.military,
+                            [340,430,310]);
+                        add(780,sign*610,78,g.plate,m.hull,
+                            [375,70,360]);
+                        add(780,sign*610,290,g.spine,m.hull,
+                            [90,470,90],sign*.06);
+                        const radar=add(780,sign*610,540,g.dish,m.hull,
+                            [290,130,260],sign*.20);
+                        radar.rotation.x=-.45;
+                        add(780,sign*610,655,g.ring,m.danger,[98,98,98]);
+                        for(let k=0;k<3;k++){
+                            add(490+k*250,sign*(910+k*60),-385,
+                                g.plate,k%2?m.soot:m.military,
+                                [245,110,190]);
+                        }
+                    }
+                    add(880,0,-350,g.plate,m.military,[740,170,240]);
+                    add(880,0,-240,g.hull,m.burnt,[480,130,200]);
+                    add(880,0,-120,g.ring,m.danger,[150,150,150]);
+                }
+                h4Gfx04Stats.heroGroups++;
+            }
+        }
+
         function h4BuildArenaWarfront(zone){
             if(h4ArenaWarfrontGroups.length)return;
             // Each pocket has its own readable silhouettes, ground-level cover
@@ -3226,6 +3345,7 @@
                 h4AddAtmosphericField(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 if(zoneIndex===1)h4BuildArenaWarfront(zone);
+                if(zoneIndex===1)h4AddGfx04WarfrontArt(zone);
                 if(zoneIndex===2)h4BuildIndustrialGauntlet(zone);
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
