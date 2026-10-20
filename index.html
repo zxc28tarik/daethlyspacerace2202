@@ -125,6 +125,67 @@
             background: radial-gradient(circle at center, rgba(6, 12, 34, 0.78) 0%, rgba(2, 4, 12, 0.94) 100%);
             cursor: default;
         }
+
+        /* GFX-03B — map-specific cinematic HUD: safety info remains readable,
+           but scenic landmarks are no longer buried behind full-width banners. */
+        body.map4-composition #planetary-zone-hud {
+            position:fixed;top:12px;left:50%;transform:translateX(-50%);
+            width:min(310px,38vw);max-width:310px;
+            padding:6px 11px!important;line-height:1.14;
+            background:rgba(8,18,31,.73);border-color:rgba(156,205,219,.43);
+            backdrop-filter:blur(5px);
+        }
+        body.map4-composition #planetary-zone-name {font-size:12px;}
+        body.map4-composition #planetary-zone-hud .text-xs {font-size:10px;}
+        body.map4-composition #planetary-zone-hud .text-\[10px\] {
+            font-size:9px;line-height:1.20;margin-top:2px;
+        }
+        body.map4-composition #hunter-competition-hud {
+            position:fixed;top:86px;right:16px;left:auto;
+            width:min(355px,30vw);max-width:355px;
+            padding:7px 10px!important;
+            background:rgba(8,20,34,.73);border-color:rgba(125,183,212,.4);
+            box-shadow:0 0 10px rgba(24,64,85,.14);
+            font-size:10px;line-height:1.18;
+        }
+        body.map4-composition #hunter-competition-hud .text-xs {font-size:10px;}
+        body.map4-composition #hunter-competition-scores {
+            font-size:9px;line-height:1.25;overflow-wrap:anywhere;
+            max-height:70px;overflow:hidden;
+        }
+        body.map4-composition .map4-flight-status {
+            width:min(410px,29vw);max-width:410px;
+            padding:7px 10px!important;background:rgba(8,18,32,.72);
+            font-size:11px;line-height:1.34;
+            border-color:rgba(105,193,215,.45);
+        }
+        body.map4-composition .map4-flight-status #race-hud-details,
+        body.map4-composition .map4-flight-status .text-\[11px\] {
+            font-size:9px;line-height:1.3;
+        }
+        body.map4-composition #shield-ring {opacity:.2;}
+        body.map4-composition .map4-bottom-panel {
+            background:rgba(8,18,32,.72);border-color:rgba(95,169,190,.44);
+            width:min(275px,24vw)!important;padding:9px 12px!important;
+        }
+        body.map4-composition .map4-bottom-panel .text-\[10px\],
+        body.map4-composition .map4-bottom-panel .text-\[11px\]{
+            font-size:9px;
+        }
+        @media(max-width:850px){
+            body.map4-composition #planetary-zone-hud {
+                top:8px;width:min(50vw,260px);padding:5px 8px!important;
+            }
+            body.map4-composition #hunter-competition-hud {
+                top:115px;right:7px;width:34vw;padding:5px 7px!important;
+            }
+            body.map4-composition .map4-flight-status {
+                width:42vw;font-size:10px;
+            }
+            body.map4-composition .map4-bottom-panel {
+                width:29vw!important;padding:7px!important;
+            }
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -161,7 +222,7 @@
             </div>
             <div class="w-full flex justify-between items-start">
                 <!-- Sol Üst: Uçuş ve Kamera Bilgisi -->
-                <div class="hud-box px-4 py-2 text-xs sm:text-sm pointer-events-auto">
+                <div class="hud-box map4-flight-status px-4 py-2 text-xs sm:text-sm pointer-events-auto">
                     <div class="text-cyan-300 font-bold tracking-wider"><span id="race-mode-heading">CORRIDOR RACE</span>: <span id="rank-text" class="text-yellow-300 font-black">POS 1 / 6</span> | FINISH: <span id="distance-text" class="text-emerald-400 font-black">50000m</span> | TIME: <span id="race-time-text" class="text-cyan-200 font-['Share_Tech_Mono'] font-black">00:00.00</span></div>
                     <div class="text-[11px] text-cyan-200/80 font-['Share_Tech_Mono'] mt-0.5">
                         CAM [<span id="cam-mode-text" class="text-yellow-300">TURRET POV</span>] (C) | THRUST: <span id="speed-text" class="text-cyan-300">3000</span> KM/S | FASTEST RIVAL: <span id="rival-speed-text" class="text-yellow-300">—</span> KM/S
@@ -213,7 +274,7 @@
         <!-- ALT BÖLÜM: Kalkan, Enerji, 360 Radar ve Skor (Görseldeki Tasarım) -->
         <div class="flex items-end justify-between w-full gap-4">
             <!-- Sol Alt: Shield & Energy -->
-            <div class="hud-box px-5 py-3 w-64 sm:w-80 pointer-events-auto">
+            <div class="hud-box map4-bottom-panel px-5 py-3 w-64 sm:w-80 pointer-events-auto">
                 <div class="flex justify-between items-center text-sm sm:text-base font-bold tracking-wider mb-1">
                     <span class="text-cyan-300">SHIELD: <span id="shield-text" class="text-white">100%</span></span>
                     <span id="roll-status" class="text-[10px] text-emerald-400 font-['Share_Tech_Mono']">BARREL ROLL: READY (Q/E)</span>
@@ -250,7 +311,7 @@
             </div>
 
             <!-- Sağ Alt: Score & Stage -->
-            <div class="hud-box px-5 py-3 w-64 sm:w-80 text-right pointer-events-auto">
+            <div class="hud-box map4-bottom-panel px-5 py-3 w-64 sm:w-80 text-right pointer-events-auto">
                 <div class="text-sm sm:text-lg font-black tracking-widest text-cyan-200">
                     SCORE: <span id="score-text" class="text-white text-xl sm:text-2xl">000,000</span>
                     <span class="block text-[10px] text-amber-300/90 font-['Share_Tech_Mono'] tracking-wide">LAZER İÇİN KUTU TOPLA · F / SOL TIK · ATIS -3 ENERGY · KIRILAN: <span id="obstacle-kills">0</span></span>
@@ -2004,7 +2065,9 @@
         function h4AddContactShadow(group,plan){
             const shadow=new THREE.Mesh(h4ShadowPlane,h4ShadowMat);
             shadow.name='MAP4_VQ04_CONTACT_SHADOW';
-            shadow.position.copy(h4WorldPosition(plan.at,plan.side,-434));
+            const compositionSide=plan.kind==='stonegate'?-1320:
+                plan.kind==='mesa'?1450:plan.kind==='observation'?-1500:0;
+            shadow.position.copy(h4WorldPosition(plan.at,plan.side+compositionSide,-434));
             shadow.quaternion.setFromUnitVectors(H4_DECAL_UP,
                 getRaceFrameAtDistance(plan.at).up);
             shadow.scale.set(930,620,1);
@@ -2300,10 +2363,13 @@
                 const dish=add(15,baseSide,830,g.radarDish,m.brass,
                     [400,155,325]);
                 dish.rotation.x=-.48;
+                dish.userData.h4Gfx01Replaced='observation';
                 const rim=add(15,baseSide,878,g.dishRim,m.observatorySteel,
                     [415,415,400]);
                 rim.rotation.x=.54;
-                add(17,baseSide,855,g.lens,m.glass,[118,96,125]);
+                rim.userData.h4Gfx01Replaced='observation';
+                const lens=add(17,baseSide,855,g.lens,m.glass,[118,96,125]);
+                lens.userData.h4Gfx01Replaced='observation';
                 for(let side of [-1,1]){
                     const x=baseSide+side*290;
                     add(-70,x,440,g.latticeBeam,m.observatorySteel,
@@ -2518,6 +2584,13 @@
                         if(obj.name==='MAP4_GFX03_CARVED_PORTAL_OPENING')
                             obj.visible=false;
                     });
+                }else if(plan.kind==='observation'){
+                    group.traverse(obj=>{
+                        if(obj.userData.h4Gfx01Replaced==='observation'){
+                            obj.visible=false;
+                            h4Gfx03bCompositionStats.radarReplacements++;
+                        }
+                    });
                 }
                 h4Gfx01Stats.mounted++;
                 h4Gfx01Stats.mountedKinds.push(spec.id);
@@ -2549,14 +2622,22 @@
             h4Gfx01Stats.lodUpdates++;
         }
 
+        const h4Gfx03bCompositionStats={
+            hiddenLegacy:0,hiddenSignatures:0,
+            sightlineProps:0,radarReplacements:0,
+            shadowOffsets:{stonegate:-1320,mesa:1450,observation:-1500}
+        };
         function h4CreateLandmark(zone, regionIndex, plan) {
             const group=new THREE.Group();
             group.name='MAP4_'+plan.kind.toUpperCase()+'_'+Math.round(plan.at);
             group.userData.landmark=true;
             zone.add(group);
             h4AddContactShadow(group,plan);
+            const legacyDecor=new THREE.Group();
+            legacyDecor.name='MAP4_LEGACY_W01_'+plan.kind.toUpperCase();
+            group.add(legacyDecor);
             const add=(delta,shift,height,geo,mat,sx,sy,sz)=>{
-                const obj=h4PlaceStructure(group,plan.at+delta,plan.side+shift,
+                const obj=h4PlaceStructure(legacyDecor,plan.at+delta,plan.side+shift,
                     -440+height,geo,mat,[sx,sy,sz]);
                 h4WorldContentStats.decorMeshes++;
                 return obj;
@@ -2664,8 +2745,19 @@
                     break;
             }
             h4AddSignatureArchitecture(group,regionIndex,plan);
-            // Independent GFX-03 sculpt: no W01/W03 geometry or collider overwritten.
-            if(regionIndex===0)h4BuildCanyonHeroArt(group,plan);
+            // The VQ02/W01 silhouettes are retained as hidden fallbacks for
+            // only these three canyon sites. Their duplicate shapes no longer
+            // cover the GFX03 rock/observatory assets in active gameplay.
+            if(regionIndex===0){
+                h4BuildCanyonHeroArt(group,plan);
+                legacyDecor.visible=false;
+                h4Gfx03bCompositionStats.hiddenLegacy++;
+                const oldSignature=group.children.find(c=>c.userData.signature===plan.kind);
+                if(oldSignature){
+                    oldSignature.visible=false;
+                    h4Gfx03bCompositionStats.hiddenSignatures++;
+                }
+            }
             h4MountGfx01Model(group,plan);
             h4WorldLandmarks.push({
                 zone:regionIndex,
@@ -2904,6 +2996,17 @@
                 m.quaternion.setFromUnitVectors(H4_UP,getRaceFrameAtDistance(progress).up);
                 m.scale.set(scale[0],scale[1],scale[2]);
                 target.add(m);
+                if(regionIndex===0 && target===near){
+                    const sightline=[
+                        {at:1950,x:-2080},{at:6100,x:2300},{at:10100,x:-2260}
+                    ];
+                    if(sightline.some(point=>
+                        Math.abs(progress-point.at)<780 &&
+                        Math.abs(side-point.x)<850)){
+                        m.visible=false;
+                        h4Gfx03bCompositionStats.sightlineProps++;
+                    }
+                }
                 h4WideScenery.total++;
                 h4WideScenery.byRegion[regionIndex]++;
             };
@@ -3132,6 +3235,7 @@
             const active=state.activeMap===MAP_MODES.MAP4;
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
+            document.body.classList.toggle('map4-composition',active);
             h4GeoSwordArt.visible=active;
             h4SkyDome.visible=active;
             h4SunHalo.visible=active;
