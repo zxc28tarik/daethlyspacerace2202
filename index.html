@@ -5179,6 +5179,27 @@
             geo.rotateX(Math.PI/2);geo.translate(0,-.10,0);
             geo.computeVertexNormals();return geo;
         }
+        function h4Gfx05WingPaintGeometry(sign){
+            // Broad identification paint follows the sweep angle and really
+            // hugs the upper wing; one separate close-to-surface 3D insert.
+            const outline=new THREE.Shape();
+            const points=[
+                [2.05,-1.80],[3.32,-1.92],[6.95,.18],
+                [6.25,.47],[3.68,.80],[2.48,.26]
+            ];
+            points.forEach(([x,z],i)=>{
+                if(i===0)outline.moveTo(x*sign,z);
+                else outline.lineTo(x*sign,z);
+            });
+            outline.closePath();
+            const geometry=new THREE.ExtrudeGeometry(outline,{
+                depth:.065,steps:1,bevelEnabled:false,curveSegments:1
+            });
+            geometry.rotateX(Math.PI/2);
+            geometry.translate(0,.16,0);
+            geometry.computeVertexNormals();
+            return geometry;
+        }
         function h4Gfx05FinGeometry(){
             const shape=new THREE.Shape();
             shape.moveTo(0,0);shape.lineTo(-.24,2.70);
@@ -5194,6 +5215,8 @@
             hull:h4Gfx05TrackGeometry(h4Gfx05LongHull()),
             wingLeft:h4Gfx05TrackGeometry(h4Gfx05WingGeometry(-1)),
             wingRight:h4Gfx05TrackGeometry(h4Gfx05WingGeometry(1)),
+            paintLeft:h4Gfx05TrackGeometry(h4Gfx05WingPaintGeometry(-1)),
+            paintRight:h4Gfx05TrackGeometry(h4Gfx05WingPaintGeometry(1)),
             canopy:h4Gfx05TrackGeometry(new THREE.SphereGeometry(1,18,12)),
             nozzle:h4Gfx05TrackGeometry(new THREE.CylinderGeometry(.72,.85,1,12,1)),
             ring:h4Gfx05TrackGeometry(new THREE.TorusGeometry(.65,.105,8,22)),
@@ -5225,7 +5248,11 @@
             const result={
                 hull:make(paint,.39,.67),
                 wing:make(paint,.48,.54),
-                trim:make(trim,.33,.55),
+                trim:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
+                    color:trim,metalness:.36,roughness:.43,
+                    emissive:trim,emissiveIntensity:.18,
+                    side:THREE.DoubleSide
+                })),
                 rail:make(0x253847,.28,.68),
                 canopy:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
                     color:0x1c5269,metalness:.48,roughness:.14,
@@ -5261,6 +5288,9 @@
             for(const side of [-1,1]){
                 put('SWEPT_WING_'+(side<0?'LEFT':'RIGHT'),
                     side<0?g.wingLeft:g.wingRight,mat.wing,0,0,0,1,1,1);
+                put('IDENTITY_WING_PANEL',
+                    side<0?g.paintLeft:g.paintRight,mat.trim,
+                    0,0,0,1,1,1);
                 put('WING_PAINT_RAIL',g.spine,mat.trim,side*6.3,.04,.53,
                     .18,.12,2.25).rotation.y=side*-.28;
                 put('VERTICAL_STABILIZER',g.fin,mat.hull,side*1.95,.27,2.25,
