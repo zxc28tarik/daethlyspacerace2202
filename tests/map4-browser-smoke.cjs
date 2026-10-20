@@ -554,6 +554,14 @@ const assert = require('node:assert/strict');
         factoryColliders:h4IndustrialColliders.length,
         physicalCityColliders:planetaryBuildingColliders.length};
     });
+    // The next phase's refinery must not crowd the entire battlefield
+    // during the mandatory 60-second stand-still fight.
+    const industrialDuringArena=await page.evaluate(()=>{
+      updatePlanetaryWorld();
+      return planetaryWorldRegions[2].visible;
+    });
+    assert.equal(industrialDuringArena,false,
+      'distant industrial buildings suppressed during locked arena');
     const arenaSkyline=await page.evaluate(()=>{
       const zone=planetaryWorldRegions[1];
       const near=h4SceneryGroups[1].near;
@@ -701,6 +709,12 @@ const assert = require('node:assert/strict');
     await page.evaluate(()=>{state.map4ArenaElapsed=MAP4_PHASES.arenaSeconds-0.08;});
     await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:12000});
     assert(await page.evaluate(()=>map4SpeedFactor(20000)>0),'forward progress unlocked in phase 3');
+    const industryRevealed=await page.evaluate(()=>{
+      updatePlanetaryWorld();
+      return planetaryWorldRegions[2].visible;
+    });
+    assert.equal(industryRevealed,true,
+      'the next region returns after the arena combat phase ends');
     const building=await page.evaluate(()=> {
       const collider=planetaryBuildingColliders[0];
       state.routeProgress=collider.progress;
