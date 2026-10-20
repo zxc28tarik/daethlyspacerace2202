@@ -212,6 +212,7 @@ const assert = require('node:assert/strict');
         stats:{...h4Gfx05Stats},
         player:!!player,playerModelName:player?.name,
         playerWings:count(player,'GFX05_SWEPT_WING'),
+        playerIdentityPanels:count(player,'GFX05_IDENTITY_WING_PANEL'),
         playerHull:count(player,'GFX05_TAPERED_3D_HULL'),
         playerEngines:count(player,'GFX05_LIVE_THRUSTER'),
         playerVisible:h4GeoSwordArt.visible,
@@ -245,6 +246,8 @@ const assert = require('node:assert/strict');
     assert.equal(gfx05.player,true);
     assert.equal(gfx05.playerHull,1,'one physically sculpted player hull');
     assert.equal(gfx05.playerWings,2,'player gets two swept wing surfaces');
+    assert.equal(gfx05.playerIdentityPanels,2,
+      'both wings expose large, actually painted 3D identity panels');
     assert.equal(gfx05.playerEngines,2,'player gets two live exhaust nozzles');
     assert(gfx05.baseHidden && gfx05.playerVisible,
       'Map4 displays only its new player silhouette');
