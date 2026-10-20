@@ -3285,11 +3285,15 @@
         for(let y=0;y<128;y++)for(let x=0;x<128;x++){
             const dx=(x-64)/64,dy=(y-64)/64;
             const r=Math.sqrt(dx*dx+dy*dy);
-            const irregular=.82+.12*Math.sin(Math.atan2(dy,dx)*7.0)+
-                .06*Math.cos(Math.atan2(dy,dx)*13);
+            const angle=Math.atan2(dy,dx);
+            const textureNoise=Math.sin(x*.163+y*.087)*
+                Math.cos(y*.171-x*.062);
+            const irregular=.78+.095*Math.sin(angle*7.0+.4)+
+                .045*Math.cos(angle*13.0)+textureNoise*.035;
             const darkness=Math.max(0,1-r/irregular);
-            const alpha=Math.pow(darkness,1.60)*.50+
-                Math.pow(darkness,3.5)*.28;
+            // Uneven soot saturation rather than one perfect gradient circle.
+            const alpha=Math.pow(darkness,1.42)*(.39+.10*textureNoise)+
+                Math.pow(darkness,4.0)*.31;
             const k=(y*128+x)*4;
             h4Gfx04BurnData.data[k]=30;
             h4Gfx04BurnData.data[k+1]=25;
@@ -3597,6 +3601,11 @@
             {progress:13070,side:1700,alt:-140,seed:3},
             {progress:13290,side:790,alt:-310,seed:4}
         ]);
+        // GFX04E visual-only diagnostic budget, reused across restarts.
+        const h4Gfx04EStats={shaderSmokeFields:0,smokeUniforms:0,
+            scorchDecals:0,warmLights:0,coreGlows:0,lightUpdates:0,
+            smokeShadeUpdates:0,activeLights:0,decorativeOnly:true};
+        const h4Gfx04EState={lights:[],glows:[]};
         const H4_GFX04D_SPARK_CAP=96;
         const h4Gfx04DStats={plumes:0,smokePoints:0,smokeFields:0,
             sparkCapacity:H4_GFX04D_SPARK_CAP,sparkDrawCalls:0,
@@ -3610,13 +3619,57 @@
             if(h4Gfx04DState.smoke)return;
             const count=H4_GFX04D_PLUMES.length*18;
             const xyz=new Float32Array(count*3);
+            const sizes=new Float32Array(count);
+            const fades=new Float32Array(count);
+            const tints=new Float32Array(count*3);
             const positions=new THREE.BufferGeometry();
             positions.setAttribute('position',new THREE.BufferAttribute(xyz,3)
                 .setUsage(THREE.DynamicDrawUsage));
-            const material=new THREE.PointsMaterial({
-                map:h4SmokeAtlas,size:105,transparent:true,opacity:.44,
-                color:0xaeb0af,depthWrite:false,vertexColors:false,
-                fog:true,sizeAttenuation:true
+            positions.setAttribute('aSize',new THREE.BufferAttribute(sizes,1)
+                .setUsage(THREE.DynamicDrawUsage));
+            positions.setAttribute('aFade',new THREE.BufferAttribute(fades,1)
+                .setUsage(THREE.DynamicDrawUsage));
+            positions.setAttribute('aTint',new THREE.BufferAttribute(tints,3));
+            // Soft, layered billboard point sprites with actual per-point
+            // sizes/opacity/tones. One draw call, no per-frame allocations.
+            // Three r128 ShaderMaterial: no post-processing dependency.
+            const smokeUniforms={
+                uAtlas:{value:h4SmokeAtlas},
+                uViewportHeight:{value:renderer.domElement.height||900}
+            };
+            const material=new THREE.ShaderMaterial({
+                uniforms:smokeUniforms,transparent:true,
+                depthWrite:false,depthTest:true,
+                vertexShader:`
+                    attribute float aSize;
+                    attribute float aFade;
+                    attribute vec3 aTint;
+                    varying float vFade;
+                    varying vec3 vTint;
+                    uniform float uViewportHeight;
+                    void main(){
+                        vec4 mv=modelViewMatrix*vec4(position,1.0);
+                        gl_Position=projectionMatrix*mv;
+                        gl_PointSize=clamp(uViewportHeight*aSize/
+                            max(1.0,-mv.z),2.0,128.0);
+                        vFade=aFade;
+                        vTint=aTint;
+                    }
+                `,
+                fragmentShader:`
+                    precision mediump float;
+                    uniform sampler2D uAtlas;
+                    varying float vFade;
+                    varying vec3 vTint;
+                    void main(){
+                        vec4 cloud=texture2D(uAtlas,gl_PointCoord);
+                        float radius=length(gl_PointCoord-vec2(.5));
+                        float edge=1.0-smoothstep(.34,.50,radius);
+                        float alpha=cloud.a*vFade*edge*.90;
+                        if(alpha<.008)discard;
+                        gl_FragColor=vec4(vTint*cloud.rgb*1.45,alpha);
+                    }
+                `
             });
             const smoke=new THREE.Points(positions,material);
             smoke.name='MAP4_GFX04D_BATTLE_SMOKE_FIELD';
@@ -3635,6 +3688,57 @@
             h4Gfx04DStats.plumes=H4_GFX04D_PLUMES.length;
             h4Gfx04DStats.smokePoints=count;
             h4Gfx04DStats.smokeFields=1;
+            h4Gfx04EStats.shaderSmokeFields=1;
+            h4Gfx04EStats.smokeUniforms=2;
+            // GFX04E warfront contact art: three burnt pads and two tiny
+            // heat sources illuminate real GLB armour without casting an
+            // expensive full-scene shadow map or obstructing target visibility.
+            for(const setting of [
+                {progress:13150,side:-1440,width:1060,depth:1220,turn:.18},
+                {progress:13345,side:-915,width:850,depth:1010,turn:-.31},
+                {progress:12990,side:155,width:700,depth:960,turn:.09}
+            ]){
+                const burn=new THREE.Mesh(h4ShadowPlane,h4Gfx04BurnMaterial);
+                burn.name='MAP4_GFX04E_BATTLE_SCORCH';
+                burn.userData.visualOnly=true;
+                burn.position.copy(h4WorldPosition(setting.progress,
+                    setting.side,-434));
+                burn.quaternion.setFromUnitVectors(H4_DECAL_UP,
+                    getRaceFrameAtDistance(setting.progress).up);
+                burn.scale.set(setting.width,setting.depth,1);
+                burn.rotateZ(setting.turn);
+                zone.add(burn);
+                h4Gfx04EStats.scorchDecals++;
+            }
+            const fires=[
+                {progress:13142,side:-1460,alt:-176,color:0xff9251,
+                    strength:1.36,range:1750},
+                {progress:13070,side:1690,alt:-137,color:0xff6151,
+                    strength:1.12,range:1350}
+            ];
+            fires.forEach((def,index)=>{
+                const light=new THREE.PointLight(def.color,0,def.range,2);
+                light.name='MAP4_GFX04E_LOCAL_HEAT_LIGHT_'+index;
+                light.position.copy(h4WorldPosition(def.progress,
+                    def.side,def.alt));
+                light.userData.visualOnly=true;
+                zone.add(light);
+                h4Gfx04EState.lights.push({light,strength:def.strength});
+                const glow=new THREE.Sprite(new THREE.SpriteMaterial({
+                    map:h4DustTex,color:def.color,transparent:true,
+                    opacity:.26,depthWrite:false,depthTest:true,
+                    blending:THREE.AdditiveBlending,fog:true
+                }));
+                glow.name='MAP4_GFX04E_HOT_CORE_'+index;
+                glow.position.copy(light.position);
+                glow.scale.set(145,145,1);
+                glow.userData.visualOnly=true;
+                glow.visible=false;
+                zone.add(glow);
+                h4Gfx04EState.glows.push(glow);
+                h4Gfx04EStats.warmLights++;
+                h4Gfx04EStats.coreGlows++;
+            });
             const sparkGeo=new THREE.BufferGeometry();
             const sparkPositions=new Float32Array(H4_GFX04D_SPARK_CAP*3);
             const sparkColors=new Float32Array(H4_GFX04D_SPARK_CAP*3);
@@ -3699,6 +3803,11 @@
                 attr.needsUpdate=true;mesh.visible=false;
             }
             h4Gfx04DStats.sparksActive=0;
+            for(let i=0;i<h4Gfx04EState.lights.length;i++){
+                h4Gfx04EState.lights[i].light.intensity=0;
+                h4Gfx04EState.glows[i].visible=false;
+            }
+            h4Gfx04EStats.activeLights=0;
             h4Gfx04DStats.resets++;
         }
         function h4UpdateGfx04D(dt,time){
@@ -3706,6 +3815,11 @@
             const smoke=h4Gfx04DState.smoke;
             if(smoke){
                 const attr=smoke.geometry.attributes.position;
+                const aSize=smoke.geometry.attributes.aSize;
+                const aFade=smoke.geometry.attributes.aFade;
+                const aTint=smoke.geometry.attributes.aTint;
+                smoke.material.uniforms.uViewportHeight.value=
+                    renderer.domElement.height||900;
                 for(let p=0;p<h4Gfx04DState.anchors.length;p++){
                     const src=h4Gfx04DState.anchors[p];
                     for(let n=0;n<18;n++){
@@ -3723,10 +3837,25 @@
                                 src.tangent.y*drift,
                             src.world.z+src.up.z*rise+src.right.z*swirl+
                                 src.tangent.z*drift);
+                        // A thicker, amber-lit source becomes a cooler,
+                        // irregular, translucent crest. Layer widths differ.
+                        const density=.75+.20*Math.sin(n*2.31+p*.83);
+                        aSize.setX(i,(150+320*t)*density);
+                        aFade.setX(i,Math.max(.08,
+                            (.53*(1-t)+.12*t)*(p===0?.87:1)));
+                        const soot=THREE.MathUtils.clamp(t*1.18,0,1);
+                        aTint.setXYZ(i,
+                            (p<2?.82:.90)*(1-soot)+.70*soot,
+                            (p<2?.53:.55)*(1-soot)+.75*soot,
+                            (p<2?.37:.45)*(1-soot)+.80*soot);
                     }
                 }
                 attr.needsUpdate=true;
+                aSize.needsUpdate=true;
+                aFade.needsUpdate=true;
+                aTint.needsUpdate=true;
                 h4Gfx04DStats.smokeUpdates++;
+                h4Gfx04EStats.smokeShadeUpdates++;
             }
             const spark=h4Gfx04DState.spark;
             if(spark){
@@ -3751,6 +3880,22 @@
                 spark.visible=count>0;
                 h4Gfx04DStats.sparksActive=count;
             }
+            const active=state.map4Phase===2;
+            for(let i=0;i<h4Gfx04EState.lights.length;i++){
+                const source=h4Gfx04EState.lights[i];
+                const pulse=.90+.10*Math.sin(time*6.5+i*2.71)+
+                    .055*Math.sin(time*13.7+i*.93);
+                source.light.intensity=active?Math.max(.2,
+                    source.strength*pulse):0;
+                const glow=h4Gfx04EState.glows[i];
+                glow.visible=active;
+                glow.material.opacity=active ?
+                    .20+.055*Math.sin(time*7+i) : 0;
+                if(active)glow.scale.setScalar(135+17*Math.sin(time*4+i));
+            }
+            h4Gfx04EStats.activeLights=active?
+                h4Gfx04EState.lights.length:0;
+            h4Gfx04EStats.lightUpdates++;
             h4Gfx04DStats.updates++;
         }
 

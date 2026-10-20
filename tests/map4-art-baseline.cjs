@@ -45,6 +45,16 @@ const percentile=(numbers,p)=>{
   await page.locator('#map-choice-4').click();
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running && state.raceTime>.05,null,{timeout:20000});
+  // Only halt the GAME animation loop during reproducible screenshots.
+  // Playwright's own rAF polling continues normally. Each probe below
+  // manually calls renderer.render; this prevents needless SwiftShader
+  // background frames from competing with the readback/screenshot.
+  await page.evaluate(()=>{
+    state.paused=true;
+    const nativeRaf=window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame=(callback)=>
+      callback&&callback.name==='animate'?0:nativeRaf(callback);
+  });
   const out={schemaVersion:1,build:process.env.GFX01_HTML_PATH?'GFX01 packaged offline HTML':'source HTML',
     reference:'VQ04+ fixed visual probes',
    note:'Software Chromium/SwiftShader. Render timings are not end-user GPU FPS.',
@@ -270,6 +280,43 @@ const percentile=(numbers,p)=>{
   assert.equal(plume.smoke,72);
   assert(plume.visibleSparks>0);
   out.battleVFX=plume;
+  // GFX04E: two comparable fixed warfront cameras with heat lighting ON
+  // and a cold-light control. Use the same gameplay world for both captures.
+  out.gfx04eGallery=[];
+  for(const p of [
+    {id:'wreck',at:12610,x:-590,y:380,target:13175,lane:-1240,alt:-120},
+    {id:'defense',at:12640,x:600,y:400,target:13095,lane:1280,alt:5}
+  ]){
+    const result=await page.evaluate(v=>{
+      state.paused=true;state.routeProgress=13200;state.map4Phase=2;
+      camera.position.copy(h4WorldPosition(v.at,v.x,v.y));
+      camera.lookAt(h4WorldPosition(v.target,v.lane,v.alt));
+      camera.fov=60;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(20);
+      h4UpdateGfx01LOD();h4UpdateGfx04D(0,28.45);
+      renderer.render(scene,camera);
+      return {smokeFields:h4Gfx04EStats.shaderSmokeFields,
+        lightCount:h4Gfx04EStats.activeLights,
+        decals:h4Gfx04EStats.scorchDecals,
+        calls:renderer.info.render.calls};
+    },p);
+    await page.screenshot({path:path.join(directory,'gfx04e-'+p.id+'-hud.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,'gfx04e-'+p.id+'-art.png')});
+    await page.evaluate(()=>{
+      h4Gfx04EState.lights.forEach(x=>{x.light.intensity=0;});
+      h4Gfx04EState.glows.forEach(x=>{x.visible=false;});
+      renderer.render(scene,camera);
+    });
+    await page.screenshot({path:path.join(directory,'gfx04e-'+p.id+'-no-heat.png')});
+    await page.evaluate(()=>{
+      document.body.classList.remove('map4-photo-probe');
+      h4UpdateGfx04D(0,28.45);
+    });
+    out.gfx04eGallery.push({id:p.id,...result});
+  }
+  assert.equal(out.gfx04eGallery.length,2);
+  assert(out.gfx04eGallery.every(x=>x.lightCount===2&&x.decals===3));
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];
