@@ -188,6 +188,82 @@ const assert = require('node:assert/strict');
     assert.equal(vq03.enemyWings,true,'rivals use 3D sculpted wings');
     assert.equal(vq03.wingType,'ExtrudeGeometry','wings have genuine 3D custom shape');
     assert.equal(vq03.smokeAtlas,true,'self-contained smoke texture');
+
+    // GFX05: ten original shared GPU geometries and five distinct pilot
+    // palettes replace simplistic cone/box ships without changing hit spheres.
+    const gfx05=await page.evaluate(()=>{
+      const player=h4GeoSwordArt.userData.h4Gfx05Craft;
+      const rivalModels=racers.map(r=>r.mesh.userData.h4Gfx05Craft);
+      const hunterModels=hunterTargets.map(h=>h.mesh.userData.h4Gfx05Craft);
+      const count=(root,prefix)=>root.children.filter(c=>
+        c.name.startsWith(prefix)).length;
+      const base=geoSwordMesh.children.filter(x=>x!==h4GeoSwordArt);
+      const before=state.shield;
+      state.shield=31;
+      const hunter=hunterTargets[0];
+      const hp=hunter.hp;
+      hunter.hp=hunter.maxHp*.25;
+      h4Gfx05AnimateCraft(.016,11.9);
+      const damagePlayer=player.userData.h4Gfx05Damage.visible;
+      const damageHunter=hunter.mesh.userData.h4Gfx05Craft.userData.h4Gfx05Damage.visible;
+      state.shield=before;hunter.hp=hp;
+      h4Gfx05AnimateCraft(.016,12.15);
+      return {
+        stats:{...h4Gfx05Stats},
+        player:!!player,playerModelName:player?.name,
+        playerWings:count(player,'GFX05_SWEPT_WING'),
+        playerHull:count(player,'GFX05_TAPERED_3D_HULL'),
+        playerEngines:count(player,'GFX05_LIVE_THRUSTER'),
+        playerVisible:h4GeoSwordArt.visible,
+        baseHidden:base.every(x=>!x.visible),
+        rivals:rivalModels.length,
+        rivalDifferentPaint:new Set(rivalModels.map(x=>
+          x.userData.h4Gfx05Palette)).size,
+        rivalOldHidden:racers.every(r=>r.mesh.children.filter(x=>
+          x!==r.mesh.userData.h4Gfx05Craft && x!==r.speedTrailGroup)
+          .every(x=>!x.visible)),
+        hunters:hunterModels.length,
+        allHuntersArt:hunterModels.every(x=>x&&x.userData.h4Gfx05Type),
+        visualOnly:player.userData.h4Gfx05VisualOnly &&
+          [...rivalModels,...hunterModels].every(x=>
+            x.userData.h4Gfx05VisualOnly),
+        engineAnimated:player.userData.h4Gfx05Engines.every(x=>x.scale.x>0),
+        damagePlayer,damageHunter,
+        afterDamage:!player.userData.h4Gfx05Damage.visible,
+        commonGeometry:hunterModels[0].children.find(x=>
+          x.name==='GFX05_TAPERED_3D_HULL').geometry===
+          rivalModels[0].children.find(x=>
+            x.name==='GFX05_TAPERED_3D_HULL').geometry,
+        hullType:H4_GFX05_GEO.hull.type,
+        wingType:H4_GFX05_GEO.wingRight.type,
+        registered:H4_GFX05_GEO.hull.uuid
+      };
+    });
+    assert.equal(gfx05.stats.player,1,'one rebuilt GeoSword player craft');
+    assert.equal(gfx05.stats.racers,5,'five new rival pilot models');
+    assert.equal(gfx05.stats.hunters,8,'eight updated shared hunter models');
+    assert.equal(gfx05.player,true);
+    assert.equal(gfx05.playerHull,1,'one physically sculpted player hull');
+    assert.equal(gfx05.playerWings,2,'player gets two swept wing surfaces');
+    assert.equal(gfx05.playerEngines,2,'player gets two live exhaust nozzles');
+    assert(gfx05.baseHidden && gfx05.playerVisible,
+      'Map4 displays only its new player silhouette');
+    assert.equal(gfx05.rivals,5);
+    assert.equal(gfx05.rivalDifferentPaint,5,'five pilots have distinct liveries');
+    assert.equal(gfx05.rivalOldHidden,true,'old rival box wings hidden');
+    assert.equal(gfx05.hunters,8);
+    assert.equal(gfx05.allHuntersArt,true);
+    assert.equal(gfx05.visualOnly,true,'aircraft decoration cannot alter hit spheres');
+    assert(gfx05.engineAnimated,'GFX05 nozzles pulse without new allocations');
+    assert(gfx05.damagePlayer && gfx05.damageHunter,
+      'damage markers reflect current shield and hull');
+    assert(gfx05.afterDamage,'player model damage marker clears on repair');
+    assert.equal(gfx05.commonGeometry,true,'different craft share main GPU hull');
+    assert.equal(gfx05.hullType,'BufferGeometry');
+    assert.equal(gfx05.wingType,'ExtrudeGeometry');
+    assert(gfx05.stats.sharedGeometries<=14,'strict once-built GPU craft kit');
+    assert.equal(gfx05.stats.enginePairs,14,'each of 14 craft models has two engines');
+
     const blast=await page.evaluate(()=>{
       const before={...h4ExplosionStats};
       createExplosion(state.pos.clone().add(new THREE.Vector3(0,10,-100)),
@@ -1094,6 +1170,25 @@ const assert = require('node:assert/strict');
       'no stale warfront lighting in another phase');
 
     assert(vfxReset.resets>=2,'pooled hit effects reset on each launch');
+    const gfx05Restart=await page.evaluate(()=>{
+      const rigs= [h4GeoSwordArt.userData.h4Gfx05Craft,
+        ...racers.map(r=>r.mesh.userData.h4Gfx05Craft),
+        ...hunterTargets.map(t=>t.mesh.userData.h4Gfx05Craft)];
+      return {
+        rigs:rigs.length,valid:rigs.every(x=>x&&x.children.length>8),
+        shared:h4Gfx05SharedGeometries.has(H4_GFX05_GEO.hull),
+        hullUUID:H4_GFX05_GEO.hull.uuid,
+        geometries:h4Gfx05SharedGeometries.size,
+        racerColors:new Set(racers.map(r=>
+          r.mesh.userData.h4Gfx05Craft.userData.h4Gfx05Palette)).size
+      };
+    });
+    assert.equal(gfx05Restart.rigs,14,'restart recreates exactly existing 5+8 aircraft');
+    assert.equal(gfx05Restart.valid,true,'all new craft are complete');
+    assert.equal(gfx05Restart.shared,true,'restart must not dispose shared VBO geometry');
+    assert.equal(gfx05Restart.hullUUID,gfx05.registered,
+      'same GPU hull reused after all hunters and AI were recreated');
+    assert.equal(gfx05Restart.racerColors,5,'restart retains distinctive pilot palettes');
     assert.equal(await page.evaluate(()=>h4Gfx04Stats.sites),3,
       'restart reuses three hero warfront compositions without duplicating art');
     assert.equal(await page.evaluate(()=>h4CanyonHeroStats.sites),3,
