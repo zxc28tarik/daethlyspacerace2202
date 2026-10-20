@@ -342,9 +342,11 @@ const percentile=(numbers,p)=>{
       if(!model||!root)return {id:spec.id,visible:false};
       root.updateWorldMatrix(true,true);
       const pos=root.getWorldPosition(new THREE.Vector3());
-      camera.position.copy(pos).add(new THREE.Vector3(29,16,36));
+      const offset=spec.type==='PLAYER'?
+        new THREE.Vector3(20,11,26):new THREE.Vector3(26,15,34);
+      camera.position.copy(pos).add(offset);
       camera.lookAt(pos);
-      camera.fov=49;camera.updateProjectionMatrix();
+      camera.fov=47;camera.updateProjectionMatrix();
       h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(17);
       renderer.render(scene,camera);
       const counts={id:spec.id,visible:true,model:model.name,
