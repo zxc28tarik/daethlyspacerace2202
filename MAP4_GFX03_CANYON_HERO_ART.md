@@ -6,6 +6,9 @@ Başlangıç: GFX-00 + GFX-02 main `621a0668c4c4045b64f83f77c483c18020820694`
 - Kızıl Kaya Kapısı: bir üçgen-kutu kombinasyonu daha yerine gerçek boşluk içeren, kenarları düzensiz extruded büyük doğal taş kemer, kalın temel taşları, erozyon tabakaları ve kaya destekleri.
 - Kırık Mesa: sekiz GFX-02 kaya geometrisi yeniden kullanılarak çok parçalı plato ve farklı seviyelerde sediment basamakları; farklı silüet veren ikinci/üçüncü kaya kütleleri.
 - Kanyon Gözleme: yüksek yapısal gövde, metal taşıyıcılar, açık platform, gerçek 3D radar çanağı ve mercek; çevresinde aşınmış kaya temelleri.
+- Görsel kayıtların ardından tespit edilen **tekrarlanan yoğun çizgili kumtaşı dokusu** kanyon sahnesine özel yeni, tileable 256x256 doğal sediment atlası ile değiştirildi. Tüm GFX-03 kaya parçaları bu albedoyu paylaşıyor; normal kabartı kuvveti azaltıldı.
+- W02 kanyon yakın çevresindeki 30 kaya, uzaktaki 28 ufuk kayası ve girişteki 8 kaya için eski tekdüze koni/sütun modelleri yerine 8 farklı aşınmış GFX-02 kaya geometrisi kullanıldı; aynı çevre objesi sayısı korunuyor.
+- Ana koridor boyunca W01 kanyon orta mesafe 28 tekrar kaya parçası da GFX-02 varyant geometrisine taşındı. 6 çarpışmalı W03 kaya geçidinin geometri/koliderleri değiştirilmedi.
 - 7 yeni paylaşılmış geometri tipi; çoğu GFX-02 rock variant ve VQ04 map atlası yeniden kullanıyor. Materyal paleti canyon sandstone, kaya, şist, çelik, pirinç, cam, işaret lambası.
 - GFX-03 grupları mevcut 3 W01 landmark parent altında kalır; bölgesel görünürlük / landmark HUD olduğu gibi.
 - Sıfır yeni çarpışma. Zorunlu W03 6 kaya geçidi collider'ı, 36 W05 endüstri collider'ı ve +18% / +12% rota bonusları değiştirilmez.
