@@ -317,6 +317,65 @@ const percentile=(numbers,p)=>{
   }
   assert.equal(out.gfx04eGallery.length,2);
   assert(out.gfx04eGallery.every(x=>x.lightCount===2&&x.decals===3));
+  // GFX05 authentic 3D ship close-ups, taken from real world objects rather
+  // than drawings or screenshots fabricated outside the game renderer.
+  out.craftGallery=[];
+  for(const craft of [
+    {id:'player',type:'PLAYER'},
+    {id:'pilot',type:'RACER'},
+    {id:'elite',type:'HUNTER'}
+  ]){
+    const data=await page.evaluate(spec=>{
+      state.paused=true;state.map4Phase=1;state.routeProgress=650;
+      updatePlanetaryWorld();
+      const old={geoVisible:geoSwordMesh.visible,turret:turretGroup.visible};
+      let model,root;
+      if(spec.type==='PLAYER'){
+        geoSwordMesh.visible=true;turretGroup.visible=false;
+        model=h4GeoSwordArt.userData.h4Gfx05Craft;root=h4GeoSwordArt;
+      }else if(spec.type==='RACER'){
+        root=racers[0].mesh;model=root.userData.h4Gfx05Craft;
+      }else{
+        root=hunterTargets.find(x=>x.alive&&x.isElite)?.mesh;
+        model=root?.userData.h4Gfx05Craft;
+      }
+      if(!model||!root)return {id:spec.id,visible:false};
+      root.updateWorldMatrix(true,true);
+      const pos=root.getWorldPosition(new THREE.Vector3());
+      const offset=spec.type==='PLAYER'?
+        new THREE.Vector3(20,11,26):new THREE.Vector3(26,15,34);
+      camera.position.copy(pos).add(offset);
+      camera.lookAt(pos);
+      camera.fov=47;camera.updateProjectionMatrix();
+      h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(17);
+      renderer.render(scene,camera);
+      const counts={id:spec.id,visible:true,model:model.name,
+        components:model.children.length,
+        wings:model.children.filter(x=>x.name.includes('SWEPT_WING')).length,
+        engines:model.children.filter(x=>x.name==='GFX05_LIVE_THRUSTER').length,
+        triangles:renderer.info.render.triangles,
+        drawCalls:renderer.info.render.calls};
+      if(spec.type==='PLAYER'){
+        // Restore after screenshots outside this evaluate in caller.
+        window.__gfx05ViewerRestore=old;
+      }
+      return counts;
+    },craft);
+    assert.equal(data.visible,true,'ship exists: '+craft.id);
+    await page.screenshot({path:path.join(directory,'craft-'+craft.id+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,'craft-'+craft.id+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.craftGallery.push(data);
+  }
+  await page.evaluate(()=>{
+    if(window.__gfx05ViewerRestore){
+      geoSwordMesh.visible=window.__gfx05ViewerRestore.geoVisible;
+      turretGroup.visible=window.__gfx05ViewerRestore.turret;
+      delete window.__gfx05ViewerRestore;
+    }
+  });
+  assert(out.craftGallery.every(x=>x.wings===2&&x.engines===2));
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];

@@ -4006,6 +4006,9 @@
             planetaryWorldGroup.visible=active;
             document.body.classList.toggle('map4-composition',active);
             h4GeoSwordArt.visible=active;
+            geoSwordMesh.children.forEach(child=>{
+                if(child!==h4GeoSwordArt)child.visible=!active;
+            });
             h4SkyDome.visible=active;
             h4SunHalo.visible=active;
             renderer.toneMapping=active?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
@@ -5102,7 +5105,280 @@
         }
         h4AddSweptFins(h4GeoSwordArt,{hull:h4PlayerTrim,trim:h4ShipLight},6.4,5.2);
         geoSwordMesh.add(h4GeoSwordArt);
-        function h4EnrichFighter(group,isElite,isRacer){
+
+        // GFX-05: real 3D aeroplane/spacecraft silhouettes, distinct pilot
+        // liveries, intact gameplay hit spheres. All geometry and materials
+        // are reusable GPU assets, built only once before the race starts.
+        const h4Gfx05Stats={models:0,player:0,racers:0,hunters:0,
+            materialVariants:0,sharedGeometries:0,
+            wingSurfaces:0,enginePairs:0,animationFrames:0,
+            damageActivations:0,visualOnly:true};
+        const h4Gfx05SharedGeometries=new Set();
+        const h4Gfx05SharedMaterials=new Set();
+        const h4Gfx05TrackGeometry=geo=>{
+            h4Gfx05SharedGeometries.add(geo);
+            h4Gfx05Stats.sharedGeometries=h4Gfx05SharedGeometries.size;
+            return geo;
+        };
+        const h4Gfx05TrackMaterial=mat=>{
+            h4Gfx05SharedMaterials.add(mat);
+            return mat;
+        };
+        function h4Gfx05LongHull(){
+            // Hand-authored ring section topology gives a clean faceted prow,
+            // raised cockpit shoulders and narrowed twin-nozzle stern.
+            const sections=[
+                [-6.60,.08,.08,.12],
+                [-5.15,.34,.22,.02],
+                [-3.65,.92,.32,-.04],
+                [-1.85,1.34,.45,-.09],
+                [.30,1.46,.48,-.12],
+                [2.10,1.27,.46,-.09],
+                [3.85,.90,.36,-.05],
+                [4.60,.56,.29,-.06]
+            ];
+            const sides=12,xyz=[],uv=[],index=[];
+            for(let j=0;j<sections.length;j++){
+                const [z,width,height,cy]=sections[j];
+                for(let k=0;k<sides;k++){
+                    const theta=k/sides*Math.PI*2;
+                    const facet=1+.043*Math.cos(4*theta+j*.33);
+                    xyz.push(width*Math.cos(theta)*facet,
+                        cy+height*Math.sin(theta)*(Math.sin(theta)>0?1.10:.76),z);
+                    uv.push(k/sides,j/(sections.length-1));
+                }
+            }
+            for(let j=0;j<sections.length-1;j++)for(let k=0;k<sides;k++){
+                const n=(k+1)%sides,a=j*sides+k,b=j*sides+n,
+                    c=(j+1)*sides+n,d=(j+1)*sides+k;
+                index.push(a,b,c,a,c,d);
+            }
+            const geometry=new THREE.BufferGeometry();
+            geometry.setAttribute('position',new THREE.Float32BufferAttribute(xyz,3));
+            geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+            geometry.setIndex(index);geometry.computeVertexNormals();
+            return geometry;
+        }
+        function h4Gfx05WingGeometry(sign){
+            const outline=new THREE.Shape();
+            const points=[
+                [1.05,-2.40],[2.35,-2.88],[6.75,-.88],[8.35,.95],
+                [8.0,1.56],[5.65,.96],[3.60,2.48],[1.28,2.13]
+            ];
+            points.forEach(([x,z],i)=>{
+                const px=x*sign;
+                if(i===0)outline.moveTo(px,z);
+                else outline.lineTo(px,z);
+            });
+            outline.closePath();
+            const geo=new THREE.ExtrudeGeometry(outline,{
+                depth:.22,steps:1,bevelEnabled:true,
+                bevelThickness:.045,bevelSize:.06,bevelSegments:1,
+                curveSegments:1
+            });
+            geo.rotateX(Math.PI/2);geo.translate(0,-.10,0);
+            geo.computeVertexNormals();return geo;
+        }
+        function h4Gfx05WingPaintGeometry(sign){
+            // Broad identification paint follows the sweep angle and really
+            // hugs the upper wing; one separate close-to-surface 3D insert.
+            const outline=new THREE.Shape();
+            const points=[
+                [2.05,-1.80],[3.32,-1.92],[6.95,.18],
+                [6.25,.47],[3.68,.80],[2.48,.26]
+            ];
+            points.forEach(([x,z],i)=>{
+                if(i===0)outline.moveTo(x*sign,z);
+                else outline.lineTo(x*sign,z);
+            });
+            outline.closePath();
+            const geometry=new THREE.ExtrudeGeometry(outline,{
+                depth:.065,steps:1,bevelEnabled:false,curveSegments:1
+            });
+            geometry.rotateX(Math.PI/2);
+            geometry.translate(0,.16,0);
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+        function h4Gfx05FinGeometry(){
+            const shape=new THREE.Shape();
+            shape.moveTo(0,0);shape.lineTo(-.24,2.70);
+            shape.lineTo(.70,2.15);shape.lineTo(1.35,-.20);
+            shape.closePath();
+            const geo=new THREE.ExtrudeGeometry(shape,{
+                depth:.12,bevelEnabled:true,bevelSize:.035,
+                bevelThickness:.02,bevelSegments:1
+            });
+            geo.rotateY(Math.PI/2);geo.computeVertexNormals();return geo;
+        }
+        const H4_GFX05_GEO=Object.freeze({
+            hull:h4Gfx05TrackGeometry(h4Gfx05LongHull()),
+            wingLeft:h4Gfx05TrackGeometry(h4Gfx05WingGeometry(-1)),
+            wingRight:h4Gfx05TrackGeometry(h4Gfx05WingGeometry(1)),
+            paintLeft:h4Gfx05TrackGeometry(h4Gfx05WingPaintGeometry(-1)),
+            paintRight:h4Gfx05TrackGeometry(h4Gfx05WingPaintGeometry(1)),
+            canopy:h4Gfx05TrackGeometry(new THREE.SphereGeometry(1,18,12)),
+            nozzle:h4Gfx05TrackGeometry(new THREE.CylinderGeometry(.72,.85,1,12,1)),
+            ring:h4Gfx05TrackGeometry(new THREE.TorusGeometry(.65,.105,8,22)),
+            fin:h4Gfx05TrackGeometry(h4Gfx05FinGeometry()),
+            spine:h4Gfx05TrackGeometry(new THREE.BoxGeometry(1,1,1)),
+            lamp:h4Gfx05TrackGeometry(new THREE.SphereGeometry(.42,8,6)),
+            scorch:h4Gfx05TrackGeometry(new THREE.PlaneGeometry(1,1))
+        });
+        const h4Gfx05Paint=[
+            [0xd4e6f0,0x12a5db,0x77f2ff],
+            [0x8c9eaf,0xf27c50,0xffc27c],
+            [0xb4adb6,0x7e6fcb,0xc0a6ff],
+            [0xc1d6d3,0x13a88e,0x52e9be],
+            [0xb8ae9d,0xd44446,0xff9b82],
+            [0x9daab4,0x4784ff,0x96d3ff],
+            [0x6c7680,0xd38c4e,0xffb16e],
+            [0x616971,0xb53231,0xff6c52]
+        ];
+        const H4_GFX05_MAT=Object.freeze(h4Gfx05Paint.map((tones,i)=>{
+            const [paint,trim,heat]=tones;
+            const make=(color,roughness,metalness,emissive=0)=>{
+                const material=new THREE.MeshStandardMaterial({
+                    map:h4SurfaceMaps.steel,color,roughness,metalness,
+                    emissive,emissiveIntensity:emissive?.35:0,
+                    side:THREE.DoubleSide
+                });
+                return h4Gfx05TrackMaterial(material);
+            };
+            const result={
+                hull:make(paint,.39,.67),
+                // A true opaque body-color livery across the entire upper
+                // wing is more legible from actual chase-camera distance.
+                wing:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
+                    color:trim,metalness:.52,roughness:.48,
+                    side:THREE.DoubleSide
+                })),
+                trim:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
+                    color:trim,metalness:.36,roughness:.43,
+                    emissive:trim,emissiveIntensity:.18,
+                    side:THREE.DoubleSide
+                })),
+                rail:make(0x253847,.28,.68),
+                canopy:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
+                    color:0x1c5269,metalness:.48,roughness:.14,
+                    emissive:0x0e5271,emissiveIntensity:.38
+                })),
+                glow:h4Gfx05TrackMaterial(new THREE.MeshBasicMaterial({
+                    color:heat,transparent:true,opacity:.86
+                })),
+                scorch:h4Gfx05TrackMaterial(new THREE.MeshBasicMaterial({
+                    color:0x272528,transparent:true,opacity:.46,
+                    depthWrite:false,side:THREE.DoubleSide
+                }))
+            };
+            h4Gfx05Stats.materialVariants++;
+            return result;
+        }));
+        function h4Gfx05CreateCraft(type,livery=0){
+            const style=type==='PLAYER'?0:
+                type==='ELITE'?6:type==='HUNTER'?7:
+                    1+(livery%5);
+            const mat=H4_GFX05_MAT[style],g=H4_GFX05_GEO;
+            const result=new THREE.Group();
+            result.name='MAP4_GFX05_'+type+'_SCULPT';
+            result.userData.h4Gfx05Type=type;
+            result.userData.h4Gfx05VisualOnly=true;
+            const put=(name,geo,material,x,y,z,sx,sy,sz)=>{
+                const obj=new THREE.Mesh(geo,material);
+                obj.name='GFX05_'+name;obj.position.set(x,y,z);
+                obj.scale.set(sx,sy,sz);obj.userData.visualOnly=true;
+                result.add(obj);return obj;
+            };
+            put('TAPERED_3D_HULL',g.hull,mat.hull,0,0,0,1,1,1);
+            for(const side of [-1,1]){
+                put('SWEPT_WING_'+(side<0?'LEFT':'RIGHT'),
+                    side<0?g.wingLeft:g.wingRight,mat.wing,0,0,0,1,1,1);
+                put('IDENTITY_WING_PANEL',
+                    side<0?g.paintLeft:g.paintRight,mat.trim,
+                    0,0,0,1,1,1);
+                put('WING_PAINT_RAIL',g.spine,mat.trim,side*6.3,.04,.53,
+                    .18,.12,2.25).rotation.y=side*-.28;
+                put('VERTICAL_STABILIZER',g.fin,mat.hull,side*1.95,.27,2.25,
+                    1,.85,1).rotation.y=side*.13;
+                const jet=put('TWIN_ENGINE_HOUSING',g.nozzle,mat.rail,
+                    side*1.68,-.20,3.55,1.13,1.70,1.13);
+                jet.rotation.x=Math.PI/2;
+                const ring=put('THERMAL_NOZZLE_RING',g.ring,mat.trim,
+                    side*1.68,-.20,4.42,1.15,1.15,1);
+                const lamp=put('LIVE_THRUSTER',g.lamp,mat.glow,
+                    side*1.68,-.20,4.52,1.12,.93,.90);
+                if(!result.userData.h4Gfx05Engines)
+                    result.userData.h4Gfx05Engines=[];
+                result.userData.h4Gfx05Engines.push(lamp);
+                put('ARMOR_WEATHERING',g.scorch,mat.scorch,
+                    side*2.13,.43,.30,1.18,1.05,1).rotation.x=-Math.PI/2;
+                h4Gfx05Stats.wingSurfaces++;
+            }
+            put('COCKPIT_TEARDROP',g.canopy,mat.canopy,
+                0,.59,-1.45,1.04,.57,2.25);
+            put('DORSAL_SPINE',g.spine,mat.rail,
+                0,.43,1.05,.31,.20,4.95);
+            put('PROW_ANTENNA',g.spine,mat.trim,
+                0,.10,-5.50,.10,.12,1.20);
+            put('REAR_SERVICING_RAIL',g.spine,mat.rail,
+                0,-.40,3.05,2.28,.17,.50);
+            const damage=put('BATTLE_DAMAGE_STRIPE',g.spine,mat.trim,
+                0,.74,.85,.24,.10,1.90);
+            damage.visible=false;
+            result.userData.h4Gfx05Damage=damage;
+            result.userData.h4Gfx05OriginalScale=1;
+            result.userData.h4Gfx05Palette=style;
+            h4Gfx05Stats.models++;
+            h4Gfx05Stats.enginePairs++;
+            if(type==='PLAYER')h4Gfx05Stats.player++;
+            else if(type==='RACER')h4Gfx05Stats.racers++;
+            else h4Gfx05Stats.hunters++;
+            return result;
+        }
+        function h4Gfx05AnimateCraft(dt,time){
+            if(state.activeMap!==MAP_MODES.MAP4||!state.running)return;
+            const animate=(group,boost,damage,phase)=>{
+                if(!group)return;
+                const ratio=THREE.MathUtils.clamp(damage,0,1);
+                group.userData.h4Gfx05Engines.forEach((lamp,index)=>{
+                    const pulse=.90+.06*Math.sin(time*13+phase+index*2.4);
+                    const power=boost?1.60:.85;
+                    lamp.scale.set(1.12*power*pulse,.93*power*pulse,
+                        .90*power*pulse);
+                });
+                const stripe=group.userData.h4Gfx05Damage;
+                if(stripe){
+                    const before=stripe.visible;
+                    stripe.visible=ratio<.52;
+                    if(stripe.visible&&!before)
+                        h4Gfx05Stats.damageActivations++;
+                }
+            };
+            animate(h4GeoSwordArt.userData.h4Gfx05Craft,
+                state.currentSpeed>state.baseSpeed*1.17 ||
+                    state.itemTurboTimer>0,
+                state.shield/100,0);
+            for(let i=0;i<racers.length;i++){
+                const r=racers[i];
+                animate(r.mesh.userData.h4Gfx05Craft,
+                    r.isBoosting||r.itemTurboTimer>0,
+                    r.hp/r.maxHp,i*.91);
+            }
+            hunterTargets.forEach((hunter,i)=>{
+                if(!hunter.alive)return;
+                animate(hunter.mesh.userData.h4Gfx05Craft,
+                    hunter.arenaPocketId==='DEFENSE',
+                    hunter.hp/hunter.maxHp,i*.83);
+            });
+            h4Gfx05Stats.animationFrames++;
+        }
+        // Assemble the single GFX05 player model after the shared geometry
+        // and material atlases above have finished initializing.
+        h4GeoSwordArt.children.forEach(obj=>{obj.visible=false;});
+        const h4PlayerGfx05=h4Gfx05CreateCraft('PLAYER',0);
+        h4GeoSwordArt.userData.h4Gfx05Craft=h4PlayerGfx05;
+        h4GeoSwordArt.add(h4PlayerGfx05);
+        function h4EnrichFighter(group,isElite,isRacer,liveryIndex=0){
             const shell=new THREE.MeshStandardMaterial({
                 map:h4SurfaceMaps.darkSteel,color:isRacer?0xc9dceb:0x9f9da0,
                 metalness:.61,roughness:.42});
@@ -5126,6 +5402,14 @@
             }
             h4AddSweptFins(group,{hull:shell,trim:signal},
                 isElite?8.2:isRacer?7.7:7.0,isElite?6.0:5.4);
+            // Replace the basic cones, square wings and prior VQ03 layer
+            // with one identifiable craft. Keep all old parts in memory
+            // only for regression continuity, not extra GPU draw calls.
+            group.children.forEach(obj=>{obj.visible=false;});
+            const kind=isRacer?'RACER':isElite?'ELITE':'HUNTER';
+            const detail=h4Gfx05CreateCraft(kind,liveryIndex);
+            group.userData.h4Gfx05Craft=detail;
+            group.add(detail);
             group.userData.h4DetailedCraft=true;
             h4VisualQuality.enhancedAircraft++;
         }
@@ -5143,7 +5427,7 @@
         const engineFlareMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
         const racerFlareMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
 
-        function createEnemyFighterMesh(isElite = false, isRacer = false) {
+        function createEnemyFighterMesh(isElite = false, isRacer = false, liveryIndex = 0) {
             const group = new THREE.Group();
             const fuselage = new THREE.Mesh(new THREE.ConeGeometry(2.6, 11, 4), enemyHullMat);
             fuselage.rotation.x = Math.PI / 2;
@@ -5166,7 +5450,7 @@
             engR.position.x = 1.6;
 
             group.add(fuselage, wings, engL, engR);
-            if(state.activeMap===MAP_MODES.MAP4)h4EnrichFighter(group,isElite,isRacer);
+            if(state.activeMap===MAP_MODES.MAP4)h4EnrichFighter(group,isElite,isRacer,liveryIndex);
             const scale = isRacer ? 1.45 : (isElite ? 1.55 : 1.25);
             group.scale.setScalar(scale);
             return group;
@@ -5186,7 +5470,8 @@
             scene.remove(mesh);
             const geometries = new Set();
             mesh.traverse(part => {
-                if (part.geometry && !geometries.has(part.geometry)) {
+                if (part.geometry && !geometries.has(part.geometry) &&
+                        !h4Gfx05SharedGeometries.has(part.geometry)) {
                     geometries.add(part.geometry);
                     part.geometry.dispose();
                 }
@@ -5194,7 +5479,8 @@
                 for (const mat of mats) {
                     // Hull, common wings and exhaust are shared with the existing game.
                     if (mat && mat !== enemyHullMat && mat !== enemyWingMat &&
-                            mat !== engineFlareMat && mat.dispose) mat.dispose();
+                            mat !== engineFlareMat &&
+                            !h4Gfx05SharedMaterials.has(mat) && mat.dispose) mat.dispose();
                 }
             });
         }
@@ -5629,7 +5915,8 @@
             scene.remove(r.mesh);
             const geometries = new Set();
             r.mesh.traverse(child => {
-                if (child.geometry && !geometries.has(child.geometry)) {
+                if (child.geometry && !geometries.has(child.geometry) &&
+                        !h4Gfx05SharedGeometries.has(child.geometry)) {
                     geometries.add(child.geometry);
                     child.geometry.dispose();
                 }
@@ -5650,7 +5937,7 @@
             const racerProfiles = ["SPEED", "BALANCED", "CAUTIOUS", "AGGRESSIVE", "BALANCED"];
             const startFrame = getRaceFrameAtDistance(0);
             for (let i = 0; i < 5; i++) {
-                const mesh = createEnemyFighterMesh(false, true);
+                const mesh = createEnemyFighterMesh(false, true, i);
                 const angle = (i / 5) * Math.PI * 2;
                 const rad = state.activeMap===MAP_MODES.MAP4 ?
                     240+i*68 : 50+Math.random()*110;
@@ -8806,6 +9093,8 @@
                 h4UpdateSkyVisuals();
                 h4UpdateCinematicAtmosphere(now*.001);
                 h4UpdateGfx01LOD();
+                if(state.running&&!state.paused)
+                    h4Gfx05AnimateCraft(dt,now*.001);
                 if(state.running&&!state.paused)
                     h4UpdateGfx04D(dt,now*.001);
             }
