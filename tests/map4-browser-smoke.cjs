@@ -501,6 +501,64 @@ const assert = require('node:assert/strict');
     });
     assert.equal(scored.kills,2,'two real credited kills');
     assert.equal(scored.points,4,'normal 1 + elite 3 points');
+    // GFX04D: animated smoke + pooled sparks are physically present in Map4
+    // and directly follow real damageHunterTarget events, not fake kills.
+    const gfx04d=await page.evaluate(()=>{
+      const smoke=planetaryWorldRegions[1].children.find(x=>
+        x.name==='MAP4_GFX04D_BATTLE_SMOKE_FIELD');
+      const sparks=planetaryWorldGroup.children.find(x=>
+        x.name==='MAP4_GFX04D_HIT_SPARK_POOL');
+      const a=smoke.geometry.attributes.position;
+      h4UpdateGfx04D(0.02,11.10);
+      const first=[a.getX(7),a.getY(7),a.getZ(7)];
+      h4UpdateGfx04D(0.09,13.80);
+      const second=[a.getX(7),a.getY(7),a.getZ(7)];
+      const emitted=h4Gfx04DStats.sparksEmitted;
+      const capacity=h4Gfx04DStats.sparkCapacity;
+      // Batch-limit stress probe: 30 legitimate-looking visual-only spark
+      // bursts; does not alter any pilot/hunter HP or scores.
+      for(let n=0;n<30;n++)
+        h4EmitGfx04DSparks(state.pos,n%3===0);
+      h4UpdateGfx04D(.13,14.20);
+      const after=h4Gfx04DStats.sparksActive;
+      h4UpdateGfx04D(1.0,16.20);
+      const cleared=h4Gfx04DStats.sparksActive;
+      const allocation={
+        smokeGeometry:smoke.geometry.uuid,sparkGeometry:sparks.geometry.uuid,
+        smokeMaterial:smoke.material.uuid,sparkMaterial:sparks.material.uuid
+      };
+      return {
+        plumes:h4Gfx04DStats.plumes,
+        smokePoints:h4Gfx04DStats.smokePoints,
+        smokeFields:h4Gfx04DStats.smokeFields,
+        fieldGeometry:smoke.geometry.attributes.position.count,
+        moved:first.some((x,i)=>Math.abs(x-second[i])>.1),
+        sourceIsDecorative:smoke.userData.visualOnly &&
+          sparks.userData.visualOnly,
+        extraColliders:!smoke.userData.h4Collider&&!sparks.userData.h4Collider,
+        capacity,events:h4Gfx04DStats.sparkEvents,
+        emitted,after,cleared,
+        oneSparkBatch:h4Gfx04DStats.sparkDrawCalls,
+        allocations:allocation,
+        sparkAttributes:sparks.geometry.attributes.position.count
+      };
+    });
+    assert.equal(gfx04d.plumes,4,'four differentiated static battle smoke sources');
+    assert.equal(gfx04d.smokePoints,72,'72 smoke particles within one draw call');
+    assert.equal(gfx04d.smokeFields,1,'one shared smoke Points mesh');
+    assert.equal(gfx04d.fieldGeometry,72,'smoke buffer truly populated');
+    assert.equal(gfx04d.moved,true,'time-dependent smoke shifts in world space');
+    assert.equal(gfx04d.sourceIsDecorative,true);
+    assert.equal(gfx04d.extraColliders,true,'VFX never add physical blockers');
+    assert.equal(gfx04d.capacity,96,'fixed-size hit spark pool');
+    assert(gfx04d.events>=2 && gfx04d.emitted>=15,
+      'only actual hunter hits trigger the initial sparks');
+    assert(gfx04d.after<=96 && gfx04d.after>0,
+      'high intensity sparks bounded to 96 GPU points');
+    assert.equal(gfx04d.cleared,0,'sparks fade and expire with no lingering impacts');
+    assert.equal(gfx04d.oneSparkBatch,1,'spark VFX uses one draw-call mesh');
+    assert.equal(gfx04d.sparkAttributes,96,'preallocated GPU vertex budget');
+
     assert.equal(await page.locator('#laser-status').textContent().then(t=>t.includes('HAZIR')),true);
     await page.screenshot({path:path.resolve(__dirname,'map4-running.png')});
     // Phase 1 should normally take around forty seconds at nonboost speed.
@@ -920,6 +978,20 @@ const assert = require('node:assert/strict');
       'restart never duplicates twelve hero signatures');
     assert.equal(await page.evaluate(()=>h4IndustrialArtStats.stations),6,
       'restart never duplicates refinery gantries');
+    const vfxReset=await page.evaluate(()=>({
+      active:h4Gfx04DStats.sparksActive,
+      plumes:h4Gfx04DStats.plumes,
+      particleBuffers:planetaryWorldRegions[1].children.filter(x=>
+        x.name==='MAP4_GFX04D_BATTLE_SMOKE_FIELD').length,
+      sparks:planetaryWorldGroup.children.filter(x=>
+        x.name==='MAP4_GFX04D_HIT_SPARK_POOL').length,
+      resets:h4Gfx04DStats.resets
+    }));
+    assert.equal(vfxReset.active,0,'restart resets pooled hit sparks');
+    assert.equal(vfxReset.plumes,4,'restart reuses smoke anchors');
+    assert.equal(vfxReset.particleBuffers,1,'no duplicate battlefield smoke mesh');
+    assert.equal(vfxReset.sparks,1,'no duplicate spark GPU buffer');
+    assert(vfxReset.resets>=2,'pooled hit effects reset on each launch');
     assert.equal(await page.evaluate(()=>h4Gfx04Stats.sites),3,
       'restart reuses three hero warfront compositions without duplicating art');
     assert.equal(await page.evaluate(()=>h4CanyonHeroStats.sites),3,

@@ -245,6 +245,31 @@ const percentile=(numbers,p)=>{
   if(await page.evaluate(()=>!!window.Map4ArtAssets?.has('elite_battery')))
     assert(out.batteryGallery.every(v=>v.mounted===2&&v.decals===2),
       'two fortified batteries and two scorched bases appear in release');
+  // GFX04D fixed smoke and event-driven spark proof in the same arena,
+  // with original camera probes untouched for A/B comparison.
+  const plume=await page.evaluate(()=>{
+    state.paused=true;state.map4Phase=2;state.routeProgress=13200;
+    camera.position.copy(h4WorldPosition(12600,-620,360));
+    camera.lookAt(h4WorldPosition(13220,-1250,-120));
+    camera.fov=64;camera.updateProjectionMatrix();
+    updatePlanetaryWorld();h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(18);
+    h4UpdateGfx04D(.03,8.4);
+    const point=h4WorldPosition(13180,-1210,-130);
+    h4EmitGfx04DSparks(point,true);
+    h4UpdateGfx04D(.03,8.6);
+    renderer.render(scene,camera);
+    return {smoke:h4Gfx04DStats.smokePoints,
+      visibleSparks:h4Gfx04DStats.sparksActive,
+      plumes:h4Gfx04DStats.plumes,
+      rendering:renderer.info.render.calls};
+  });
+  await page.screenshot({path:path.join(directory,'gfx04d-smoke-sparks.png')});
+  await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+  await page.screenshot({path:path.join(directory,'gfx04d-smoke-sparks-art-only.png')});
+  await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+  assert.equal(plume.smoke,72);
+  assert(plume.visibleSparks>0);
+  out.battleVFX=plume;
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];

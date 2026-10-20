@@ -3587,6 +3587,173 @@
                 h4ArenaWarfrontStats.groups++;
             }
         }
+
+        // GFX-04D: four authored wreck/fortification smoke columns as ONE
+        // shared Points draw call and one bounded, pooled hunter-hit spark mesh.
+        // No smoke/spark sprites, textures or buffers allocated per render frame.
+        const H4_GFX04D_PLUMES=Object.freeze([
+            {progress:13140,side:-1580,alt:-195,seed:1},
+            {progress:13350,side:-980,alt:-240,seed:2},
+            {progress:13070,side:1700,alt:-140,seed:3},
+            {progress:13290,side:790,alt:-310,seed:4}
+        ]);
+        const H4_GFX04D_SPARK_CAP=96;
+        const h4Gfx04DStats={plumes:0,smokePoints:0,smokeFields:0,
+            sparkCapacity:H4_GFX04D_SPARK_CAP,sparkDrawCalls:0,
+            sparkEvents:0,sparksEmitted:0,sparksActive:0,
+            resets:0,updates:0,smokeUpdates:0,decorativeOnly:true};
+        const h4Gfx04DState={smoke:null,spark:null,anchors:[],
+            sparkVel:new Float32Array(H4_GFX04D_SPARK_CAP*3),
+            sparkLife:new Float32Array(H4_GFX04D_SPARK_CAP),
+            sparkCursor:0};
+        function h4BuildGfx04DAtmosphere(zone){
+            if(h4Gfx04DState.smoke)return;
+            const count=H4_GFX04D_PLUMES.length*18;
+            const xyz=new Float32Array(count*3);
+            const positions=new THREE.BufferGeometry();
+            positions.setAttribute('position',new THREE.BufferAttribute(xyz,3)
+                .setUsage(THREE.DynamicDrawUsage));
+            const material=new THREE.PointsMaterial({
+                map:h4SmokeAtlas,size:105,transparent:true,opacity:.44,
+                color:0xaeb0af,depthWrite:false,vertexColors:false,
+                fog:true,sizeAttenuation:true
+            });
+            const smoke=new THREE.Points(positions,material);
+            smoke.name='MAP4_GFX04D_BATTLE_SMOKE_FIELD';
+            smoke.frustumCulled=false;
+            smoke.userData.visualOnly=true;
+            zone.add(smoke);
+            h4Gfx04DState.smoke=smoke;
+            H4_GFX04D_PLUMES.forEach(def=>{
+                const frame=getRaceFrameAtDistance(def.progress);
+                h4Gfx04DState.anchors.push({
+                    world:h4WorldPosition(def.progress,def.side,def.alt),
+                    up:frame.up.clone(),right:frame.right.clone(),
+                    tangent:frame.tangent.clone(),seed:def.seed
+                });
+            });
+            h4Gfx04DStats.plumes=H4_GFX04D_PLUMES.length;
+            h4Gfx04DStats.smokePoints=count;
+            h4Gfx04DStats.smokeFields=1;
+            const sparkGeo=new THREE.BufferGeometry();
+            const sparkPositions=new Float32Array(H4_GFX04D_SPARK_CAP*3);
+            const sparkColors=new Float32Array(H4_GFX04D_SPARK_CAP*3);
+            for(let i=0;i<H4_GFX04D_SPARK_CAP;i++){
+                sparkPositions[i*3]=sparkPositions[i*3+1]=
+                    sparkPositions[i*3+2]=10000000;
+                sparkColors[i*3]=1;sparkColors[i*3+1]=.72;sparkColors[i*3+2]=.32;
+            }
+            sparkGeo.setAttribute('position',new THREE.BufferAttribute(
+                sparkPositions,3).setUsage(THREE.DynamicDrawUsage));
+            sparkGeo.setAttribute('color',new THREE.BufferAttribute(
+                sparkColors,3).setUsage(THREE.DynamicDrawUsage));
+            const spark=new THREE.Points(sparkGeo,new THREE.PointsMaterial({
+                map:h4DustTex,size:10,color:0xffffff,
+                vertexColors:true,transparent:true,opacity:.90,
+                blending:THREE.AdditiveBlending,depthWrite:false,
+                sizeAttenuation:true,fog:true
+            }));
+            spark.name='MAP4_GFX04D_HIT_SPARK_POOL';
+            spark.userData.visualOnly=true;
+            spark.frustumCulled=false;
+            spark.visible=false;
+            planetaryWorldGroup.add(spark);
+            h4Gfx04DState.spark=spark;
+            h4Gfx04DStats.sparkDrawCalls=1;
+            h4UpdateGfx04D(0,0);
+        }
+        function h4EmitGfx04DSparks(point,isElite){
+            if(state.activeMap!==MAP_MODES.MAP4||!state.running||
+                !h4Gfx04DState.spark)return;
+            const geom=h4Gfx04DState.spark.geometry;
+            const a=geom.attributes.position,b=geom.attributes.color;
+            const total=isElite?9:6;
+            const offset=h4Gfx04DStats.sparkEvents++;
+            for(let n=0;n<total;n++){
+                const i=h4Gfx04DState.sparkCursor;
+                h4Gfx04DState.sparkCursor=(i+1)%H4_GFX04D_SPARK_CAP;
+                const theta=(n*.6180339887+offset*.417)*Math.PI*2;
+                const vx=Math.cos(theta)*(75+n*13),vz=Math.sin(theta)*(85+n*10);
+                const vy=(n%3-1)*64+(isElite?35:10);
+                const index=i*3;
+                h4Gfx04DState.sparkVel[index]=vx;
+                h4Gfx04DState.sparkVel[index+1]=vy;
+                h4Gfx04DState.sparkVel[index+2]=vz;
+                h4Gfx04DState.sparkLife[i]=.22+(n%4)*.055;
+                a.setXYZ(i,point.x,point.y,point.z);
+                b.setXYZ(i,isElite?1:.36,isElite?.70:.83,isElite?.24:1);
+                h4Gfx04DStats.sparksEmitted++;
+            }
+            a.needsUpdate=true;b.needsUpdate=true;
+            h4Gfx04DState.spark.visible=true;
+        }
+        function h4ResetGfx04D(){
+            const mesh=h4Gfx04DState.spark;
+            h4Gfx04DState.sparkCursor=0;
+            h4Gfx04DState.sparkLife.fill(0);
+            h4Gfx04DState.sparkVel.fill(0);
+            if(mesh){
+                const attr=mesh.geometry.attributes.position;
+                for(let i=0;i<H4_GFX04D_SPARK_CAP;i++)
+                    attr.setXYZ(i,10000000,10000000,10000000);
+                attr.needsUpdate=true;mesh.visible=false;
+            }
+            h4Gfx04DStats.sparksActive=0;
+            h4Gfx04DStats.resets++;
+        }
+        function h4UpdateGfx04D(dt,time){
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            const smoke=h4Gfx04DState.smoke;
+            if(smoke){
+                const attr=smoke.geometry.attributes.position;
+                for(let p=0;p<h4Gfx04DState.anchors.length;p++){
+                    const src=h4Gfx04DState.anchors[p];
+                    for(let n=0;n<18;n++){
+                        const i=p*18+n;
+                        const t=((time*.115+n/18+p*.271)%1+1)%1;
+                        const rise=95+t*730;
+                        const swirl=Math.sin(t*8.8+p*2.19+n*.77)*(
+                            20+t*125);
+                        const drift=Math.cos(t*5.3+n*.31+p*.71)*(
+                            15+t*85);
+                        attr.setXYZ(i,
+                            src.world.x+src.up.x*rise+src.right.x*swirl+
+                                src.tangent.x*drift,
+                            src.world.y+src.up.y*rise+src.right.y*swirl+
+                                src.tangent.y*drift,
+                            src.world.z+src.up.z*rise+src.right.z*swirl+
+                                src.tangent.z*drift);
+                    }
+                }
+                attr.needsUpdate=true;
+                h4Gfx04DStats.smokeUpdates++;
+            }
+            const spark=h4Gfx04DState.spark;
+            if(spark){
+                const attr=spark.geometry.attributes.position;
+                let count=0,changed=false;
+                for(let i=0;i<H4_GFX04D_SPARK_CAP;i++){
+                    if(h4Gfx04DState.sparkLife[i]<=0)continue;
+                    changed=true;
+                    h4Gfx04DState.sparkLife[i]-=dt;
+                    if(h4Gfx04DState.sparkLife[i]<=0){
+                        attr.setXYZ(i,10000000,10000000,10000000);
+                    }else{
+                        const k=i*3;
+                        attr.setXYZ(i,
+                            attr.getX(i)+h4Gfx04DState.sparkVel[k]*dt,
+                            attr.getY(i)+h4Gfx04DState.sparkVel[k+1]*dt,
+                            attr.getZ(i)+h4Gfx04DState.sparkVel[k+2]*dt);
+                        count++;
+                    }
+                }
+                if(changed)attr.needsUpdate=true;
+                spark.visible=count>0;
+                h4Gfx04DStats.sparksActive=count;
+            }
+            h4Gfx04DStats.updates++;
+        }
+
         function h4RefreshArenaHunters(){
             if(state.activeMap!==MAP_MODES.MAP4 || !state.map4ArenaStarted)return;
             // Reassign the EXISTING 8 targets; no leaks and no phantom kills.
@@ -3658,6 +3825,7 @@
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 if(zoneIndex===1){
                     h4BuildArenaWarfront(zone);
+                    h4BuildGfx04DAtmosphere(zone);
                     // Old W01 and VQ02 crash/defense/wreck silhouettes overlap
                     // new GFX04 set pieces. Keep the HUD landmark identities.
                     for(const lm of h4WorldLandmarks.filter(l=>l.zone===1)){
@@ -5045,6 +5213,7 @@
             if(attackerId !== 'PLAYER' && !creditedRacer) return {hit:false,destroyed:false};
             target.hp = Math.max(0, target.hp - damage);
             const point = impactPoint || target.mesh.position;
+            h4EmitGfx04DSparks(point,target.isElite);
             createExplosion(point, 0x00f3ff, 4, 0.4);
             sound.playHit();
             if (attackerId === 'PLAYER') { state.hitMarkerTimer = 0.16; state.hunterHits++; }
@@ -8115,6 +8284,7 @@
             enemyProjectiles.length = 0;
             particles.forEach(disposeExplosionParticle);
             particles.length = 0;
+            h4ResetGfx04D();
             clearObstacleShards();
             clearLaserImpacts();
             floatingTexts.length = 0;
@@ -8491,6 +8661,8 @@
                 h4UpdateSkyVisuals();
                 h4UpdateCinematicAtmosphere(now*.001);
                 h4UpdateGfx01LOD();
+                if(state.running&&!state.paused)
+                    h4UpdateGfx04D(dt,now*.001);
             }
             renderer.render(scene, camera);
         }
