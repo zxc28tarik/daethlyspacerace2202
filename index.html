@@ -3018,11 +3018,11 @@
                 const side=sign*(1680+(i*151)%1510);
                 const tall=270+(i*79)%710;
                 const geom=regionIndex===0?h4Gfx02RockVariants[(i*3)%8]:
-                    regionIndex===1?(i%2?H4_DETAIL_GEO.wedge:H4_MESHES.structure):
+                    regionIndex===1?(i%3===0?H4_GFX04_GEO.brokenPlate:H4_GFX04_GEO.charredCore):
                     regionIndex===2?(i%3?H4_MESHES.structure:H4_MESHES.tower):
                     (i%3?H4_MESHES.structure:H4_MESHES.tower);
                 const material=regionIndex===0?h4Gfx02RockMaterial:
-                    regionIndex===1?(i%2?H4_DETAIL_MAT.armor:H4_MATERIALS.wreck):
+                    regionIndex===1?(i%2?H4_GFX04_MAT.soot:H4_GFX04_MAT.armor):
                     regionIndex===2?(i%2?H4_MATERIALS.steel:H4_DETAIL_MAT.oxidized):
                     (i%3?H4_MATERIALS.wall:H4_DETAIL_MAT.armor);
                 const h=regionIndex===1?100+(i*17)%150:tall;
@@ -3038,10 +3038,11 @@
                     regionIndex===1?250+(i*43)%310:
                     regionIndex===2?580+(i*83)%880:500+(i*67)%920;
                 const geometry=regionIndex===0?h4Gfx02RockVariants[(i*5)%8]:
-                    regionIndex===1?H4_DETAIL_GEO.wedge:
+                    regionIndex===1?(i%4===0?H4_GFX04_GEO.fracturedCarrier:
+                        H4_GFX04_GEO.brokenPlate):
                     regionIndex===2?H4_MESHES.tower:H4_MESHES.structure;
                 const material=regionIndex===0?h4Gfx02RockMaterial:
-                    regionIndex===1?H4_DETAIL_MAT.armor:
+                    regionIndex===1?(i%2?H4_GFX04_MAT.armor:H4_GFX04_MAT.soot):
                     regionIndex===2?H4_MATERIALS.steel:H4_MATERIALS.wall;
                 make(progress,side,size*0.5,geometry,material,
                     [220+(i%3)*100,size,250+(i%4)*60],far);
@@ -3089,7 +3090,7 @@
         // of these parts registers collision volumes, damage or a new hunter.
         const h4Gfx04Stats={sites:0,parts:0,partsByPocket:{CENTER:0,WRECK:0,DEFENSE:0},
             hiddenOldPockets:0,hiddenOldLandmarks:0,
-            customHullFaces:0,materials:7};
+            customHullFaces:0,materials:9};
         function h4Gfx04CarrierGeometry(){
             // Custom fractured spacecraft footprint; not a scaled primitive.
             const shape=new THREE.Shape();
@@ -3377,12 +3378,18 @@
                             [135+(n%4)*26,height,125+(n%3)*32]);
                         h4CanyonSurfaceStats.replacedSilhouettes++;
                     }else if(def.type==='battlefield'){
-                        const height=45+(n*33)%125;
-                        h4PlaceStructure(zone,d,side,-440+height/2,H4_MESHES.structure,
-                            n%3?H4_MATERIALS.wreck:H4_MATERIALS.sand,
-                            [110+(n%4)*30,height,145]);
-                        if(n%6===0) h4PlaceStructure(zone,d,side+sideSign*170,-365,H4_MESHES.dome,
-                            H4_MATERIALS.rock,[140,65,140]);
+                        // GFX04: replace the old corridor of 28 uniform
+                        // rectangular towers with sparse, low wreck contours.
+                        // The three distinct hero pockets now define the stage.
+                        if(n%3===0){
+                            const h=35+(n*23)%100;
+                            const wreck=h4PlaceStructure(zone,d,side,-438+h*.45,
+                                n%2?H4_GFX04_GEO.brokenPlate:H4_GFX04_GEO.fracturedCarrier,
+                                n%2?H4_GFX04_MAT.soot:H4_GFX04_MAT.armor,
+                                [190+(n%4)*48,h,215+(n%3)*46]);
+                            wreck.userData.w04VisualOnly=true;
+                            wreck.name='MAP4_GFX04_MIDFIELD_RUIN';
+                        }
                     }else if(def.type==='industrial'){
                         const height=370+(n*53)%690;
                         h4PlaceStructure(zone,d,side,-440+height/2,
@@ -3400,6 +3407,7 @@
                 }
                 // Large navigational altitude beacons, not collision hoops.
                 for(let k=1;k<=3;k++){
+                    if(zoneIndex===1&&k!==2)continue; // center navigation only
                     const d=def.from+(def.to-def.from)*k/4;
                     const beacon=h4PlaceStructure(zone,d,(k%2?1:-1)*315,90,
                         H4_MESHES.beacon,H4_MATERIALS.marker,[70,70,70]);
