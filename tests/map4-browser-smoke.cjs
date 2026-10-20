@@ -526,6 +526,130 @@ const assert = require('node:assert/strict');
       'no forward progress during arena');
     assert.equal(await page.evaluate(()=>racers.every(r=>r.routeProgress===MAP4_PHASES.introEnd
       || r.finished || r.dnf)),true,'five AI pilots held in arena');
+
+    // GFX-04: three substantial, non-generic warfront compositions must
+    // replace old repeated boxes without touching hunter/collision systems.
+    const gfx04=await page.evaluate(()=>{
+      const pockets=H4_ARENA_POCKETS.map(p=>{
+        const parent=h4ArenaWarfrontGroups.find(g=>g.userData.pocketId===p.id);
+        const hero=parent.children.find(g=>g.userData.h4Gfx04Pocket===p.id);
+        const pieces=hero?.children||[];
+        return {id:p.id,art:hero?.name,visible:hero?.visible,
+          pieces:pieces.length,hiddenOld:parent.children.filter(
+            x=>x!==hero).every(x=>!x.visible),
+          visualOnly:pieces.every(x=>x.userData.w04VisualOnly===true &&
+            x.userData.h4Collider===undefined && x.userData.visualOnly===true),
+          customHulls:pieces.filter(x=>x.geometry.type==='ExtrudeGeometry').length,
+          materialKinds:new Set(pieces.map(x=>x.material.uuid)).size,
+          highest:Math.max(...pieces.map(x=>x.position.y))};
+      });
+      const old= h4WorldLandmarks.filter(l=>l.zone===1).map(l=>({
+        type:l.kind,legacyHidden:l.group.children.find(
+          c=>c.name.startsWith('MAP4_LEGACY_W01_'))?.visible===false,
+        signatureHidden:l.group.children.find(
+          c=>c.userData.signature===l.kind)?.visible===false
+      }));
+      return {stats:{...h4Gfx04Stats},pockets,old,
+        rockColliders:h4CanyonColliders.length,
+        factoryColliders:h4IndustrialColliders.length,
+        physicalCityColliders:planetaryBuildingColliders.length};
+    });
+    // The next phase's refinery must not crowd the entire battlefield
+    // during the mandatory 60-second stand-still fight.
+    const industrialDuringArena=await page.evaluate(()=>{
+      updatePlanetaryWorld();
+      const zone=planetaryWorldRegions[2];
+      return {terrain:zone.children[0].visible&&zone.visible,
+        visualGroup:zone.userData.gfx04IndustrialVisuals?.visible,
+        wrapperName:zone.userData.gfx04IndustrialVisuals?.name,
+        geometryCount:zone.children[0].geometry.attributes.position.count};
+    });
+    assert.equal(industrialDuringArena.terrain,true,
+      'planet ground remains continuous behind the combat arena');
+    assert.equal(industrialDuringArena.wrapperName,
+      'MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS');
+    assert.equal(industrialDuringArena.visualGroup,false,
+      'only future factory structures are hidden during the arena');
+    assert(industrialDuringArena.geometryCount>7000,
+      'terrain still has an actual visible 3D surface');
+    const arenaSkyline=await page.evaluate(()=>{
+      const zone=planetaryWorldRegions[1];
+      const near=h4SceneryGroups[1].near;
+      const far=h4SceneryGroups[1].far;
+      return {
+        wreckForms:zone.children.filter(x=>
+          x.name==='MAP4_GFX04_MIDFIELD_RUIN').length,
+        nearWreckPieces:near.children.filter(x=>
+          x.geometry===H4_GFX04_GEO.brokenPlate ||
+          x.geometry===H4_GFX04_GEO.charredCore).length,
+        farWreckPieces:far.children.filter(x=>
+          x.geometry===H4_GFX04_GEO.fracturedCarrier ||
+          x.geometry===H4_GFX04_GEO.brokenPlate).length,
+        nearCount:near.children.length,farCount:far.children.length,
+        collisions:h4IndustrialColliders.length
+      };
+    });
+    const arenaGround=await page.evaluate(()=>{
+      const mat=planetaryWorldRegions[1].children[0].material;
+      return {atlas:mat.map===h4Gfx04BattleGroundAtlas,
+        name:mat.map?.name,normalScale:mat.normalScale.x,
+        atlasWidth:mat.map?.image?.width,atlasHeight:mat.map?.image?.height,
+        colliderFree:planetaryWorldRegions[1].children[0].userData.h4TerrainSceneryOnly,
+        map1GroundUntouched:planetaryWorldRegions[0].children[0].material.map===
+          h4SurfaceMaps.ground};
+    });
+    assert.equal(arenaGround.atlas,true,'battlefield has distinct tileable dust map');
+    assert.equal(arenaGround.name,'MAP4_GFX04_BATTLEFIELD_DUST_ALBEDO');
+    assert.equal(arenaGround.atlasWidth,256);
+    assert.equal(arenaGround.atlasHeight,256);
+    assert(arenaGround.normalScale<.2,'battlefield striped normal bump suppressed');
+    assert.equal(arenaGround.colliderFree,true,'new battlefield ground is decorative');
+    assert.equal(arenaGround.map1GroundUntouched,true,
+      'canyon existing terrain map unchanged');
+
+    assert.equal(arenaSkyline.wreckForms,10,
+      'arena old rectangular middle skyline replaced by ten low wreck forms');
+    assert.equal(arenaSkyline.nearWreckPieces,16,
+      'all old near-box props become custom wreckage');
+    assert.equal(arenaSkyline.farWreckPieces,28,
+      'distant warfront silhouettes replace generic wedge towers');
+    assert.equal(arenaSkyline.nearCount+arenaSkyline.farCount,44,
+      'existing world-visibility/scenery budget remains stable');
+    assert.equal(arenaSkyline.collisions,36,
+      'decorative battlefield ruins add no factory hitboxes');
+    assert.equal(gfx04.stats.sites,3,'all three warfronts receive new GFX04 art');
+    assert.deepEqual(gfx04.pockets.map(p=>p.id),['CENTER','WRECK','DEFENSE']);
+    assert(gfx04.pockets.every(p=>p.visible===true &&
+      p.hiddenOld && p.visualOnly && p.materialKinds>=3),
+      'warfronts replace their original primitive props with independent art');
+    assert(gfx04.pockets[0].pieces>=18 && gfx04.pockets[0].pieces<=20,
+      'centre remains deliberately sparse with legible hunter space');
+    const centerMarkers=await page.evaluate(()=>{
+      const group=h4ArenaWarfrontGroups[0].children.find(c=>c.userData.h4Gfx04Pocket==='CENTER');
+      return {
+        masts:group.children.filter(c=>c.name==='MAP4_GFX04_CENTER_FLANK_SIGNAL_MAST').length,
+        lamps:group.children.filter(c=>c.name==='MAP4_GFX04_CENTER_FLANK_SIGNAL_LAMP').length,
+        farWreck:group.children.filter(c=>c.name==='MAP4_GFX04_CENTER_DISTANT_CRUISER_FRAGMENT').length,
+        colliderFree:group.children.every(c=>!c.userData.h4Collider)
+      };
+    });
+    assert.deepEqual([centerMarkers.masts,centerMarkers.lamps,centerMarkers.farWreck],
+      [2,2,1],'first person arena sightline has two flank markers and one far wreck');
+    assert.equal(centerMarkers.colliderFree,true,'visual markers never become hitboxes');
+    assert(gfx04.pockets[1].pieces>=20 &&
+      gfx04.pockets[1].customHulls>=5,'cruiser wreck has five modeled hull sections');
+    assert(gfx04.pockets[2].pieces>=20 &&
+      gfx04.pockets[2].customHulls>=3,'defense has modeled layered fortification');
+    assert(gfx04.stats.customHullFaces>40,'custom cruiser has real sculpted faces');
+    assert.equal(gfx04.stats.hiddenOldLandmarks,6,
+      'three redundant old W01+VQ02 battlefield landmarks hidden');
+    assert(gfx04.old.every(p=>p.legacyHidden&&p.signatureHidden));
+    assert.equal(gfx04.rockColliders,6,'canyon hazards preserved');
+    assert.equal(gfx04.factoryColliders,36,'industrial solids preserved');
+    assert.equal(gfx04.physicalCityColliders,
+      await page.evaluate(()=>planetaryBuildingColliders.length),
+      'warfront visual meshes add no unexpected building collision volumes');
+
     // W04: all three distinct combat pockets exist and spawn the shared 8
     // hunters in 3/3/2 formation. Both elites stay in the defense wing.
     const warfront=await page.evaluate(()=>{
@@ -607,6 +731,13 @@ const assert = require('node:assert/strict');
     await page.evaluate(()=>{state.map4ArenaElapsed=MAP4_PHASES.arenaSeconds-0.08;});
     await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:12000});
     assert(await page.evaluate(()=>map4SpeedFactor(20000)>0),'forward progress unlocked in phase 3');
+    const industryRevealed=await page.evaluate(()=>{
+      updatePlanetaryWorld();
+      const zone=planetaryWorldRegions[2];
+      return zone.visible && zone.userData.gfx04IndustrialVisuals.visible;
+    });
+    assert.equal(industryRevealed,true,
+      'industrial factory geometry returns after the arena while ground persists');
     const building=await page.evaluate(()=> {
       const collider=planetaryBuildingColliders[0];
       state.routeProgress=collider.progress;
@@ -766,6 +897,8 @@ const assert = require('node:assert/strict');
       'restart never duplicates twelve hero signatures');
     assert.equal(await page.evaluate(()=>h4IndustrialArtStats.stations),6,
       'restart never duplicates refinery gantries');
+    assert.equal(await page.evaluate(()=>h4Gfx04Stats.sites),3,
+      'restart reuses three hero warfront compositions without duplicating art');
     assert.equal(await page.evaluate(()=>h4CanyonHeroStats.sites),3,
       'restart never duplicates the three sculpted canyon hero sites');
     assert.equal(await page.evaluate(()=>h4MaterialMicroStats.textures),4,
