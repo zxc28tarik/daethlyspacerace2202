@@ -1663,7 +1663,8 @@
             // W02 layered terrain: broad, shared-color low-poly topography.
             // Core route remains visibly open; hills rise only toward the sides.
             // This is scenery, not a collision promise (W03/W05 own terrain hits).
-            const verts=[],colors=[],uvs=[],steps=80,across=16,halfWidth=5850;
+            const verts=[],colors=[],uvs=[],steps=def.type==='canyon'?160:80,
+                across=def.type==='canyon'?40:16,halfWidth=5850;
             const baseColor=new THREE.Color(def.ground);
             const pos=(progress,side)=>{
                 const normalized=Math.abs(side)/halfWidth;
@@ -1674,9 +1675,22 @@
                 const type=def.type;
                 const rise=type==='canyon'?300:
                     type==='battlefield'?115:type==='industrial'?70:160;
-                const elevation=ridge*ridge*rise+
+                let elevation=ridge*ridge*rise+
                     Math.max(0,noise)*ridge*(type==='canyon'?135:65)+
                     Math.max(0,terrace)*ridge*45;
+                if(type==='canyon'){
+                    const outside=THREE.MathUtils.clamp((Math.abs(side)-1550)/4300,0,1);
+                    const crest=THREE.MathUtils.clamp((Math.abs(side)-3650)/2200,0,1);
+                    const weather=Math.sin(progress*.0026-side*.0019)+
+                        .38*Math.sin(progress*.0067+side*.0032);
+                    const fine=Math.sin(progress*.0157+side*.0184)*.45+
+                        Math.cos(progress*.0228-side*.0127)*.25;
+                    const shelves=Math.sin(progress*.00078+side*.00033);
+                    elevation=outside*outside*235+
+                        Math.pow(crest,2.4)*525+
+                        outside*(shelves*76+weather*61+fine*26)+
+                        (1-outside)*Math.max(0,noise)*17;
+                }
                 return h4WorldPosition(progress,side,-440+elevation);
             };
             const face=(points,shade,coords)=>{
@@ -1695,8 +1709,9 @@
                     const left=-halfWidth+2*halfWidth*x/across;
                     const right=-halfWidth+2*halfWidth*(x+1)/across;
                     const p1=pos(a,left),p2=pos(a,right),p3=pos(b,left),p4=pos(b,right);
-                    const band=(x%4)*0.035;
-                    const contour=0.90+0.07*Math.sin(i*0.53+x*1.6);
+                    const band=(x%4)*(def.type==='canyon'?0.023:0.035);
+                    const contour=0.90+0.07*Math.sin(i*0.53+x*1.6)+
+                        (def.type==='canyon'?Math.sin(a*.005+x*.73)*.055:0);
                     const u1=left/560,u2=right/560,v1=a/670,v2=b/670;
                     face([p1,p2,p4],contour-band,[[u1,v1],[u2,v1],[u2,v2]]);
                     face([p1,p4,p3],contour-band+0.024,[[u1,v1],[u2,v2],[u1,v2]]);
@@ -1710,11 +1725,97 @@
             const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
                 map:h4SurfaceMaps.ground,normalMap:h4MicroMaps.rock.normal,
                 roughnessMap:h4MicroMaps.rock.roughness,
-                normalScale:new THREE.Vector2(.30,.30),vertexColors:true,roughness:.99,
+                normalScale:new THREE.Vector2(def.type==='canyon'?.40:.30,
+                    def.type==='canyon'?.40:.30),vertexColors:true,roughness:.99,
                 side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
+            if(def.type==='canyon'){
+                mesh.name='MAP4_GFX02_SCULPTED_CANYON_GROUND';
+                h4TerrainArtStats.canyonVertices=geo.attributes.position.count;
+            }
             return mesh;
+        }
+
+
+        // GFX-02, wave 1: new long-range canyon geology, positioned beyond
+        // gameplay side routes. These never register gameplay hitboxes.
+        const h4TerrainArtStats={canyonVertices:0,cliffs:0,variants:8};
+        function h4ErodedButteGeometry(seed){
+            const sections=13,levels=11,xyz=[],uv=[],rgb=[];
+            const heights=[-.5,-.43,-.36,-.29,-.18,-.06,.08,.21,.34,.43,.5];
+            const radius=[1,.95,.78,.88,.82,.74,.69,.59,.66,.53,.51];
+            const base=new THREE.Color(0xb89d81),color=new THREE.Color();
+            const rings=[];
+            for(let k=0;k<levels;k++){
+                const ring=[];
+                for(let j=0;j<sections;j++){
+                    const angle=Math.PI*2*j/sections;
+                    const weather=1+.13*Math.sin(j*2.39+seed*1.71)+
+                        .09*Math.sin(j*4.13-seed*.83);
+                    const r=radius[k]*weather*(1+.045*Math.sin(k*1.37+j*.73+seed));
+                    ring.push([r*Math.cos(angle)+Math.sin(k*.71+seed)*.035,
+                        heights[k],r*.86*Math.sin(angle)+Math.cos(k*.63+seed)*.035]);
+                }
+                rings.push(ring);
+            }
+            const push=(p,k,j)=>{
+                xyz.push(p[0],p[1],p[2]);uv.push(j/sections*3,k/levels*4);
+                const tone=.84+k*.014+Math.sin(k*2.21+seed)*.086+
+                    Math.sin(j*.83+seed)*.065;
+                color.copy(base).multiplyScalar(tone);
+                rgb.push(color.r,color.g,color.b);
+            };
+            for(let k=0;k<levels-1;k++)for(let j=0;j<sections;j++){
+                const next=(j+1)%sections;
+                push(rings[k][j],k,j);push(rings[k][next],k,next);
+                push(rings[k+1][next],k+1,next);
+                push(rings[k][j],k,j);push(rings[k+1][next],k+1,next);
+                push(rings[k+1][j],k+1,j);
+            }
+            for(let j=0;j<sections;j++){
+                push([0,.505,0],levels,j);
+                push(rings[levels-1][j],levels-1,j);
+                push(rings[levels-1][(j+1)%sections],levels-1,j+1);
+            }
+            const geo=new THREE.BufferGeometry();
+            geo.setAttribute('position',new THREE.Float32BufferAttribute(xyz,3));
+            geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+            geo.setAttribute('color',new THREE.Float32BufferAttribute(rgb,3));
+            geo.computeVertexNormals();
+            return geo;
+        }
+        const h4Gfx02RockVariants=Array.from({length:8},
+            (_,i)=>h4ErodedButteGeometry(i+3));
+        const h4Gfx02RockMaterial=new THREE.MeshStandardMaterial({
+            map:h4SurfaceMaps.sandstone,normalMap:h4MicroMaps.rock.normal,
+            roughnessMap:h4MicroMaps.rock.roughness,
+            normalScale:new THREE.Vector2(.46,.46),vertexColors:true,
+            roughness:.98,flatShading:true
+        });
+        function h4AddCanyonEscarpments(zone,def){
+            const cliffs=new THREE.Group();
+            cliffs.name='MAP4_GFX02_LONG_RANGE_ERODED_CLIFFS';
+            for(let i=0;i<28;i++){
+                const sign=i%2?1:-1,index=Math.floor(i/2);
+                const progress=def.from+390+
+                    index*(def.to-def.from-820)/13+Math.sin(index*2.71+i*.23)*115;
+                const center=sign*(5200+(index%4)*85);
+                const height=820+(index*169)%1080;
+                const width=290+(index*47)%190;
+                const depth=510+(index*67)%250;
+                const mesh=new THREE.Mesh(h4Gfx02RockVariants[(i*3+index)%8],
+                    h4Gfx02RockMaterial);
+                mesh.name='MAP4_GFX02_CLIFF_'+i;
+                mesh.position.copy(h4WorldPosition(progress,center,-440+height*.51));
+                mesh.quaternion.setFromUnitVectors(H4_UP,
+                    getRaceFrameAtDistance(progress).up);
+                mesh.scale.set(width,height,depth);
+                mesh.userData.visualOnly=true;
+                cliffs.add(mesh);
+                h4TerrainArtStats.cliffs++;
+            }
+            zone.add(cliffs);
         }
 
         // VQ01: fast, reusable architectural trims. Children inherit the same
@@ -2636,6 +2737,7 @@
                 zone.userData.to=def.to;
                 zone.userData.name=def.name;
                 zone.add(h4GroundStrip(def));
+                if(def.type==='canyon')h4AddCanyonEscarpments(zone,def);
                 // Distinct skyline silhouettes, off the main flight axis.
                 const count=def.type==='industrial'?34:28;
                 for(let n=0;n<count;n++){
