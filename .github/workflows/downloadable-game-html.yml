@@ -4,6 +4,10 @@ on:
     branches: [main]
     paths:
       - index.html
+      - assets/gfx01/**
+      - tools/build-gfx01-bundle.cjs
+      - tools/gfx01-assets.cjs
+      - tools/gfx01-tailwind.css
       - .github/workflows/downloadable-game-html.yml
   workflow_dispatch:
 permissions:
@@ -16,13 +20,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned offline build dependencies
+        run: npm install --no-save three@0.128.0 tailwindcss@3.4.17
+      - name: Bundle and check the offline single HTML
+        run: |
+          node tools/build-gfx01-bundle.cjs
+          test -s dist/Uzay_Yarisi_Guncel_Oynanabilir.html
       - name: Publish a browser-downloadable HTML asset
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           mkdir -p release
-          cp index.html release/Uzay_Yarisi_Guncel_Oynanabilir.html
+          cp dist/Uzay_Yarisi_Guncel_Oynanabilir.html release/Uzay_Yarisi_Guncel_Oynanabilir.html
           if ! gh release view playable-html-current >/dev/null 2>&1; then
             gh release create playable-html-current --title "Güncel Oynanabilir HTML" --notes "Bu sürüm doğrudan indirilebilir bir HTML oyun dosyası içerir." --target "$GITHUB_SHA" --latest=false
           fi
