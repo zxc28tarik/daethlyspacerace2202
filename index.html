@@ -1787,10 +1787,66 @@
         }
         const h4Gfx02RockVariants=Array.from({length:8},
             (_,i)=>h4ErodedButteGeometry(i+3));
+
+        // GFX-03: tileable multifrequency sediment atlas. The previous global
+        // sinusoidal sandstone texture formed obvious repeating zebra stripes.
+        // This canyon-only texture uses periodic value-noise, subtle bedding,
+        // and a low-contrast albedo; no external asset download is required.
+        function h4NaturalRockAtlas(){
+            const size=256,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=size;
+            const ctx=canvas.getContext('2d');
+            const pixels=ctx.createImageData(size,size);
+            let seed=0x7ab4d2f1;
+            const rand=()=>{
+                seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;
+                return (seed>>>0)/4294967295;
+            };
+            const scales=[3,6,12,24,48];
+            const grids=scales.map(n=>{
+                const values=new Float32Array(n*n);
+                for(let i=0;i<values.length;i++)values[i]=rand();
+                return values;
+            });
+            const periodic=(u,v,l)=>{
+                const n=scales[l],grid=grids[l],fx=u*n,fy=v*n;
+                const xi=Math.floor(fx)%n,yi=Math.floor(fy)%n;
+                const xx=(xi+1)%n,yy=(yi+1)%n;
+                const tx=fx-Math.floor(fx),ty=fy-Math.floor(fy);
+                const sx=tx*tx*(3-2*tx),sy=ty*ty*(3-2*ty);
+                const row0=grid[yi*n+xi]*(1-sx)+grid[yi*n+xx]*sx;
+                const row1=grid[yy*n+xi]*(1-sx)+grid[yy*n+xx]*sx;
+                return row0*(1-sy)+row1*sy;
+            };
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const u=x/size,v=y/size;
+                const n=.38*periodic(u,v,0)+.25*periodic(u,v,1)+
+                    .19*periodic(u,v,2)+.11*periodic(u,v,3)+
+                    .07*periodic(u,v,4);
+                const wavy=v*13+Math.sin(u*Math.PI*6)*.12+
+                    .35*periodic(u,v,1);
+                const bed=Math.sin(wavy*Math.PI*2)*.022;
+                const light=.91+(n-.5)*.32+bed+(rand()-.5)*.025;
+                const i=(y*size+x)*4;
+                pixels.data[i]=Math.round(THREE.MathUtils.clamp(216*light,0,255));
+                pixels.data[i+1]=Math.round(THREE.MathUtils.clamp(198*light,0,255));
+                pixels.data[i+2]=Math.round(THREE.MathUtils.clamp(179*light,0,255));
+                pixels.data[i+3]=255;
+            }
+            ctx.putImageData(pixels,0,0);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX03_NATURAL_SEDIMENT_ALBEDO';
+            tex.encoding=THREE.sRGBEncoding;
+            tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+            tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+            return tex;
+        }
+        const h4NaturalRockMap=h4NaturalRockAtlas();
+        const h4CanyonSurfaceStats={atlasCount:1,replacedSilhouettes:0};
         const h4Gfx02RockMaterial=new THREE.MeshStandardMaterial({
-            map:h4SurfaceMaps.sandstone,normalMap:h4MicroMaps.rock.normal,
+            map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
             roughnessMap:h4MicroMaps.rock.roughness,
-            normalScale:new THREE.Vector2(.46,.46),vertexColors:true,
+            normalScale:new THREE.Vector2(.17,.17),vertexColors:true,
             roughness:.98,flatShading:true
         });
         function h4AddCanyonEscarpments(zone,def){
@@ -2138,24 +2194,24 @@
         });
         const H4_GFX03_MAT=Object.freeze({
             cliff:new THREE.MeshStandardMaterial({
-                map:h4SurfaceMaps.sandstone,normalMap:h4MicroMaps.rock.normal,
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
                 roughnessMap:h4MicroMaps.rock.roughness,
-                color:0xc9a68b,roughness:.99,normalScale:new THREE.Vector2(.58,.58),
+                color:0xc9a68b,roughness:.99,normalScale:new THREE.Vector2(.21,.21),
                 flatShading:true
             }),
             shale:new THREE.MeshStandardMaterial({
-                map:h4SurfaceMaps.rock,normalMap:h4MicroMaps.rock.normal,
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
                 roughnessMap:h4MicroMaps.rock.roughness,
-                color:0x7e5651,roughness:.98,flatShading:true
+                color:0x84665f,roughness:.98,flatShading:true
             }),
             strata:new THREE.MeshStandardMaterial({
-                map:h4SurfaceMaps.sandstone,color:0x9f806b,
+                map:h4NaturalRockMap,color:0xa99383,
                 roughness:.99,flatShading:true
             }),
             rockVertex:new THREE.MeshStandardMaterial({
-                map:h4SurfaceMaps.sandstone,normalMap:h4MicroMaps.rock.normal,
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
                 roughnessMap:h4MicroMaps.rock.roughness,
-                color:0xc2ac96,vertexColors:true,roughness:.98,
+                color:0xcbb5a0,vertexColors:true,roughness:.98,
                 flatShading:true
             }),
             observatorySteel:new THREE.MeshStandardMaterial({
@@ -2766,11 +2822,11 @@
                 const sign=i%2===0?-1:1;
                 const side=sign*(1680+(i*151)%1510);
                 const tall=270+(i*79)%710;
-                const geom=regionIndex===0?H4_MESHES.rock:
+                const geom=regionIndex===0?h4Gfx02RockVariants[(i*3)%8]:
                     regionIndex===1?(i%2?H4_DETAIL_GEO.wedge:H4_MESHES.structure):
                     regionIndex===2?(i%3?H4_MESHES.structure:H4_MESHES.tower):
                     (i%3?H4_MESHES.structure:H4_MESHES.tower);
-                const material=regionIndex===0?(i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone):
+                const material=regionIndex===0?h4Gfx02RockMaterial:
                     regionIndex===1?(i%2?H4_DETAIL_MAT.armor:H4_MATERIALS.wreck):
                     regionIndex===2?(i%2?H4_MATERIALS.steel:H4_DETAIL_MAT.oxidized):
                     (i%3?H4_MATERIALS.wall:H4_DETAIL_MAT.armor);
@@ -2786,10 +2842,10 @@
                 const size=regionIndex===0?450+(i*117)%750:
                     regionIndex===1?250+(i*43)%310:
                     regionIndex===2?580+(i*83)%880:500+(i*67)%920;
-                const geometry=regionIndex===0?H4_MESHES.rock:
+                const geometry=regionIndex===0?h4Gfx02RockVariants[(i*5)%8]:
                     regionIndex===1?H4_DETAIL_GEO.wedge:
                     regionIndex===2?H4_MESHES.tower:H4_MESHES.structure;
-                const material=regionIndex===0?H4_DETAIL_MAT.cliffShadow:
+                const material=regionIndex===0?h4Gfx02RockMaterial:
                     regionIndex===1?H4_DETAIL_MAT.armor:
                     regionIndex===2?H4_MATERIALS.steel:H4_MATERIALS.wall;
                 make(progress,side,size*0.5,geometry,material,
@@ -2802,8 +2858,8 @@
                     const side=(i%2?1:-1)*(1100+(i%4)*390);
                     const d=250+Math.floor(i/2)*620;
                     const h=360+(i%3)*210;
-                    make(d,side,h*0.5,H4_MESHES.rock,
-                        i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone,
+                    make(d,side,h*0.5,h4Gfx02RockVariants[(i*5)%8],
+                        h4Gfx02RockMaterial,
                         [200+(i%3)*90,h,190+(i%2)*100],near);
                 }
             }
@@ -2935,9 +2991,11 @@
                     const side=sideSign*(spread+(n*103)%560);
                     if(def.type==='canyon'){
                         const height=230+(n*73)%510;
-                        h4PlaceStructure(zone,d,side,-440+height*0.5,H4_MESHES.rock,
-                            n%3?H4_MATERIALS.rock:H4_MATERIALS.sand,
+                        h4PlaceStructure(zone,d,side,-440+height*0.5,
+                            h4Gfx02RockVariants[(n*3)%8],
+                            h4Gfx02RockMaterial,
                             [135+(n%4)*26,height,125+(n%3)*32]);
+                        h4CanyonSurfaceStats.replacedSilhouettes++;
                     }else if(def.type==='battlefield'){
                         const height=45+(n*33)%125;
                         h4PlaceStructure(zone,d,side,-440+height/2,H4_MESHES.structure,
