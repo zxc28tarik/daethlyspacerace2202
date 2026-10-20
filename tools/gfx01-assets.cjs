@@ -7,16 +7,19 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
+const sculpt=require('./gfx01b-sculpt-kit.cjs');
+const atlas=require('./gfx01b-surface-atlas.cjs');
 const root=path.resolve(__dirname,'..');
 const catalog=JSON.parse(fs.readFileSync(path.join(root,'assets/gfx01/catalog.json'),'utf8'));
 const v=(x,y,z)=>[x,y,z], sub=(a,b)=>a.map((q,i)=>q-b[i]);
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
-function builder(model) {
- const groups=model.materials.map(()=>({pos:[],nor:[]}));
+function builder(model,lod=0) {
+ const groups=model.materials.map(()=>({pos:[],nor:[],uv:[]}));
  function tri(mat,a,b,c){
   const n=cross(sub(b,a),sub(c,a));
   const d=Math.hypot(...n)||1, unit=n.map(x=>x/d);
-  for(const p of [a,b,c]){groups[mat].pos.push(...p);groups[mat].nor.push(...unit);}
+  for(const p of [a,b,c]){groups[mat].pos.push(...p);groups[mat].nor.push(...unit);
+   groups[mat].uv.push(p[0]*1.6+p[2]*.22,p[1]*1.6+p[2]*.41);}
  }
  function quad(mat,a,b,c,d){tri(mat,a,b,c);tri(mat,a,c,d);}
  function solid(mat,x,y,z,w,h,d,lean=0){
@@ -92,16 +95,11 @@ function builder(model) {
   }
   solid(0,0,-.10,.40,.14,.065,.20);
  }
- switch(model.recipe){
-  case 'stratified_arch':addArch();break;
-  case 'radar_head':addRadar();break;
-  case 'landed_fighter':addFighter();break;
-  default:throw Error('Unknown authoring recipe: '+model.recipe);
- }
+ sculpt.build({model,lod,tri,quad,solid,panel});
  return groups;
 }
-function glbFromGeometry(model){
- const groups=builder(model),pieces=[],bufferViews=[],accessors=[],primitives=[];
+function glbFromGeometry(model,lod=0){
+ const groups=builder(model,lod),pieces=[],bufferViews=[],accessors=[],primitives=[];
  let pointer=0;
  function append(bytes,target){
   const pad=(4-pointer%4)%4;
@@ -113,10 +111,10 @@ function glbFromGeometry(model){
   return ix;
  }
  function accessor(flat,type,componentType,target,withMinMax=false){
-  const bytes=type==='VEC3'?Buffer.from(new Float32Array(flat).buffer):
+  const bytes=(type==='VEC3'||type==='VEC2')?Buffer.from(new Float32Array(flat).buffer):
     Buffer.from(new Uint16Array(flat).buffer);
   const view=append(bytes,target),idx=accessors.length,acc={
-   bufferView:view,byteOffset:0,componentType,count:flat.length/(type==='VEC3'?3:1),type
+   bufferView:view,byteOffset:0,componentType,count:flat.length/(type==='VEC3'?3:type==='VEC2'?2:1),type
   };
   if(withMinMax){
    acc.min=[Infinity,Infinity,Infinity];acc.max=[-Infinity,-Infinity,-Infinity];
@@ -131,21 +129,29 @@ function glbFromGeometry(model){
   if(!group.pos.length)return;
   const pos=accessor(group.pos,'VEC3',5126,34962,true);
   const nor=accessor(group.nor,'VEC3',5126,34962);
+  const uv=accessor(group.uv,'VEC2',5126,34962);
   const vertexCount=group.pos.length/3;
   if(vertexCount>65535)throw Error('Asset exceeds u16 index budget: '+model.id);
   const indices=accessor(Array.from({length:vertexCount},(_,j)=>j),'SCALAR',5123,34963);
-  primitives.push({attributes:{POSITION:pos,NORMAL:nor},indices,material:i,mode:4});
+  primitives.push({attributes:{POSITION:pos,NORMAL:nor,TEXCOORD_0:uv},indices,material:i,mode:4});
  });
+ const texturePNG=atlas.create(model.category==='rock'?'rock':'metal');
+ const textureView=append(texturePNG);
  const binary=Buffer.concat(pieces);
  const materials=model.materials.map(m=>({
   name:m.id,pbrMetallicRoughness:{
-   baseColorFactor:m.color,metallicFactor:m.metallic,roughnessFactor:m.roughness
+   baseColorFactor:m.color,baseColorTexture:{index:0},
+   metallicFactor:m.metallic,roughnessFactor:m.roughness
   },doubleSided:true
  }));
  const json={asset:{version:'2.0',generator:'Map4 GFX01 deterministic placeholder authoring'},
   scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0,name:model.id}],
-  meshes:[{name:model.id,primitives}],
-  materials,buffers:[{byteLength:binary.length}],bufferViews,accessors};
+  meshes:[{name:model.id+'_LOD'+lod,primitives}],
+  materials,
+  samplers:[{magFilter:9729,minFilter:9987,wrapS:10497,wrapT:10497}],
+  textures:[{sampler:0,source:0}],
+  images:[{bufferView:textureView,mimeType:'image/png',name:'sculpted_'+model.category+'_atlas'}],
+  buffers:[{byteLength:binary.length}],bufferViews,accessors};
  const jsonBytes=Buffer.from(JSON.stringify(json)),jpad=(4-jsonBytes.length%4)%4;
  const bpad=(4-binary.length%4)%4;
  const jsonChunk=Buffer.concat([jsonBytes,Buffer.alloc(jpad,0x20)]);
@@ -173,18 +179,24 @@ function validateGLB(buf,id){
 function makePack(){
  const out={};
  for(const model of catalog.models){
-  const candidate=path.join(root,model.replacementPath);
-  const source=fs.existsSync(candidate)?'artist-glb':'generated-placeholder';
-  const buf=source==='artist-glb'?fs.readFileSync(candidate):glbFromGeometry(model);
-  const detail=validateGLB(buf,model.id);
-  out[model.id]={
-   mime:'model/gltf-binary',kind:model.category,base64:buf.toString('base64'),
-   source,bytes:buf.length,sha256:crypto.createHash('sha256').update(buf).digest('hex'),
-   ...detail
-  };
+  for(const lod of [0,1,2]){
+   const id=model.id+(lod?'_lod'+lod:'');
+   const candidate=path.join(root,
+     lod?model.replacementPath.replace(/\.glb$/,'_lod'+lod+'.glb'):model.replacementPath);
+   const source=fs.existsSync(candidate)?'artist-glb':'generated-sculpted-placeholder';
+   const buf=source==='artist-glb'?fs.readFileSync(candidate):glbFromGeometry(model,lod);
+   const detail=validateGLB(buf,id);
+   out[id]={
+    mime:'model/gltf-binary',kind:model.category,lod,baseId:model.id,
+    base64:buf.toString('base64'),source,bytes:buf.length,
+    sha256:crypto.createHash('sha256').update(buf).digest('hex'),
+    ...detail
+   };
+  }
  }
  return out;
 }
+
 if(require.main===module){
  const dir=path.join(root,'dist','gfx01');
  fs.mkdirSync(dir,{recursive:true});
