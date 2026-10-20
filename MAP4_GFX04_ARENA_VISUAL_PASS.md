@@ -28,7 +28,9 @@ Savaşın ikinci fazı kesin 60 saniye sürer; oyuncu ve beş rakip ileri gideme
 - W02 geniş çevredeki 16 yakın obje artık düz kutular yerine yıkık plaka/yanık çekirdek geometri; 28 uzak silüet, açısal kruvazör/enkaz geometrileriyle değiştirildi. **44 obje sayısı aynıdır**, ancak görünüş ve materyaller savaş alanına özgüdür.
 - Ayrıca eski zemindeki sert dalga/çizgi tekrarı savaş alanını yapay gösteriyordu. Arena için tek sefer üretilen 256×256, yumuşak periyodik çok frekanslı **toz/pas albedo atlası** eklendi; yalnız Battlefield ground mesh'inde kullanılır. Normal kabartı ölçeği 0.30→0.11 düşürüldü. Kanyon, sanayi ve üs zeminleri aynı bırakıldı.
 - Her bölgede görülen anlamsız büyük dekoratif yön halkaları, bu arenada tek bir merkezi navigasyon halkasına indirildi; üç savaş cebi oyun HUD'undan seçilebilir.
-- Amaç, ana savaş enkazı ve elit savunma kütlelerinin tekrarlı binalar arasında kaybolmasını önlemek. Dinamik avcı hedefleri hiçbir dekor nedeniyle görünmez mermi isabeti almaz.
+- Amaç, ana savaş enkazı ve elit savunma kütlelerinin tekrarlı binalar arasında kaybolmasını önlemek.
+- Sahne önizlemesinde sonraki fazın endüstri binalarının 60 saniyelik arenanın arkasında erken çizildiği saptandı. `updatePlanetaryWorld` artık **yalnız faz 2 aktifken** sonraki sanayi region grup görünürlüğünü kapatır; faz 3 başlarken normal bölgesel görünürlüğü geri gelir. Fabrika collider/AI davranışı hiç değişmedi. Bu bilerek yapılan kamera manzarası temizliğidir; iki faz arasındaki görsel geçişin yumuşatılması sonraki sanat dalgasıdır.
+ Dinamik avcı hedefleri hiçbir dekor nedeniyle görünmez mermi isabeti almaz.
 
 ## Teknik sınırlar
 - Her cephe GFX-04 sanat çocuk grubunu tek sefer oluşturur: `MAP4_GFX04_CENTER_ART`, `MAP4_GFX04_WRECK_ART`, `MAP4_GFX04_DEFENSE_ART`.
