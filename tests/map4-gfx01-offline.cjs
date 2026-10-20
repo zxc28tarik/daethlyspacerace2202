@@ -11,12 +11,13 @@ const html=fs.readFileSync(game,'utf8');
 const manifest=JSON.parse(fs.readFileSync(build,'utf8'));
 assert(!/<script[^>]+src=["']https?:/i.test(html),'external script in offline file');
 assert(!/<link[^>]+href=["']https?:/i.test(html),'external stylesheet in offline file');
-assert.equal(Object.keys(manifest.assets).length,3);
+assert.equal(Object.keys(manifest.assets).length,9,'3 sculpted subjects x 3 LODs');
 const {makePack,validateGLB}=require('../tools/gfx01-assets.cjs');
 const pack=makePack();
 for(const [id,v] of Object.entries(pack)){
  const detail=validateGLB(Buffer.from(v.base64,'base64'),id);
  assert(detail.triangles>10,'meaningful GLB geometry '+id);
+ assert(detail.images>=1&&detail.uvSets>=1,'asset has embedded albedo texture and UV '+id);
  assert(v.sha256===manifest.assets[id].sha256,'GLB checksum integrity '+id);
 }
 (async()=>{
@@ -67,8 +68,8 @@ for(const [id,v] of Object.entries(pack)){
   assert.equal(art.state.mounted,3,'three GLB instances mounted');
   assert.equal(art.state.failed,0,'no GLB loader failure');
   assert.equal(art.state.fallback,0,'all three sample GLBs provided');
-  assert.equal(art.cache.decoded,3,'each distinct GLB decoded once');
-  assert.equal(art.cache.cacheEntries,3,'three decoded model cache entries');
+  assert.equal(art.cache.decoded,9,'three GLB assets each have 3 decoded LODs');
+  assert.equal(art.cache.cacheEntries,9,'nine decoded model cache entries');
   assert.deepEqual(art.imported.map(x=>x.id).sort(),
    ['canyon_arch','observatory_module','patrol_fighter']);
   assert(art.oldHidden,'fallback rock arch hides only after model loaded');
@@ -82,9 +83,41 @@ for(const [id,v] of Object.entries(pack)){
    return {decoded:now.decoded,clone: a!==b,
     sameGeometry:a.children[0].geometry===b.children[0].geometry};
   });
-  assert.equal(reuses.decoded,3,'cache prevents GLB reparse');
+  assert.equal(reuses.decoded,9,'cache prevents GLB reparse');
   assert.equal(reuses.clone,true,'separate scene clones per use');
   assert.equal(reuses.sameGeometry,true,'GPU geometry is shared across clones');
+  const levels=await page.evaluate(()=>{
+    const item=h4Gfx01LODGroups.find(g=>g.userData.h4Gfx01Model==='canyon_arch');
+    const restore=camera.position.clone();
+    const probe=(meters)=>{
+      camera.position.copy(item.position).add(new THREE.Vector3(meters,0,0));
+      h4UpdateGfx01LOD();
+      return {level:item.userData.h4Gfx01LOD,
+       visible:item.children.map(v=>v.visible),
+       meshes:item.children[item.userData.h4Gfx01LOD].children.length};
+    };
+    const near=probe(650),mid=probe(2700),far=probe(6000),returnNear=probe(550);
+    camera.position.copy(restore);
+    return {near,mid,far,returnNear,switches:h4Gfx01Stats.lodSwitches,
+      groups:h4Gfx01Stats.lodGroups,
+      geometryShared:item.children.every(root=>root.children.length>0)};
+  });
+  assert.deepEqual([levels.near.level,levels.mid.level,levels.far.level,
+    levels.returnNear.level],[0,1,2,0],'actual runtime LOD transition order');
+  assert.deepEqual(levels.far.visible,[false,false,true],
+    'only a single LOD renders at far distance');
+  assert.equal(levels.groups,3,'three anchored model groups with LOD');
+  assert(levels.switches>=3,'LOD updates replace visible model without GLB parse');
+  assert.equal(levels.geometryShared,true);
+  const geometryBudget={};
+  for(const id of ['canyon_arch','observatory_module','patrol_fighter']){
+    const p0=manifest.assets[id].triangles;
+    const p1=manifest.assets[id+'_lod1'].triangles;
+    const p2=manifest.assets[id+'_lod2'].triangles;
+    assert(p0>p1 && p1>p2,
+      'three genuine triangle budgets required for '+id+': '+[p0,p1,p2]);
+    geometryBudget[id]=[p0,p1,p2];
+  }
   await page.screenshot({path:path.resolve(__dirname,'gfx01-offline-map4.png')});
   await page.evaluate(()=>endGame(false));
   await page.locator('#menu-btn').click();
@@ -104,6 +137,7 @@ for(const [id,v] of Object.entries(pack)){
   console.log('GFX01 OFFLINE PASS',JSON.stringify({
    bytes:manifest.bundleBytes,glbLoaded:art.state.mounted,
    models:art.imported.map(x=>x.id),cacheDecodes:art.cache.decoded,
+   LODTriangles:geometryBudget,
    networkRequests:network.length,map1Isolated:true
   }));
  }finally{await browser.close();}
