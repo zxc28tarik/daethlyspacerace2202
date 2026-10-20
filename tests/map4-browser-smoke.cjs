@@ -554,6 +554,33 @@ const assert = require('node:assert/strict');
         factoryColliders:h4IndustrialColliders.length,
         physicalCityColliders:planetaryBuildingColliders.length};
     });
+    const arenaSkyline=await page.evaluate(()=>{
+      const zone=planetaryWorldRegions[1];
+      const near=h4SceneryGroups[1].near;
+      const far=h4SceneryGroups[1].far;
+      return {
+        wreckForms:zone.children.filter(x=>
+          x.name==='MAP4_GFX04_MIDFIELD_RUIN').length,
+        nearWreckPieces:near.children.filter(x=>
+          x.geometry===H4_GFX04_GEO.brokenPlate ||
+          x.geometry===H4_GFX04_GEO.charredCore).length,
+        farWreckPieces:far.children.filter(x=>
+          x.geometry===H4_GFX04_GEO.fracturedCarrier ||
+          x.geometry===H4_GFX04_GEO.brokenPlate).length,
+        nearCount:near.children.length,farCount:far.children.length,
+        collisions:h4IndustrialColliders.length
+      };
+    });
+    assert.equal(arenaSkyline.wreckForms,10,
+      'arena old rectangular middle skyline replaced by ten low wreck forms');
+    assert.equal(arenaSkyline.nearWreckPieces,16,
+      'all old near-box props become custom wreckage');
+    assert.equal(arenaSkyline.farWreckPieces,28,
+      'distant warfront silhouettes replace generic wedge towers');
+    assert.equal(arenaSkyline.nearCount+arenaSkyline.farCount,44,
+      'existing world-visibility/scenery budget remains stable');
+    assert.equal(arenaSkyline.collisions,36,
+      'decorative battlefield ruins add no factory hitboxes');
     assert.equal(gfx04.stats.sites,3,'all three warfronts receive new GFX04 art');
     assert.deepEqual(gfx04.pockets.map(p=>p.id),['CENTER','WRECK','DEFENSE']);
     assert(gfx04.pockets.every(p=>p.visible===true &&
