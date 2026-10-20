@@ -316,7 +316,7 @@ const assert = require('node:assert/strict');
     assert.equal(geology.replaced,28,'generic canyon corridor rocks replaced');
     assert.equal(geology.atlasName,'MAP4_GFX03_NATURAL_SEDIMENT_ALBEDO');
     assert.equal(geology.sculptMaterial,true,'sculpted rock uses low-noise albedo');
-    assert.equal(geology.nearUses,30,'near canyon rocks replaced with sculpted variants');
+    assert.equal(geology.nearUses,38,'30 near rocks + 8 launch panorama rocks use sculpted variants');
     assert.equal(geology.farUses,28,'distant skyline rock variants replace cones');
     assert.equal(geology.uv,true,'custom rock geometry includes actual UVs');
     assert(geology.normalStrength<.3,'normal strength bounded to avoid zebra ridges');
