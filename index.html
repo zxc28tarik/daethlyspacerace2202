@@ -3473,7 +3473,18 @@
                         }
                     }
                 }
-                if(zoneIndex===2)h4BuildIndustrialGauntlet(zone);
+                if(zoneIndex===2){
+                    h4BuildIndustrialGauntlet(zone);
+                    // GFX04: visually gate next-stage factories, not the
+                    // continuous terrain. Otherwise the arena revealed a
+                    // literal hole in the planet behind the three warfronts.
+                    const models=new THREE.Group();
+                    models.name='MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS';
+                    const factoryChildren=zone.children.slice(1);
+                    for(const child of factoryChildren)models.add(child);
+                    zone.add(models);
+                    zone.userData.gfx04IndustrialVisuals=models;
+                }
                 planetaryWorldGroup.add(zone);
                 planetaryWorldRegions.push(zone);
             }
@@ -3527,11 +3538,12 @@
             for(let i=0;i<planetaryWorldRegions.length;i++){
                 const def=PLANETARY_REGIONS[i];
                 planetaryWorldRegions[i].visible=def.to>state.routeProgress-4900
-                    && def.from<state.routeProgress+9900
-                    // During the fixed combat phase the NEXT industrial
-                    // region's generic factories used to fill the skyline
-                    // behind all three warfronts. Reveal it when phase 3 starts.
-                    && !(state.map4Phase===2 && i===2);
+                    && def.from<state.routeProgress+9900;
+                // Preserve visible continuous ground through stage 2; only
+                // next-phase refinery architecture waits for stage 3.
+                if(i===2 && planetaryWorldRegions[i].userData.gfx04IndustrialVisuals)
+                    planetaryWorldRegions[i].userData.gfx04IndustrialVisuals.visible=
+                        state.map4Phase!==2;
             }
             // Cull distant compositions inside active regions to limit draw calls.
             let nextLandmark=null;
