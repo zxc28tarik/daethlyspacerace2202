@@ -5320,7 +5320,8 @@
                 }
             };
             animate(h4GeoSwordArt.userData.h4Gfx05Craft,
-                state.isBoosting||state.itemTurboTimer>0,
+                state.currentSpeed>state.baseSpeed*1.17 ||
+                    state.itemTurboTimer>0,
                 state.shield/100,0);
             for(let i=0;i<racers.length;i++){
                 const r=racers[i];
