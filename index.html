@@ -5235,11 +5235,104 @@
             [0x6c7680,0xd38c4e,0xffb16e],
             [0x616971,0xb53231,0xff6c52]
         ];
+
+        // GFX-05B: neutral colour, subtle stamped normal relief, and
+        // independent roughness maps. Generated once; all 14 Map4 aircraft
+        // reuse exactly these GPU textures with their own livery colours.
+        const h4Gfx05bStats={
+            atlasSets:0,textures:0,palettes:0,normalStrength:.29,
+            mapsShared:true,details:0,drawCallIncreasePerCraft:4,
+            map1Isolated:true
+        };
+        function h4Gfx05bTextures(){
+            const sz=256;
+            const color=document.createElement('canvas'),
+                normal=document.createElement('canvas'),
+                rough=document.createElement('canvas');
+            for(const c of [color,normal,rough])c.width=c.height=sz;
+            const colorCtx=color.getContext('2d'),
+                normalCtx=normal.getContext('2d'),
+                roughCtx=rough.getContext('2d');
+            const albedo=colorCtx.createImageData(sz,sz),
+                normals=normalCtx.createImageData(sz,sz),
+                roughness=roughCtx.createImageData(sz,sz);
+            const height=new Float32Array(sz*sz);
+            const noise=(x,y)=>{
+                let n=(Math.imul(x+23,374761393)+Math.imul(y+79,668265263))|0;
+                n=Math.imul(n^(n>>>13),1274126177);
+                return ((n^(n>>>16))>>>0)/4294967295;
+            };
+            const lines=(v,parts)=>{
+                const f=(v*parts)%1;
+                return Math.min(f,1-f);
+            };
+            // Uniform base tint can be multiplied by each pilot livery.
+            // Intermittent seams and dent fields avoid repeated zebra bands.
+            for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){
+                const u=x/sz,v=y/sz,q=y*sz+x,i=q*4;
+                const coarse=(noise(Math.floor(x/18),Math.floor(y/19))-.5);
+                const tiny=noise(x,y)-.5;
+                const seam=lines(u,7)<.012||lines(v,9)<.009;
+                const joint=seam&&noise(Math.floor(x/37),Math.floor(y/27))>.27;
+                const wear=Math.pow(Math.max(0,noise(Math.floor(x/8),
+                    Math.floor(y/9))-.56),2.0)*1.15;
+                const brush=.012*Math.sin(u*140.0+v*16.0);
+                const stain=.065*Math.max(0,coarse+.13);
+                const delta=coarse*.085+tiny*.032+brush-stain-wear-
+                    (joint?.11:0);
+                const k=THREE.MathUtils.clamp(.86+delta,.52,1.0);
+                const neutral=[216,226,234];
+                for(let c=0;c<3;c++)
+                    albedo.data[i+c]=Math.round(neutral[c]*k);
+                albedo.data[i+3]=255;
+                const rough=THREE.MathUtils.clamp(.44+coarse*.12+
+                    tiny*.06+wear*.50+(joint?.21:0),.17,.88);
+                const rc=Math.round(rough*255);
+                roughness.data[i]=roughness.data[i+1]=roughness.data[i+2]=rc;
+                roughness.data[i+3]=255;
+                height[q]=coarse*.05+tiny*.021-
+                    (joint?.075:0)-wear*.12;
+            }
+            for(let y=0;y<sz;y++)for(let x=0;x<sz;x++){
+                const q=y*sz+x,i=q*4;
+                const left=height[y*sz+((x+sz-1)%sz)],
+                    right=height[y*sz+((x+1)%sz)];
+                const up=height[((y+sz-1)%sz)*sz+x],
+                    down=height[((y+1)%sz)*sz+x];
+                const dx=(right-left)*1.75,dy=(down-up)*1.75;
+                const inv=1/Math.sqrt(dx*dx+dy*dy+1);
+                normals.data[i]=Math.round((-.5*dx*inv+.5)*255);
+                normals.data[i+1]=Math.round((-.5*dy*inv+.5)*255);
+                normals.data[i+2]=Math.round((.5*inv+.5)*255);
+                normals.data[i+3]=255;
+            }
+            colorCtx.putImageData(albedo,0,0);
+            normalCtx.putImageData(normals,0,0);
+            roughCtx.putImageData(roughness,0,0);
+            const make=(canvas,name,srgb)=>{
+                const tex=new THREE.CanvasTexture(canvas);
+                tex.name=name;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+                tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+                tex.encoding=srgb?THREE.sRGBEncoding:THREE.LinearEncoding;
+                return tex;
+            };
+            h4Gfx05bStats.atlasSets=1;h4Gfx05bStats.textures=3;
+            return Object.freeze({
+                albedo:make(color,'MAP4_GFX05B_PAINT_ALBEDO',true),
+                normal:make(normal,'MAP4_GFX05B_STAMPED_NORMAL',false),
+                roughness:make(rough,'MAP4_GFX05B_WEAR_ROUGHNESS',false)
+            });
+        }
+        const h4Gfx05bMaps=h4Gfx05bTextures();
         const H4_GFX05_MAT=Object.freeze(h4Gfx05Paint.map((tones,i)=>{
             const [paint,trim,heat]=tones;
             const make=(color,roughness,metalness,emissive=0)=>{
                 const material=new THREE.MeshStandardMaterial({
-                    map:h4SurfaceMaps.steel,color,roughness,metalness,
+                    map:h4Gfx05bMaps.albedo,
+                    normalMap:h4Gfx05bMaps.normal,
+                    roughnessMap:h4Gfx05bMaps.roughness,
+                    normalScale:new THREE.Vector2(.29,.29),
+                    color,roughness,metalness,
                     emissive,emissiveIntensity:emissive?.35:0,
                     side:THREE.DoubleSide
                 });
@@ -5250,7 +5343,11 @@
                 // A true opaque body-color livery across the entire upper
                 // wing is more legible from actual chase-camera distance.
                 wing:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
-                    color:trim,metalness:.52,roughness:.48,
+                    map:h4Gfx05bMaps.albedo,
+                    normalMap:h4Gfx05bMaps.normal,
+                    roughnessMap:h4Gfx05bMaps.roughness,
+                    normalScale:new THREE.Vector2(.23,.23),
+                    color:trim,metalness:.52,roughness:.58,
                     side:THREE.DoubleSide
                 })),
                 trim:h4Gfx05TrackMaterial(new THREE.MeshStandardMaterial({
@@ -5272,6 +5369,7 @@
                 }))
             };
             h4Gfx05Stats.materialVariants++;
+            h4Gfx05bStats.palettes++;
             return result;
         }));
         function h4Gfx05CreateCraft(type,livery=0){
@@ -5312,6 +5410,14 @@
                 result.userData.h4Gfx05Engines.push(lamp);
                 put('ARMOR_WEATHERING',g.scorch,mat.scorch,
                     side*2.13,.43,.30,1.18,1.05,1).rotation.x=-Math.PI/2;
+                // The 4 extra elements are deliberately large enough to
+                // read at chase camera distance, but do not change hit radii.
+                put('HEEL_ARMOR_STRIP',g.spine,mat.rail,
+                    side*2.36,.27,.30,.28,.16,2.35)
+                    .rotation.y=side*.13;
+                put('THERMAL_ENGINE_SHROUD',g.nozzle,mat.hull,
+                    side*1.68,-.20,3.98,.94,.48,.94).rotation.x=Math.PI/2;
+                h4Gfx05bStats.details+=2;
                 h4Gfx05Stats.wingSurfaces++;
             }
             put('COCKPIT_TEARDROP',g.canopy,mat.canopy,
