@@ -1,7 +1,7 @@
 name: Map 1 / Map 4 Browser Smoke
 on:
   push:
-    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, codex/map4-gfx00-baseline-gfx02-canyon, codex/map4-gfx03-canyon-hero-models, main]
+    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, codex/map4-gfx00-baseline-gfx02-canyon, codex/map4-gfx03-canyon-hero-models, codex/map4-gfx01-asset-pipeline, main]
   workflow_dispatch:
 jobs:
   browser-smoke:
@@ -14,12 +14,27 @@ jobs:
           node-version: '20'
       - name: Install browser smoke dependencies
         run: |
-          npm install --no-save playwright@1.56.1 three@0.128.0
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
           npx playwright install --with-deps chromium
+      - name: Build offline GLB game bundle
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Verify offline game and cached GLBs in Chromium
+        run: node tests/map4-gfx01-offline.cjs
       - name: Test both maps with Chromium
         run: node tests/map4-browser-smoke.cjs
       - name: Capture fixed art baselines and renderer stats
+        env:
+          GFX01_HTML_PATH: dist/Uzay_Yarisi_Guncel_Oynanabilir.html
         run: node tests/map4-art-baseline.cjs
+      - name: Keep GFX01 offline build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-gfx01-bundle-proof
+          path: |
+            dist/gfx01-build-manifest.json
+            tests/gfx01-offline-map4.png
+          if-no-files-found: ignore
       - name: Keep fixed art baseline evidence
         if: always()
         uses: actions/upload-artifact@v4

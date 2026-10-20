@@ -2458,6 +2458,68 @@
             h4SignatureStats.byRegion[regionIndex]++;
             h4SignatureStats.types.push(plan.kind);
         }
+
+        // GFX-01: art asset loading is optional in the source index.html and
+        // enabled in the self-contained release by Map4ArtAssets. The old
+        // procedural geometry remains a deterministic, visible error fallback.
+        const h4Gfx01Stats={scheduled:0,mounted:0,failed:0,fallback:0,
+            mountedKinds:[],requestsBySite:{}};
+        const H4_GFX01_MOUNTS=Object.freeze({
+            stonegate:{id:'canyon_arch',dp:-115,side:-1320,height:375,
+                scale:[900,740,370]},
+            observation:{id:'observatory_module',dp:15,side:-1500,height:830,
+                scale:[400,260,360]},
+            spaceport:{id:'patrol_fighter',dp:120,side:0,height:130,
+                scale:[275,205,450]}
+        });
+        function h4MountGfx01Model(group,plan){
+            const spec=H4_GFX01_MOUNTS[plan.kind];
+            if(!spec)return;
+            if(group.userData.h4Gfx01Requested)return;
+            group.userData.h4Gfx01Requested=true;
+            h4Gfx01Stats.scheduled++;
+            h4Gfx01Stats.requestsBySite[plan.kind]=spec.id;
+            const provider=window.Map4ArtAssets;
+            if(!provider || !provider.has(spec.id)){
+                h4Gfx01Stats.fallback++;
+                return;
+            }
+            provider.load(spec.id).then(sceneRoot=>{
+                if(!sceneRoot || !sceneRoot.children.length)
+                    throw new Error('Empty imported model: '+spec.id);
+                const holder=new THREE.Group();
+                holder.name='MAP4_GFX01_IMPORTED_'+spec.id.toUpperCase();
+                holder.position.copy(h4WorldPosition(
+                    plan.at+spec.dp,plan.side+spec.side,-440+spec.height));
+                holder.quaternion.setFromUnitVectors(H4_UP,
+                    getRaceFrameAtDistance(plan.at+spec.dp).up);
+                holder.scale.set(spec.scale[0],spec.scale[1],spec.scale[2]);
+                sceneRoot.traverse(obj=>{
+                    obj.userData.h4Gfx01VisualOnly=true;
+                    obj.userData.visualOnly=true;
+                });
+                holder.userData.h4Gfx01Model=spec.id;
+                holder.userData.visualOnly=true;
+                holder.add(sceneRoot);
+                group.add(holder);
+                // Replaced only once and only AFTER a verified asset arrives.
+                // Keep old collision proxies unchanged. A failure keeps the
+                // original GFX03 authored artwork completely visible.
+                if(plan.kind==='stonegate'){
+                    group.traverse(obj=>{
+                        if(obj.name==='MAP4_GFX03_CARVED_PORTAL_OPENING')
+                            obj.visible=false;
+                    });
+                }
+                h4Gfx01Stats.mounted++;
+                h4Gfx01Stats.mountedKinds.push(spec.id);
+            }).catch(err=>{
+                h4Gfx01Stats.failed++;
+                h4Gfx01Stats.fallback++;
+                console.warn('GFX01 original procedural fallback:',spec.id,err);
+            });
+        }
+
         function h4CreateLandmark(zone, regionIndex, plan) {
             const group=new THREE.Group();
             group.name='MAP4_'+plan.kind.toUpperCase()+'_'+Math.round(plan.at);
@@ -2575,6 +2637,7 @@
             h4AddSignatureArchitecture(group,regionIndex,plan);
             // Independent GFX-03 sculpt: no W01/W03 geometry or collider overwritten.
             if(regionIndex===0)h4BuildCanyonHeroArt(group,plan);
+            h4MountGfx01Model(group,plan);
             h4WorldLandmarks.push({
                 zone:regionIndex,
                 at:plan.at,
