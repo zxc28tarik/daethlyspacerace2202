@@ -38,14 +38,15 @@ const percentile=(numbers,p)=>{
  const directory=path.resolve(__dirname,'art-baseline');
  fs.mkdirSync(directory,{recursive:true});
  try {
-  await page.goto(pathToFileURL(path.resolve(__dirname,'../index.html')).toString(),
+  await page.goto(pathToFileURL(path.resolve(process.env.GFX01_HTML_PATH || path.resolve(__dirname,'../index.html'))).toString(),
     {waitUntil:'domcontentloaded',timeout:25000});
   await page.waitForFunction(()=>typeof state==='object' &&
     typeof h4UpdateCinematicAtmosphere==='function',null,{timeout:16000});
   await page.locator('#map-choice-4').click();
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running && state.raceTime>.05,null,{timeout:20000});
-  const out={schemaVersion:1,reference:'VQ04+ fixed visual probes',
+  const out={schemaVersion:1,build:process.env.GFX01_HTML_PATH?'GFX01 packaged offline HTML':'source HTML',
+    reference:'VQ04+ fixed visual probes',
    note:'Software Chromium/SwiftShader. Render timings are not end-user GPU FPS.',
    viewport:'1600x900',cases:[]};
   for(const item of caseSpecs){
