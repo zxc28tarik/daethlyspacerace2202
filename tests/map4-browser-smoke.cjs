@@ -558,10 +558,20 @@ const assert = require('node:assert/strict');
     // during the mandatory 60-second stand-still fight.
     const industrialDuringArena=await page.evaluate(()=>{
       updatePlanetaryWorld();
-      return planetaryWorldRegions[2].visible;
+      const zone=planetaryWorldRegions[2];
+      return {terrain:zone.children[0].visible&&zone.visible,
+        visualGroup:zone.userData.gfx04IndustrialVisuals?.visible,
+        wrapperName:zone.userData.gfx04IndustrialVisuals?.name,
+        geometryCount:zone.children[0].geometry.attributes.position.count};
     });
-    assert.equal(industrialDuringArena,false,
-      'distant industrial buildings suppressed during locked arena');
+    assert.equal(industrialDuringArena.terrain,true,
+      'planet ground remains continuous behind the combat arena');
+    assert.equal(industrialDuringArena.wrapperName,
+      'MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS');
+    assert.equal(industrialDuringArena.visualGroup,false,
+      'only future factory structures are hidden during the arena');
+    assert(industrialDuringArena.geometryCount>7000,
+      'terrain still has an actual visible 3D surface');
     const arenaSkyline=await page.evaluate(()=>{
       const zone=planetaryWorldRegions[1];
       const near=h4SceneryGroups[1].near;
@@ -711,10 +721,11 @@ const assert = require('node:assert/strict');
     assert(await page.evaluate(()=>map4SpeedFactor(20000)>0),'forward progress unlocked in phase 3');
     const industryRevealed=await page.evaluate(()=>{
       updatePlanetaryWorld();
-      return planetaryWorldRegions[2].visible;
+      const zone=planetaryWorldRegions[2];
+      return zone.visible && zone.userData.gfx04IndustrialVisuals.visible;
     });
     assert.equal(industryRevealed,true,
-      'the next region returns after the arena combat phase ends');
+      'industrial factory geometry returns after the arena while ground persists');
     const building=await page.evaluate(()=> {
       const collider=planetaryBuildingColliders[0];
       state.routeProgress=collider.progress;
