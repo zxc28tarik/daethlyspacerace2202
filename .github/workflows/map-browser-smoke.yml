@@ -1,7 +1,7 @@
 name: Map 1 / Map 4 Browser Smoke
 on:
   push:
-    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, main]
+    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, codex/map4-gfx00-baseline-gfx02-canyon, main]
   workflow_dispatch:
 jobs:
   browser-smoke:
@@ -18,6 +18,15 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Test both maps with Chromium
         run: node tests/map4-browser-smoke.cjs
+      - name: Capture fixed art baselines and renderer stats
+        run: node tests/map4-art-baseline.cjs
+      - name: Keep fixed art baseline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-fixed-art-baselines
+          path: tests/art-baseline/
+          if-no-files-found: ignore
       - name: Keep gameplay screenshots
         if: always()
         uses: actions/upload-artifact@v4
