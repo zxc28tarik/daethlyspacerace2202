@@ -2463,7 +2463,9 @@
         // enabled in the self-contained release by Map4ArtAssets. The old
         // procedural geometry remains a deterministic, visible error fallback.
         const h4Gfx01Stats={scheduled:0,mounted:0,failed:0,fallback:0,
-            mountedKinds:[],requestsBySite:{}};
+            mountedKinds:[],requestsBySite:{},lodGroups:0,lodSwitches:0,
+            activeLevels:{},lodUpdates:0};
+        const h4Gfx01LODGroups=[];
         const H4_GFX01_MOUNTS=Object.freeze({
             stonegate:{id:'canyon_arch',dp:-115,side:-1320,height:375,
                 scale:[900,740,370]},
@@ -2480,13 +2482,14 @@
             h4Gfx01Stats.scheduled++;
             h4Gfx01Stats.requestsBySite[plan.kind]=spec.id;
             const provider=window.Map4ArtAssets;
-            if(!provider || !provider.has(spec.id)){
+            const ids=[spec.id,spec.id+'_lod1',spec.id+'_lod2'];
+            if(!provider || ids.some(id=>!provider.has(id))){
                 h4Gfx01Stats.fallback++;
                 return;
             }
-            provider.load(spec.id).then(sceneRoot=>{
-                if(!sceneRoot || !sceneRoot.children.length)
-                    throw new Error('Empty imported model: '+spec.id);
+            Promise.all(ids.map(id=>provider.load(id))).then(roots=>{
+                if(roots.some(root=>!root||!root.children.length))
+                    throw new Error('Empty imported LOD scene: '+spec.id);
                 const holder=new THREE.Group();
                 holder.name='MAP4_GFX01_IMPORTED_'+spec.id.toUpperCase();
                 holder.position.copy(h4WorldPosition(
@@ -2494,17 +2497,22 @@
                 holder.quaternion.setFromUnitVectors(H4_UP,
                     getRaceFrameAtDistance(plan.at+spec.dp).up);
                 holder.scale.set(spec.scale[0],spec.scale[1],spec.scale[2]);
-                sceneRoot.traverse(obj=>{
-                    obj.userData.h4Gfx01VisualOnly=true;
-                    obj.userData.visualOnly=true;
+                roots.forEach((root,lod)=>{
+                    root.name='MAP4_GFX01_LOD'+lod;
+                    root.visible=lod===0;
+                    root.traverse(obj=>{
+                        obj.userData.h4Gfx01VisualOnly=true;
+                        obj.userData.visualOnly=true;
+                    });
+                    holder.add(root);
                 });
                 holder.userData.h4Gfx01Model=spec.id;
+                holder.userData.h4Gfx01LOD=0;
                 holder.userData.visualOnly=true;
-                holder.add(sceneRoot);
                 group.add(holder);
-                // Replaced only once and only AFTER a verified asset arrives.
-                // Keep old collision proxies unchanged. A failure keeps the
-                // original GFX03 authored artwork completely visible.
+                h4Gfx01LODGroups.push(holder);
+                h4Gfx01Stats.lodGroups++;
+                h4Gfx01Stats.activeLevels[spec.id]=0;
                 if(plan.kind==='stonegate'){
                     group.traverse(obj=>{
                         if(obj.name==='MAP4_GFX03_CARVED_PORTAL_OPENING')
@@ -2518,6 +2526,27 @@
                 h4Gfx01Stats.fallback++;
                 console.warn('GFX01 original procedural fallback:',spec.id,err);
             });
+        }
+        // LOD selection runs on existing scene objects. Screenspace distance
+        // thresholds include a hysteresis band so fast movement cannot thrash
+        // the GPU between two levels every frame. No glTF is decoded per frame.
+        function h4UpdateGfx01LOD(){
+            if(state.activeMap!==MAP_MODES.MAP4 || !h4Gfx01LODGroups.length)return;
+            for(const holder of h4Gfx01LODGroups){
+                const distance=holder.position.distanceTo(camera.position);
+                const previous=holder.userData.h4Gfx01LOD;
+                const thresholds=previous===0?[2000,3750]:
+                    previous===1?[1450,3750]:[1450,3200];
+                const level=distance<thresholds[0]?0:
+                    distance<thresholds[1]?1:2;
+                if(level!==previous){
+                    holder.children.forEach((root,i)=>{root.visible=i===level;});
+                    holder.userData.h4Gfx01LOD=level;
+                    h4Gfx01Stats.activeLevels[holder.userData.h4Gfx01Model]=level;
+                    h4Gfx01Stats.lodSwitches++;
+                }
+            }
+            h4Gfx01Stats.lodUpdates++;
         }
 
         function h4CreateLandmark(zone, regionIndex, plan) {
@@ -7896,6 +7925,7 @@
             if(state.activeMap===MAP_MODES.MAP4){
                 h4UpdateSkyVisuals();
                 h4UpdateCinematicAtmosphere(now*.001);
+                h4UpdateGfx01LOD();
             }
             renderer.render(scene, camera);
         }
