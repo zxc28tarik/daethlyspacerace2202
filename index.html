@@ -3240,6 +3240,18 @@
                         g.brokenPlate,i%2?m.rock:m.soot,
                         [135+i*13,25,110+i*12],a*.14,'CENTER_GROUND_DEBRIS');
                 }
+                // From the default straight-ahead camera, make the battle
+                // visibly occupied while leaving the aircraft shooting lane
+                // clear. The two markers indicate west wreck/east elite flank.
+                for(const side of [-1,1]){
+                    put(820,side*520,-195,g.support,m.exposed,
+                        [38,410,38],side*.11,'CENTER_FLANK_SIGNAL_MAST');
+                    put(820,side*520,36,g.beacon,
+                        side<0?m.ember:m.red,[43,43,43],
+                        0,'CENTER_FLANK_SIGNAL_LAMP');
+                }
+                put(1070,0,-332,g.fracturedCarrier,m.soot,
+                    [520,105,400],.04,'CENTER_DISTANT_CRUISER_FRAGMENT');
             }else if(pocket.id==='WRECK'){
                 // An actual visibly fractured carrier with an angular bow,
                 // detached flight decks, exposed ribs and twin exhaust pods.
