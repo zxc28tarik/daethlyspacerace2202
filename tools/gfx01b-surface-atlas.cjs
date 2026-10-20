@@ -36,7 +36,7 @@ function periodicNoise(size,seed,frequency,x,y){
 function create(kind,size=256){
  const scan=Buffer.alloc(size*(1+size*4));
  const rock=kind==='rock',wreck=kind==='wreck';
- const base=rock?[218,200,180]:wreck?[165,153,144]:[201,210,220];
+ const base=rock?[218,200,180]:wreck?[145,162,176]:[201,210,220];
  for(let y=0;y<size;y++){
   const off=y*(1+4*size);
   scan[off]=0;
@@ -66,8 +66,8 @@ function create(kind,size=256){
      const scratches=Math.pow(Math.max(0,Math.cos(
        tau*(u*34+Math.sin(tau*v*3)*.018+
        periodicNoise(size,5673,8,x,y)*.07))),32);
-     const heat=.30*Math.max(0,corrode-.68);
-     const dark=soot*.70+Math.max(seamX,seamY)*.20+scratches*.20;
+     const heat=.16*Math.max(0,corrode-.68);
+     const dark=soot*.55+Math.max(seamX,seamY)*.065+scratches*.085;
      for(let c=0;c<3;c++){
        const baseValue=base[c]*p*(1-dark);
        const corrosionColor=[184,91,52][c];
