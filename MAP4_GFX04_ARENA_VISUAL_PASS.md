@@ -11,6 +11,7 @@ Savaşın ikinci fazı kesin 60 saniye sürer; oyuncu ve beş rakip ileri gideme
 - Sol/sağ uzakta düşük kırık siperler, iki aşamalı enkaz modülleri, hasarlı ikaz direkleri.
 - Ortada sığ darbe çukuru halkası, yanık bölge ve dört farklı yerde dağılan kırık parça.
 - Merkezi hedef görüşü açık kalacak şekilde kütleler yanlara yerleştirildi. Kanallar arasında bir çarpışma kutusu veya görünmez savunma duvarı yok.
+- Son standart oyuncu kadrajında merkez hattın neredeyse boş göründüğü fark edildi. Tam orta bölgede, hedef uçuşunu kesmeyen alçak uzun menzilli bir kruvazör parçası; batı ve doğu cephelerini vurgulayan iki dar dikey ikaz direği ve iki noktasal lamba eklendi. Bu beş obje görseldir, yeni collider yoktur.
 
 **Düşmüş Kruvazör — WRECK:**
 - Özgün `ExtrudeGeometry` ile yaklaşık 12 köşeli, asimetrik ana kruvazör silüeti.
