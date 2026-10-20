@@ -3803,6 +3803,11 @@
                 attr.needsUpdate=true;mesh.visible=false;
             }
             h4Gfx04DStats.sparksActive=0;
+            for(let i=0;i<h4Gfx04EState.lights.length;i++){
+                h4Gfx04EState.lights[i].light.intensity=0;
+                h4Gfx04EState.glows[i].visible=false;
+            }
+            h4Gfx04EStats.activeLights=0;
             h4Gfx04DStats.resets++;
         }
         function h4UpdateGfx04D(dt,time){
@@ -3884,7 +3889,8 @@
                     source.strength*pulse):0;
                 const glow=h4Gfx04EState.glows[i];
                 glow.visible=active;
-                glow.material.opacity=active?.20+.055*Math.sin(time*7+i):0;
+                glow.material.opacity=active ?
+                    .20+.055*Math.sin(time*7+i) : 0;
                 if(active)glow.scale.setScalar(135+17*Math.sin(time*4+i));
             }
             h4Gfx04EStats.activeLights=active?
