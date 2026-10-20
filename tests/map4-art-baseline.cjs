@@ -127,6 +127,48 @@ const percentile=(numbers,p)=>{
   }
   assert.deepEqual(out.heroGallery.map(x=>x.kind),['stonegate','mesa','observation']);
   assert(out.heroGallery.every(x=>x.childCount>=12&&x.drawCalls>0));
+
+  // GFX-04 fixed warfront gallery: same camera/progress every subsequent wave.
+  // Save both normal HUD and art-only images, never fabricate a quality score.
+  out.warfrontGallery=[];
+  for(const sceneShot of [
+    {name:'center',progress:13120,targetX:0,viewX:0,viewProgress:12490,
+      targetY:-310,viewY:300},
+    {name:'wreck',progress:13180,targetX:-1250,viewX:-680,viewProgress:12600,
+      targetY:-245,viewY:320},
+    {name:'defense',progress:13160,targetX:1250,viewX:540,viewProgress:12600,
+      targetY:-125,viewY:450}
+  ]){
+    const frame=await page.evaluate(data=>{
+      state.paused=true;
+      state.map4Phase=2;
+      state.routeProgress=data.progress;
+      state.laneX=data.viewX;state.laneY=data.viewY;
+      camera.position.copy(h4WorldPosition(data.viewProgress,data.viewX,data.viewY));
+      const focus=h4WorldPosition(data.progress,data.targetX,data.targetY);
+      camera.lookAt(focus);
+      camera.fov=64;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      renderer.render(scene,camera);
+      const art=h4ArenaWarfrontGroups.find(g=>
+        g.userData.pocketId===data.name.toUpperCase());
+      return {name:data.name,artVisible:art?.visible,
+        customParts:art?.children.find(g=>g.userData.h4Gfx04Pocket)
+          ?.children.length||0,
+        triangles:renderer.info.render.triangles,
+        drawCalls:renderer.info.render.calls};
+    },sceneShot);
+    await page.screenshot({path:path.join(directory,'warfront-'+sceneShot.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,
+      'warfront-'+sceneShot.name+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.warfrontGallery.push(frame);
+  }
+  assert.equal(out.warfrontGallery.length,3);
+  assert(out.warfrontGallery.every(x=>x.artVisible && x.customParts>=13 &&
+    x.triangles>1000),'three GFX04 warfront models render');
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];
@@ -150,6 +192,7 @@ const percentile=(numbers,p)=>{
   fs.writeFileSync(path.join(directory,'metrics.json'),JSON.stringify(out,null,2)+'\n');
   console.log('GFX-00 PASS',JSON.stringify({
     probes:out.cases.length,heroViews:out.heroGallery.length,
+    warfrontViews:out.warfrontGallery.length,
     firstTerrainVertices:out.cases[0].terrainVertices,
     medianDrawCalls:percentile(out.cases.map(c=>c.calls),.5),
     medianTriangles:percentile(out.cases.map(c=>c.triangles),.5),
