@@ -45,6 +45,16 @@ const percentile=(numbers,p)=>{
   await page.locator('#map-choice-4').click();
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running && state.raceTime>.05,null,{timeout:20000});
+  // Only halt the GAME animation loop during reproducible screenshots.
+  // Playwright's own rAF polling continues normally. Each probe below
+  // manually calls renderer.render; this prevents needless SwiftShader
+  // background frames from competing with the readback/screenshot.
+  await page.evaluate(()=>{
+    state.paused=true;
+    const nativeRaf=window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame=(callback)=>
+      callback&&callback.name==='animate'?0:nativeRaf(callback);
+  });
   const out={schemaVersion:1,build:process.env.GFX01_HTML_PATH?'GFX01 packaged offline HTML':'source HTML',
     reference:'VQ04+ fixed visual probes',
    note:'Software Chromium/SwiftShader. Render timings are not end-user GPU FPS.',
