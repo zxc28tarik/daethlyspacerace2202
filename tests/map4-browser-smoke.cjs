@@ -371,14 +371,12 @@ const assert = require('node:assert/strict');
         cliffs:h4TerrainArtStats.cliffs,
         variantCount:h4TerrainArtStats.variants,
         builtRocks:group?.children.length,
-        outsideEnvelope:group?.children.every(m=>{
-          const f=getRaceFrameAtDistance(6000);
-          const relative=m.position.clone().sub(
-              getRaceFrameAtDistance(Number(m.name.split('_').pop())||6000).center);
-          // Use world-space distance from the cliff's owning route frame
-          // through its original placement pivot projected to the nearest route.
-          return m.userData.visualOnly && m.scale.y>800 && m.geometry.attributes.position.count>500;
-        }),
+        outsideEnvelope:group?.children.every(m=>
+          m.userData.visualOnly &&
+          m.scale.y>800 &&
+          m.geometry.attributes.position.count>500 &&
+          Math.abs(m.userData.h4CliffSide)-m.scale.x*1.20>
+            map4BoundaryProfile(m.userData.h4CliffProgress).maxRadius),
         distinctGeometries:group?new Set(group.children.map(m=>m.geometry.uuid)).size:0,
         terrainName:planetaryWorldRegions[0].children[0].name,
         terrainVisualOnly:planetaryWorldRegions[0].children[0].userData.h4TerrainSceneryOnly
@@ -389,7 +387,7 @@ const assert = require('node:assert/strict');
     assert.equal(gfx02.cliffs,28,'28 custom long-range canyon forms');
     assert.equal(gfx02.builtRocks,28,'visual cliff meshes occupy the world');
     assert.equal(gfx02.distinctGeometries,8,'eight original cliff geometries');
-    assert.equal(gfx02.outsideEnvelope,true,'cliffs have independent sculpted geometry');
+    assert.equal(gfx02.outsideEnvelope,true,'cliffs are sculpted and beyond every flight envelope');
     assert.equal(gfx02.terrainVisualOnly,true,'new terrain never invents collision walls');
     assert.equal(gfx02.terrainName,'MAP4_GFX02_SCULPTED_CANYON_GROUND',
       'sculpted terrain replaces canyon-only old surface');
