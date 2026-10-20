@@ -297,6 +297,31 @@ const assert = require('node:assert/strict');
     assert.equal(heroArt.cowboyPhysics,6,'six genuine canyon collision solids intact');
     assert.equal(heroArt.industryPhysics,36,'36 real industry collision solids intact');
 
+    const geology=await page.evaluate(()=>{
+      const near=h4SceneryGroups[0].near;
+      const far=h4SceneryGroups[0].far;
+      const sample=near.children[0];
+      return {
+        atlas:h4CanyonSurfaceStats.atlasCount,
+        replaced:h4CanyonSurfaceStats.replacedSilhouettes,
+        atlasName:h4NaturalRockMap.name,
+        sculptMaterial:h4Gfx02RockMaterial.map===h4NaturalRockMap,
+        nearUses:near.children.filter(m=>m.material===h4Gfx02RockMaterial).length,
+        farUses:far.children.filter(m=>m.material===h4Gfx02RockMaterial).length,
+        uv:sample.geometry.attributes.uv.count>0,
+        normalStrength:h4Gfx02RockMaterial.normalScale.x
+      };
+    });
+    assert.equal(geology.atlas,1,'one deterministic shared natural rock atlas');
+    assert.equal(geology.replaced,28,'generic canyon corridor rocks replaced');
+    assert.equal(geology.atlasName,'MAP4_GFX03_NATURAL_SEDIMENT_ALBEDO');
+    assert.equal(geology.sculptMaterial,true,'sculpted rock uses low-noise albedo');
+    assert.equal(geology.nearUses,30,'near canyon rocks replaced with sculpted variants');
+    assert.equal(geology.farUses,28,'distant skyline rock variants replace cones');
+    assert.equal(geology.uv,true,'custom rock geometry includes actual UVs');
+    assert(geology.normalStrength<.3,'normal strength bounded to avoid zebra ridges');
+
+
     // W03 physical and strategic paths before phase-two arena.
     const canyon=await page.evaluate(()=>{
       const fast={laneX:H4_CANYON.fastCenter};
