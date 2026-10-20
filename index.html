@@ -1720,6 +1720,43 @@
             return frame.center.clone().addScaledVector(frame.right,side)
                 .addScaledVector(frame.up,altitude);
         }
+
+        // GFX04 battlefield albedo: low-frequency, tileable war-dust colour
+        // variation replaces harsh striped/checker ground that hid model forms.
+        // One 256px atlas; no streaming, no random allocation per frame.
+        const h4Gfx04BattleGroundAtlas=(()=>{
+            const n=256,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=n;
+            const ctx=canvas.getContext('2d');
+            const data=ctx.createImageData(n,n);
+            const twoPi=Math.PI*2;
+            let rng=0x452ab851;
+            const rand=()=>{
+                rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;
+                return (rng>>>0)/4294967295;
+            };
+            for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+                const a=twoPi*x/n,b=twoPi*y/n;
+                const broad=Math.sin(a*2.0+Math.cos(b*2.0)*.5)*
+                    Math.cos(b*3.0-a)*.080;
+                const low=Math.sin(a*5.0+b*4.0)*Math.sin(b*4.0-a*3.0)*.038;
+                const fine=Math.sin(a*13.0-b*7.0)*.012+(rand()-.5)*.040;
+                const tone=.87+broad+low+fine;
+                const offset=(y*n+x)*4;
+                data.data[offset]=Math.round(194*tone);
+                data.data[offset+1]=Math.round(182*tone);
+                data.data[offset+2]=Math.round(173*tone);
+                data.data[offset+3]=255;
+            }
+            ctx.putImageData(data,0,0);
+            const texture=new THREE.CanvasTexture(canvas);
+            texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+            texture.repeat.set(1,1);
+            texture.encoding=THREE.sRGBEncoding;
+            texture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+            texture.name='MAP4_GFX04_BATTLEFIELD_DUST_ALBEDO';
+            return texture;
+        })();
         function h4GroundStrip(def) {
             // W02 layered terrain: broad, shared-color low-poly topography.
             // Core route remains visibly open; hills rise only toward the sides.
@@ -1784,10 +1821,13 @@
             geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
             geo.computeVertexNormals();
             const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
-                map:h4SurfaceMaps.ground,normalMap:h4MicroMaps.rock.normal,
+                map:def.type==='battlefield'?
+                    h4Gfx04BattleGroundAtlas:h4SurfaceMaps.ground,
+                normalMap:h4MicroMaps.rock.normal,
                 roughnessMap:h4MicroMaps.rock.roughness,
-                normalScale:new THREE.Vector2(def.type==='canyon'?.40:.30,
-                    def.type==='canyon'?.40:.30),vertexColors:true,roughness:.99,
+                normalScale:new THREE.Vector2(
+                    def.type==='canyon'?.40:def.type==='battlefield'?.11:.30,
+                    def.type==='canyon'?.40:def.type==='battlefield'?.11:.30),vertexColors:true,roughness:.99,
                 side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
