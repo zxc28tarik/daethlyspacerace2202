@@ -78,6 +78,41 @@ const percentile=(numbers,p)=>{
    await page.screenshot({path:path.join(directory,item.name+'.png')});
    out.cases.push({...item,...info});
   }
+  // GFX-03 supplemental close-range hero compositions (original 12 probes
+  // remain unchanged, preserving apples-to-apples GFX-00 metrics).
+  out.heroGallery=[];
+  for(const hero of [
+    {kind:'stonegate',progress:1950,targetSide:-2080,viewSide:-1050},
+    {kind:'mesa',progress:6100,targetSide:2300,viewSide:1200},
+    {kind:'observation',progress:10100,targetSide:-2260,viewSide:-1160}
+  ]){
+    const detail=await page.evaluate(data=>{
+      state.paused=true;
+      state.routeProgress=data.progress;
+      state.map4Phase=1;
+      state.laneX=data.viewSide;
+      state.laneY=230;
+      camera.position.copy(h4WorldPosition(data.progress-880,data.viewSide,220));
+      const focal=h4WorldPosition(data.progress,data.targetSide,-40);
+      camera.lookAt(focal);
+      camera.fov=61;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();
+      h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(14.0);
+      renderer.render(scene,camera);
+      const site=h4WorldLandmarks.find(p=>p.kind===data.kind);
+      const sculpture=site.group.children.find(x=>x.userData.h4Gfx03Hero);
+      return {
+        name:site.name,kind:site.kind,childCount:sculpture.children.length,
+        drawCalls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        cameraDistance:camera.position.distanceTo(focal)
+      };
+    },hero);
+    await page.screenshot({path:path.join(directory,'hero-'+hero.kind+'.png')});
+    out.heroGallery.push(detail);
+  }
+  assert.deepEqual(out.heroGallery.map(x=>x.kind),['stonegate','mesa','observation']);
+  assert(out.heroGallery.every(x=>x.childCount>=12&&x.drawCalls>0));
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];
@@ -100,7 +135,7 @@ const percentile=(numbers,p)=>{
   assert.equal(errors.length,0,errors.join(' | '));
   fs.writeFileSync(path.join(directory,'metrics.json'),JSON.stringify(out,null,2)+'\n');
   console.log('GFX-00 PASS',JSON.stringify({
-    probes:out.cases.length,
+    probes:out.cases.length,heroViews:out.heroGallery.length,
     firstTerrainVertices:out.cases[0].terrainVertices,
     medianDrawCalls:percentile(out.cases.map(c=>c.calls),.5),
     medianTriangles:percentile(out.cases.map(c=>c.triangles),.5),

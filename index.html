@@ -1787,10 +1787,66 @@
         }
         const h4Gfx02RockVariants=Array.from({length:8},
             (_,i)=>h4ErodedButteGeometry(i+3));
+
+        // GFX-03: tileable multifrequency sediment atlas. The previous global
+        // sinusoidal sandstone texture formed obvious repeating zebra stripes.
+        // This canyon-only texture uses periodic value-noise, subtle bedding,
+        // and a low-contrast albedo; no external asset download is required.
+        function h4NaturalRockAtlas(){
+            const size=256,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=size;
+            const ctx=canvas.getContext('2d');
+            const pixels=ctx.createImageData(size,size);
+            let seed=0x7ab4d2f1;
+            const rand=()=>{
+                seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;
+                return (seed>>>0)/4294967295;
+            };
+            const scales=[3,6,12,24,48];
+            const grids=scales.map(n=>{
+                const values=new Float32Array(n*n);
+                for(let i=0;i<values.length;i++)values[i]=rand();
+                return values;
+            });
+            const periodic=(u,v,l)=>{
+                const n=scales[l],grid=grids[l],fx=u*n,fy=v*n;
+                const xi=Math.floor(fx)%n,yi=Math.floor(fy)%n;
+                const xx=(xi+1)%n,yy=(yi+1)%n;
+                const tx=fx-Math.floor(fx),ty=fy-Math.floor(fy);
+                const sx=tx*tx*(3-2*tx),sy=ty*ty*(3-2*ty);
+                const row0=grid[yi*n+xi]*(1-sx)+grid[yi*n+xx]*sx;
+                const row1=grid[yy*n+xi]*(1-sx)+grid[yy*n+xx]*sx;
+                return row0*(1-sy)+row1*sy;
+            };
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const u=x/size,v=y/size;
+                const n=.38*periodic(u,v,0)+.25*periodic(u,v,1)+
+                    .19*periodic(u,v,2)+.11*periodic(u,v,3)+
+                    .07*periodic(u,v,4);
+                const wavy=v*13+Math.sin(u*Math.PI*6)*.12+
+                    .35*periodic(u,v,1);
+                const bed=Math.sin(wavy*Math.PI*2)*.022;
+                const light=.91+(n-.5)*.32+bed+(rand()-.5)*.025;
+                const i=(y*size+x)*4;
+                pixels.data[i]=Math.round(THREE.MathUtils.clamp(216*light,0,255));
+                pixels.data[i+1]=Math.round(THREE.MathUtils.clamp(198*light,0,255));
+                pixels.data[i+2]=Math.round(THREE.MathUtils.clamp(179*light,0,255));
+                pixels.data[i+3]=255;
+            }
+            ctx.putImageData(pixels,0,0);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX03_NATURAL_SEDIMENT_ALBEDO';
+            tex.encoding=THREE.sRGBEncoding;
+            tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+            tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+            return tex;
+        }
+        const h4NaturalRockMap=h4NaturalRockAtlas();
+        const h4CanyonSurfaceStats={atlasCount:1,replacedSilhouettes:0};
         const h4Gfx02RockMaterial=new THREE.MeshStandardMaterial({
-            map:h4SurfaceMaps.sandstone,normalMap:h4MicroMaps.rock.normal,
+            map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
             roughnessMap:h4MicroMaps.rock.roughness,
-            normalScale:new THREE.Vector2(.46,.46),vertexColors:true,
+            normalScale:new THREE.Vector2(.17,.17),vertexColors:true,
             roughness:.98,flatShading:true
         });
         function h4AddCanyonEscarpments(zone,def){
@@ -2084,6 +2140,190 @@
             rockNormal:h4MicroMaps.rock.normal,
             rockRoughness:h4MicroMaps.rock.roughness
         };
+
+        // GFX-03 canyon-only landmark art kit. Purposeful forms replace a
+        // uniform box/cylinder aesthetic without introducing phantom colliders.
+        // Shared meshes and materials are created once, never during restart.
+        const h4CanyonHeroStats={
+            sites:0,parts:0,byKind:{stonegate:0,mesa:0,observation:0},
+            archGeometry:0,rockInstances:0,physicalCollidersAdded:0
+        };
+        function h4CarvedPortalGeometry(){
+            const shape=new THREE.Shape();
+            shape.moveTo(-.57,-.50);
+            shape.lineTo(-.60,-.12);
+            shape.lineTo(-.54,.23);
+            shape.lineTo(-.37,.47);
+            shape.lineTo(-.07,.55);
+            shape.lineTo(.29,.48);
+            shape.lineTo(.54,.28);
+            shape.lineTo(.60,-.21);
+            shape.lineTo(.51,-.52);
+            shape.lineTo(.31,-.50);
+            shape.lineTo(.29,-.38);
+            shape.lineTo(-.34,-.38);
+            shape.lineTo(-.36,-.50);
+            shape.closePath();
+            // One real opening in the polygon, not a painted black window.
+            const hole=new THREE.Path();
+            hole.moveTo(-.26,-.38);
+            hole.lineTo(.24,-.38);
+            hole.lineTo(.25,-.05);
+            hole.lineTo(.19,.16);
+            hole.lineTo(.05,.27);
+            hole.lineTo(-.09,.25);
+            hole.lineTo(-.22,.12);
+            hole.closePath();
+            shape.holes.push(hole);
+            const geo=new THREE.ExtrudeGeometry(shape,{
+                depth:.32,steps:1,curveSegments:1,
+                bevelEnabled:true,bevelThickness:.022,bevelSize:.026,bevelSegments:2
+            });
+            geo.translate(0,0,-.16);
+            geo.computeVertexNormals();
+            return geo;
+        }
+        const H4_GFX03_GEO=Object.freeze({
+            naturalPortal:h4CarvedPortalGeometry(),
+            erodedRib:new THREE.CylinderGeometry(.56,.72,1,9,3),
+            deepSlab:new THREE.BoxGeometry(1,1,1,1,1,1),
+            latticeBeam:new THREE.CylinderGeometry(.055,.065,1,6),
+            dishRim:new THREE.TorusGeometry(.5,.042,8,42),
+            radarDish:new THREE.SphereGeometry(.5,20,12,0,Math.PI*2,0,Math.PI*.41),
+            lens:new THREE.SphereGeometry(.5,16,12)
+        });
+        const H4_GFX03_MAT=Object.freeze({
+            cliff:new THREE.MeshStandardMaterial({
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
+                roughnessMap:h4MicroMaps.rock.roughness,
+                color:0xc9a68b,roughness:.99,normalScale:new THREE.Vector2(.21,.21),
+                flatShading:true
+            }),
+            shale:new THREE.MeshStandardMaterial({
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
+                roughnessMap:h4MicroMaps.rock.roughness,
+                color:0x84665f,roughness:.98,flatShading:true
+            }),
+            strata:new THREE.MeshStandardMaterial({
+                map:h4NaturalRockMap,color:0xa99383,
+                roughness:.99,flatShading:true
+            }),
+            rockVertex:new THREE.MeshStandardMaterial({
+                map:h4NaturalRockMap,normalMap:h4MicroMaps.rock.normal,
+                roughnessMap:h4MicroMaps.rock.roughness,
+                color:0xcbb5a0,vertexColors:true,roughness:.98,
+                flatShading:true
+            }),
+            observatorySteel:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,normalMap:h4MicroMaps.metal.normal,
+                color:0x8fa5ad,metalness:.62,roughness:.46
+            }),
+            brass:new THREE.MeshStandardMaterial({
+                color:0xe1b487,metalness:.72,roughness:.32
+            }),
+            glass:new THREE.MeshStandardMaterial({
+                color:0x21617d,metalness:.61,roughness:.20,
+                emissive:0x124362,emissiveIntensity:.36
+            }),
+            signal:new THREE.MeshBasicMaterial({color:0x99e7e6})
+        });
+        function h4BuildCanyonHeroArt(group,plan){
+            if(!['stonegate','mesa','observation'].includes(plan.kind))return;
+            const art=new THREE.Group();
+            art.name='MAP4_GFX03_'+plan.kind.toUpperCase()+'_SCULPT';
+            art.userData.h4Gfx03Hero=true;
+            art.userData.visualOnly=true;
+            group.add(art);
+            const g=H4_GFX03_GEO,m=H4_GFX03_MAT;
+            const add=(dp,dx,height,geo,mat,scale,twist=0)=>{
+                const obj=h4PlaceStructure(art,plan.at+dp,plan.side+dx,
+                    -440+height,geo,mat,scale);
+                if(twist)obj.rotateZ(twist);
+                obj.userData.visualOnly=true;
+                obj.userData.h4Gfx03Part=plan.kind;
+                h4CanyonHeroStats.parts++;
+                return obj;
+            };
+            const rock=(dp,dx,height,index,scale,twist=0)=>{
+                h4CanyonHeroStats.rockInstances++;
+                return add(dp,dx,height,h4Gfx02RockVariants[index%8],
+                    m.rockVertex,scale,twist);
+            };
+            if(plan.kind==='stonegate'){
+                // Landmark is readable at distance; new stone legs stay beyond
+                // fast-lane flight and the portal remains a true geometric hole.
+                const arch=add(-115,-1320,375,g.naturalPortal,m.cliff,
+                    [900,740,370],-.035);
+                arch.name='MAP4_GFX03_CARVED_PORTAL_OPENING';
+                h4CanyonHeroStats.archGeometry++;
+                for(let side of [-1,1]){
+                    rock(-230,-1320+side*430,190,side+5,[260,440,300],side*.045);
+                    rock(55,-1320+side*470,156,side+7,[225,350,245],side*-.06);
+                    add(-150,-1320+side*290,575,g.erodedRib,m.shale,
+                        [100,115,180],side*.18);
+                }
+                for(let j=0;j<4;j++){
+                    const x=-1320+(j-1.5)*200;
+                    add(-135,x,610+Math.sin(j*1.83)*45,g.deepSlab,m.strata,
+                        [155,18,215],.03*j);
+                }
+                rock(-410,-1940,275,3,[330,650,355],-.1);
+                rock(95,-590,150,5,[185,360,190],.1);
+            }else if(plan.kind==='mesa'){
+                // Distinct stepped plateau profile; overlapping high-detail
+                // sediment strata create a broken, non-repeated silhouette.
+                const baseSide=1450;
+                rock(-150,baseSide,300,0,[770,720,590],-.045);
+                rock(150,baseSide+520,255,1,[550,590,480],.055);
+                rock(-315,baseSide-510,190,5,[450,460,430],-.07);
+                for(let i=0;i<5;i++){
+                    const y=260+i*103,x=baseSide+Math.sin(i*2.23)*55;
+                    const w=740-i*75,depth=580-i*47;
+                    add(-145+i*14,x,y,g.erodedRib,
+                        i%2?m.shale:m.strata,[w,18,depth],i*.04);
+                }
+                for(let i=0;i<3;i++){
+                    rock(-375+i*260,baseSide-770+i*420,100+i*42,
+                        2+i,[240+i*30,265+i*40,215+i*18],.07*i);
+                }
+                add(180,baseSide+190,690,g.deepSlab,m.strata,
+                    [405,27,395],-.07);
+            }else{
+                // Believable anchored observatory with a structural taper,
+                // radar head, bracing, buried service deck and navigation lens.
+                const baseSide=-1500;
+                rock(-40,baseSide,200,4,[520,480,470],.03);
+                add(0,baseSide,405,g.erodedRib,m.observatorySteel,
+                    [210,635,205],-.035);
+                add(0,baseSide,725,g.deepSlab,m.observatorySteel,
+                    [310,43,310],.055);
+                const dish=add(15,baseSide,830,g.radarDish,m.brass,
+                    [400,155,325]);
+                dish.rotation.x=-.48;
+                const rim=add(15,baseSide,878,g.dishRim,m.observatorySteel,
+                    [415,415,400]);
+                rim.rotation.x=.54;
+                add(17,baseSide,855,g.lens,m.glass,[118,96,125]);
+                for(let side of [-1,1]){
+                    const x=baseSide+side*290;
+                    add(-70,x,440,g.latticeBeam,m.observatorySteel,
+                        [36,530,36],side*.11);
+                    add(105,x,465,g.latticeBeam,m.observatorySteel,
+                        [28,440,28],side*-.2);
+                    rock(-85,x,125,side+6,[175,270,200]);
+                    add(100,x,600,g.lens,m.signal,[30,30,30]);
+                }
+                add(-160,baseSide,138,g.deepSlab,m.observatorySteel,
+                    [650,55,400]);
+                for(let i=0;i<3;i++){
+                    add(125,baseSide-210+i*210,260,g.deepSlab,
+                        i%2?m.observatorySteel:m.brass,[75,285,65],.025*i);
+                }
+            }
+            h4CanyonHeroStats.sites++;
+            h4CanyonHeroStats.byKind[plan.kind]++;
+        }
+
         function h4AddSignatureArchitecture(group,regionIndex,plan){
             const content=new THREE.Group();
             content.name='VQ02_SIGNATURE_'+plan.kind.toUpperCase();
@@ -2333,6 +2573,8 @@
                     break;
             }
             h4AddSignatureArchitecture(group,regionIndex,plan);
+            // Independent GFX-03 sculpt: no W01/W03 geometry or collider overwritten.
+            if(regionIndex===0)h4BuildCanyonHeroArt(group,plan);
             h4WorldLandmarks.push({
                 zone:regionIndex,
                 at:plan.at,
@@ -2580,11 +2822,11 @@
                 const sign=i%2===0?-1:1;
                 const side=sign*(1680+(i*151)%1510);
                 const tall=270+(i*79)%710;
-                const geom=regionIndex===0?H4_MESHES.rock:
+                const geom=regionIndex===0?h4Gfx02RockVariants[(i*3)%8]:
                     regionIndex===1?(i%2?H4_DETAIL_GEO.wedge:H4_MESHES.structure):
                     regionIndex===2?(i%3?H4_MESHES.structure:H4_MESHES.tower):
                     (i%3?H4_MESHES.structure:H4_MESHES.tower);
-                const material=regionIndex===0?(i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone):
+                const material=regionIndex===0?h4Gfx02RockMaterial:
                     regionIndex===1?(i%2?H4_DETAIL_MAT.armor:H4_MATERIALS.wreck):
                     regionIndex===2?(i%2?H4_MATERIALS.steel:H4_DETAIL_MAT.oxidized):
                     (i%3?H4_MATERIALS.wall:H4_DETAIL_MAT.armor);
@@ -2600,10 +2842,10 @@
                 const size=regionIndex===0?450+(i*117)%750:
                     regionIndex===1?250+(i*43)%310:
                     regionIndex===2?580+(i*83)%880:500+(i*67)%920;
-                const geometry=regionIndex===0?H4_MESHES.rock:
+                const geometry=regionIndex===0?h4Gfx02RockVariants[(i*5)%8]:
                     regionIndex===1?H4_DETAIL_GEO.wedge:
                     regionIndex===2?H4_MESHES.tower:H4_MESHES.structure;
-                const material=regionIndex===0?H4_DETAIL_MAT.cliffShadow:
+                const material=regionIndex===0?h4Gfx02RockMaterial:
                     regionIndex===1?H4_DETAIL_MAT.armor:
                     regionIndex===2?H4_MATERIALS.steel:H4_MATERIALS.wall;
                 make(progress,side,size*0.5,geometry,material,
@@ -2616,8 +2858,8 @@
                     const side=(i%2?1:-1)*(1100+(i%4)*390);
                     const d=250+Math.floor(i/2)*620;
                     const h=360+(i%3)*210;
-                    make(d,side,h*0.5,H4_MESHES.rock,
-                        i%3?H4_MATERIALS.rock:H4_DETAIL_MAT.sandstone,
+                    make(d,side,h*0.5,h4Gfx02RockVariants[(i*5)%8],
+                        h4Gfx02RockMaterial,
                         [200+(i%3)*90,h,190+(i%2)*100],near);
                 }
             }
@@ -2749,9 +2991,11 @@
                     const side=sideSign*(spread+(n*103)%560);
                     if(def.type==='canyon'){
                         const height=230+(n*73)%510;
-                        h4PlaceStructure(zone,d,side,-440+height*0.5,H4_MESHES.rock,
-                            n%3?H4_MATERIALS.rock:H4_MATERIALS.sand,
+                        h4PlaceStructure(zone,d,side,-440+height*0.5,
+                            h4Gfx02RockVariants[(n*3)%8],
+                            h4Gfx02RockMaterial,
                             [135+(n%4)*26,height,125+(n%3)*32]);
+                        h4CanyonSurfaceStats.replacedSilhouettes++;
                     }else if(def.type==='battlefield'){
                         const height=45+(n*33)%125;
                         h4PlaceStructure(zone,d,side,-440+height/2,H4_MESHES.structure,

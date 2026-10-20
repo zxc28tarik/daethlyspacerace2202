@@ -257,6 +257,71 @@ const assert = require('node:assert/strict');
     assert(vq04.revisions>4,'runtime cinematic sky updated during transitions');
     assert.equal(vq04.map1Exclusion,true,'planetary VQ04 art stays map4-scoped');
 
+    // GFX-03 canyon silhouettes: three true scene-space sculptural sites,
+    // shared geometry, a carved portal with a hole, and NO new hitboxes.
+    const heroArt=await page.evaluate(()=>{
+      const sculpt=h4CanyonHeroStats;
+      const canyonPoints=h4WorldLandmarks.filter(p=>p.zone===0);
+      const info=canyonPoints.map(p=>{
+        const site=p.group.children.find(c=>c.userData.h4Gfx03Hero);
+        return {
+          kind:p.kind,group:site?.name,
+          parts:site?.children.filter(c=>c.userData.h4Gfx03Part===p.kind).length,
+          worldParts:site?.children.every(c=>c.userData.visualOnly),
+          materials:site?[...new Set(site.children.map(c=>c.material.uuid))].length:0
+        };
+      });
+      const portal=H4_GFX03_GEO.naturalPortal;
+      const opening=portal.parameters.shapes.holes.length;
+      return {sites:sculpt.sites,parts:sculpt.parts,
+        counts:Object.values(sculpt.byKind),
+        archGeometry:sculpt.archGeometry,rockInstances:sculpt.rockInstances,
+        visualOnly:info.every(x=>x.worldParts),
+        info,opening,meshType:portal.type,
+        portalVerts:portal.attributes.position.count,
+        cowboyPhysics:h4CanyonColliders.length,
+        industryPhysics:h4IndustrialColliders.length
+      };
+    });
+    assert.equal(heroArt.sites,3,'three distinctive canyon landmark sculptures');
+    assert.deepEqual(heroArt.counts,[1,1,1],'each site built exactly once');
+    assert(heroArt.parts>=40&&heroArt.parts<=50,'bounded and rich sculpt components');
+    assert(heroArt.rockInstances>=14,'uses detailed geology rather than repeated boxes');
+    assert.equal(heroArt.archGeometry,1,'one original portal hero geometry');
+    assert.equal(heroArt.opening,1,'rock arch uses a real cut-through opening');
+    assert.equal(heroArt.meshType,'ExtrudeGeometry','arched silhouette is 3D');
+    assert(heroArt.portalVerts>90,'portal has real custom facade mesh');
+    assert(heroArt.info.every(x=>x.parts>=12 && x.materials>=3),
+      'three layered canyon heroes are materially differentiated');
+    assert.equal(heroArt.visualOnly,true,'all detail remains decorative');
+    assert.equal(heroArt.cowboyPhysics,6,'six genuine canyon collision solids intact');
+    assert.equal(heroArt.industryPhysics,36,'36 real industry collision solids intact');
+
+    const geology=await page.evaluate(()=>{
+      const near=h4SceneryGroups[0].near;
+      const far=h4SceneryGroups[0].far;
+      const sample=near.children[0];
+      return {
+        atlas:h4CanyonSurfaceStats.atlasCount,
+        replaced:h4CanyonSurfaceStats.replacedSilhouettes,
+        atlasName:h4NaturalRockMap.name,
+        sculptMaterial:h4Gfx02RockMaterial.map===h4NaturalRockMap,
+        nearUses:near.children.filter(m=>m.material===h4Gfx02RockMaterial).length,
+        farUses:far.children.filter(m=>m.material===h4Gfx02RockMaterial).length,
+        uv:sample.geometry.attributes.uv.count>0,
+        normalStrength:h4Gfx02RockMaterial.normalScale.x
+      };
+    });
+    assert.equal(geology.atlas,1,'one deterministic shared natural rock atlas');
+    assert.equal(geology.replaced,28,'generic canyon corridor rocks replaced');
+    assert.equal(geology.atlasName,'MAP4_GFX03_NATURAL_SEDIMENT_ALBEDO');
+    assert.equal(geology.sculptMaterial,true,'sculpted rock uses low-noise albedo');
+    assert.equal(geology.nearUses,38,'30 near rocks + 8 launch panorama rocks use sculpted variants');
+    assert.equal(geology.farUses,28,'distant skyline rock variants replace cones');
+    assert.equal(geology.uv,true,'custom rock geometry includes actual UVs');
+    assert(geology.normalStrength<.3,'normal strength bounded to avoid zebra ridges');
+
+
     // W03 physical and strategic paths before phase-two arena.
     const canyon=await page.evaluate(()=>{
       const fast={laneX:H4_CANYON.fastCenter};
@@ -701,6 +766,8 @@ const assert = require('node:assert/strict');
       'restart never duplicates twelve hero signatures');
     assert.equal(await page.evaluate(()=>h4IndustrialArtStats.stations),6,
       'restart never duplicates refinery gantries');
+    assert.equal(await page.evaluate(()=>h4CanyonHeroStats.sites),3,
+      'restart never duplicates the three sculpted canyon hero sites');
     assert.equal(await page.evaluate(()=>h4MaterialMicroStats.textures),4,
       'restart shares same four micro-surface GPU textures');
     assert.equal(await page.evaluate(()=>particles.filter(p=>p.vq03Smoke||p.vq03Shock).length),
