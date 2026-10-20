@@ -7,6 +7,8 @@ on:
       - assets/gfx01/**
       - tools/build-gfx01-bundle.cjs
       - tools/gfx01-assets.cjs
+      - tools/gfx01b-sculpt-kit.cjs
+      - tools/gfx01b-surface-atlas.cjs
       - tools/gfx01-tailwind.css
       - .github/workflows/downloadable-game-html.yml
   workflow_dispatch:
