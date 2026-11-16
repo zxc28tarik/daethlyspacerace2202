@@ -29,13 +29,14 @@ footer{border-top:1px solid var(--border);padding:35px 0 60px;color:var(--muted)
 <header><div class="shell">
   <div class="eyebrow">GFX-11 / Gerçek motor çıktısı / Görsel inceleme</div>
   <h1>Harita 4 — Görsel kalite kabul dosyası</h1>
-  <p class="lead">12 sabit bölge kadrajı, 15 aynı-kamera özellik açık/kapalı karşılaştırması, 720p/1080p HUD ve üç performans profili. Bu galeri gerçek oyunun Chromium/WebGL ekran görüntülerini gösterir; temsili görsel ya da yapay zekâ çizimi içermez.</p>
+  <p class="lead">12 gerçek farklı sürüm karşılaştırması (20 Ekim GFX00 → 16 Kasım NEXT10B), 15 aynı-kamera özellik kapalı/açık çifti, 720p/1080p HUD ve üç performans profili. Bu galeri gerçek oyunun Chromium/WebGL ekran görüntülerini gösterir; temsili görsel ya da yapay zekâ çizimi içermez.</p>
   <div class="stats" id="stats"></div>
-  <div class="warn"><b>Görsel kabul AÇIK.</b> Otomatik testin geçmesi görüntülerin profesyonel 7–8/10 seviyesinde olduğunu göstermez. Aynı-kamera A/B kareleri iki farklı oyun tarihinin sürüm karşılaştırması değildir; aynı çalışan oyunda ilgili özellik kapalı/açık alınmıştır. Sabit oyun kadrajları gerçek 5 dakikalık uçuş yerine geçmez.</div>
+  <div class="warn"><b>Görsel kabul AÇIK.</b> Otomatik testin geçmesi görüntülerin profesyonel 7–8/10 seviyesinde olduğunu göstermez. **Tarihsel 12 A/B çifti iki ayrı gerçek oyun build'idir.** Diğer 15 A/B ise aynı çalışan oyunda ilgili özellik kapalı/açık alınmıştır; bunları karıştırmayın. Sabit oyun kadrajları gerçek 5 dakikalık uçuş yerine geçmez.</div>
 </div></header>
 <nav aria-label="Galeri bölümleri">
   <a href="#issues">Açık görsel hatalar</a>
-  <a href="#pairs">15 A/B karşılaştırma</a>
+  <a href="#history">12 gerçek sürüm A/B</a>
+  <a href="#pairs">15 özellik A/B</a>
   <a href="#stages">12 bölge kadrajı</a>
   <a href="#extras">Kamera ve profil</a>
   <a href="#review">Değerlendirme</a>
@@ -45,6 +46,11 @@ footer{border-top:1px solid var(--border);padding:35px 0 60px;color:var(--muted)
  <h2>Öncelikli kalite sorunları</h2>
  <p class="sub">Bu inceleme, mevcut ekran görüntülerinde görülebilen problemleri kaydeder. Bir durağan kadraj tek başına gerçek oyuncu oturumundaki davranışı kanıtlamaz.</p>
  <div class="issues" id="issue-cards"></div>
+</section>
+<section id="history">
+ <h2>20 Ekim → 16 Kasım: 12 gerçek sürüm karşılaştırması</h2>
+ <p class="sub"><b>Bunlar iki ayrı gerçek oyun kodu sürümüne aittir:</b> 20 Ekim 2026 GFX00 ve 16 Kasım 2026 NEXT10B. Ekran boyutu 1600×900, sabit kamera ilerlemesi, laneX/laneY ve faz aynı. Sağ tarafta 04–06 arenasının kaybolan kompozisyonları ve 09 sanayi çıkışının dev yakın yüzeyi özellikle karşılaştırılmalı. Draw call düşüşü tek başına grafik hatası kanıtı değildir, ancak görsel değişiklik açıkça görülebilir.</p>
+ <div class="gallery" id="history-cards"></div>
 </section>
 <section id="pairs">
  <h2>Aynı kamera, gerçek özellik farkı</h2>
@@ -105,7 +111,8 @@ const stat=(value,label)=>{
 };
 const stats=document.getElementById('stats');
 stats.appendChild(stat(m.counts.fixedStages,'sabit bölge'));
-stats.appendChild(stat(m.counts.pairs,'gerçek A/B çift'));
+stats.appendChild(stat(m.counts.historicalPairs,'farklı sürüm A/B'));
+stats.appendChild(stat(m.counts.pairs,'aynı-build özellik A/B'));
 stats.appendChild(stat(m.counts.totalPng,'orijinal PNG'));
 stats.appendChild(stat(m.issues.length,'açık inceleme sorunu'));
 for(const problem of m.issues){
@@ -115,6 +122,26 @@ for(const problem of m.issues){
  card.appendChild(make('p',null,problem.source));
  card.appendChild(make('p',null,problem.next));
  document.getElementById('issue-cards').appendChild(card);
+}
+const historyCards=document.getElementById('history-cards');
+for(const data of m.historicalPairs){
+ const card=make('article','pair');
+ const head=make('header');
+ head.appendChild(make('div','meta',data.id+' · 20.10.2026 / 16.11.2026'));
+ head.appendChild(make('h3',null,data.label));
+ head.appendChild(make('div','meta','Draw calls: '+data.oldDrawCalls+' → '+data.newDrawCalls+
+  ' · Triangles: '+data.oldTriangles+' → '+data.newTriangles));
+ card.appendChild(head);
+ const view=make('div','pairimages');
+ for(const version of ['old','new']){
+  const wrap=make('div','imagewrap');
+  wrap.appendChild(make('div','tag '+(version==='new'?'after':''),
+   version==='old'?'20 EKİM · GERÇEK ESKİ BUILD':'16 KASIM · GERÇEK GÜNCEL BUILD'));
+  wrap.appendChild(itemImage(data[version+'Image'],data.label+' '+version));
+  view.appendChild(wrap);
+ }
+ card.appendChild(view);
+ historyCards.appendChild(card);
 }
 const pairCards=document.getElementById('pair-cards');
 for(const data of m.pairs){
