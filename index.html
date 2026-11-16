@@ -3543,6 +3543,8 @@
                 if(!mesh.isMesh)return;
                 if(mesh.userData.h4Collider)
                     throw new Error('VIS02 may not replace physical art');
+                mesh.userData.h4Vis02LegacyGeometry=mesh.geometry;
+                mesh.userData.h4Vis02LegacyMaterial=mesh.material;
                 mesh.geometry=h4Vis02Kits[(n*3+Math.floor(n/4))%4];
                 mesh.material=h4Vis02Mat;
                 mesh.name='MAP4_VIS02_AUTHORED_SKYLINE_'+n++;
@@ -3578,6 +3580,7 @@
             solids.forEach((mesh,index)=>{
                 const tower=mesh.geometry===H4_MESHES.tower;
                 mesh.userData.h4Vis02Protected=true;
+                mesh.userData.h4Vis02LegacyMaterial=mesh.material;
                 mesh.name='MAP4_VIS02_PHYSICAL_STRUCTURE_'+index;
                 mesh.material=index%3===0?
                     H4_GFX06M_MAT.shadow:H4_GFX06M_MAT.oldSteel;
@@ -3622,6 +3625,11 @@
                 h4Vis02Stats.geometryPreserved++;
             }
             h4Vis02Stats.physical=solids.length;
+            h4Vis02Stats.dualTaggedPhysical=h4IndustrialGroups.reduce(
+                (sum,g)=>sum+g.children.filter(obj=>
+                    obj.userData.vq02IndustrialDetail &&
+                    !!obj.userData.h4Collider &&
+                    obj.userData.w05VisualOnly===false).length,0);
             zone.userData.h4Vis02Applied=true;
             zone.userData.h4Vis02Facades=facades;
         }
