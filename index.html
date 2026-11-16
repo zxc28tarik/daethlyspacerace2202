@@ -1807,8 +1807,11 @@
                     const left=-halfWidth+2*halfWidth*x/across;
                     const right=-halfWidth+2*halfWidth*(x+1)/across;
                     const p1=pos(a,left),p2=pos(a,right),p3=pos(b,left),p4=pos(b,right);
-                    const band=(x%4)*(def.type==='canyon'?0.023:0.035);
-                    const contour=0.90+0.07*Math.sin(i*0.53+x*1.6)+
+                    const band=(x%4)*(def.type==='industrial'?.004:
+                        def.type==='canyon'?.023:.035);
+                    const contour=(def.type==='industrial'?.96:.90)+
+                        (def.type==='industrial'?.014:.07)*
+                        Math.sin(i*0.53+x*1.6)+
                         (def.type==='canyon'?Math.sin(a*.005+x*.73)*.055:0);
                     const u1=left/560,u2=right/560,v1=a/670,v2=b/670;
                     face([p1,p2,p4],contour-band,[[u1,v1],[u2,v1],[u2,v2]]);
@@ -3299,6 +3302,119 @@
             station.add(art);
             h4Gfx06bStats.stations++;
         }
+
+        // GFX-06M / VIS-01: evidence-driven industrial surface cleanup.
+        // Real in-engine GFX06A/B screenshots proved the old checkered soil
+        // and bright repeated blue-metal grid masked the authored silhouettes.
+        // Only Map4 industry materials change; no vertex positions, collider
+        // proxies, pilot rules, or other regions are changed.
+        const h4Gfx06mStats={
+            atlases:0,groundUpdated:false,mappedMeshes:0,
+            visualOnly:true,addedColliders:0
+        };
+        function h4Gfx06mMakeAtlas(name,ground){
+            const size=512,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=size;
+            const ctx=canvas.getContext('2d'),pixels=ctx.createImageData(size,size);
+            const twoPi=Math.PI*2;
+            const random=(x,y)=>{
+                let n=(Math.imul(x+11,374761393)^Math.imul(y+57,668265263))|0;
+                n=Math.imul(n^(n>>>13),1274126177);
+                return ((n^(n>>>16))>>>0)/4294967295;
+            };
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const u=x/size,v=y/size,q=(y*size+x)*4;
+                // All low-frequency frequencies are integer periodic waves,
+                // so the texture is tileable and never uses checker squares.
+                const ridge=Math.sin(twoPi*(2*u+.14*Math.sin(twoPi*2*v)))*
+                    Math.cos(twoPi*(2*v-.11*Math.cos(twoPi*3*u)));
+                const flecks=Math.sin(twoPi*(7*u+5*v))*
+                    Math.cos(twoPi*(9*v-3*u));
+                const coarse=(random(Math.floor(x/13),Math.floor(y/13))-.5);
+                const fine=random(x,y)-.5;
+                const stain=Math.max(0,
+                    Math.sin(twoPi*(3*u+v))*
+                    Math.cos(twoPi*(2*v-u))-.45);
+                const wear=ground?
+                    .90+.047*ridge+.024*flecks+.035*coarse+.018*fine-
+                    .045*stain:
+                    .87+.037*ridge+.010*flecks+.030*coarse+.018*fine-
+                    .045*stain;
+                const neutral=ground?[204,202,191]:[210,218,219];
+                for(let c=0;c<3;c++)
+                    pixels.data[q+c]=Math.round(THREE.MathUtils.clamp(
+                        neutral[c]*wear,0,255));
+                pixels.data[q+3]=255;
+            }
+            ctx.putImageData(pixels,0,0);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name=name;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+            tex.repeat.set(ground?1.15:1,ground?1.15:1);
+            tex.encoding=THREE.sRGBEncoding;
+            tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+            h4Gfx06mStats.atlases++;
+            return tex;
+        }
+        const h4Gfx06mGroundMap=h4Gfx06mMakeAtlas(
+            'MAP4_GFX06M_SMOOTH_ERODED_INDUSTRY_GROUND',true);
+        const h4Gfx06mSteelMap=h4Gfx06mMakeAtlas(
+            'MAP4_GFX06M_DIRTY_STEEL_NO_GRID_ALBEDO',false);
+        const H4_GFX06M_MAT=Object.freeze({
+            oldSteel:new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,
+                normalMap:h4MicroMaps.metal.normal,
+                normalScale:new THREE.Vector2(.08,.08),
+                color:0x778992,metalness:.58,roughness:.72,
+                side:THREE.DoubleSide
+            }),
+            armour:new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,
+                normalMap:h4MicroMaps.metal.normal,
+                normalScale:new THREE.Vector2(.09,.09),
+                color:0x89969c,metalness:.58,roughness:.64,
+                side:THREE.DoubleSide
+            }),
+            shadow:new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,
+                color:0x3f4f5b,metalness:.63,roughness:.72,
+                side:THREE.DoubleSide
+            }),
+            warm:new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,
+                color:0xb39e89,metalness:.54,roughness:.72,
+                side:THREE.DoubleSide
+            })
+        });
+        function h4Gfx06mApplyIndustrialMaterials(zone){
+            const terrain=zone.children[0];
+            // Preserve all terrain vertices and original physics separately.
+            terrain.material=terrain.material.clone();
+            terrain.material.map=h4Gfx06mGroundMap;
+            terrain.material.normalScale.set(.10,.10);
+            terrain.material.roughness=.98;
+            terrain.material.needsUpdate=true;
+            h4Gfx06mStats.groundUpdated=true;
+            const mapping=new Map([
+                [H4_MATERIALS.steel,H4_GFX06M_MAT.oldSteel],
+                [H4_MATERIALS.wall,H4_GFX06M_MAT.shadow],
+                [H4_DETAIL_MAT.armor,H4_GFX06M_MAT.armour],
+                [H4_DETAIL_MAT.oxidized,H4_GFX06M_MAT.warm],
+                [H4_HERO_MATERIAL.shadowSteel,H4_GFX06M_MAT.shadow],
+                [H4_HERO_MATERIAL.paintedSteel,H4_GFX06M_MAT.oldSteel],
+                [H4_GFX06A_MAT.paint,H4_GFX06M_MAT.armour],
+                [H4_GFX06A_MAT.dark,H4_GFX06M_MAT.shadow],
+                [H4_GFX06B_MAT.armored,H4_GFX06M_MAT.oldSteel],
+                [H4_GFX06B_MAT.heatSteel,H4_GFX06M_MAT.warm]
+            ]);
+            zone.traverse(obj=>{
+                if(!obj.isMesh||!obj.material||Array.isArray(obj.material))return;
+                const replacement=mapping.get(obj.material);
+                if(!replacement)return;
+                obj.material=replacement;
+                h4Gfx06mStats.mappedMeshes++;
+            });
+            zone.userData.h4Gfx06mApplied=true;
+        }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
             const stations=[15750,18750,21850,24950,28150,31500];
@@ -4378,6 +4494,7 @@
                 }
                 if(zoneIndex===2){
                     h4BuildIndustrialGauntlet(zone);
+                    h4Gfx06mApplyIndustrialMaterials(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
