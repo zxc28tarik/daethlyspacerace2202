@@ -4931,11 +4931,18 @@
                 const height=710+(i%3)*125;
                 entry(family,at+210,side,-435+height/2,
                     [430+family*60,height,430+family*60],i*.04);
+                // Visually balance the forward approach on BOTH sides;
+                // the partner plant is 25% lower and farther down the road.
+                const partnerHeight=Math.round(height*.76);
+                entry(family,at+520,-side*.82,-435+partnerHeight/2,
+                    [315+family*40,partnerHeight,340+family*35],-i*.07);
                 // Thin exhaust funnels give a different long-range silhouette
                 // than rectangular towers, placed well off the central lane.
                 const chimney=direction*(1800+family*100);
                 entry(3,at+540,chimney,-440+(890+i*25)/2,
                     [170,890+i*25,170],-.10+i*.03);
+                entry(3,at+640,-chimney*.86,-440+(690+i*31)/2,
+                    [132,690+i*31,132],.12-i*.03);
                 entry(4,at+400,side+direction*180,255+(i%2)*70,
                     [870,46,90],(i%2?-.18:.18));
                 // High-contrast service rings break uninterrupted vertical walls.
