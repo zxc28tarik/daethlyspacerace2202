@@ -42,6 +42,15 @@ NEXT-06 gerçek Chromium kareleri üzerinde son bölümdeki koridor ve W02 ufuk 
 - GitHub Actions: Ubuntu24.04 Chromium, offline GLB ve **oynanabilir tek HTML** artefaktı. **CI sonucu görülmeden PASS yazılmaz**.
 - Son görsel estetik hedef **7–8/10**, artist-made GLB/baked textures, yüksek kalite gerçek fizik gölgeleri, GPU FPS/p95/VRAM **ayrı açık kapılar**. Bu PR yaratıldığında son kabul verilmez.
 
+## Gerçek test ve ilk görüntü incelemesi — 16 Kasım
+
+- İlk tam [GitHub Actions #43940280465](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43940280465) **PASS**; çevrimdışı tek HTML ve GLB yükleme, Harita 1/4 Chromium smoke, eski 12 sabit kare ve üç son bölge eski/yeni kare çifti başarıyla oluşturuldu.
+- İlk aynı-kamera görüntülerin ölçümü: LM10 karakol **123→124 drawcall, 30.656→36.810 üçgen**; LM11 liman **119→119 drawcall, 13.430→18.040 üçgen**; LM12 fırlatma **66→67 drawcall, 13.390→14.968 üçgen**. Her karşılaştırmada kamera sabit, 86 orijinal decorative Mesh nesnesi korunuyor, 36 sanayi collider değişmedi; PNG gerçek piksel değişimi doğrulandı. Bunlar SwiftShader toplam sahne sayılarıdır, gerçek GPU FPS değil.
+- **Görsel incelemede onaylanmayan nokta:** İlk GFX07 pass görüntülerinde aşırı aydınlık/gri-beyaz son bölge zemini ve açık beton askeri silüetler, alt hedefteki gerçek sinematik derinliği zayıflatıyordu. Bu nedenle “ilk CI PASS = estetik tamamlandı” kabul edilmedi.
+- [311ef7d](https://github.com/zxc28tarik/daethlyspacerace2202/commit/311ef7d1897b05eaf4c42f7cf03f1cad558279f0) ile final-bölge matte atlası 191–199 RGB'den 165–180 aralığına çekildi, zemin vertex tint ve metal kit malzeme tonu koyulaştırıldı, dev kayalık normalMap'i son askerî zemininden kaldırıldı, son bölümde gökyüzü cirrus bandı azaltıldı ve ortam ışığı daha kontrollü hale getirildi. Önceki sektör ve Map1 bu değişiklikte korunur.
+- [525d235](https://github.com/zxc28tarik/daethlyspacerace2202/commit/525d235489aec097d7fa6b8e7d46e31ac131bdec) ile **yıkanmış zemin rengi, koyu silüet ve sert kaya normalMap kapalı** regresyon assert'leri eklendi. Güncel [CI #43941405657](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43941405657) sonucunu görmeden son teknik düzeltmeye PASS yazma.
+- Yüksek nitelikli çok yakın endüstri PBR/GLB, son ışık mastering, gerçek GPU ve kullanıcı estetik kabulü hâlâ açık. Üç yerel PointLight gerçek fizik gölgesi üretmez; mevcut soft contact-shadow sanatının yerine donanım shadowMap varmış gibi gösterilmemeli.
+
 ## Sonraki sıra
 
 1. GFX07 otomatik testlerini gerçek CI'de doğrula, sorun çıkarsa düzelt.
