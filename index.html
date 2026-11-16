@@ -3920,6 +3920,148 @@
             material.needsUpdate=true;
             h4Gfx06dStats.metalMaterials++;
         }
+
+        // GFX-06D-B / NEXT-05: genuine geometry LOD for 58 nonphysical
+        // W02 skyline models, plus distance-culling of tiny hero details.
+        // W02 34 physical meshes + W05 36 collider solids are never swapped.
+        const h4Gfx06dLodObjects=[];
+        const h4Gfx06dMicroObjects=[];
+        function h4Gfx06dSilhouette(kind,far){
+            // Each LOD preserves broad identity rather than falling back to
+            // the original checkerboard boxes.
+            const points=[],colors=[];
+            const steel=new THREE.Color(0x647b88),
+                dark=new THREE.Color(0x304552),
+                copper=new THREE.Color(0xa68a6d);
+            const b=new THREE.BoxGeometry(1,1,1),
+                cyl=new THREE.CylinderGeometry(.5,.5,1,far?7:9),
+                taper=new THREE.CylinderGeometry(.31,.48,1,far?7:9);
+            const add=(geometry,x,y,z,sx,sy,sz,color)=>{
+                const mesh=geometry.clone();
+                mesh.scale(sx,sy,sz);mesh.translate(x,y,z);
+                const data=mesh.index?mesh.toNonIndexed():mesh;
+                const a=data.attributes.position;
+                for(let i=0;i<a.count;i++){
+                    points.push(a.getX(i),a.getY(i),a.getZ(i));
+                    colors.push(color.r,color.g,color.b);
+                }
+                if(data!==mesh)data.dispose();
+                mesh.dispose();
+            };
+            if(kind===0){
+                add(taper,0,0,0,.57,.98,.59,steel);
+                add(cyl,.32,-.20,.05,.20,.55,.20,copper);
+                if(!far){
+                    add(cyl,-.34,-.14,0,.17,.65,.17,dark);
+                    add(b,0,.40,0,.86,.08,.61,dark);
+                }
+            }else if(kind===1){
+                add(b,-.36,-.04,0,.17,.89,.39,steel);
+                add(b,.36,-.04,0,.17,.89,.39,steel);
+                add(b,0,.40,0,.90,.12,.52,dark);
+                if(!far){
+                    add(b,0,-.42,0,.88,.11,.60,dark);
+                    add(b,0,.10,0,.11,.59,.17,copper);
+                }
+            }else if(kind===2){
+                add(taper,-.25,0,0,.44,.92,.45,steel);
+                add(taper,.25,0,0,.44,.92,.45,steel);
+                if(!far){
+                    add(b,0,-.42,0,.96,.12,.84,dark);
+                    add(b,0,-.15,.36,.82,.10,.13,copper);
+                }
+            }else{
+                add(b,0,-.01,0,.70,.85,.68,steel);
+                add(cyl,-.36,-.07,.31,.18,.64,.18,copper);
+                add(cyl,.36,-.07,.31,.18,.64,.18,copper);
+                if(!far){
+                    add(b,0,-.42,0,.95,.12,.82,dark);
+                    add(taper,0,.39,0,.69,.21,.72,steel);
+                }
+            }
+            for(const g of [b,cyl,taper])g.dispose();
+            const result=new THREE.BufferGeometry();
+            result.setAttribute('position',
+                new THREE.Float32BufferAttribute(points,3));
+            result.setAttribute('color',
+                new THREE.Float32BufferAttribute(colors,3));
+            result.computeVertexNormals();
+            result.name='MAP4_GFX06D_LOD'+(far?2:1)+'_KIT_'+kind;
+            return result;
+        }
+        const H4_GFX06D_LOD1=Object.freeze([0,1,2,3].map(
+            i=>h4Gfx06dSilhouette(i,false)));
+        const H4_GFX06D_LOD2=Object.freeze([0,1,2,3].map(
+            i=>h4Gfx06dSilhouette(i,true)));
+        function h4Gfx06dInitializeLod(zone){
+            const wide=zone.getObjectByName('MAP4_W02_WIDE_SCENERY_2');
+            if(!wide)throw new Error('GFX06D cannot find W02 visuals');
+            wide.traverse(mesh=>{
+                if(!mesh.userData.h4Vis02Sculpted)return;
+                if(mesh.userData.h4Collider)throw new Error(
+                    'GFX06D may not replace physical structure LOD');
+                const kind=Number(mesh.geometry.name.slice(-1));
+                if(!Number.isInteger(kind)||kind<0||kind>3)
+                    throw new Error('Invalid GFX06D kit identity');
+                mesh.userData.h4Gfx06dLevels=[
+                    mesh.geometry,H4_GFX06D_LOD1[kind],H4_GFX06D_LOD2[kind]
+                ];
+                mesh.userData.h4Gfx06dLod=0;
+                h4Gfx06dLodObjects.push(mesh);
+            });
+            for(const station of h4IndustrialGroups){
+                const art=station.children.find(c=>
+                    c.userData.h4Gfx06a||c.userData.h4Gfx06b||
+                    c.userData.h4Gfx06c);
+                if(!art)continue;
+                art.traverse(child=>{
+                    if(!child.isMesh||child.userData.h4Collider)return;
+                    // Preserve all primary towers/gantries/toroids/coolers;
+                    // only subpixel accessories can disappear at range.
+                    if(/_(?:LAMP|LIGHT|WARNING|BEACON|COLLAR|VALVE|REINFORCEMENT|ROLLER|COIL|BRACE|WALKWAY_RING|THERMAL_BAND|PULLEY|FAN_RIM|HEAD_CAP|SERVICE|RAIL)/.test(child.name)){
+                        child.userData.h4Gfx06dFineDetail=true;
+                        h4Gfx06dMicroObjects.push(child);
+                    }
+                });
+            }
+            zone.userData.h4Gfx06dInitialized=true;
+            h4Gfx06dStats.lodVisuals=h4Gfx06dLodObjects.length;
+            h4Gfx06dStats.microDetailParts=h4Gfx06dMicroObjects.length;
+        }
+        function h4Gfx06dUpdateLod(){
+            const zone=planetaryWorldRegions[2];
+            if(!zone||!zone.visible||state.map4Phase===2)return;
+            let lod0=0,lod1=0,lod2=0;
+            for(const mesh of h4Gfx06dLodObjects){
+                // Each mesh is already in world-space with identity scene
+                // parents. LOD geometry swaps never alter its transform.
+                const d2=mesh.position.distanceToSquared(camera.position);
+                const previous=mesh.userData.h4Gfx06dLod;
+                let level=previous;
+                // 250-500 unit hysteresis avoids visible LOD flicker.
+                if(previous===0&&d2>2900*2900)level=1;
+                else if(previous===1){
+                    if(d2<2500*2500)level=0;
+                    else if(d2>6100*6100)level=2;
+                }else if(previous===2&&d2<5550*5550)level=1;
+                if(level!==previous){
+                    mesh.geometry=mesh.userData.h4Gfx06dLevels[level];
+                    mesh.userData.h4Gfx06dLod=level;
+                }
+                if(level===0)lod0++;else if(level===1)lod1++;else lod2++;
+            }
+            h4Gfx06dStats.lod0=lod0;
+            h4Gfx06dStats.lod1=lod1;
+            h4Gfx06dStats.lod2=lod2;
+            for(const mesh of h4Gfx06dMicroObjects){
+                const d2=mesh.position.distanceToSquared(camera.position);
+                if(mesh.visible&&d2>6000*6000){
+                    mesh.visible=false;h4Gfx06dStats.detailHidden++;
+                }else if(!mesh.visible&&d2<5500*5500){
+                    mesh.visible=true;h4Gfx06dStats.detailRestored++;
+                }
+            }
+        }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
             const stations=[15750,18750,21850,24950,28150,31500];
@@ -5002,6 +5144,7 @@
                     h4BuildIndustrialGauntlet(zone);
                     h4Gfx06mApplyIndustrialMaterials(zone);
                     h4Vis02DressIndustry(zone);
+                    h4Gfx06dInitializeLod(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -5091,6 +5234,7 @@
                     region.from<state.routeProgress+5200;
                 scenery.far.visible=true;
             }
+            h4Gfx06dUpdateLod();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
                 const route=h4CanyonRoute(state.routeProgress,state.laneX);
