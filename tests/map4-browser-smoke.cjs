@@ -1363,7 +1363,8 @@ const assert = require('node:assert/strict');
         scenery:{near:near.children.length,far:far.children.length},
         featureNamed:visual.every(m=>m.userData.h4Vis02Sculpted&&
           m.name.startsWith('MAP4_VIS02_AUTHORED_SKYLINE_')),
-        fourKitTypes:[...new Set(visual.map(m=>m.geometry.name))],
+        fourKitTypes:[...new Set(visual.map(m=>
+          m.userData.h4Gfx06dLevels?.[0]?.name||m.geometry.name))],
         sourcePreserved:visual.every(m=>
           !!m.userData.h4Vis02LegacyGeometry&&
           !!m.userData.h4Vis02LegacyMaterial),
