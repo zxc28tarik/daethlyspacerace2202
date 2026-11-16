@@ -197,8 +197,8 @@ const percentile=(numbers,p)=>{
     const fresh=await page.evaluate(input=>{
       state.paused=true;state.map4Phase=3;
       state.routeProgress=input.progress;state.laneX=0;state.laneY=650;
-      const wide=planetaryWorldRegions[2].children.find(
-        g=>g.name==='MAP4_W02_WIDE_SCENERY_2');
+      const wide=planetaryWorldRegions[2].getObjectByName(
+        'MAP4_W02_WIDE_SCENERY_2');
       const activeGroup=wide.children.find(g=>g.name===(input.kind==='near'?
         'NEAR_TERRAIN_AND_SETTLEMENT':'HORIZON_SILHOUETTE'));
       const target=activeGroup.children[input.index];
@@ -213,7 +213,8 @@ const percentile=(numbers,p)=>{
       const zone=planetaryWorldRegions[2];
       const scenic=[];
       wide.traverse(x=>{if(x.userData.h4Vis02Sculpted)scenic.push(x)});
-      const physical=zone.children.filter(x=>x.userData.h4Vis02Protected);
+      const physical=[];
+      zone.traverse(x=>{if(x.userData.h4Vis02Protected)physical.push(x)});
       const facades=zone.userData.h4Vis02Facades;
       window.__vis02AB={
         scenic:scenic.map(x=>({m:x,newGeo:x.geometry,newMat:x.material})),
