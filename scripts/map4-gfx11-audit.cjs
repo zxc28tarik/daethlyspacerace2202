@@ -121,7 +121,9 @@ const issues=[
 ];
 const provenance={
  codeBranch:process.env.GITHUB_REF_NAME||'codex/map4-gfx11-visual-acceptance-gallery',
- sourceRun:'https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43954482993',
+ sourceRun:process.env.GITHUB_RUN_ID?
+  'https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/'+process.env.GITHUB_RUN_ID:
+  'https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43954482993',
  generatedUtc:new Date().toISOString(),
  package:'GFX01 packaged offline HTML / real WebGL screenshots',
  renderer:'Chromium SwiftShader / SOFTWARE GPU',
