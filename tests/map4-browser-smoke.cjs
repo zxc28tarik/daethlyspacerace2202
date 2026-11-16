@@ -28,6 +28,11 @@ const assert = require('node:assert/strict');
     await page.locator('#map-choice-4').click();
     assert.equal(await page.locator('#start-btn').isEnabled(),true,'Map4 selectable');
     await page.locator('#start-btn').click();
+    // Snapshot the actual launch formation before earlier probes give the
+    // rival AI time to move away from its spawn lanes.
+    const launchFormation=await page.evaluate(()=>racers.map(r=>
+      Math.hypot(r.laneX,r.laneY)));
+    assert.equal(launchFormation.length,5,'five rival pilots launched');
     try {
       await page.waitForFunction(() => state.running && state.raceTime>0.06,null,{timeout:25000});
     } catch(err) {
@@ -664,7 +669,10 @@ const assert = require('node:assert/strict');
     assert.equal(gfx02.terrainName,'MAP4_GFX02_SCULPTED_CANYON_GROUND',
       'sculpted terrain replaces canyon-only old surface');
     assert(openSpace.cameraFar>10000,'planet draw distance increased');
-    assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
+    assert(launchFormation.every(x=>x>150),
+      'five rivals launch in wide formation (measured before AI movement)');
+    assert(openSpace.firstPositions.every(Number.isFinite),
+      'later AI steering keeps finite lane coordinates');
     assert.equal(openSpace.light,0xffd8b8,'VQ04 canyon daylight palette active');
     const content=await page.evaluate(()=>{
       const initialProgress=state.routeProgress;
@@ -1180,6 +1188,56 @@ const assert = require('node:assert/strict');
     assert.equal(industrial.zones,6,'six persistent industrial groups');
     assert(industrial.meshes>=90&&industrial.meshes<150,'bounded industry mesh allocation');
     assert.equal(industrial.colliders,36,'physical solids authored with real geometry');
+
+    // GFX06A: IN-01/IN-02 have distinct industrial hero models, replacing
+    // old duplicate visual skyline only. W05 physical collider counts stay 36.
+    const gfx06a=await page.evaluate(()=>{
+      const sites=h4IndustrialGroups.map((group,index)=>{
+        const art=group.children.find(x=>x.userData.h4Gfx06a);
+        if(!art)return {index,active:false};
+        const meshes=[];
+        art.traverse(child=>{if(child.isMesh)meshes.push(child)});
+        const old=group.children.filter(c=>
+          ['SILO','BEACON','REFINERY'].includes(c.userData.w05Kind));
+        return {
+          index,active:true,name:art.name,parts:meshes.length,
+          geometryTypes:[...new Set(meshes.map(m=>m.geometry.type))],
+          materials:[...new Set(meshes.map(m=>m.material.uuid))].length,
+          visualOnly:meshes.every(m=>
+            m.userData.visualOnly&&m.userData.w05VisualOnly&&
+            !m.userData.h4Collider),
+          legacyHidden:old.length>0&&old.every(x=>!x.visible),
+          maxHeight:Math.max(...meshes.map(m=>m.scale.y)),
+          markerCount:meshes.filter(m=>m.name.includes('IN0')).length
+        };
+      });
+      const stats={...h4Gfx06aStats};
+      return {sites,stats,physical:h4IndustrialColliders.length,
+        extraPhysical:planetaryBuildingColliders.length,
+        roots:planetaryWorldRegions[2].userData.gfx04IndustrialVisuals.name};
+    });
+    assert.equal(gfx06a.stats.stations,2,'only IN01 and IN02 are replaced');
+    assert.equal(gfx06a.stats.refinery,1);
+    assert.equal(gfx06a.stats.transfer,1);
+    assert.equal(gfx06a.stats.addedColliders,0,
+      'art adds no phantom flight collision');
+    assert.equal(gfx06a.physical,36,'GFX06A preserves all 36 W05 solids');
+    assert.equal(gfx06a.sites.filter(s=>s.active).length,2);
+    assert.equal(gfx06a.sites[0].name,
+      'MAP4_GFX06A_IN01_DISTILLATION_REFINERY');
+    assert.equal(gfx06a.sites[1].name,
+      'MAP4_GFX06A_IN02_PRESSURE_TRANSFER');
+    assert(gfx06a.sites.slice(0,2).every(s=>
+      s.visualOnly&&s.legacyHidden&&s.parts>=14&&
+      s.materials>=4&&s.geometryTypes.length>=3),
+      'authored visible silhouettes replace cosmetic duplicates only');
+    assert(gfx06a.sites[0].maxHeight>=1200,
+      'IN01 has an unmistakably tall separation column');
+    assert(gfx06a.sites[1].markerCount>=14,
+      'IN02 has a dense, differently composed pressure transfer kit');
+    assert.equal(gfx06a.roots,'MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS',
+      'old arena-to-industry visibility gating is preserved');
+
     assert(industrial.kinds.includes('OVERHEAD_PIPE')&&
       industrial.kinds.includes('TRANSFER_BRIDGE')&&
       industrial.kinds.includes('HUNTER_SIDE_TOWER'),

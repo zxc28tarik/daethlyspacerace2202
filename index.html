@@ -2909,6 +2909,171 @@
             }
             h4IndustrialArtStats.stations++;
         }
+
+        // GFX-06A / IN-01 + IN-02. Two authored industrial hero signatures.
+        // These are visual-only outer-skyline landmarks, NOT replacement hitboxes.
+        // Original 36 W05 physics volumes and the three open flight routes remain.
+        const h4Gfx06aStats={
+            stations:0,refinery:0,transfer:0,visibleParts:0,
+            hiddenLegacy:0,addedColliders:0,restarts:0
+        };
+        function h4Gfx06aLathe(profile){
+            return new THREE.LatheGeometry(profile.map(p=>
+                new THREE.Vector2(p[0],p[1])),20,0,Math.PI*2);
+        }
+        const H4_GFX06A_GEO=Object.freeze({
+            separator:h4Gfx06aLathe([
+                [0,-.5],[.40,-.5],[.46,-.41],[.35,-.28],
+                [.37,.02],[.31,.29],[.25,.42],[.12,.5],[0,.5]
+            ]),
+            accumulator:h4Gfx06aLathe([
+                [0,-.5],[.37,-.5],[.51,-.34],[.53,.17],
+                [.45,.37],[.25,.48],[0,.5]
+            ]),
+            body:new THREE.BoxGeometry(1,1,1),
+            tube:new THREE.CylinderGeometry(.065,.065,1,12,1),
+            ring:new THREE.TorusGeometry(.5,.065,8,24),
+            valve:new THREE.TorusGeometry(.5,.12,8,18),
+            cap:new THREE.CylinderGeometry(.49,.44,.16,16,1),
+            bridge:new THREE.CylinderGeometry(.10,.10,1,10,1),
+            sphere:new THREE.SphereGeometry(.5,12,8)
+        });
+        const H4_GFX06A_MAT=Object.freeze({
+            paint:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.steel,
+                normalMap:h4MicroMaps.metal.normal,
+                roughnessMap:h4MicroMaps.metal.roughness,
+                color:0xa9bdc6,metalness:.58,roughness:.58
+            }),
+            dark:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,
+                color:0x3b4e5c,metalness:.66,roughness:.66
+            }),
+            copper:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.steel,
+                color:0xb7835e,metalness:.73,roughness:.41
+            }),
+            cream:new THREE.MeshStandardMaterial({
+                color:0xd4c5a4,metalness:.46,roughness:.65
+            }),
+            hazard:new THREE.MeshBasicMaterial({color:0xffad52}),
+            coolant:new THREE.MeshStandardMaterial({
+                color:0x215767,metalness:.60,roughness:.29,
+                emissive:0x155c76,emissiveIntensity:.27
+            })
+        });
+        function h4BuildGfx06aStation(parent,at,index){
+            if(index>1)return;
+            const art=new THREE.Group();
+            art.name=index===0?'MAP4_GFX06A_IN01_DISTILLATION_REFINERY':
+                'MAP4_GFX06A_IN02_PRESSURE_TRANSFER';
+            art.userData.h4Gfx06a=true;
+            art.userData.visualOnly=true;
+            art.userData.station=index+1;
+            const g=H4_GFX06A_GEO,m=H4_GFX06A_MAT;
+            const place=(name,dp,side,alt,geo,mat,size,turn=0)=>{
+                const progress=at+dp;
+                const mesh=new THREE.Mesh(geo,mat);
+                mesh.name=name;
+                mesh.userData.visualOnly=true;
+                mesh.userData.w05VisualOnly=true;
+                mesh.userData.h4Gfx06a=true;
+                mesh.position.copy(h4WorldPosition(progress,side,alt));
+                mesh.quaternion.setFromUnitVectors(H4_UP,
+                    getRaceFrameAtDistance(progress).up);
+                if(turn)mesh.rotateZ(turn);
+                mesh.scale.set(...size);
+                art.add(mesh);
+                h4Gfx06aStats.visibleParts++;
+                return mesh;
+            };
+            // Intentional silhouette read: vertical refinery vs horizontal
+            // transfer viaduct, both outside the primary -800/0/+900 lanes.
+            if(index===0){
+                const towers=[
+                    {dp:-280,x:-3160,h:1470,r:216},
+                    {dp:85,x:-2640,h:1200,r:185},
+                    {dp:385,x:-3350,h:930,r:144}
+                ];
+                towers.forEach((t,i)=>{
+                    const top=-438+t.h;
+                    place('IN01_SEPARATION_COLUMN_'+i,t.dp,t.x,
+                        -438+t.h*.5,g.separator,
+                        i===1?m.cream:m.paint,[t.r,t.h,t.r]);
+                    place('IN01_HEAD_CAP_'+i,t.dp,t.x,top-45,
+                        g.cap,m.dark,[t.r*1.12,180,t.r*1.12]);
+                    place('IN01_WALKWAY_RING_'+i,t.dp,t.x,top-240,
+                        g.ring,m.copper,[t.r*2.3,t.r*2.3,t.r*2.3],
+                        0).rotateX(Math.PI/2);
+                    place('IN01_PRESSURE_LAMP_'+i,t.dp,t.x,top+35,
+                        g.sphere,m.hazard,[70,70,70]);
+                });
+                // The platform and two real-looking transfer headers connect
+                // the tall vessels; no overlapping boxes in a flying lane.
+                place('IN01_PIPE_RACK_BASE',45,-2950,-352,
+                    g.body,m.dark,[1180,100,470]);
+                place('IN01_COPPER_HEADER',65,-2910,365,
+                    g.tube,m.copper,[55,1030,55],Math.PI/2);
+                place('IN01_COOLANT_HEADER',55,-2910,485,
+                    g.tube,m.coolant,[36,990,36],Math.PI/2);
+                for(const x of [-3430,-2920,-2410]){
+                    place('IN01_RACK_LEG',65,x,34,
+                        g.body,m.dark,[65,800,70]);
+                    place('IN01_RACK_CROSSBEAM',65,x,430,
+                        g.body,m.paint,[175,60,160]);
+                }
+                h4Gfx06aStats.refinery++;
+            }else{
+                // Long horizontal pressure link with chunky end abutments,
+                // pressurized reservoirs, bands, valves and exposed conduits.
+                const pilons=[-3460,-2770];
+                for(const [i,x] of pilons.entries()){
+                    place('IN02_TRANSFER_PYLON_'+i,i?230:-240,x,90,
+                        g.accumulator,m.dark,[300,1050,300]);
+                    place('IN02_PYLON_COLLAR_'+i,i?230:-240,x,545,
+                        g.ring,m.hazard,[365,365,365]).rotateX(Math.PI/2);
+                    place('IN02_PYLON_CAP_'+i,i?230:-240,x,610,
+                        g.cap,m.paint,[320,180,320]);
+                }
+                const barrels=[
+                    {d:-85,y:765,r:105,material:m.copper},
+                    {d:40,y:920,r:82,material:m.paint},
+                    {d:155,y:1080,r:64,material:m.coolant}
+                ];
+                barrels.forEach((b,i)=>{
+                    place('IN02_PRESSURE_MAIN_'+i,b.d,-3110,b.y,
+                        g.tube,b.material,[b.r,1030,b.r],Math.PI/2);
+                    place('IN02_VALVE_WHEEL_'+i,b.d,-3110,b.y+155,
+                        g.valve,m.hazard,[230,230,230]);
+                });
+                place('IN02_MAIN_TRUSS',40,-3110,565,
+                    g.body,m.dark,[1130,120,270]);
+                for(const x of [-3600,-3260,-2920,-2580]){
+                    place('IN02_TRUSS_SUPPORT',35,x,240,
+                        g.body,m.paint,[60,650,65]);
+                    place('IN02_SERVICE_LIGHT',35,x,595,
+                        g.sphere,m.hazard,[44,44,44]);
+                }
+                for(const x of [-3400,-2770]){
+                    place('IN02_PRESSURE_RESERVOIR',320,x,-170,
+                        g.accumulator,m.cream,[190,580,190]);
+                }
+                h4Gfx06aStats.transfer++;
+            }
+            // Hide only OLD non-physical W05 skyline fillers at these two sites.
+            // The overhead pipe, bridge, supports and hunter-side solid towers
+            // remain visible and keep their exact original colliders.
+            for(const obj of parent.children){
+                if(obj.userData.h4Collider)continue;
+                if(['SILO','BEACON','REFINERY'].includes(obj.userData.w05Kind)||
+                    obj.userData.vq02IndustrialDetail){
+                    obj.visible=false;
+                    h4Gfx06aStats.hiddenLegacy++;
+                }
+            }
+            parent.add(art);
+            h4Gfx06aStats.stations++;
+        }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
             const stations=[15750,18750,21850,24950,28150,31500];
@@ -2981,6 +3146,7 @@
                 add(780,H4_INDUSTRY.huntCenter,-210,H4_MESHES.structure,
                     H4_DETAIL_MAT.oxidized,[290,110,140],false,'CARGO_PLATFORM');
                 h4IndustrialModelDetail(group,at,i);
+                if(i<2)h4BuildGfx06aStation(group,at,i);
                 zone.add(group);
                 h4IndustrialGroups.push(group);
                 h4IndustrialStats.stations++;
