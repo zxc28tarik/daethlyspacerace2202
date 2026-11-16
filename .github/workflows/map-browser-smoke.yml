@@ -1,7 +1,7 @@
 name: Map 1 / Map 4 Browser Smoke
 on:
   push:
-    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, codex/map4-gfx00-baseline-gfx02-canyon, codex/map4-gfx03-canyon-hero-models, codex/map4-gfx01-asset-pipeline, codex/map4-gfx01b-sculpted-glb-lods, codex/map4-gfx03b-hero-cleanup-hud, codex/map4-gfx04-arena-hero-art, codex/map4-gfx04b-carrier-glb-damage, codex/map4-gfx04c-elite-battery-glb, codex/map4-gfx04d-smoke-impact-vfx, codex/map4-gfx04e-cinematic-warfront-lighting, codex/map4-gfx05-craft-silhouettes, codex/map4-gfx05b-surface-quality, codex/map4-gfx05c-instanced-exhaust, codex/map4-gfx06a-refinery-transfer-art, codex/map4-gfx06b-press-cooling-art, codex/map4-vis02-industrial-facades, main]
+    branches: [feature/map4-hunter-race, feature/map4-planetary-crossing, feature/map4-four-phase-ascent, feature/map4-world-content-wave1, feature/map4-world-w02-expanse, feature/map4-w03-canyon-routes, feature/map4-w04-arena-warfront, feature/map4-w05-industrial-gauntlet, feature/map4-visual-quality-pass1, feature/map4-visual-quality-pass2, feature/map4-vq03-materials-vfx, codex/map4-vq04-atmospheric-depth, codex/map4-gfx00-baseline-gfx02-canyon, codex/map4-gfx03-canyon-hero-models, codex/map4-gfx01-asset-pipeline, codex/map4-gfx01b-sculpted-glb-lods, codex/map4-gfx03b-hero-cleanup-hud, codex/map4-gfx04-arena-hero-art, codex/map4-gfx04b-carrier-glb-damage, codex/map4-gfx04c-elite-battery-glb, codex/map4-gfx04d-smoke-impact-vfx, codex/map4-gfx04e-cinematic-warfront-lighting, codex/map4-gfx05-craft-silhouettes, codex/map4-gfx05b-surface-quality, codex/map4-gfx05c-instanced-exhaust, codex/map4-gfx06a-refinery-transfer-art, codex/map4-gfx06b-press-cooling-art, codex/map4-vis02-industrial-facades, codex/map4-gfx06c-logistics-power, main]
   workflow_dispatch:
 jobs:
   browser-smoke:
@@ -26,6 +26,15 @@ jobs:
         env:
           GFX01_HTML_PATH: dist/Uzay_Yarisi_Guncel_Oynanabilir.html
         run: node tests/map4-art-baseline.cjs
+      # Independent playable preview for review before merging into main.
+      # The source HTML still loads CDNs; this built artifact is truly offline.
+      - name: Keep branch-specific playable offline HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-current-branch-playable-html
+          path: dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+          if-no-files-found: error
       - name: Keep GFX01 offline build evidence
         if: always()
         uses: actions/upload-artifact@v4
