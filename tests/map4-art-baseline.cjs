@@ -674,6 +674,91 @@ const percentile=(numbers,p)=>{
     e.oldCalls>0&&e.newCalls>0&&
     e.oldTriangles>0&&e.newTriangles>0&&e.screenshotChanged),
     'final-sector overhaul must be visibly different without altering physics');
+  // GFX08: repeatable renderer proof of the five bounded transient pools.
+  // VFX are deliberately staged at known spots in the live 3D engine for
+  // framing; the REAL weapon, impact and explosion hooks are independently
+  // verified by the browser smoke test.
+  out.gfx08VfxGallery=[];
+  await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+  for(const shot of [
+    {name:'arena-muzzle-impact',progress:13150,phase:2,
+      laneY:360,front:950},
+    {name:'industrial-explosion-engine',progress:22800,phase:3,
+      laneY:320,front:900},
+    {name:'orbital-ion-boost',progress:47500,phase:4,
+      laneY:1130,front:900}
+  ]){
+    const before=await page.evaluate(v=>{
+      state.paused=true;state.map4Phase=v.phase;
+      state.routeProgress=v.progress;state.laneX=0;state.laneY=v.laneY;
+      const start=h4WorldPosition(v.progress-260,0,v.laneY+130);
+      const focus=h4WorldPosition(v.progress+v.front,0,v.laneY+70);
+      camera.position.copy(start);camera.lookAt(focus);
+      camera.fov=62;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      h4Gfx08Reset();
+      renderer.render(scene,camera);
+      window.__gfx08Frame={
+        focus,cam:camera.position.clone(),
+        rotation:camera.quaternion.clone()
+      };
+      return {drawCalls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        active:h4Gfx08Meshes.map(m=>m.count),
+        colliderCount:h4IndustrialColliders.length};
+    },shot);
+    const oldPng=await page.screenshot({path:path.join(directory,
+      'gfx08-'+shot.name+'-before.png')});
+    const after=await page.evaluate((v)=>{
+      const p=window.__gfx08Frame;
+      const target=p.focus;
+      const direction=p.focus.clone().sub(camera.position).normalize();
+      const right=getRaceFrameAtDistance(v.progress).right;
+      const up=getRaceFrameAtDistance(v.progress).up;
+      const place=(x,y,z)=>target.clone()
+        .addScaledVector(right,x).addScaledVector(up,y)
+        .addScaledVector(direction,z);
+      h4Gfx08Emit('MUZZLE',place(-95,10,-135),13,0x7cffff,direction);
+      h4Gfx08Emit('MUZZLE',place(95,10,-135),13,0x75ffb3,direction);
+      h4Gfx08Emit('IMPACT',place(0,20,0),11,0x85faff);
+      h4Gfx08Emit('SHOCK',place(30,15,60),7,0xffb777);
+      for(let i=0;i<3;i++){
+        h4Gfx08Emit('SMOKE',place(-40+i*35,10+i*18,50),
+          28,0x98a6b1);
+      }
+      h4Gfx08Emit('ENGINE',place(0,-20,-200),16,0x8cefff);
+      h4Gfx08Update(.032);
+      renderer.render(scene,camera);
+      return {
+        drawCalls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        active:h4Gfx08Meshes.map(m=>m.count),
+        sameCamera:camera.position.distanceTo(p.cam)<.001&&
+          camera.quaternion.angleTo(p.rotation)<.001,
+        sharedMeshes:h4Gfx08Root.children.length,
+        visualOnly:h4Gfx08Meshes.every(m=>
+          m.userData.visualOnly&&!m.userData.h4Collider)
+      };
+    },shot);
+    const newPng=await page.screenshot({path:path.join(directory,
+      'gfx08-'+shot.name+'-after.png')});
+    out.gfx08VfxGallery.push({
+      name:shot.name,before,after,
+      screenshotChanged:!oldPng.equals(newPng)
+    });
+    await page.evaluate(()=>{h4Gfx08Reset();delete window.__gfx08Frame});
+  }
+  await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+  console.log('GFX08 VFX PAIRS',JSON.stringify(out.gfx08VfxGallery));
+  assert.equal(out.gfx08VfxGallery.length,3);
+  assert(out.gfx08VfxGallery.every(item=>
+    item.before.active.every(n=>n===0)&&
+    item.after.active.every(n=>n>0)&&
+    item.before.colliderCount===36&&
+    item.after.sharedMeshes===5&&item.after.visualOnly&&
+    item.after.sameCamera&&item.screenshotChanged&&
+    item.after.drawCalls>=item.before.drawCalls+4));
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];

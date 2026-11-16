@@ -415,6 +415,90 @@ const assert = require('node:assert/strict');
     assert.equal(blast.emissions,1,'real explosion event');
     assert(blast.activeSmoke>=6&&blast.activeRings>=1,'VFX participates in frame particles');
 
+    // GFX08 actual GPU instancing/pooling: five event types, no per-event
+    // Mesh creation. The legacy VQ03 smoke proof above remains intact.
+    const gfx08=await page.evaluate(()=>{
+      const started=state.running;
+      const types=Object.keys(H4_GFX08_TYPES);
+      const beforeCounts=h4Gfx08Meshes.map(m=>m.count);
+      const materialRefs=h4Gfx08Meshes.map(m=>m.material.uuid);
+      const geoRefs=h4Gfx08Meshes.map(m=>m.geometry.uuid);
+      const point=state.pos.clone().add(new THREE.Vector3(0,25,-170));
+      h4Gfx08Reset();
+      // Genuine weapon hook: the same function called from pilot input
+      // should fire two pooled muzzle accents on Map4.
+      const beforeLasers=playerLasers.length;
+      firePlayerLasers();
+      const playerMuzzles=h4Gfx08Stats.emitted[0];
+      const createdLasers=playerLasers.length-beforeLasers;
+      while(playerLasers.length>beforeLasers){
+        const l=playerLasers.pop();scene.remove(l.mesh);
+      }
+      // Real explosion hook: shared legacy layered smoke still emitted.
+      const beforeShock=h4Gfx08Stats.emitted[2];
+      const beforeSmoke=h4Gfx08Stats.emitted[3];
+      createExplosion(point,0xffa365,22,1.1);
+      const realShock=h4Gfx08Stats.emitted[2]-beforeShock;
+      const realSmoke=h4Gfx08Stats.emitted[3]-beforeSmoke;
+      const beforeHit=h4Gfx08Stats.emitted[1];
+      const victim=hunterTargets.find(t=>t.alive&&!t.isElite);
+      const hitValid=damageHunterTarget(victim,1,'PLAYER',point);
+      const realHit=h4Gfx08Stats.emitted[1]-beforeHit;
+      h4Gfx08Emit('ENGINE',point,1.6,0x88dfff);
+      h4Gfx08Update(.016);
+      const active=h4Gfx08Meshes.map(m=>m.count);
+      const bounded=h4Gfx08Meshes.every((m,i)=>
+        m.count<=H4_GFX08_LIMITS[i]&&m.userData.visualOnly&&
+        m.userData.h4Gfx08&&!m.userData.h4Collider&&
+        m.isInstancedMesh&&m.geometry.uuid===geoRefs[i]&&
+        m.material.uuid===materialRefs[i]);
+      // Worst-case spam must evict oldest VFX rather than add meshes.
+      for(let i=0;i<55;i++)h4Gfx08Emit('IMPACT',point,1,0x88ffff);
+      h4Gfx08Update(.016);
+      const cap=h4Gfx08Meshes[1].count;
+      const evicted=h4Gfx08Stats.evicted;
+      h4Gfx08Update(2.1);
+      const expired=h4Gfx08Meshes.every(m=>m.count===0);
+      h4Gfx08Reset();
+      const reset=h4Gfx08Meshes.every(m=>m.count===0)&&
+        h4Gfx08Events.every(a=>a.length===0);
+      return {started,types,previous:beforeCounts,
+        playerMuzzles,createdLasers,realShock,realSmoke,
+        realHit,hitValid,active,bounded,cap,evicted,expired,reset,
+        drawPools:h4Gfx08Stats.drawPools,
+        poolObjects:h4Gfx08Root.children.length,
+        zeroNewColliders:h4Gfx08Stats.addedColliders===0,
+        groupVisible:h4Gfx08Root.parent===planetaryWorldGroup,
+        atlasShared:h4Gfx08Meshes[3].material.map===h4SmokeAtlas,
+        ringAtlasSize:h4Gfx08SoftRingAtlas.image.width,
+        threeRingsShare:h4Gfx08Meshes[1].material.map===h4Gfx08SoftRingAtlas&&
+          h4Gfx08Meshes[2].material.map===h4Gfx08SoftRingAtlas&&
+          h4Gfx08Meshes[4].material.map===h4Gfx08SoftRingAtlas,
+        noHarshRings:h4Gfx08Meshes[1].geometry.type==='PlaneGeometry'&&
+          h4Gfx08Meshes[2].geometry.type==='PlaneGeometry'&&
+          h4Gfx08Meshes[1].material.blending===THREE.NormalBlending&&
+          h4Gfx08Meshes[2].material.blending===THREE.NormalBlending};
+    });
+    assert(gfx08.started,'Map4 VFX tested during an actual active mission');
+    assert.deepEqual(gfx08.types,['MUZZLE','IMPACT','SHOCK','SMOKE','ENGINE']);
+    assert.equal(gfx08.createdLasers,2,'player twin guns remain unchanged');
+    assert(gfx08.playerMuzzles>=2,'both laser muzzles emit pooled flare');
+    assert.equal(gfx08.realShock,1,'real explosion triggers one pooled shock ring');
+    assert.equal(gfx08.realSmoke,3,'real explosion triggers three pooled smoke wisps');
+    assert(gfx08.hitValid.hit&&gfx08.realHit>=1,'real hunter hit triggers one pooled impact');
+    assert(gfx08.active.every(n=>n>=1),'every transient class gets rendered');
+    assert(gfx08.bounded&&gfx08.atlasShared&&gfx08.groupVisible);
+    assert(gfx08.threeRingsShare&&gfx08.noHarshRings&&
+      gfx08.ringAtlasSize===128,
+      'all hit/shock/engine rings share one feathered texture without white hard toruses');
+    assert.equal(gfx08.drawPools,5);
+    assert.equal(gfx08.poolObjects,5);
+    assert.equal(gfx08.cap,36,'bounded rapid hit stream cannot create extra meshes');
+    assert(gfx08.evicted>=19,'oldest pulses evicted when over capacity');
+    assert(gfx08.expired&&gfx08.reset,'transient meshes expire and cleanly reset');
+    assert(gfx08.zeroNewColliders);
+
+
 
     // VQ04: ensure the actual game world has four bounded atmospheric fields,
     // persistent contact shadows and smooth atmosphere/orbit palette states.

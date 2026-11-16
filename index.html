@@ -7389,6 +7389,14 @@
             const addCraft=(craft,power)=>{
                 if(!craft||!craft.visible||!craft.parent)return;
                 craft.updateWorldMatrix(true,false);
+                // A short pooled ion ring at boosted twin exhaust onset,
+                // not new full-frame trail geometry or extra physics.
+                if(power&&time-(craft.userData.h4Gfx08LastEngine||-99)>.22){
+                    const ring=craft.localToWorld(
+                        new THREE.Vector3(0,-.2,5.5));
+                    h4Gfx08Emit('ENGINE',ring,1.5,0x91eaff);
+                    craft.userData.h4Gfx08LastEngine=time;
+                }
                 craft.getWorldQuaternion(h4Gfx05cQuaternion);
                 craft.getWorldScale(h4Gfx05cScale);
                 const style=craft.userData.h4Gfx05Palette||0;
@@ -7817,6 +7825,8 @@
             target.hp = Math.max(0, target.hp - damage);
             const point = impactPoint || target.mesh.position;
             h4EmitGfx04DSparks(point,target.isElite);
+            h4Gfx08Emit('IMPACT',point,target.isElite?1.55:1.10,
+                target.isElite?0xffbc72:0x7bffff);
             createExplosion(point, 0x00f3ff, 4, 0.4);
             sound.playHit();
             if (attackerId === 'PLAYER') { state.hitMarkerTimer = 0.16; state.hunterHits++; }
@@ -7928,6 +7938,8 @@
                 const origin = start.clone().addScaledVector(
                     getRaceFrameAtDistance(racer.routeProgress).right, side * 4);
                 const dir = aim.clone().sub(origin).normalize();
+                h4Gfx08Emit('MUZZLE',origin,1.20,
+                    side===-1?0x91e6ff:0x9affce,dir);
                 const mesh = new THREE.Mesh(sharedLaserGeometry,
                     sharedLaserMaterials[racer.hunterPilotIndex % sharedLaserMaterials.length]);
                 mesh.position.copy(origin);
@@ -8308,6 +8320,8 @@
             offsets.forEach((cfg, barrelIndex) => {
                 const startPos = cfg.pos.clone().applyMatrix4(playerRig.matrixWorld);
                 const dir = aimWorldPoint.clone().sub(startPos).normalize();
+                if(state.activeMap===MAP_MODES.MAP4)
+                    h4Gfx08Emit('MUZZLE',startPos,1.45,cfg.color,dir);
 
                 const laserMesh = new THREE.Mesh(sharedLaserGeometry, sharedLaserMaterials[barrelIndex]);
 
@@ -8636,6 +8650,166 @@
             t.encoding=THREE.sRGBEncoding;
             return t;
         })();
+
+        // GFX08: bounded event-driven VFX accents for Map4. The existing
+        // VQ03 explosion layers and GFX05C engine plumes remain intact.
+        // One InstancedMesh per type, shared geometry/material, no collider,
+        // no per-event Mesh allocation and no Map1 emission.
+        const H4_GFX08_TYPES=Object.freeze({
+            MUZZLE:0,IMPACT:1,SHOCK:2,SMOKE:3,ENGINE:4
+        });
+        const H4_GFX08_LIMITS=Object.freeze([28,36,18,48,30]);
+        const H4_GFX08_LIFE=Object.freeze([.19,.30,.54,.88,.35]);
+        const h4Gfx08Stats={
+            emitted:[0,0,0,0,0],evicted:0,dropped:0,updates:0,
+            resets:0,active:[0,0,0,0,0],peak:0,drawPools:5,
+            addedColliders:0
+        };
+        const h4Gfx08Root=new THREE.Group();
+        h4Gfx08Root.name='MAP4_GFX08_TRANSIENT_POOLED_FX';
+        h4Gfx08Root.userData.visualOnly=true;
+        planetaryWorldGroup.add(h4Gfx08Root);
+        // A shared feathered ring atlas replaces harsh white torus outlines.
+        // One CanvasTexture is shared by hit, shockwave and engine glyphs.
+        const h4Gfx08SoftRingAtlas=(()=>{
+            const n=128,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=n;
+            const c=canvas.getContext('2d'),data=c.createImageData(n,n);
+            for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+                const dx=(x+0.5-n/2)/(n/2),dy=(y+0.5-n/2)/(n/2);
+                const rad=Math.hypot(dx,dy);
+                const ripple=Math.exp(-Math.pow((rad-.57)/.125,2));
+                const halo=Math.exp(-Math.pow((rad-.60)/.28,2))*.19;
+                const angle=Math.atan2(dy,dx);
+                const breakup=.87+.13*Math.cos(angle*9+rad*4);
+                const alpha=THREE.MathUtils.clamp(
+                    (ripple+halo)*breakup,0,1)*155;
+                const o=(y*n+x)*4;
+                data.data[o]=255;data.data[o+1]=255;
+                data.data[o+2]=255;data.data[o+3]=Math.round(alpha);
+            }
+            c.putImageData(data,0,0);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX08_SHARED_SOFT_IMPACT_RING_ATLAS';
+            tex.encoding=THREE.sRGBEncoding;
+            tex.generateMipmaps=true;
+            return tex;
+        })();
+        const h4Gfx08Emitters=Object.freeze([
+            new THREE.ConeGeometry(1,5,10,1),
+            new THREE.PlaneGeometry(1,1),
+            new THREE.PlaneGeometry(1,1),
+            new THREE.PlaneGeometry(1,1),
+            new THREE.PlaneGeometry(1,1)
+        ]);
+        h4Gfx08Emitters[0].rotateX(-Math.PI/2);
+        const h4Gfx08Materials=Object.freeze([
+            new THREE.MeshBasicMaterial({color:0xffffff,
+                transparent:true,opacity:.35,depthWrite:false,
+                blending:THREE.AdditiveBlending,side:THREE.DoubleSide}),
+            new THREE.MeshBasicMaterial({map:h4Gfx08SoftRingAtlas,color:0xffffff,
+                transparent:true,opacity:.55,depthWrite:false,
+                blending:THREE.NormalBlending,side:THREE.DoubleSide}),
+            new THREE.MeshBasicMaterial({map:h4Gfx08SoftRingAtlas,color:0xffffff,
+                transparent:true,opacity:.42,depthWrite:false,
+                blending:THREE.NormalBlending,side:THREE.DoubleSide}),
+            new THREE.MeshBasicMaterial({map:h4SmokeAtlas,color:0xffffff,
+                transparent:true,opacity:.36,depthWrite:false,
+                side:THREE.DoubleSide}),
+            new THREE.MeshBasicMaterial({map:h4Gfx08SoftRingAtlas,color:0xffffff,
+                transparent:true,opacity:.31,depthWrite:false,
+                blending:THREE.AdditiveBlending,side:THREE.DoubleSide})
+        ]);
+        const h4Gfx08Meshes=H4_GFX08_LIMITS.map((limit,i)=>{
+            const mesh=new THREE.InstancedMesh(
+                h4Gfx08Emitters[i],h4Gfx08Materials[i],limit);
+            mesh.name='MAP4_GFX08_POOLED_'+Object.keys(H4_GFX08_TYPES)[i];
+            mesh.count=0;mesh.frustumCulled=false;
+            mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            mesh.userData.visualOnly=true;
+            mesh.userData.h4Gfx08=true;
+            mesh.userData.h4Gfx08Kind=i;
+            h4Gfx08Root.add(mesh);
+            return mesh;
+        });
+        const h4Gfx08Events=H4_GFX08_LIMITS.map(()=>[]);
+        const h4Gfx08Dummy=new THREE.Object3D();
+        const h4Gfx08ColorScratch=new THREE.Color();
+        const h4Gfx08VecForward=new THREE.Vector3(0,0,-1);
+        const h4Gfx08Blue=new THREE.Color(0x8cefff);
+        function h4Gfx08Emit(kind,position,size=1,color=0xffffff,direction=null){
+            if(state.activeMap!==MAP_MODES.MAP4||!state.running||
+                !position||!Number.isFinite(size)||size<=0){
+                h4Gfx08Stats.dropped++;return false;
+            }
+            const slot=H4_GFX08_TYPES[kind];
+            if(slot===undefined){h4Gfx08Stats.dropped++;return false;}
+            const live=h4Gfx08Events[slot],limit=H4_GFX08_LIMITS[slot];
+            if(live.length>=limit){live.shift();h4Gfx08Stats.evicted++;}
+            const event={
+                pos:position.clone(),size:Math.min(size,22),
+                color:new THREE.Color(color),age:0,
+                life:H4_GFX08_LIFE[slot],quaternion:null
+            };
+            if(direction&&direction.lengthSq()>.0001)
+                event.quaternion=new THREE.Quaternion()
+                    .setFromUnitVectors(h4Gfx08VecForward,
+                        direction.clone().normalize());
+            live.push(event);h4Gfx08Stats.emitted[slot]++;
+            h4Gfx08Stats.peak=Math.max(h4Gfx08Stats.peak,
+                h4Gfx08Events.reduce((n,a)=>n+a.length,0));
+            return true;
+        }
+        function h4Gfx08Update(dt){
+            if(state.activeMap!==MAP_MODES.MAP4||!state.running){
+                for(const mesh of h4Gfx08Meshes)mesh.count=0;
+                return;
+            }
+            for(let type=0;type<h4Gfx08Meshes.length;type++){
+                const list=h4Gfx08Events[type],mesh=h4Gfx08Meshes[type];
+                let visible=0;
+                for(let i=list.length-1;i>=0;i--){
+                    const e=list[i];e.age+=dt;
+                    if(e.age>=e.life){list.splice(i,1);continue;}
+                }
+                for(const e of list){
+                    const t=THREE.MathUtils.clamp(e.age/e.life,0,1);
+                    const fade=1-t;
+                    const growth=type===3?1+2.0*t:
+                        type===2?1+3.2*t:type===4?1+1.9*t:
+                        type===1?1+1.6*t:1+.8*t;
+                    h4Gfx08Dummy.position.copy(e.pos);
+                    h4Gfx08Dummy.quaternion.copy(
+                        e.quaternion||camera.quaternion);
+                    // Ring quads are soft decals; scale back to the former
+                    // torus diameter so blast/hit timing and framing hold.
+                    const ringDiameter=type===1?8:type===2?14:type===4?5:1;
+                    const radius=e.size*growth*ringDiameter;
+                    h4Gfx08Dummy.scale.set(
+                        radius,radius,type===0?radius:1);
+                    h4Gfx08Dummy.updateMatrix();
+                    mesh.setMatrixAt(visible,h4Gfx08Dummy.matrix);
+                    h4Gfx08ColorScratch.copy(e.color)
+                        .multiplyScalar(Math.max(.035,fade*fade));
+                    mesh.setColorAt(visible,h4Gfx08ColorScratch);
+                    visible++;
+                }
+                mesh.count=visible;
+                if(visible){
+                    mesh.instanceMatrix.needsUpdate=true;
+                    if(mesh.instanceColor)
+                        mesh.instanceColor.needsUpdate=true;
+                }
+                h4Gfx08Stats.active[type]=visible;
+            }
+            h4Gfx08Stats.updates++;
+        }
+        function h4Gfx08Reset(){
+            for(const list of h4Gfx08Events)list.length=0;
+            for(const mesh of h4Gfx08Meshes)mesh.count=0;
+            h4Gfx08Stats.active.fill(0);
+            h4Gfx08Stats.resets++;
+        }
         function h4SpawnExplosionLayers(pos,scaleMul){
             if(state.activeMap!==MAP_MODES.MAP4 ||
                 particles.length>230)return;
@@ -8685,6 +8859,17 @@
         }
         function createExplosion(pos, color = 0xff8800, count = 22, scaleMul = 1) {
             sound.playExplosion(scaleMul > 1.5);
+            if(state.activeMap===MAP_MODES.MAP4&&state.running){
+                if(scaleMul>=.65&&count>=10){
+                    h4Gfx08Emit('SHOCK',pos,Math.min(6,scaleMul*1.1),color);
+                    for(let i=0;i<3;i++){
+                        const offset=new THREE.Vector3(
+                            (i-1)*4*scaleMul,(i%2)*3*scaleMul,i*2*scaleMul);
+                        h4Gfx08Emit('SMOKE',pos.clone().add(offset),
+                            24*scaleMul,i===0?0x747d8b:0xb2a39b);
+                    }
+                }else h4Gfx08Emit('IMPACT',pos,.9*scaleMul,color);
+            }
             if(state.activeMap===MAP_MODES.MAP4 && scaleMul>=.65 &&
                     count>=10)h4SpawnExplosionLayers(pos,scaleMul);
 
@@ -10325,6 +10510,7 @@
             if(state.laserFeedbackTimer>0)state.laserFeedbackTimer=Math.max(0,state.laserFeedbackTimer-dt);
             updateObstacleShards(dt);
             updateLaserImpacts(dt);
+            h4Gfx08Update(dt);
 
             render2DTacticalReticle(dt);
             updateHUD(incomingDanger);
@@ -10891,6 +11077,7 @@
             particles.length = 0;
             h4ResetGfx04D();
             h4ResetGfx05c();
+            h4Gfx08Reset();
             clearObstacleShards();
             clearLaserImpacts();
             floatingTexts.length = 0;
