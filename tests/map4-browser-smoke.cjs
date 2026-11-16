@@ -1567,6 +1567,100 @@ const assert = require('node:assert/strict');
     assert.equal(gfx06d.physics.noNew,0);
     assert(gfx06d.physics.preservedW05&&gfx06d.physics.geometryOnly);
 
+    // GFX06D-C: functional markings on all six real hero bodies.
+    // 1 shared 1024px atlas, 9 UV tiles, 4 instanced batches per station.
+    // Verify no hidden physics, no duplicate material, and reversible LOD.
+    const gfx06dc=await page.evaluate(()=>{
+      const groups=h4Gfx06dcGroups;
+      const stations=groups.map((group,i)=>{
+        const station=h4IndustrialGroups[i];
+        const art=station.children.find(c=>
+          c.userData.h4Gfx06a||c.userData.h4Gfx06b||
+          c.userData.h4Gfx06c);
+        const target=art.children.find(m=>
+          m.name===H4_GFX06DC_ANCHORS[i]);
+        return {
+          id:group.name,childCount:group.children.length,
+          directChild:station.children.includes(group),
+          parentHero:target?.name,
+          labelCount:group.children[0].count,
+          sootCount:group.children[1].count,
+          rustCount:group.children[2].count,
+          hazardCount:group.children[3].count,
+          correctTypes:group.children.every(c=>
+            c.isInstancedMesh&&c.userData.h4Gfx06dc&&
+            c.userData.visualOnly&&!c.userData.h4Collider),
+          materialShared:group.children.every(c=>
+            c.material===h4Gfx06dcMaterial),
+          anchorMatches:group.userData.anchor.distanceTo(
+            target.position)<.001
+        };
+      });
+      const canvas=h4Gfx06dcTexture.image;
+      const ctx=canvas.getContext('2d');
+      const stencilPixel=ctx.getImageData(16,56,1,1).data;
+      const sootPixel=ctx.getImageData(2*256+128,256+128,1,1).data;
+      const beforeCamera=camera.position.clone();
+      const prevPhase=state.map4Phase,prevRoute=state.routeProgress;
+      state.routeProgress=15750;state.map4Phase=3;
+      const target=groups[0].userData.anchor;
+      camera.position.copy(target).add(new THREE.Vector3(0,240,1400));
+      h4Gfx06dcUpdateRange();
+      const close=groups[0].visible;
+      camera.position.copy(target).add(new THREE.Vector3(0,240,9900));
+      h4Gfx06dcUpdateRange();
+      const far=!groups[0].visible;
+      camera.position.copy(target).add(new THREE.Vector3(0,240,1100));
+      h4Gfx06dcUpdateRange();
+      const restored=groups[0].visible;
+      camera.position.copy(beforeCamera);
+      state.routeProgress=prevRoute;state.map4Phase=prevPhase;
+      h4Gfx06dcUpdateRange();
+      return {
+        stats:{...h4Gfx06dcStats},stations,
+        texture:{name:h4Gfx06dcTexture.name,width:canvas.width,
+          height:canvas.height,stencilAlpha:stencilPixel[3],
+          sootAlpha:sootPixel[3]},
+        geometryUnique:h4Gfx06dcTiles.length,
+        commonShared:h4Gfx06dcGroups.every(g=>
+          g.children.every(m=>m.material.map===h4Gfx06dcTexture)),
+        noPhysics:h4IndustrialColliders.length===36&&
+          h4Vis02Stats.geometryPreserved===34,
+        close,far,restored
+      };
+    });
+    assert.equal(gfx06dc.stats.stations,6);
+    assert.equal(gfx06dc.stats.atlasCount,1);
+    assert.equal(gfx06dc.stats.atlasSize,1024);
+    assert.equal(gfx06dc.geometryUnique,9);
+    assert.equal(gfx06dc.stats.drawBatches,24);
+    assert.equal(gfx06dc.stats.labelInstances,12);
+    assert.equal(gfx06dc.stats.sootInstances,24);
+    assert.equal(gfx06dc.stats.rustInstances,18);
+    assert.equal(gfx06dc.stats.hazardInstances,12);
+    assert.equal(gfx06dc.stats.addedColliders,0);
+    assert.deepEqual(gfx06dc.stations.map(s=>s.id),[
+      'MAP4_GFX06DC_STATION_1_DECALS',
+      'MAP4_GFX06DC_STATION_2_DECALS',
+      'MAP4_GFX06DC_STATION_3_DECALS',
+      'MAP4_GFX06DC_STATION_4_DECALS',
+      'MAP4_GFX06DC_STATION_5_DECALS',
+      'MAP4_GFX06DC_STATION_6_DECALS'
+    ]);
+    assert(gfx06dc.stations.every(s=>
+      s.childCount===4&&s.labelCount===2&&s.sootCount===4&&
+      s.rustCount===3&&s.hazardCount===2&&s.correctTypes&&
+      s.materialShared&&s.directChild&&s.anchorMatches));
+    assert(gfx06dc.stations.every(s=>s.parentHero.startsWith('IN0')));
+    assert.equal(gfx06dc.texture.width,1024);
+    assert.equal(gfx06dc.texture.height,1024);
+    assert(gfx06dc.texture.stencilAlpha>0&&
+      gfx06dc.texture.sootAlpha>0);
+    assert(gfx06dc.commonShared&&gfx06dc.noPhysics);
+    assert(gfx06dc.close&&gfx06dc.far&&gfx06dc.restored,
+      'visual micro-decals cull with distance and restore without rebuild');
+
+
 
 
 

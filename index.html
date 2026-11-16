@@ -4058,12 +4058,267 @@
             h4Gfx06dStats.lod0=lod0;
             h4Gfx06dStats.lod1=lod1;
             h4Gfx06dStats.lod2=lod2;
+            h4Gfx06dcUpdateRange();
             for(const mesh of h4Gfx06dMicroObjects){
                 const d2=mesh.position.distanceToSquared(camera.position);
                 if(mesh.visible&&d2>6000*6000){
                     mesh.visible=false;h4Gfx06dStats.detailHidden++;
                 }else if(!mesh.visible&&d2<5500*5500){
                     mesh.visible=true;h4Gfx06dStats.detailRestored++;
+                }
+            }
+        }
+
+        // GFX-06D-C / NEXT-05C. Functional stencil, soot, runoff and hazard
+        // patches on actual visible industrial hero bodies, with NO collider.
+        // A single atlas + nine shared UV geometries; accessories hide past
+        // 5.8km and restore at 5.3km. Never replace original physics meshes.
+        const h4Gfx06dcStats={
+            atlasCount:0,atlasSize:1024,tileCount:9,
+            stations:0,labelInstances:0,sootInstances:0,
+            rustInstances:0,hazardInstances:0,drawBatches:0,
+            hiddenByDistance:0,restoredByDistance:0,
+            addedColliders:0
+        };
+        const H4_GFX06DC_META=Object.freeze([
+            ['01','FRACTIONATION','15750'],
+            ['02','PRESSURE TRANSFER','18750'],
+            ['03','HEAVY ASSEMBLY','21850'],
+            ['04','COOLING RECOVERY','24950'],
+            ['05','CARGO TERMINAL','28150'],
+            ['06','REACTOR GRID','31500']
+        ]);
+        const H4_GFX06DC_ANCHORS=Object.freeze([
+            'IN01_PIPE_RACK_BASE','IN02_MAIN_TRUSS',
+            'IN03_ASSEMBLY_DECK','IN04_TURBINE_GENERATOR_HALL',
+            'IN05_FREIGHT_TERMINAL_DECK','IN06_REACTOR_FOUNDATION'
+        ]);
+        function h4Gfx06dcAtlas(){
+            const size=1024,cell=256,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=size;
+            const c=canvas.getContext('2d');
+            const seeded=(index)=>{
+                let x=Math.imul(index+1,2654435761)|0;
+                return ()=>{
+                    x^=x<<13;x^=x>>>17;x^=x<<5;
+                    return (x>>>0)/4294967295;
+                };
+            };
+            H4_GFX06DC_META.forEach(([id,name,route],index)=>{
+                const x=(index%4)*cell,y=Math.floor(index/4)*cell;
+                const rng=seeded(index+5);
+                c.save();c.translate(x,y);
+                c.fillStyle='rgba(12,23,30,0.94)';
+                c.fillRect(9,46,238,163);
+                c.fillStyle='#c8a477';
+                c.fillRect(14,51,228,11);
+                c.fillRect(14,195,228,5);
+                c.fillStyle='#e0d7c1';
+                c.font='bold 68px monospace';
+                c.fillText(id,22,132);
+                c.font='bold 19px monospace';
+                c.fillText(name,20,169,222);
+                c.font='15px monospace';
+                c.fillStyle='#acb8b4';
+                c.fillText('SRV-'+id+' / R-'+route,20,188,226);
+                c.fillStyle='#b7794c';
+                for(let j=0;j<75;j++){
+                    const dx=15+rng()*225,dy=52+rng()*139;
+                    c.globalAlpha=.05+rng()*.16;
+                    c.fillRect(dx,dy,1+rng()*6,1+rng()*3);
+                }
+                c.globalAlpha=1;
+                c.restore();
+            });
+            const rng=seeded(614);
+            const tile=(index)=>[(index%4)*cell,Math.floor(index/4)*cell];
+            // Soot blooms: center-dark but edges alpha feathered. Keep the
+            // industrial surface beneath visible rather than painting a
+            // large opaque black polygon in the sky.
+            {
+                const [x,y]=tile(6);
+                c.save();c.translate(x,y);
+                const g=c.createRadialGradient(128,128,5,128,128,114);
+                g.addColorStop(0,'rgba(23,20,17,.70)');
+                g.addColorStop(.40,'rgba(34,28,24,.38)');
+                g.addColorStop(.78,'rgba(66,49,35,.12)');
+                g.addColorStop(1,'rgba(66,49,35,0)');
+                c.fillStyle=g;c.fillRect(0,0,256,256);
+                for(let i=0;i<100;i++){
+                    const angle=rng()*Math.PI*2,r=6+rng()*98;
+                    c.fillStyle='rgba(55,41,31,.12)';
+                    c.beginPath();c.arc(128+Math.cos(angle)*r,
+                        128+Math.sin(angle)*r,1+rng()*3,0,Math.PI*2);
+                    c.fill();
+                }
+                c.restore();
+            }
+            // Rain/weld corrosion streaks: multiple independent irregular
+            // bands, not repeated warning bars or chessboard tiling.
+            {
+                const [x,y]=tile(7);
+                c.save();c.translate(x,y);
+                for(let k=0;k<45;k++){
+                    const px=15+rng()*225,py=12+rng()*210;
+                    const len=10+rng()*76;
+                    c.strokeStyle=k%3===0?'rgba(31,28,24,.28)':
+                        'rgba(150,87,50,.22)';
+                    c.lineWidth=1+rng()*4;
+                    c.beginPath();
+                    c.moveTo(px,py);
+                    c.bezierCurveTo(px+rng()*9-4,py+len*.3,
+                        px+rng()*12-6,py+len*.8,px,py+len);
+                    c.stroke();
+                }
+                c.restore();
+            }
+            // Restricted-area edge stripe: visible only on service decks,
+            // with subdued amber, broken by use wear.
+            {
+                const [x,y]=tile(8);
+                c.save();c.translate(x,y);
+                c.fillStyle='rgba(21,30,35,.68)';
+                c.fillRect(10,86,236,84);
+                c.beginPath();c.rect(10,86,236,84);c.clip();
+                c.fillStyle='rgba(203,145,62,.78)';
+                for(let i=-150;i<360;i+=47){
+                    c.beginPath();
+                    c.moveTo(i,171);c.lineTo(i+40,171);
+                    c.lineTo(i+108,84);c.lineTo(i+70,84);
+                    c.closePath();c.fill();
+                }
+                c.fillStyle='rgba(19,30,32,.30)';
+                for(let i=0;i<45;i++)
+                    c.fillRect(12+rng()*235,88+rng()*80,
+                        3+rng()*20,1+rng()*4);
+                c.restore();
+            }
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX06DC_1024_FUNCTIONAL_SERVICE_DECALS';
+            tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
+            tex.encoding=THREE.sRGBEncoding;
+            tex.anisotropy=Math.min(8,
+                renderer.capabilities.getMaxAnisotropy());
+            tex.generateMipmaps=true;
+            h4Gfx06dcStats.atlasCount++;
+            return tex;
+        }
+        const h4Gfx06dcTexture=h4Gfx06dcAtlas();
+        const h4Gfx06dcMaterial=new THREE.MeshStandardMaterial({
+            map:h4Gfx06dcTexture,
+            transparent:true,depthWrite:false,alphaTest:.015,
+            metalness:.14,roughness:.91,
+            polygonOffset:true,polygonOffsetFactor:-1,
+            side:THREE.DoubleSide
+        });
+        const h4Gfx06dcTiles=Object.freeze(Array.from({length:9},(_,id)=>{
+            const plane=new THREE.PlaneGeometry(1,1);
+            plane.name='MAP4_GFX06DC_TILE_'+id;
+            const uv=plane.attributes.uv,
+                col=id%4,row=Math.floor(id/4),pad=.006;
+            for(let i=0;i<uv.count;i++){
+                uv.setXY(i,
+                    (col+pad+uv.getX(i)*(1-pad*2))/4,
+                    (3-row+pad+uv.getY(i)*(1-pad*2))/4);
+            }
+            return plane;
+        }));
+        const h4Gfx06dcGroups=[];
+        function h4Gfx06dcAddStationDecals(){
+            if(h4Gfx06dcGroups.length)return;
+            const yAxis=new THREE.Vector3(0,1,0);
+            for(let index=0;index<6;index++){
+                const station=h4IndustrialGroups[index];
+                const art=station.children.find(child=>
+                    child.userData.h4Gfx06a||child.userData.h4Gfx06b||
+                    child.userData.h4Gfx06c);
+                if(!art)throw new Error('GFX06DC missing station hero '+index);
+                const body=art.children.find(child=>
+                    child.name===H4_GFX06DC_ANCHORS[index]);
+                if(!body||!body.isMesh||body.userData.h4Collider)
+                    throw new Error('GFX06DC needs a nonphysical box hero '+index);
+                const decals=new THREE.Group();
+                decals.name='MAP4_GFX06DC_STATION_'+(index+1)+'_DECALS';
+                decals.userData.visualOnly=true;
+                decals.userData.h4Gfx06dc=true;
+                decals.userData.station=index+1;
+                decals.userData.anchor=body.position.clone();
+                decals.userData.rangeVisible=true;
+                const base=body.position,rot=body.quaternion,
+                    half=body.scale.z*.5;
+                const position=(dx,dy,front,layer)=>{
+                    const local=new THREE.Vector3(dx,dy,
+                        (front?1:-1)*(half+layer));
+                    return base.clone().add(local.applyQuaternion(rot));
+                };
+                const matrix=(dx,dy,front,width,height,layer)=>{
+                    const q=rot.clone();
+                    if(!front)q.multiply(new THREE.Quaternion()
+                        .setFromAxisAngle(yAxis,Math.PI));
+                    return new THREE.Matrix4().compose(
+                        position(dx,dy,front,layer),q,
+                        new THREE.Vector3(width,height,1));
+                };
+                const make=(kind,tile,placements)=>{
+                    const mesh=new THREE.InstancedMesh(
+                        h4Gfx06dcTiles[tile],h4Gfx06dcMaterial,
+                        placements.length);
+                    mesh.name='MAP4_GFX06DC_'+kind;
+                    mesh.userData.visualOnly=true;
+                    mesh.userData.w05VisualOnly=true;
+                    mesh.userData.h4Gfx06dc=true;
+                    mesh.frustumCulled=false;
+                    placements.forEach((m,i)=>mesh.setMatrixAt(i,m));
+                    mesh.instanceMatrix.needsUpdate=true;
+                    decals.add(mesh);
+                    h4Gfx06dcStats.drawBatches++;
+                };
+                const h=Math.min(body.scale.y*.67,86),
+                    signWidth=Math.min(body.scale.x*.36,450);
+                // On two sides, physically sits just outside each visible
+                // hull surface. The signs do NOT create any obstacle.
+                make('IDENTITY_'+(index+1),index,[
+                    matrix(0,0,true,signWidth,h,4),
+                    matrix(0,0,false,signWidth,h,4)
+                ]);
+                h4Gfx06dcStats.labelInstances+=2;
+                const edge=Math.max(100,body.scale.x*.28);
+                make('SOOT_'+(index+1),6,[
+                    matrix(-edge,body.scale.y*.18,true,185,100,5),
+                    matrix(edge,-body.scale.y*.19,true,145,75,5),
+                    matrix(-edge,-body.scale.y*.17,false,145,75,5),
+                    matrix(edge,body.scale.y*.17,false,185,100,5)
+                ]);
+                h4Gfx06dcStats.sootInstances+=4;
+                make('CORROSION_'+(index+1),7,[
+                    matrix(-edge,body.scale.y*.13,true,125,95,6),
+                    matrix(edge,body.scale.y*.13,false,125,95,6),
+                    matrix(edge*.3,-body.scale.y*.22,true,145,62,6)
+                ]);
+                h4Gfx06dcStats.rustInstances+=3;
+                make('CAUTION_'+(index+1),8,[
+                    matrix(0,-body.scale.y*.32,true,
+                        Math.min(520,body.scale.x*.45),55,7),
+                    matrix(0,-body.scale.y*.32,false,
+                        Math.min(520,body.scale.x*.45),55,7)
+                ]);
+                h4Gfx06dcStats.hazardInstances+=2;
+                station.add(decals);
+                h4Gfx06dcGroups.push(decals);
+                h4Gfx06dcStats.stations++;
+            }
+        }
+        function h4Gfx06dcUpdateRange(){
+            for(const group of h4Gfx06dcGroups){
+                const dist2=camera.position.distanceToSquared(
+                    group.userData.anchor);
+                const was=group.userData.rangeVisible;
+                const show=was?dist2<6100*6100:dist2<5400*5400;
+                if(show!==was){
+                    group.visible=show;
+                    group.userData.rangeVisible=show;
+                    if(show)h4Gfx06dcStats.restoredByDistance++;
+                    else h4Gfx06dcStats.hiddenByDistance++;
                 }
             }
         }
@@ -5150,6 +5405,7 @@
                     h4Gfx06mApplyIndustrialMaterials(zone);
                     h4Vis02DressIndustry(zone);
                     h4Gfx06dInitializeLod(zone);
+                    h4Gfx06dcAddStationDecals();
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
