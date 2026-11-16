@@ -5003,6 +5003,85 @@
                 h4Gfx10ProfileName!=='LOW';
         }
 
+
+        // NEXT11C2: contrast composition, not more floating structures.
+        // Re-grade only authored W05 industrial mesh materials once. Original
+        // solid hitboxes, transforms, geometry, routes and industrial assets
+        // are NEVER moved/rebuilt/deleted. Enables exact same-camera A/B QA.
+        const H4_GFX11C2_FACTORY_COLORS=Object.freeze([
+            {shell:0x805a4c,structure:0x334a56,signal:0xffa65b}, // warm distillation
+            {shell:0x3e7180,structure:0x304958,signal:0x6cdbdf}, // coolant
+            {shell:0x505b80,structure:0x283b51,signal:0xb5b2ff}  // energy
+        ]);
+        const H4_GFX11C2_MATS=H4_GFX11C2_FACTORY_COLORS.map((palette,family)=>({
+            shell:new THREE.MeshStandardMaterial({
+                name:'GFX11C2_'+family+'_OXIDIZED_SHELL',
+                map:h4SurfaceMaps.steel,
+                normalMap:h4MicroMaps.metal.normal,
+                color:palette.shell,metalness:.52,roughness:.78,
+                flatShading:true
+            }),
+            structure:new THREE.MeshStandardMaterial({
+                name:'GFX11C2_'+family+'_SHADOW_STEEL',
+                map:h4SurfaceMaps.darkSteel,
+                normalMap:h4MicroMaps.metal.normal,
+                color:palette.structure,metalness:.62,roughness:.70,
+                flatShading:true
+            }),
+            signal:new THREE.MeshBasicMaterial({
+                name:'GFX11C2_'+family+'_INDUSTRIAL_SIGNAL',
+                color:palette.signal
+            })
+        }));
+        const h4Gfx11c2Stats={
+            curated:0,physicalRecolored:0,visualRecolored:0,
+            paletteFamilies:3,colorsPerFamily:3,
+            newMeshes:0,newColliders:0,addedDrawCalls:0,active:true
+        };
+        const h4Gfx11c2OriginalMaterials=[];
+        function h4Gfx11c2SetPalette(enabled){
+            if(h4Gfx11c2Stats.active===enabled)return;
+            for(const item of h4Gfx11c2OriginalMaterials)
+                item.mesh.material=enabled?item.styled:item.original;
+            h4Gfx11c2Stats.active=enabled;
+        }
+        function h4Gfx11c2CurateIndustry(){
+            if(h4Gfx11c2OriginalMaterials.length)return;
+            const shellKinds=new Set([
+                'SILO','REFINERY','SERVICE_DECK','CARGO_PLATFORM'
+            ]);
+            const structureKinds=new Set([
+                'SUPPORT','OVERHEAD_PIPE','TRANSFER_BRIDGE','HUNTER_SIDE_TOWER'
+            ]);
+            const signalKinds=new Set([
+                'BEACON','SIGNAL','ALARM','HIGH_MARKER'
+            ]);
+            h4IndustrialGroups.forEach((station,i)=>{
+                const materials=H4_GFX11C2_MATS[Math.floor(i/2)];
+                station.traverse(mesh=>{
+                    if(!mesh.isMesh || typeof mesh.userData.w05Kind!=='string')return;
+                    const kind=mesh.userData.w05Kind;
+                    const styled=shellKinds.has(kind)?materials.shell:
+                        structureKinds.has(kind)?materials.structure:
+                        signalKinds.has(kind)?materials.signal:null;
+                    if(!styled)return;
+                    h4Gfx11c2OriginalMaterials.push({
+                        mesh,original:mesh.material,styled,
+                        wasCollider:mesh.userData.h4Collider||null,
+                        station:i,kind
+                    });
+                    mesh.material=styled;
+                    h4Gfx11c2Stats.curated++;
+                    if(mesh.userData.h4Collider)
+                        h4Gfx11c2Stats.physicalRecolored++;
+                    else h4Gfx11c2Stats.visualRecolored++;
+                });
+            });
+            h4Gfx11c2Stats.active=true;
+            if(!h4Gfx11c2Stats.curated)
+                throw new Error('GFX11C2: no authored W05 industrial materials curated');
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -6310,6 +6389,7 @@
                     h4Gfx06dInitializeLod(zone);
                     h4Gfx06dcAddStationDecals();
                     h4Gfx11cBuildIndustryIdentities(zone);
+                    h4Gfx11c2CurateIndustry();
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
