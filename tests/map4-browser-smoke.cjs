@@ -1407,6 +1407,71 @@ const assert = require('node:assert/strict');
       'legacy W02/VQ02 collision collection remains available');
     assert(vis02.otherRegionClean,'Map1 and other Map4 zones unmodified');
 
+    // GFX-06C: final two industrial nodes, dramatically different visual
+    // functions and silhouettes while ALL previous physical routes persist.
+    const gfx06c=await page.evaluate(()=>{
+      const sites=h4IndustrialGroups.map((station,index)=>{
+        const art=station.children.find(m=>m.userData.h4Gfx06c);
+        if(!art)return {index,present:false};
+        const meshes=[];
+        art.traverse(m=>{if(m.isMesh)meshes.push(m)});
+        const solids=station.children.filter(m=>m.userData.h4Collider);
+        return {
+          index,present:true,name:art.name,parts:meshes.length,
+          openCranes:meshes.filter(m=>
+            m.name.startsWith('IN05_OPEN_AFRAME_CRANE_')).length,
+          toroids:meshes.filter(m=>
+            m.name.startsWith('IN06_CENTRAL_POWER_TOROID_')).length,
+          cargoContainers:meshes.filter(m=>
+            m.name.startsWith('IN05_STACKED_FREIGHT_')).length,
+          transformers:meshes.filter(m=>
+            m.name.startsWith('IN06_GRID_TRANSFORMER_')).length,
+          artOnly:art.userData.visualOnly&&meshes.every(m=>
+            m.userData.visualOnly&&m.userData.w05VisualOnly&&
+            !m.userData.h4Collider),
+          solidPhysical:solids.length,
+          solidsVisible:solids.every(m=>m.visible),
+          distinctMaterials:new Set(meshes.map(m=>m.material.uuid)).size,
+          shapes:[...new Set(meshes.map(m=>m.geometry.type))]
+        };
+      });
+      return {
+        stats:{...h4Gfx06cStats},
+        sites,physical:h4IndustrialColliders.length,
+        oldGfx06a:h4IndustrialGroups.slice(0,2).every(g=>
+          g.children.some(m=>m.userData.h4Gfx06a)),
+        oldGfx06b:h4IndustrialGroups.slice(2,4).every(g=>
+          g.children.some(m=>m.userData.h4Gfx06b)),
+        art06c:[...h4IndustrialGroups].filter(g=>
+          g.children.some(m=>m.userData.h4Gfx06c)).length
+      };
+    });
+    assert.equal(gfx06c.stats.stations,2);
+    assert.equal(gfx06c.stats.logistics,1);
+    assert.equal(gfx06c.stats.energy,1);
+    assert.equal(gfx06c.stats.addedColliders,0);
+    assert.equal(gfx06c.physical,36,
+      'the final two compounds add zero physics volumes');
+    assert.deepEqual(gfx06c.sites.filter(s=>s.present).map(s=>s.index),
+      [4,5]);
+    assert.equal(gfx06c.sites[4].name,
+      'MAP4_GFX06C_IN05_INTERMODAL_LOGISTICS');
+    assert.equal(gfx06c.sites[5].name,
+      'MAP4_GFX06C_IN06_REACTOR_SECURITY_POWER');
+    assert.equal(gfx06c.sites[4].openCranes,2);
+    assert.equal(gfx06c.sites[4].cargoContainers,5);
+    assert.equal(gfx06c.sites[5].toroids,2);
+    assert.equal(gfx06c.sites[5].transformers,3);
+    assert(gfx06c.sites[4].shapes.includes('ExtrudeGeometry')&&
+      gfx06c.sites[5].shapes.includes('TorusGeometry'));
+    assert(gfx06c.sites.slice(4,6).every(s=>
+      s.artOnly&&s.parts>=25&&s.solidPhysical>=6&&
+      s.solidsVisible&&s.distinctMaterials>=5),
+      'highly differentiated art, no hidden W05 physical solids');
+    assert(gfx06c.oldGfx06a&&gfx06c.oldGfx06b);
+    assert.equal(gfx06c.art06c,2);
+
+
 
 
 
