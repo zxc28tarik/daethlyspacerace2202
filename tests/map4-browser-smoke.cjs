@@ -1343,6 +1343,71 @@ const assert = require('node:assert/strict');
     assert(skyPolish.industrial<skyPolish.canyon*.48,
       'sector 3 cirrus stripes reduced without altering canyon sky');
 
+    // VIS-02: 58 W02 visual-only industrial props now have 4 sculpted
+    // identities. Original physical W02 meshes, geometry, and collider
+    // references are untouched, but acquire FOUR shared instanced drawcalls.
+    const vis02=await page.evaluate(()=>{
+      const z=planetaryWorldRegions[2];
+      const wide=z.getObjectByName('MAP4_W02_WIDE_SCENERY_2');
+      const near=wide.children.find(x=>x.name==='NEAR_TERRAIN_AND_SETTLEMENT');
+      const far=wide.children.find(x=>x.name==='HORIZON_SILHOUETTE');
+      const visual=[...near.children,...far.children];
+      const physics=[];
+      z.traverse(m=>{if(m.userData.h4Vis02Protected)physics.push(m)});
+      const facades=z.userData.h4Vis02Facades;
+      const dual=h4IndustrialGroups.flatMap(g=>g.children).filter(m=>
+        m.userData.vq02IndustrialDetail&&m.userData.h4Collider);
+      return {
+        stat:{...h4Vis02Stats},
+        landscapeVisible:wide.visible,
+        scenery:{near:near.children.length,far:far.children.length},
+        featureNamed:visual.every(m=>m.userData.h4Vis02Sculpted&&
+          m.name.startsWith('MAP4_VIS02_AUTHORED_SKYLINE_')),
+        fourKitTypes:[...new Set(visual.map(m=>m.geometry.name))],
+        sourcePreserved:visual.every(m=>
+          !!m.userData.h4Vis02LegacyGeometry&&
+          !!m.userData.h4Vis02LegacyMaterial),
+        physicalProtected:physics.every(m=>
+          !!m.userData.h4Collider&&
+          !!m.userData.h4Vis02LegacyMaterial&&
+          (m.geometry===H4_MESHES.structure||
+           m.geometry===H4_MESHES.tower)&&m.visible),
+        facadeMeshCount:facades.children.length,
+        facadeChildNoPhysics:facades.children.every(m=>
+          m.isInstancedMesh&&m.userData.noCollider&&!m.userData.h4Collider),
+        facadeInstanceCount:facades.children.reduce((n,m)=>n+m.count,0),
+        oldVQ02TaggedPhysical:dual.length,
+        oldVQ02Corrected:dual.every(m=>
+          m.userData.w05VisualOnly===false),
+        physW05:h4IndustrialColliders.length,
+        scenePhysical:planetaryBuildingColliders.length,
+        otherRegionClean:planetaryWorldRegions.filter((r,i)=>i!==2)
+          .every(r=>!r.userData.h4Vis02Applied)
+      };
+    });
+    assert.equal(vis02.stat.sculpted,58);
+    assert.deepEqual(vis02.scenery,{near:30,far:28});
+    assert(vis02.featureNamed&&vis02.sourcePreserved);
+    assert.equal(vis02.fourKitTypes.length,4,
+      'four non-box industrial visual families actually mounted');
+    assert.equal(vis02.stat.physical,34,
+      'all 34 old physical skyline hazards are still present');
+    assert.equal(vis02.stat.geometryPreserved,34);
+    assert.equal(vis02.stat.addedColliders,0);
+    assert.equal(vis02.facadeMeshCount,4,
+      'four InstancedMesh facade drawcalls instead of 100+ meshes');
+    assert(vis02.facadeChildNoPhysics&&vis02.physicalProtected);
+    assert(vis02.facadeInstanceCount>=120);
+    assert.equal(vis02.stat.facadeInstances,vis02.facadeInstanceCount);
+    assert(vis02.oldVQ02TaggedPhysical>0&&
+      vis02.oldVQ02Corrected,
+      'VQ02 double-tagged collision props no longer claim to be visual-only');
+    assert.equal(vis02.physW05,36);
+    assert(vis02.scenePhysical>vis02.physW05,
+      'legacy W02/VQ02 collision collection remains available');
+    assert(vis02.otherRegionClean,'Map1 and other Map4 zones unmodified');
+
+
 
 
 

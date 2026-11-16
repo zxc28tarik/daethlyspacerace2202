@@ -183,6 +183,90 @@ const percentile=(numbers,p)=>{
   assert(out.gfx06bSites.every(x=>
     x.group?.startsWith('MAP4_GFX06B_')&&
     x.parts>=20&&x.triangles>1000&&x.colliderCount===36));
+
+  // VIS02: real unchanged-camera A/B captures (new four sculpted skyline
+  // kit silhouettes + batched physically-attached cladding vs W02 originals).
+  // Temporarily toggle ONLY render geometry/materials; game is paused and
+  // all original W02 physical Mesh/collider references stay untouched.
+  out.vis02Gallery=[];
+  await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+  for(const shot of [
+    {name:'near-assembly',index:9,kind:'near',progress:20600,sideOffset:1100},
+    {name:'far-refinery',index:15,kind:'far',progress:25100,sideOffset:-900}
+  ]){
+    const fresh=await page.evaluate(input=>{
+      state.paused=true;state.map4Phase=3;
+      state.routeProgress=input.progress;state.laneX=0;state.laneY=650;
+      const wide=planetaryWorldRegions[2].getObjectByName(
+        'MAP4_W02_WIDE_SCENERY_2');
+      const activeGroup=wide.children.find(g=>g.name===(input.kind==='near'?
+        'NEAR_TERRAIN_AND_SETTLEMENT':'HORIZON_SILHOUETTE'));
+      const target=activeGroup.children[input.index];
+      const frame=getRaceFrameAtDistance(input.progress);
+      camera.position.copy(target.position).addScaledVector(frame.tangent,-1400)
+        .addScaledVector(frame.right,input.sideOffset)
+        .addScaledVector(frame.up,400);
+      camera.lookAt(target.position);
+      camera.fov=60;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      const zone=planetaryWorldRegions[2];
+      const scenic=[];
+      wide.traverse(x=>{if(x.userData.h4Vis02Sculpted)scenic.push(x)});
+      const physical=[];
+      zone.traverse(x=>{if(x.userData.h4Vis02Protected)physical.push(x)});
+      const facades=zone.userData.h4Vis02Facades;
+      window.__vis02AB={
+        scenic:scenic.map(x=>({m:x,newGeo:x.geometry,newMat:x.material})),
+        physical:physical.map(x=>({m:x,newMat:x.material})),facades
+      };
+      renderer.render(scene,camera);
+      return {
+        name:input.name,artParts:scenic.length,
+        artDrawCalls:renderer.info.render.calls,
+        artTriangles:renderer.info.render.triangles,
+        physics:h4IndustrialColliders.length,
+        targetGeometry:target.geometry.name
+      };
+    },shot);
+    await page.screenshot({path:path.join(directory,
+      'vis02-'+shot.name+'-new.png')});
+    const old=await page.evaluate(()=>{
+      const evidence=window.__vis02AB;
+      evidence.scenic.forEach(o=>{
+        o.m.geometry=o.m.userData.h4Vis02LegacyGeometry;
+        o.m.material=o.m.userData.h4Vis02LegacyMaterial;
+      });
+      evidence.physical.forEach(o=>{
+        o.m.material=o.m.userData.h4Vis02LegacyMaterial;
+      });
+      evidence.facades.visible=false;
+      renderer.render(scene,camera);
+      return {oldCalls:renderer.info.render.calls,
+        oldTriangles:renderer.info.render.triangles};
+    });
+    await page.screenshot({path:path.join(directory,
+      'vis02-'+shot.name+'-old.png')});
+    await page.evaluate(()=>{
+      const evidence=window.__vis02AB;
+      evidence.scenic.forEach(o=>{
+        o.m.geometry=o.newGeo;o.m.material=o.newMat;
+      });
+      evidence.physical.forEach(o=>o.m.material=o.newMat);
+      evidence.facades.visible=true;
+      delete window.__vis02AB;
+      renderer.render(scene,camera);
+    });
+    out.vis02Gallery.push({...fresh,...old});
+  }
+  await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+  assert.equal(out.vis02Gallery.length,2);
+  assert(out.vis02Gallery.every(x=>
+    x.physics===36&&x.artParts===58&&
+    x.targetGeometry.startsWith('MAP4_VIS02_ONE_DRAW_KIT_')&&
+    x.artTriangles>x.oldTriangles&&
+    x.artDrawCalls>0&&x.oldCalls>0),
+    'VIS02 art upgrades are real new geometry in identical engine cameras');
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
