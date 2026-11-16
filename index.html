@@ -3287,6 +3287,20 @@
             bounds:new THREE.Box3(),active:false,updates:0,
             changedColliders:0
         };
+        function h4Gfx11bFinalizeCameraMask(){
+            const target=h4Gfx11bCameraMask;
+            if(!target.mesh)return;
+            // GFX06m/VIS02 modify the final material AFTER station placement.
+            // Capture the authoritative material only after those passes.
+            target.original=target.mesh.material;
+            target.faded=target.original.clone();
+            target.faded.name='MAP4_GFX11B_CAMERA_NEAR_FADE';
+            target.faded.transparent=true;
+            target.faded.opacity=.075;
+            target.faded.depthWrite=false;
+            target.mesh.updateWorldMatrix(true,false);
+            target.bounds.setFromObject(target.mesh);
+        }
         function h4Gfx11bUpdateCameraMask(){
             const target=h4Gfx11bCameraMask;
             if(!target.mesh)return;
@@ -3327,15 +3341,8 @@
                     // The diagnosed near-camera support is also a PHYSICAL
                     // structure. Never move, delete or de-collide it.
                     const target=h4Gfx11bCameraMask;
-                    target.mesh=support;target.original=support.material;
-                    target.faded=support.material.clone();
-                    target.faded.name='MAP4_GFX11B_CAMERA_NEAR_FADE';
-                    target.faded.transparent=true;
-                    target.faded.opacity=.075;
-                    target.faded.depthWrite=false;
+                    target.mesh=support;
                     support.userData.h4Gfx11bCameraOccluder=true;
-                    support.updateWorldMatrix(true,false);
-                    target.bounds.setFromObject(support);
                 }
                 add(90,x,gantryY,geo.mesaShelf,
                     mat.paintedSteel,[156,24,140]);
@@ -6129,6 +6136,7 @@
                     h4BuildIndustrialGauntlet(zone);
                     h4Gfx06mApplyIndustrialMaterials(zone);
                     h4Vis02DressIndustry(zone);
+                    h4Gfx11bFinalizeCameraMask();
                     h4Gfx06dInitializeLod(zone);
                     h4Gfx06dcAddStationDecals();
                     // GFX04: visually gate next-stage factories, not the
