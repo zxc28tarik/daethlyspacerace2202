@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Harita 4 · GFX11 Görsel Kabul Dosyası</title>
+<style>
+:root{--bg:#0c1016;--panel:#151c27;--panel2:#1a2430;--fg:#f2f6fc;--muted:#9aafc1;--border:#304052;--cyan:#76d6eb;--orange:#f3b776;--red:#f18e93;--green:#8dd7ba}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}.shell{max-width:1500px;padding:0 24px;margin:auto}
+header{padding:52px 0 34px;background:radial-gradient(ellipse at 15% 0,#25384b 0,transparent 60%),#0f151e;border-bottom:1px solid var(--border)}
+.eyebrow{color:var(--cyan);font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:800;margin-bottom:10px}
+h1{font-size:clamp(27px,4vw,48px);line-height:1.13;margin:0 0 12px;letter-spacing:-.03em}h2{font-size:27px;margin:0 0 10px;letter-spacing:-.02em}h3{font-size:18px;margin:0}.lead{color:var(--muted);max-width:840px;margin:0}
+.stats{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0 0}.stat{min-width:145px;border:1px solid var(--border);background:#1a2430aa;padding:14px 18px;border-radius:12px}.stat strong{display:block;font-size:27px;font-variant-numeric:tabular-nums;line-height:1.15}.stat span{font-size:12px;color:var(--muted)}
+nav{position:sticky;top:0;z-index:5;background:#101723e8;border-bottom:1px solid var(--border);backdrop-filter:blur(12px);display:flex;gap:10px;padding:12px 24px;overflow-x:auto;white-space:nowrap}nav a{color:var(--fg);background:#222d3c;border:1px solid var(--border);padding:8px 13px;border-radius:8px;font-size:13px}
+main section{padding-top:42px;scroll-margin-top:65px}.sub{color:var(--muted);max-width:950px;margin:0 0 22px}
+.warn{padding:16px 19px;border:1px solid #a17234;background:#33291d;border-radius:10px;margin:22px 0}.warn b{color:#ffd293}
+.issues{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}.issue{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:20px}.issue[data-severity=BLOCKER]{border-left:4px solid var(--red)}.issue[data-severity=HIGH]{border-left:4px solid var(--orange)}.issue[data-severity=MEDIUM]{border-left:4px solid var(--cyan)}.issue p{margin:7px 0;color:var(--muted);font-size:14px}.issue .severity{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--orange)}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:15px;margin:20px 0}.controls label{color:var(--muted);font-size:14px}.controls select,form select,form textarea{background:#111925;border:1px solid #54687d;color:#f2f6fc;border-radius:8px;padding:9px 12px;font:inherit}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,620px),1fr));gap:18px}.pair,.stage,.extra{border:1px solid var(--border);background:var(--panel);border-radius:14px;overflow:hidden}.pair header,.stage header,.extra header{background:#192332;border:0;padding:17px 19px}.pair header h3,.stage header h3,.extra header h3{margin:0}.meta{font-size:12px;color:var(--muted)}.pairimages{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px}.imagewrap{min-width:0}.imagewrap .tag{font-weight:800;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:3px 0 7px;color:#d0dee9}.imagewrap .tag.after{color:var(--green)}img{display:block;width:100%;height:auto;background:#111a26;border-radius:8px}a.view{display:block;cursor:zoom-in}.pairimages img{aspect-ratio:16/9;object-fit:contain}.stage img,.extra img{aspect-ratio:16/9;object-fit:contain}.stage>a,.extra>a{display:block;margin:9px}.stage p{color:var(--muted);padding:0 19px 17px;margin:0;font-size:13px}.stage[data-flagged=true]{border-color:#b3824a}.stage .pill{font-size:11px;color:#ffd18b;font-weight:700}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+form{border:1px solid var(--border);background:var(--panel);border-radius:14px;padding:20px;max-width:890px}form .fields{display:grid;gap:14px;grid-template-columns:minmax(150px,230px) 1fr}form textarea{width:100%;min-height:120px;resize:vertical}form label{display:block;color:var(--muted);font-size:13px;margin-bottom:7px}button{border:0;border-radius:8px;background:var(--cyan);color:#0b1a23;font-weight:800;padding:12px 18px;cursor:pointer}.help{color:var(--muted);font-size:12px;margin-top:8px}
+footer{border-top:1px solid var(--border);padding:35px 0 60px;color:var(--muted);margin-top:44px;font-size:13px}
+@media(max-width:750px){.shell{padding:0 13px}nav{padding:10px 13px}.pairimages{grid-template-columns:1fr}form .fields{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="shell">
+  <div class="eyebrow">GFX-11 / Gerçek motor çıktısı / Görsel inceleme</div>
+  <h1>Harita 4 — Görsel kalite kabul dosyası</h1>
+  <p class="lead">12 gerçek farklı sürüm karşılaştırması (20 Ekim GFX00 → 16 Kasım NEXT10B), 15 aynı-kamera özellik kapalı/açık çifti, 720p/1080p HUD ve üç performans profili. Bu galeri gerçek oyunun Chromium/WebGL ekran görüntülerini gösterir; temsili görsel ya da yapay zekâ çizimi içermez.</p>
+  <div class="stats" id="stats"></div>
+  <div class="warn"><b>Görsel kabul AÇIK.</b> Otomatik testin geçmesi görüntülerin profesyonel 7–8/10 seviyesinde olduğunu göstermez. **Tarihsel 12 A/B çifti iki ayrı gerçek oyun build'idir.** Diğer 15 A/B ise aynı çalışan oyunda ilgili özellik kapalı/açık alınmıştır; bunları karıştırmayın. Sabit oyun kadrajları gerçek 5 dakikalık uçuş yerine geçmez.</div>
+</div></header>
+<nav aria-label="Galeri bölümleri">
+  <a href="#issues">Açık görsel hatalar</a>
+  <a href="#history">12 gerçek sürüm A/B</a>
+  <a href="#pairs">15 özellik A/B</a>
+  <a href="#stages">12 bölge kadrajı</a>
+  <a href="#extras">Kamera ve profil</a>
+  <a href="#review">Değerlendirme</a>
+</nav>
+<main class="shell">
+<section id="issues">
+ <h2>Öncelikli kalite sorunları</h2>
+ <p class="sub">Bu inceleme, mevcut ekran görüntülerinde görülebilen problemleri kaydeder. Bir durağan kadraj tek başına gerçek oyuncu oturumundaki davranışı kanıtlamaz.</p>
+ <div class="issues" id="issue-cards"></div>
+</section>
+<section id="history">
+ <h2>20 Ekim → 16 Kasım: 12 gerçek sürüm karşılaştırması</h2>
+ <p class="sub"><b>Bunlar iki ayrı gerçek oyun kodu sürümüne aittir:</b> 20 Ekim 2026 GFX00 ve 16 Kasım 2026 NEXT10B. Ekran boyutu 1600×900, sabit kamera ilerlemesi, laneX/laneY ve faz aynı. Sağ tarafta 04–06 arenasının kaybolan kompozisyonları ve 09 sanayi çıkışının dev yakın yüzeyi özellikle karşılaştırılmalı. Draw call düşüşü tek başına grafik hatası kanıtı değildir, ancak görsel değişiklik açıkça görülebilir.</p>
+ <div class="gallery" id="history-cards"></div>
+</section>
+<section id="pairs">
+ <h2>Aynı kamera, gerçek özellik farkı</h2>
+ <p class="sub">Sol: ilgili görsel sistem kapalı / önceki render malzemesi. Sağ: sistem açık / yeni render. A/B testleri aynı kamera ve sahnede gerçek kaynak modelin görünürlüğünü veya malzemesini değiştirir. Açmak ve gerçek piksel boyutuna yakın görmek için görsele tıklayın.</p>
+ <div class="controls"><label for="group">Çalışma alanı</label><select id="group">
+ <option value="all">Tümü (15 çift)</option>
+ <option value="silhouette">Sanayi silüeti</option><option value="surface">Yüzey / dekor</option>
+ <option value="hero">Büyük yapı / landmark</option><option value="lighting">Işık / atmosfer</option><option value="vfx">Silah / motor efektleri</option>
+ </select></div>
+ <div class="gallery" id="pair-cards"></div>
+</section>
+<section id="stages">
+ <h2>12 sabit uçuş bölgesi</h2>
+ <p class="sub">Bunlar 1600×900 sabit CHASE-benzeri motor kamera kadrajlarıdır. 01–03 kanyon, 04–06 arena, 07–09 sanayi, 10–12 karakol/liman/yörünge. Her durakta simülasyon duraklatılmıştır; nişangâh ve HUD dahil gerçek render yakalanmıştır.</p>
+ <div class="grid3" id="stage-cards"></div>
+</section>
+<section id="extras">
+ <h2>HUD, iki kamera ve kalite profilleri</h2>
+ <p class="sub">GFX09 720p/1080p CHASE/TURRET ve GFX10 High/Balanced/Low ekranları. Bunlar karşılaştırma çiftleri değil; uygulama doğrulama görselleridir.</p>
+ <div class="grid3" id="extra-cards"></div>
+</section>
+<section id="review">
+ <h2>İnsan değerlendirmesi</h2>
+ <p class="sub">Sınıf atlama hedefi 7–8/10. İstersen notunu bu cihazda doldurup JSON olarak dışarı alabilir ve geliştiriciyle paylaşabilirsin. Bu form GitHub'a veya bir sunucuya otomatik veri göndermez.</p>
+ <form id="review-form">
+ <div class="fields">
+  <div><label for="rating">Görsel kalite puanı</label><select id="rating"><option value="">Henüz değerlendirilmedi</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></div>
+  <div><label for="notes">Sınıf atlaması için ilk değişmesini istediğin alanlar</label><textarea id="notes" placeholder="Örn. arena boş, sanayi mimarisi basit, nişangâh kayboluyor..."></textarea></div>
+ </div><p class="help">Önce 09 sanayi çıkışı ve 04–06 arena görüntülerine bak. Sadece teknik test PASS ise estetik skor otomatik olarak verilmez.</p>
+ <button type="submit">Değerlendirmemi JSON indir</button>
+ </form>
+</section>
+</main>
+<footer><div class="shell">
+ <div><b>Kaynak doğrulama:</b> <a href="manifest.json" download>manifest.json</a> (her PNG için SHA-256), <a href="HOW_TO_REVIEW.txt">inceleme notu</a> ve <a href="images/01-canyon-open.png">orijinal ekran görüntüsü</a>.</div>
+ <div id="source"></div>
+</div></footer>
+<script src="manifest.js"></script>
+<script>
+(function(){
+'use strict';
+const m=window.GFX11_MANIFEST;
+if(!m){document.body.textContent='Galeri manifest dosyası eksik.';return;}
+const make=(tag,className,text)=>{
+ const node=document.createElement(tag);
+ if(className)node.className=className;
+ if(text!==undefined)node.textContent=text;
+ return node;
+};
+const itemImage=(src,alt)=>{
+ const a=make('a','view');a.href=src;a.target='_blank';a.rel='noopener';
+ const img=make('img');img.src=src;img.alt=alt;img.loading='lazy';
+ a.appendChild(img);return a;
+};
+const stat=(value,label)=>{
+ const div=make('div','stat');div.appendChild(make('strong',null,String(value)));
+ div.appendChild(make('span',null,label));return div;
+};
+const stats=document.getElementById('stats');
+stats.appendChild(stat(m.counts.fixedStages,'sabit bölge'));
+stats.appendChild(stat(m.counts.historicalPairs,'farklı sürüm A/B'));
+stats.appendChild(stat(m.counts.pairs,'aynı-build özellik A/B'));
+stats.appendChild(stat(m.counts.totalPng,'orijinal PNG'));
+stats.appendChild(stat(m.issues.length,'açık inceleme sorunu'));
+for(const problem of m.issues){
+ const card=make('article','issue');card.dataset.severity=problem.severity;
+ card.appendChild(make('div','severity',problem.severity+' · '+problem.stage));
+ card.appendChild(make('h3',null,problem.title));
+ card.appendChild(make('p',null,problem.source));
+ card.appendChild(make('p',null,problem.next));
+ document.getElementById('issue-cards').appendChild(card);
+}
+const historyCards=document.getElementById('history-cards');
+for(const data of m.historicalPairs){
+ const card=make('article','pair');
+ const head=make('header');
+ head.appendChild(make('div','meta',data.id+' · 20.10.2026 / 16.11.2026'));
+ head.appendChild(make('h3',null,data.label));
+ head.appendChild(make('div','meta','Draw calls: '+data.oldDrawCalls+' → '+data.newDrawCalls+
+  ' · Triangles: '+data.oldTriangles+' → '+data.newTriangles));
+ card.appendChild(head);
+ const view=make('div','pairimages');
+ for(const version of ['old','new']){
+  const wrap=make('div','imagewrap');
+  wrap.appendChild(make('div','tag '+(version==='new'?'after':''),
+   version==='old'?'20 EKİM · GERÇEK ESKİ BUILD':'16 KASIM · GERÇEK GÜNCEL BUILD'));
+  wrap.appendChild(itemImage(data[version+'Image'],data.label+' '+version));
+  view.appendChild(wrap);
+ }
+ card.appendChild(view);
+ historyCards.appendChild(card);
+}
+const pairCards=document.getElementById('pair-cards');
+for(const data of m.pairs){
+ const card=make('article','pair');card.dataset.group=data.group;
+ const header=make('header');header.appendChild(make('div','meta',data.id+' · '+data.group));
+ header.appendChild(make('h3',null,data.label));card.appendChild(header);
+ const row=make('div','pairimages');
+ for(const side of ['before','after']){
+  const wrap=make('div','imagewrap');
+  wrap.appendChild(make('div','tag '+(side==='after'?'after':''),side==='before'?'KAPALI / ÖNCE':'AÇIK / SONRA'));
+  wrap.appendChild(itemImage(data[side+'Image'],data.label+' '+side));
+  row.appendChild(wrap);
+ }
+ card.appendChild(row);pairCards.appendChild(card);
+}
+document.getElementById('group').addEventListener('change',function(){
+ for(const card of pairCards.children)
+  card.hidden=this.value!=='all'&&card.dataset.group!==this.value;
+});
+const stageCards=document.getElementById('stage-cards');
+for(const data of m.stages){
+ const card=make('article','stage');card.dataset.flagged=String(/İNCELEME|KRİTİK/.test(data.note));
+ const head=make('header');head.appendChild(make('h3',null,data.label));
+ head.appendChild(make('div','meta',data.id+' · ilerleme '+data.progress+' · '+data.drawCalls+' draw calls'));
+ card.appendChild(head);card.appendChild(itemImage(data.image,data.label));
+ card.appendChild(make('p',null,data.note));stageCards.appendChild(card);
+}
+const extraCards=document.getElementById('extra-cards');
+for(const item of m.extras){
+ const card=make('article','extra');const head=make('header');
+ head.appendChild(make('h3',null,item.name));card.appendChild(head);
+ card.appendChild(itemImage(item.image,item.name));extraCards.appendChild(card);
+}
+document.getElementById('review-form').addEventListener('submit',function(e){
+ e.preventDefault();
+ const rating=document.getElementById('rating').value;
+ const note=document.getElementById('notes').value;
+ const answer={type:'USER_VISUAL_REVIEW',source:m.provenance.codeBranch,
+  visualScore:rating?Number(rating):null,notes:note,
+  knownBlockers:m.issues.filter(x=>x.severity==='BLOCKER').map(x=>x.id),
+  createdUtc:new Date().toISOString()};
+ const blob=new Blob([JSON.stringify(answer,null,2)+'\n'],{type:'application/json'});
+ const url=URL.createObjectURL(blob);
+ const link=document.createElement('a');link.href=url;
+ link.download='GFX11_Kullanici_Gorsel_Degerlendirmesi.json';
+ document.body.appendChild(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+document.getElementById('source').textContent='Kaynak: '+m.provenance.sourceRun+
+ ' · '+m.provenance.renderer+' · native GPU FPS veya estetik 7/10 kanıtı değildir.';
+})();
+</script>
+</body>
+</html>
