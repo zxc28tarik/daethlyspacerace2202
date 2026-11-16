@@ -48,6 +48,18 @@ Bu iş `IN-03` (21.850) ve `IN-04` (24.950) ile sınırlıdır. [Karar/ilerleme 
 
 GFX-06A'daki ilk CI [run #43875886124](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43875886124) **FAIL**. `map4-gfx01-offline.cjs` PASS, fakat browser smoke satır 667'deki 'six ships start in wider formation' iddiası, gerçek **başlangıç** yerine önceki testler sırasında hareket etmiş AI pilotlarının konumunu ölçüyordu. Bu hata GFX-06A ve GFX-06B dallarında, rakiplerin mesafesini başlangıç düğmesine tıklanır tıklanmaz kaydetme ve daha sonraki hareket için finite lane kontrolüyle değiştirildi. **Yeni CI PASS ayrı doğrulanacak.**
 
+## VIS-01 / GFX-06M — gerçek oyun kareleriyle belirlenen ortak kalite onarımı
+
+[GFX-06A Chromium kanıtları](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43880186485) ve [GFX-06B ilk başarılı Chromium kanıtları](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43880399850) incelendi. Kod testleri PASS olmasına rağmen ilk gerçek oyun karelerinde zeminde yoğun kareli desen ve pek çok parlak tekrarlı mavi-gri metal kutu, özgün yapıların büyük/orta/ufak ölçek hiyerarşisini bastırıyordu. Bu nedenle art kalitesi **ONAYLANMADI**; yalnız yeni yapı eklemek yerine ortak kök malzeme sorunu ele alındı.
+
+- Yalnız `Map4` sanayi bölgesine özel iki adet paylaşılan **512×512 yeni albedo atlası**: yumuşak aşınmış zemin ve metal çizgisi/kareli panel içermeyen kirli çelik. Deterministik ve tekrar edilebilir düşük kontrastlı dalga/noise; ayrı her binaya texture üretilmez.
+- Sanayi zemininin mevcut orijinal vertex konumları korunur, yalnız albedo atlası, normal kabartma ölçeği ve endüstriye özel vertex renk bantlaması daha doğal hâle gelir. **Yeni toprak collider yoktur.**
+- Yalnız endüstri grubunda eski malzeme nesneleri, GFX06A ve GFX06B'deki seçili ağır metal materyalleri `Map` referansı üzerinden ortak yeni boya/koyu zırh/sıcak çelik varyantlarına bağlanır. Mesh konumu, geometri, ölçek ve eski collider referansları **aynen kalır**. Harita 1'e/diğer fazlara global malzeme değişikliği uygulanmaz.
+- `tests/map4-browser-smoke.cjs` ortak atlas sayısı, yeniden materyallenmiş mesh sayısı, 36 mevcut collider, endüstri-only izolasyon, açık hedef koridoru ve renkli zeminin normal ölçeğini test eder.
+- **Bu düzeltme henüz yeni Chromium görsel/performans kabulünden geçmemiştir.** Üçüncü/dördüncü tesis, sonraki screenshot karşılaştırmasında yeni ortak malzeme ile yeniden değerlendirilecektir. Nihai el boyaması 2K texture ve 3D model kalitesi hâlâ açık.
+
+Bu alt işin takibi: `VIS-01`. Grafik master planındaki GFX-06 materyal kalemi **kısmi** kalmaya devam eder.
+
 ## Sonraki sıralama
 
 1. GFX-06A testlerini tamamlayıp görselleri değerlendirerek PR #32'yi kapat; bu belge baz dal birleşmesine hazır olacak.
