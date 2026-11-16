@@ -4873,7 +4873,9 @@
             ].map(p=>new THREE.Vector2(p[0],p[1])),12),
             collar:new THREE.TorusGeometry(.47,.055,7,24),
             gantry:new THREE.BoxGeometry(1,1,1),
-            blade:H4_GFX04_GEO.brokenPlate,
+            // This shared authored hull is initialized before GFX11C.
+            // GFX04_GE0 is declared later and would crash on script startup.
+            blade:H4_HERO_GEOMETRY.carvedHull,
             signal:new THREE.IcosahedronGeometry(.5,1)
         });
         const H4_GFX11C_MAT=Object.freeze({
