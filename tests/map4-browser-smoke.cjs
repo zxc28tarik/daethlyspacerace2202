@@ -1348,11 +1348,12 @@ const assert = require('node:assert/strict');
     // references are untouched, but acquire FOUR shared instanced drawcalls.
     const vis02=await page.evaluate(()=>{
       const z=planetaryWorldRegions[2];
-      const wide=z.children.find(x=>x.name==='MAP4_W02_WIDE_SCENERY_2');
+      const wide=z.getObjectByName('MAP4_W02_WIDE_SCENERY_2');
       const near=wide.children.find(x=>x.name==='NEAR_TERRAIN_AND_SETTLEMENT');
       const far=wide.children.find(x=>x.name==='HORIZON_SILHOUETTE');
       const visual=[...near.children,...far.children];
-      const physics=z.children.filter(m=>m.userData.h4Vis02Protected);
+      const physics=[];
+      z.traverse(m=>{if(m.userData.h4Vis02Protected)physics.push(m)});
       const facades=z.userData.h4Vis02Facades;
       const dual=h4IndustrialGroups.flatMap(g=>g.children).filter(m=>
         m.userData.vq02IndustrialDetail&&m.userData.h4Collider);
