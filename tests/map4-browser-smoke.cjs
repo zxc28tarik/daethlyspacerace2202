@@ -1238,6 +1238,114 @@ const assert = require('node:assert/strict');
     assert.equal(gfx06a.roots,'MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS',
       'old arena-to-industry visibility gating is preserved');
 
+    // GFX-06B / IN-03/IN-04: art is intentionally NOT collision geometry.
+    const gfx06b=await page.evaluate(()=>{
+      const sites=h4IndustrialGroups.map((group,i)=>{
+        const art=group.children.find(x=>x.userData.h4Gfx06b);
+        if(!art)return {i,active:false};
+        const meshes=[];
+        art.traverse(obj=>{if(obj.isMesh)meshes.push(obj)});
+        return {
+          i,active:true,name:art.name,parts:meshes.length,
+          archCount:meshes.filter(m=>m.name.startsWith(
+            'IN03_OPEN_PRESS_ARCH_')).length,
+          hyperboloidCount:meshes.filter(m=>m.name.startsWith(
+            'IN04_HYPERBOLOID_COOLING_TOWER_')).length,
+          geometryTypes:[...new Set(meshes.map(m=>m.geometry.type))],
+          materials:[...new Set(meshes.map(m=>m.material.uuid))].length,
+          visualOnly:meshes.every(m=>
+            m.userData.visualOnly&&m.userData.w05VisualOnly&&
+            !m.userData.h4Collider),
+          hiddenLegacy:group.children.some(x=>
+            x.userData.w05Kind==='SILO'&&!x.visible),
+          artHasNoColliders:art.children.every(x=>
+            !x.userData.h4Collider)
+        };
+      });
+      return {sites,stats:{...h4Gfx06bStats},
+        physical:h4IndustrialColliders.length,
+        art06a:h4IndustrialGroups.filter(g=>
+          g.children.some(x=>x.userData.h4Gfx06a)).length,
+        map1ArtHiddenWhenSwitched:!planetaryWorldGroup.visible||
+          state.activeMap===MAP_MODES.MAP4
+      };
+    });
+    assert.equal(gfx06b.stats.stations,2,'exactly two new IN03/04 art groups');
+    assert.equal(gfx06b.stats.presses,1);
+    assert.equal(gfx06b.stats.cooling,1);
+    assert.equal(gfx06b.stats.addedColliders,0);
+    assert.equal(gfx06b.physical,36,
+      'GFX06B cannot modify 36 established W05 physics obstacles');
+    assert.equal(gfx06b.art06a,2,'earlier refinery/transfer art stays intact');
+    assert.deepEqual(gfx06b.sites.filter(x=>x.active).map(x=>x.i),[2,3],
+      'fifth and sixth industrial stations are deliberately untouched');
+    assert.equal(gfx06b.sites[2].name,
+      'MAP4_GFX06B_IN03_HEAVY_PRESS_ASSEMBLY');
+    assert.equal(gfx06b.sites[3].name,
+      'MAP4_GFX06B_IN04_COOLING_RECLAMATION');
+    assert.equal(gfx06b.sites[2].archCount,2,
+      'two authentic punched-through heavy press extrusion silhouettes');
+    assert.equal(gfx06b.sites[3].hyperboloidCount,2,
+      'two distinct open-topped cooling tower lathe silhouettes');
+    assert(gfx06b.sites[2].geometryTypes.includes('ExtrudeGeometry'));
+    assert(gfx06b.sites[3].geometryTypes.includes('LatheGeometry'));
+    assert(gfx06b.sites.slice(2,4).every(x=>
+      x.visualOnly&&x.artHasNoColliders&&x.hiddenLegacy&&
+      x.parts>=20&&x.materials>=5));
+
+    // GFX06M: visual evidence showed excessive repeated checker/grid paint.
+    // Material remapping is industry-only. Preserve all solid mesh identities.
+    const gfx06m=await page.evaluate(()=>{
+      const industry=planetaryWorldRegions[2];
+      const ground=industry.children[0];
+      const one=h4IndustrialColliders[0],original=one.mesh;
+      return {
+        stats:{...h4Gfx06mStats},
+        applied:industry.userData.h4Gfx06mApplied,
+        groundMap:ground.material.map?.name,
+        metalMap:h4Gfx06mSteelMap.name,
+        groundNormalScale:ground.material.normalScale.x,
+        phys:h4IndustrialColliders.length,
+        colliderMeshLinked:one.mesh===original&&
+          one.mesh.userData.h4Collider===one,
+        industryOnly:planetaryWorldRegions.filter((z,i)=>i!==2)
+          .every(z=>!z.userData.h4Gfx06mApplied),
+        map1Safe:!h4GeoSwordArt.userData.h4Gfx06m
+      };
+    });
+    assert.equal(gfx06m.stats.atlases,2,'two fixed reusable 512px atlases');
+    assert.equal(gfx06m.stats.groundUpdated,true);
+    assert(gfx06m.stats.mappedMeshes>=30,
+      'old industry meshes replace metallic checkerboard materials');
+    assert.equal(gfx06m.stats.addedColliders,0);
+    assert.equal(gfx06m.phys,36);
+    assert.equal(gfx06m.colliderMeshLinked,true,
+      'all original collision mesh pointers remain unchanged');
+    assert.equal(gfx06m.applied,true);
+    assert.equal(gfx06m.groundMap,
+      'MAP4_GFX06M_SMOOTH_ERODED_INDUSTRY_GROUND');
+    assert.equal(gfx06m.metalMap,'MAP4_GFX06M_DIRTY_STEEL_NO_GRID_ALBEDO');
+    assert(gfx06m.groundNormalScale<=.1);
+    assert(gfx06m.industryOnly&&gfx06m.map1Safe);
+
+    const skyPolish=await page.evaluate(()=>{
+      const before=state.routeProgress;
+      state.routeProgress=22000;
+      h4UpdateCinematicAtmosphere(3);
+      const industrial=h4AtmosphereUniforms.cloudiness.value;
+      state.routeProgress=2000;
+      h4UpdateCinematicAtmosphere(3);
+      const canyon=h4AtmosphereUniforms.cloudiness.value;
+      state.routeProgress=before;
+      h4UpdateCinematicAtmosphere(3);
+      return {industrial,canyon};
+    });
+    assert(skyPolish.industrial<skyPolish.canyon*.48,
+      'sector 3 cirrus stripes reduced without altering canyon sky');
+
+
+
+
     assert(industrial.kinds.includes('OVERHEAD_PIPE')&&
       industrial.kinds.includes('TRANSFER_BRIDGE')&&
       industrial.kinds.includes('HUNTER_SIDE_TOWER'),
