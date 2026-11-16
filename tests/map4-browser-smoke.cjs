@@ -28,6 +28,11 @@ const assert = require('node:assert/strict');
     await page.locator('#map-choice-4').click();
     assert.equal(await page.locator('#start-btn').isEnabled(),true,'Map4 selectable');
     await page.locator('#start-btn').click();
+    // Snapshot the actual launch formation before earlier probes give the
+    // rival AI time to move away from its spawn lanes.
+    const launchFormation=await page.evaluate(()=>racers.map(r=>
+      Math.hypot(r.laneX,r.laneY)));
+    assert.equal(launchFormation.length,5,'five rival pilots launched');
     try {
       await page.waitForFunction(() => state.running && state.raceTime>0.06,null,{timeout:25000});
     } catch(err) {
@@ -664,7 +669,10 @@ const assert = require('node:assert/strict');
     assert.equal(gfx02.terrainName,'MAP4_GFX02_SCULPTED_CANYON_GROUND',
       'sculpted terrain replaces canyon-only old surface');
     assert(openSpace.cameraFar>10000,'planet draw distance increased');
-    assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
+    assert(launchFormation.every(x=>x>150),
+      'five rivals launch in wide formation (measured before AI movement)');
+    assert(openSpace.firstPositions.every(Number.isFinite),
+      'later AI steering keeps finite lane coordinates');
     assert.equal(openSpace.light,0xffd8b8,'VQ04 canyon daylight palette active');
     const content=await page.evaluate(()=>{
       const initialProgress=state.routeProgress;
