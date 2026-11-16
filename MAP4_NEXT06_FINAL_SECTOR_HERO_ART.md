@@ -31,6 +31,20 @@ Yeni varlıklar `h4BuildGfx06eFinalHero(group,plan)` fonksiyonunda **yalnız Har
 - **JS parse testi dışında GitHub Actions CI sonucunu teyit etmeden PASS yazılmayacak**; test başarısızsa oyun fiziğiyle oynanmadan düzeltilir.
 - 7–8/10 yayıncı görsel kalite hedefi, artist-made GLB/LODs, yakın tekstür detayları, ışık/post ve gerçek desktop GPU FPS/VRAM hâlâ ayrı açık kabul kapılarıdır. İlk büyük silüetin oluşturulması nihai sanat onayı değildir.
 
+## 16 Kasım — Gerçek CI ve görsel A/B kanıtı
+
+- **Final çalışan kod commit'i** [d67b54a](https://github.com/zxc28tarik/daethlyspacerace2202/commit/d67b54a34616fff046498550dad3bb634f61b89b), [GitHub Actions #43925320985](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43925320985): **SUCCESS**. Çevrimdışı tek HTML, GLB cache, iki haritanın tarayıcı regresyonu, 12 sabit orijinal galeri karesi, 3 yeni LM10–12 sabit kamera önce/sonra çifti ve 850 üzeri yükseliş hattı kanıtı.
+- **Başlangıç hatası çözüldü:** ilk iki CI çalışması yeni `H4_GFX06E_MAT` katalogunda henüz oluşturulmamış `h4Gfx06mSteelMap / h4Gfx06dMaps` sabitlerine erişildiği için başlatılamıyordu. [2725c42](https://github.com/zxc28tarik/daethlyspacerace2202/commit/2725c4212799741241c9cb3a612e3e8cc6e085fc) ile dosyada daha önce var olan `h4SurfaceMaps` ve `h4MicroMaps` ortak metal haritalarına geçilerek **GLB yükleme+startup PASS** sağlandı.
+- **Yanlış kabul önermesi düzeltildi:** görsel screenshot testinin “yeni model mutlaka daha fazla drawcall/üçgen harcamalı” varsayımı yanlıştı. LM12'de yeni modelin **71→65 drawcall'a düştüğü** görüldü. [d67b54a](https://github.com/zxc28tarik/daethlyspacerace2202/commit/d67b54a34616fff046498550dad3bb634f61b89b) ile **aynı kamerada gerçek PNG piksel farkı, işaretli görünür Mesh varlığı, collider ve açılış doğrulaması** esas oldu; kaynak maliyetler ayrıca raporlanıyor.
+- **Üç nokta gerçek renderer ölçümleri** (aynı kamera, önce → sonra; kaynak yalnız Chromium/SwiftShader):
+  - LM10 Hudut: **126→127 drawcall**, **29.068→30.860 üçgen**, 27 yeni art Mesh.
+  - LM11 Liman: **123→129 drawcall**, **8.968→13.722 üçgen**, 35 yeni art Mesh.
+  - LM12 Fırlatma: **71→65 drawcall**, **8.414→13.378 üçgen**, 33 yeni art Mesh.
+- Yükseliş denetimi: oyuncu `routeProgress=47.900 / laneX=0 / laneY=1.050`, 36 W05 fizik collider değişmeden, son landmark ve açık merkezi koridor. Bu bir performans veya uçuş oynanışı tamamlanmış kalite sertifikası değildir.
+- `metrics.json` içinde SwiftShader median ~**1,1 ms**, p95 ~**2,1 ms** (18 yazılım render örneklemesi). Bu gerçek masaüstü ekran kartı FPS değeri olarak yorumlanamaz.
+- **Görsel inceleme:** üç yeni silüet eskilerinden daha okunur ama yüzeylerde ve çevrede **28 tekrarlı, basit final-sektör arka plan objesi, sert gökyüzü bantları, düz zemin ve sınırlı gölge/kontrast** hâlâ bariz. 7–8/10 hedefi ve son artist-made GLB/PBR/LOD **kabul edilmedi**.
+- [Tam screenshot/JSON artifact](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43925320985/artifacts/14255697420); [çevrimdışı oynanabilir tek HTML](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43925320985/artifacts/14255304244), **5.451.677 bayt**. Bu sürüm **taslak PR #38**'dedir, `main` değildir.
+
 ## Sonraki adım
 
 CI testleri ve aynı kamera eski/yeni karelerin incelemesi ile kapı tamamlanır. Geometriler çok bloklu görünürse revize edilir; GPU sürüş testleri ayrı ele alınır. Sonraki tek `.` komutu takip dosyasındaki açık sonraki alt adıma ilerlemelidir: **GFX-07 sinematik ışık/atmosfer ve final-sektör gölge/derinlik geliştirmesi**; ancak NEXT-06 hatası kalırsa önce düzelt. Önceki altı fabrika ve decal'lerde kısmen açık estetik/FPS kalemleri unutulmayacak.
