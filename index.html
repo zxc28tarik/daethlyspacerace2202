@@ -5584,6 +5584,7 @@
         // is drawn in four shared instanced batches, all visual only.
         const h4Gfx11bArenaStats={batches:0,instances:0,addedColliders:0,
             expectedInstances:74,visualOnly:true};
+        let h4Gfx11bArenaSkylineGroup=null;
         function h4Gfx11bBuildArenaSkyline(zone){
             if(zone.userData.h4Gfx11bArenaBuilt)return;
             const group=new THREE.Group();
@@ -5610,26 +5611,26 @@
                     const sign=i%2?-1:1;
                     let progress,side,alt,width,height,depth;
                     if(spec.name==='FRACTURED_CARRIERS'){
-                        progress=13290+(i%8)*80+(Math.floor(i/8)*35);
-                        side=sign*(650+(i*203)%1350);
+                        progress=13840+(i%8)*103+(Math.floor(i/8)*60);
+                        side=sign*(690+(i*151)%1100);
                         alt=-305+(i%4)*50;
                         width=480+(i%3)*130;height=320+(i%4)*75;
                         depth=420+(i%3)*90;
                     }else if(spec.name==='BATTERED_DEFENSE_SPIRES'){
-                        progress=13230+(i%13)*58;
-                        side=sign*(660+(i*157)%1630);
+                        progress=13680+(i%13)*96;
+                        side=sign*(390+(i*137)%1450);
                         height=420+(i*67)%510;
                         alt=-430+height*.50;
                         width=88+(i%4)*24;depth=100+(i%3)*32;
                     }else if(spec.name==='SHATTERED_OUTER_WINGS'){
-                        progress=13420+(i%11)*47;
-                        side=sign*(720+(i*239)%1800);
+                        progress=13720+(i%11)*90;
+                        side=sign*(510+(i*151)%1370);
                         alt=-365+(i%3)*90;
                         width=410+(i%4)*80;height=95+(i%3)*35;
                         depth=530+(i%4)*75;
                     }else{
-                        progress=13470+(i%5)*110;
-                        side=sign*(720+(i*149)%1350);
+                        progress=13900+(i%5)*165;
+                        side=sign*(460+(i*149)%1130);
                         alt=190+(i%3)*110;
                         width=35;height=35;depth=35;
                     }
@@ -5648,6 +5649,7 @@
                 h4Gfx11bArenaStats.instances+=spec.count;
             }
             zone.add(group);
+            h4Gfx11bArenaSkylineGroup=group;
             zone.userData.h4Gfx11bArenaBuilt=true;
         }
 
@@ -6217,6 +6219,12 @@
                     planetaryWorldRegions[i].userData.gfx04IndustrialVisuals.visible=
                         state.map4Phase!==2;
             }
+            // NEXT11B: reveal the distinct warfront skyline on the approach
+            // and during the 60s arena; NEVER leak it into later factory flight.
+            if(h4Gfx11bArenaSkylineGroup)
+                h4Gfx11bArenaSkylineGroup.visible=
+                    state.map4Phase===2 ||
+                    (state.map4Phase===1 && state.routeProgress>11200);
             // Cull distant compositions inside active regions to limit draw calls.
             h4Gfx06eUpdateFineDetail();
             h4Gfx07UpdateLighting();
