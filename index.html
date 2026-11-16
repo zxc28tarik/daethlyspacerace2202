@@ -5372,6 +5372,135 @@
             h4Gfx05bStats.palettes++;
             return result;
         }));
+
+        // GFX-05C: twenty-eight real 3D tapered heat wakes across the player,
+        // five pilots and eight hunter craft in ONE instanced draw-call.
+        // In Map4 this replaces the old rectangular 17m racer streaks; Map1
+        // keeps its original approved speed trails and visual identity.
+        const H4_GFX05C_LIMIT=28;
+        const h4Gfx05cStats={
+            capacity:H4_GFX05C_LIMIT,models:1,textureCount:1,
+            activeInstances:0,updates:0,resets:0,
+            burstInstances:0,drawCalls:1,
+            visualOnly:true,vertexCount:0,sharedColorWrites:0
+        };
+        const h4Gfx05cPalette=Object.freeze(h4Gfx05Paint.map((colors)=>{
+            return new THREE.Color(colors[2]);
+        }));
+        function h4Gfx05cHeatTexture(){
+            const size=128,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=size;
+            const ctx=canvas.getContext('2d'),pixels=ctx.createImageData(size,size);
+            for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+                const u=x/(size-1),v=y/(size-1);
+                const shell=.87+.11*Math.cos(u*Math.PI*4.0);
+                const scallop=.055*Math.sin(u*21.1+v*36.0)+
+                    .035*Math.sin(u*40.3-v*8.6);
+                const fade=Math.sin(Math.PI*Math.pow(v,.76));
+                const glow=THREE.MathUtils.clamp(fade*(shell+scallop),0,1);
+                const idx=(y*size+x)*4;
+                pixels.data[idx]=Math.round(245-75*v);
+                pixels.data[idx+1]=Math.round(250-128*v);
+                pixels.data[idx+2]=Math.round(255-145*v);
+                pixels.data[idx+3]=Math.round(220*glow);
+            }
+            ctx.putImageData(pixels,0,0);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX05C_TAPERED_HEAT_ATLAS';
+            tex.encoding=THREE.sRGBEncoding;
+            tex.wrapS=THREE.RepeatWrapping;
+            tex.wrapT=THREE.ClampToEdgeWrapping;
+            tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+            return tex;
+        }
+        const h4Gfx05cTex=h4Gfx05cHeatTexture();
+        const h4Gfx05cGeometry=h4Gfx05TrackGeometry(
+            new THREE.CylinderGeometry(.045,.73,1,12,1,true));
+        h4Gfx05cGeometry.rotateX(Math.PI/2);
+        const h4Gfx05cMaterial=h4Gfx05TrackMaterial(new THREE.MeshBasicMaterial({
+            map:h4Gfx05cTex,color:0xffffff,
+            transparent:true,opacity:.60,depthWrite:false,
+            depthTest:true,side:THREE.DoubleSide,
+            blending:THREE.AdditiveBlending,fog:true
+        }));
+        const h4Gfx05cMesh=new THREE.InstancedMesh(
+            h4Gfx05cGeometry,h4Gfx05cMaterial,H4_GFX05C_LIMIT);
+        h4Gfx05cMesh.name='MAP4_GFX05C_INSTANCED_ENGINE_HEAT';
+        h4Gfx05cMesh.userData.visualOnly=true;
+        h4Gfx05cMesh.userData.h4Gfx05cExhaust=true;
+        h4Gfx05cMesh.frustumCulled=false;
+        h4Gfx05cMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        h4Gfx05cMesh.count=0;
+        planetaryWorldGroup.add(h4Gfx05cMesh);
+        h4Gfx05cStats.vertexCount=h4Gfx05cGeometry.attributes.position.count;
+        const h4Gfx05cDummy=new THREE.Object3D();
+        const h4Gfx05cPosition=new THREE.Vector3();
+        const h4Gfx05cQuaternion=new THREE.Quaternion();
+        const h4Gfx05cScale=new THREE.Vector3();
+        function h4ResetGfx05c(){
+            h4Gfx05cMesh.count=0;
+            h4Gfx05cStats.activeInstances=0;
+            h4Gfx05cStats.burstInstances=0;
+            h4Gfx05cStats.resets++;
+        }
+        function h4UpdateGfx05cExhaust(time){
+            if(state.activeMap!==MAP_MODES.MAP4||!state.running){
+                h4Gfx05cMesh.count=0;
+                h4Gfx05cStats.activeInstances=0;
+                return;
+            }
+            let slot=0,boosted=0;
+            const addCraft=(craft,power)=>{
+                if(!craft||!craft.visible||!craft.parent)return;
+                craft.updateWorldMatrix(true,false);
+                craft.getWorldQuaternion(h4Gfx05cQuaternion);
+                craft.getWorldScale(h4Gfx05cScale);
+                const style=craft.userData.h4Gfx05Palette||0;
+                const turbo=power?1.45:1.0;
+                const jitter=1+.04*Math.sin(time*14.3+style*.82);
+                for(const side of [-1,1]){
+                    if(slot>=H4_GFX05C_LIMIT)break;
+                    // The craft nose is -Z, so the heat plume projects out
+                    // of the +Z twin nozzles and follows bank/roll exactly.
+                    h4Gfx05cPosition.set(side*1.68,-.20,4.62+3.1*turbo);
+                    craft.localToWorld(h4Gfx05cPosition);
+                    h4Gfx05cDummy.position.copy(h4Gfx05cPosition);
+                    h4Gfx05cDummy.quaternion.copy(h4Gfx05cQuaternion);
+                    h4Gfx05cDummy.scale.set(
+                        .68*h4Gfx05cScale.x*turbo,
+                        .68*h4Gfx05cScale.y*turbo,
+                        6.2*h4Gfx05cScale.z*turbo*jitter
+                    );
+                    h4Gfx05cDummy.updateMatrix();
+                    h4Gfx05cMesh.setMatrixAt(slot,h4Gfx05cDummy.matrix);
+                    h4Gfx05cMesh.setColorAt(slot,h4Gfx05cPalette[style]);
+                    slot++;
+                    if(power)boosted++;
+                }
+            };
+            if(geoSwordMesh.visible)
+                addCraft(h4GeoSwordArt.userData.h4Gfx05Craft,
+                    state.currentSpeed>state.baseSpeed*1.17 ||
+                    state.itemTurboTimer>0);
+            for(const pilot of racers){
+                if(!pilot.finished&&!pilot.dnf&&pilot.mesh.visible)
+                    addCraft(pilot.mesh.userData.h4Gfx05Craft,
+                        pilot.isBoosting||pilot.itemTurboTimer>0);
+            }
+            for(const hunter of hunterTargets){
+                if(hunter.alive&&hunter.mesh.visible)
+                    addCraft(hunter.mesh.userData.h4Gfx05Craft,
+                        hunter.arenaPocketId==='DEFENSE');
+            }
+            h4Gfx05cMesh.count=slot;
+            h4Gfx05cMesh.instanceMatrix.needsUpdate=slot>0;
+            if(h4Gfx05cMesh.instanceColor&&slot>0)
+                h4Gfx05cMesh.instanceColor.needsUpdate=true;
+            h4Gfx05cStats.activeInstances=slot;
+            h4Gfx05cStats.burstInstances=boosted;
+            h4Gfx05cStats.sharedColorWrites+=slot;
+            h4Gfx05cStats.updates++;
+        }
         function h4Gfx05CreateCraft(type,livery=0){
             const style=type==='PLAYER'?0:
                 type==='ELITE'?6:type==='HUNTER'?7:
@@ -5477,6 +5606,7 @@
                     hunter.hp/hunter.maxHp,i*.83);
             });
             h4Gfx05Stats.animationFrames++;
+            h4UpdateGfx05cExhaust(time);
         }
         // Assemble the single GFX05 player model after the shared geometry
         // and material atlases above have finished initializing.
@@ -7917,7 +8047,8 @@
                     .addScaledVector(rFrame.up, r.laneY);
 
                 if (r.speedTrailGroup) {
-                    r.speedTrailGroup.visible = !r.finished;
+                    r.speedTrailGroup.visible =
+                        state.activeMap===MAP_MODES.MAP1 && !r.finished;
                     r.speedTrailGroup.scale.z = r.isBoosting ? 2.8 : Math.max(0.75, r.currentSpeed / RACE_SPEEDS.NORMAL);
                 }
 
@@ -8823,6 +8954,7 @@
             particles.forEach(disposeExplosionParticle);
             particles.length = 0;
             h4ResetGfx04D();
+            h4ResetGfx05c();
             clearObstacleShards();
             clearLaserImpacts();
             floatingTexts.length = 0;
