@@ -3074,6 +3074,231 @@
             parent.add(art);
             h4Gfx06aStats.stations++;
         }
+
+        // GFX-06B / NEXT-03 / IN-03 + IN-04:
+        // Two more silhouette-led plants. Entirely render-only and located
+        // along the eastern skyline, beyond the three actual flight corridors.
+        // All existing W05 collider-bearing geometry remains in place.
+        const h4Gfx06bStats={
+            stations:0,presses:0,cooling:0,artParts:0,
+            hiddenCosmetic:0,addedColliders:0
+        };
+        function h4Gfx06bPressArch(){
+            const outline=new THREE.Shape();
+            outline.moveTo(-.58,-.5);
+            outline.lineTo(-.62,-.38);
+            outline.lineTo(-.62,.34);
+            outline.lineTo(-.46,.50);
+            outline.lineTo(.47,.50);
+            outline.lineTo(.62,.31);
+            outline.lineTo(.62,-.50);
+            outline.closePath();
+            const voidSpace=new THREE.Path();
+            voidSpace.moveTo(-.32,-.38);
+            voidSpace.lineTo(.32,-.38);
+            voidSpace.lineTo(.32,.20);
+            voidSpace.lineTo(.22,.31);
+            voidSpace.lineTo(-.24,.31);
+            voidSpace.lineTo(-.32,.18);
+            voidSpace.closePath();
+            outline.holes.push(voidSpace);
+            const geo=new THREE.ExtrudeGeometry(outline,{
+                depth:.22,steps:1,curveSegments:2,
+                bevelEnabled:true,bevelThickness:.022,
+                bevelSize:.018,bevelSegments:2
+            });
+            geo.translate(0,0,-.11);
+            geo.computeVertexNormals();
+            return geo;
+        }
+        const H4_GFX06B_GEO=Object.freeze({
+            pressArch:h4Gfx06bPressArch(),
+            coolingShell:new THREE.LatheGeometry([
+                new THREE.Vector2(.53,-.5),
+                new THREE.Vector2(.49,-.39),
+                new THREE.Vector2(.39,-.21),
+                new THREE.Vector2(.32,.06),
+                new THREE.Vector2(.33,.23),
+                new THREE.Vector2(.42,.39),
+                new THREE.Vector2(.55,.50)
+            ],24,0,Math.PI*2),
+            block:new THREE.BoxGeometry(1,1,1),
+            piston:new THREE.CylinderGeometry(.17,.25,1,16),
+            turbine:new THREE.CylinderGeometry(.51,.47,1,16),
+            coil:new THREE.TorusGeometry(.5,.08,8,24),
+            valve:new THREE.TorusGeometry(.5,.14,8,16),
+            pipe:new THREE.CylinderGeometry(.075,.075,1,12),
+            vent:new THREE.CylinderGeometry(.35,.45,.18,14),
+            lamp:new THREE.SphereGeometry(.5,9,7)
+        });
+        const H4_GFX06B_MAT=Object.freeze({
+            armored:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,
+                normalMap:h4MicroMaps.metal.normal,
+                roughnessMap:h4MicroMaps.metal.roughness,
+                color:0x657889,metalness:.72,roughness:.56,
+                side:THREE.DoubleSide
+            }),
+            heatSteel:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.steel,
+                normalMap:h4MicroMaps.metal.normal,
+                roughnessMap:h4MicroMaps.metal.roughness,
+                color:0xb9a18c,metalness:.57,roughness:.61,
+                side:THREE.DoubleSide
+            }),
+            dark:new THREE.MeshStandardMaterial({
+                color:0x253744,metalness:.66,roughness:.52
+            }),
+            copper:new THREE.MeshStandardMaterial({
+                color:0xc98d62,metalness:.73,roughness:.39
+            }),
+            coolant:new THREE.MeshStandardMaterial({
+                color:0x3c8795,metalness:.46,roughness:.49,
+                emissive:0x0e4355,emissiveIntensity:.24
+            }),
+            caution:new THREE.MeshBasicMaterial({color:0xffa95c}),
+            ice:new THREE.MeshStandardMaterial({
+                color:0xb3cbd0,metalness:.35,roughness:.78,
+                side:THREE.DoubleSide
+            })
+        });
+        function h4BuildGfx06bStation(station,at,index){
+            if(index!==2&&index!==3)return;
+            const art=new THREE.Group();
+            art.name=index===2?
+                'MAP4_GFX06B_IN03_HEAVY_PRESS_ASSEMBLY':
+                'MAP4_GFX06B_IN04_COOLING_RECLAMATION';
+            art.userData.h4Gfx06b=true;
+            art.userData.visualOnly=true;
+            art.userData.station=index+1;
+            const geo=H4_GFX06B_GEO,mat=H4_GFX06B_MAT;
+            const add=(name,delta,side,alt,geometry,material,scale,rz=0)=>{
+                const progress=at+delta,mesh=new THREE.Mesh(geometry,material);
+                mesh.name=name;
+                mesh.userData.visualOnly=true;
+                mesh.userData.w05VisualOnly=true;
+                mesh.userData.h4Gfx06b=true;
+                mesh.position.copy(h4WorldPosition(progress,side,alt));
+                mesh.quaternion.setFromUnitVectors(H4_UP,
+                    getRaceFrameAtDistance(progress).up);
+                if(rz)mesh.rotateZ(rz);
+                mesh.scale.set(...scale);
+                art.add(mesh);
+                h4Gfx06bStats.artParts++;
+                return mesh;
+            };
+            if(index===2){
+                // Deep open arch shapes, not stacked solid boxes. The press
+                // piston, die, gantry and crane make an industrial function read.
+                for(const [i,p] of [
+                    {delta:-210,x:3280,height:1470,span:1460},
+                    {delta:275,x:3530,height:1180,span:1220}
+                ].entries()){
+                    add('IN03_OPEN_PRESS_ARCH_'+i,p.delta,p.x,
+                        -438+p.height*.5,geo.pressArch,mat.armored,
+                        [p.span,p.height,310]);
+                    add('IN03_UPPER_MACHINE_BEAM_'+i,p.delta,p.x,
+                        -438+p.height*.83,geo.block,mat.heatSteel,
+                        [p.span*.92,125,270]);
+                    add('IN03_HYDRAULIC_PISTON_'+i,p.delta,p.x,
+                        -438+p.height*.46,geo.piston,mat.copper,
+                        [145,p.height*.58,145]);
+                    add('IN03_PISTON_DIE_'+i,p.delta,p.x,
+                        -438+p.height*.13,geo.block,mat.dark,
+                        [640,115,330]);
+                    add('IN03_PRESS_COLLAR_'+i,p.delta,p.x,
+                        -438+p.height*.57,geo.coil,mat.caution,
+                        [190,190,190]).rotateX(Math.PI/2);
+                    for(const dir of [-1,1]){
+                        add('IN03_SIDE_BRACE_'+i+'_'+dir,p.delta,
+                            p.x+dir*(p.span*.41),
+                            -438+p.height*.43,geo.block,
+                            mat.heatSteel,[85,p.height*.64,235]);
+                    }
+                }
+                // Cargo-conveyor rolls and the overhead crane provide an
+                // elongated, recognizable foundry signature between frames.
+                add('IN03_ASSEMBLY_DECK',35,3340,-360,
+                    geo.block,mat.dark,[1510,150,640]);
+                add('IN03_MOVING_GANTRY',45,3350,1040,
+                    geo.block,mat.heatSteel,[1760,110,140]);
+                add('IN03_CRANE_CABLE',90,3300,655,
+                    geo.pipe,mat.copper,[44,690,44]);
+                add('IN03_SUSPENDED_HOOK',90,3300,302,
+                    geo.valve,mat.caution,[170,170,170]);
+                for(const x of [2810,3090,3370,3650]){
+                    add('IN03_CONVEYOR_ROLLER',30,x,-258,
+                        geo.turbine,mat.coolant,[95,90,95],
+                        Math.PI/2);
+                }
+                for(const x of [2810,3670]){
+                    add('IN03_WARNING_BEACON',-70,x,785,
+                        geo.lamp,mat.caution,[74,74,74]);
+                }
+                h4Gfx06bStats.presses++;
+            }else{
+                // Two hyperboloid shell cooling towers with open tops, upper
+                // rims, real-looking external belts and linked heat exchangers.
+                for(const [i,t] of [
+                    {x:2750,d:-260,h:1540,r:680},
+                    {x:3650,d:300,h:1250,r:540}
+                ].entries()){
+                    add('IN04_HYPERBOLOID_COOLING_TOWER_'+i,t.d,t.x,
+                        -438+t.h*.5,geo.coolingShell,
+                        mat.ice,[t.r,t.h,t.r]);
+                    const top=-438+t.h;
+                    add('IN04_UPPER_EXHAUST_RING_'+i,t.d,t.x,top,
+                        geo.coil,mat.copper,
+                        [t.r*1.11,t.r*1.11,t.r*1.11])
+                        .rotateX(Math.PI/2);
+                    add('IN04_BASE_SERVICE_BELT_'+i,t.d,t.x,-370,
+                        geo.coil,mat.armored,[t.r,t.r,t.r])
+                        .rotateX(Math.PI/2);
+                    for(const n of [1,2,3]){
+                        add('IN04_EXTERIOR_THERMAL_BAND_'+i+'_'+n,
+                            t.d,t.x,-438+t.h*(.18+n*.19),
+                            geo.coil,mat.heatSteel,
+                            [t.r*(n===1?.89:n===3?.76:.64),
+                             t.r*(n===1?.89:n===3?.76:.64),
+                             t.r*(n===1?.89:n===3?.76:.64)])
+                             .rotateX(Math.PI/2);
+                    }
+                    add('IN04_FAN_RIM_'+i,t.d,t.x,top-100,
+                        geo.valve,mat.dark,[t.r*.72,t.r*.72,t.r*.72])
+                        .rotateX(Math.PI/2);
+                    add('IN04_WARNING_LAMP_'+i,t.d,t.x,top+75,
+                        geo.lamp,mat.caution,[62,62,62]);
+                }
+                // Low, long turbine hall with colored coolant pipes creates
+                // a distinct horizontal counterweight to the two giant towers.
+                add('IN04_TURBINE_GENERATOR_HALL',40,3150,-330,
+                    geo.block,mat.armored,[1320,220,610]);
+                for(const [i,delta] of [-210,0,210].entries()){
+                    add('IN04_CONDENSER_CORE_'+i,delta,3080,15,
+                        geo.turbine,mat.copper,[225,620,225]);
+                    add('IN04_CONDENSER_COIL_'+i,delta,3080,330,
+                        geo.coil,mat.coolant,[275,275,275])
+                        .rotateX(Math.PI/2);
+                }
+                for(const y of [340,470]){
+                    add('IN04_COOLANT_TRUNK',40,3170,y,
+                        geo.pipe,mat.coolant,[66,1500,66],
+                        Math.PI/2);
+                }
+                h4Gfx06bStats.cooling++;
+            }
+            // As in GFX-06A: hide obsolete skybox repetition, NOT solid W05
+            // obstacles or the VQ02 pieces with existing collision metadata.
+            for(const old of station.children){
+                if(old.userData.h4Collider)continue;
+                if(['SILO','BEACON','REFINERY'].includes(old.userData.w05Kind)){
+                    old.visible=false;
+                    h4Gfx06bStats.hiddenCosmetic++;
+                }
+            }
+            station.add(art);
+            h4Gfx06bStats.stations++;
+        }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
             const stations=[15750,18750,21850,24950,28150,31500];
@@ -3147,6 +3372,7 @@
                     H4_DETAIL_MAT.oxidized,[290,110,140],false,'CARGO_PLATFORM');
                 h4IndustrialModelDetail(group,at,i);
                 if(i<2)h4BuildGfx06aStation(group,at,i);
+                if(i===2||i===3)h4BuildGfx06bStation(group,at,i);
                 zone.add(group);
                 h4IndustrialGroups.push(group);
                 h4IndustrialStats.stations++;
