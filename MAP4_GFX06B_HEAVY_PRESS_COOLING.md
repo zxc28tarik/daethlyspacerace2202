@@ -60,6 +60,10 @@ GFX-06A'daki ilk CI [run #43875886124](https://github.com/zxc28tarik/daethlyspac
 
 Bu alt işin takibi: `VIS-01`. Grafik master planındaki GFX-06 materyal kalemi **kısmi** kalmaya devam eder.
 
+**Görsel kontrolün ikinci turu:** [Malzeme CI #43882296512](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43882296512) başarıyla 4 gerçek oyun görünümü üretti. Zemin/metal tekrar deseni azalmış olsa da sektörün genel görüntüsü hâlâ çok sade; otomatik testten görsel kabul verilmedi. Tekrarlanan dikey gökyüzü bantlarının endüstri bölgesindeki opaklığı ayrıca azaltıldı (`w2*(1-w3)` ile kademeli sektör geçişi, diğer üç bölge aynı kalır) ve browser smoke'a buna ait karşılaştırma kontrolü eklendi. Bu son sky geçişinin CI/gerçek kare sonucu ayrıca kaydedilecektir.
+
+**VIS-02 açık sanat borcu:** Eski W02/W05 kutu/kolon kütleleri, fiziksel collider bağlantısı korunarak gerçekten özgün mimari modellere dönüştürülecek. Materyali güzelleştirmek yalnızca ilk temizliktir, endüstri sanatının final teslimi değildir.
+
 ## Sonraki sıralama
 
 1. GFX-06A testlerini tamamlayıp görselleri değerlendirerek PR #32'yi kapat; bu belge baz dal birleşmesine hazır olacak.
