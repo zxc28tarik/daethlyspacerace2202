@@ -46,6 +46,15 @@
 
 **Aşama durumu:** Kod/JS sözdizimi işlemleri var, **CI/estetik/GPU onayı ayrı** takip edilecek.
 
+## Test sonucu / görsel düzeltme kaydı (16 Kasım)
+
+- [GitHub Actions #43893083267](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43893083267) **SUCCESS**: 14 CI iş adımının tamamı PASS, offline GLB, iki harita Chromium smoke, mevcut 12 sabit kadraj, A/B ve üç ayrı gerçek mesafe LOD görüntüsü. Yeni metal normal+roughness paylaşımı, LOD geometri değişimi ve 34+36 fizik koruması tarayıcıdan doğrulandı.
+- İlk CI'de eski VIS-02 testinin dört **temel model ailesi** yerine anlık LOD0/1/2 geometri adlarını sayması 8 gibi fazladan sayı üretmişti. [73a8566](https://github.com/zxc28tarik/daethlyspacerace2202/commit/73a85667c213106f9fa7a98ead7c1112f39a49f0) ile gerçek temel model aileleri sayılıyor. Oyun kodunun fiziği değiştirilmedi.
+- **Gerçek geometri kanıtı:** aynı model için LOD0 **396**, LOD1 **180**, LOD2 **108** vertex; düşük mesafe maliyeti açık bir azalma. Ancak örnek üç kamera **farklı konumlar** olduğundan toplam renderer.drawcall karşılaştırması LOD maliyetini saf biçimde ölçmez: yakın 104 / orta 184 / uzak 298 çağrı, kameralar başka objeleri de kapsar.
+- Bu karelerde uzak kamera önüne başka yapı girdiği için, görsel kıyasın güvenilir olması adına üç **aynı sabit kamera, sabit ışık, yalnız modelin LOD geometrisi değişen DEBUG görüntüsü** eklendi. Bunlar doğal uzak mesafe oyun görüntüsü diye gösterilmeyecek; gerçek mesafe LOD otomasyonu ayrı zaten PASS. [CI #43894428714](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43894428714) görsel kayıt sonucu kontrol edilecek.
+- Testin SwiftShader yazılım render metriği median yaklaşık **1.9 ms**, p95 **2.4 ms**, 18 ölçüm. Bu donanımda oyuncu FPS'sini kanıtlamaz.
+- Offline test HTML: tek dosya 5.424.996 bayt. Kaynak model art ve görsel kalite 7–8/10 onayı **hâlâ açık**.
+
 ## Sonraki ana görev
 
 **NEXT-06**: 34.000–50.000 arası Harita 4 son bölgede üç büyük sanat odağı: hudut karakolu (LM10), askerî uzay limanı (LM11), yörünge fırlatma kompleksi (LM12). Sözleşme: mevcut 850 irtifa, 5 rakip, 8 avcı, 300 saniye deadline ve önceden kararlaştırılan harita kimliği korunacak.
