@@ -100,9 +100,9 @@ Bunlar master planda tanımlı; **isimli landmark'ın kodda bulunması 'profesyo
 | LM-07 | 17.200 | Tasfiye Rafinerisi | **YAPILMADI**: özgün büyük makine/materyal sanat kabulü |
 | LM-08 | 23.800 | Makine Kuleleri | **YAPILMADI**: özgün büyük sanayi sanat kabulü |
 | LM-09 | 31.600 | Enerji Aktarım İstasyonu | **YAPILMADI**: son 3D mimari sanat kabulü |
-| LM-10 | 36.200 | Hudut Karakolu | **YAPILMADI**: son büyük üs modeli sanat kabulü |
-| LM-11 | 42.600 | Askerî Uzay Limanı | **KISMEN**: statik gemi örnek GLB, limanın bütün mimari sanatı açık |
-| LM-12 | 48.300 | Yörünge Fırlatma Kompleksi | **YAPILMADI**: nihai dev silüet ve yukarı çıkış kadrajı |
+| LM-10 | 36.200 | Hudut Karakolu | **KISMEN / PR #38**: orijinal kale/iki gözetleme kulesi/açık güvenlik kapısı/radar, CI+estetik açık |
+| LM-11 | 42.600 | Askerî Uzay Limanı | **KISMEN / PR #38**: mevcut GLB gemi korunarak 2 boşluklu hangar+3 pad+trafik kulesi, profesyonel son sanat/açı onayı açık |
+| LM-12 | 48.300 | Yörünge Fırlatma Kompleksi | **KISMEN / PR #38**: uzun roket+2 yardımcı booster/2 gantry/5 transfer katı/terminal uplink, 850 irtifa korunuyor; screenshot/son sanat açık |
 
 ## 5) Sanayi özgün sanat işleri — eksiksiz 6 düğüm (IN)
 
@@ -133,7 +133,7 @@ Her düğümün kabulü: (1) uzaktan farklı silüet, (2) alt hızlı / üst gü
 | 05a | NEXT-05A | **GFX-06D-A** ortak metal mikro-normal/roughness yüzey | **GELİŞTİRME-PR / CI PASS / SON SANAT AÇIK** | [CI #43893083267](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43893083267) PASS: normal+roughness iki paylaşımlı 512px harita, 18 metal malzeme; UV'siz birleşik VIS02 mesh korunuyor. El yapımı 1–2k baked texture ve estetik onay açık. |
 | 05b | NEXT-05B | **GFX-06D-B** üç kademeli uzak/orta/yakın LOD ve mikrodetay | **GELİŞTİRME-PR / CI + AYNI-KAMERA TESTİ PASS** | [CI #43894428714](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43894428714): 58 render-only modelde 3 LOD, tek örnekte 396→180→108 vertex; sabit kamera tüm üç durumda 104 drawcall, toplam scene üçgeni 30.392→30.320→30.296. 34 W02+36 W05 collider korunur. Gerçek GPU FPS ve nihai kalite açık. |
 | 05c | NEXT-05C | **GFX-06D-C** sanayi fiziksel temas izleri, aşınma/kurum, servis numaraları, özgün decal yüzey hikâyesi (PBR/LOD ile uyumlu) | **GELİŞTİRME-PR / CI PASS / GÖRSEL KISMEN** | [PR #37](https://github.com/zxc28tarik/daethlyspacerace2202/pull/37) taslak, [CI #43919072541 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43919072541): tek ortak 1024px/9 UV hücresi atlas, 6 servis kimliği, 66 decal/24 instanced batch, 6.1/5.4km culling, 36 W05+34 W02 collider korunuyor. [3 istasyon A/B görüntüsü](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43919072541/artifacts/14254560598) decal başına +4 drawcall/+22 üçgen; IN01/04 kısmi kolon örtüşmesi ve gerçek GPU/estetik kapısı **AÇIK**. |
-| 06 | NEXT-06 | Üs/hangar/uzay limanı/yörünge fırlatma büyük sanat dönüşümü (LM-10..12) | **YAPILMADI** | 3 özgün dev sahne + yükseliş kadrajı |
+| 06 | NEXT-06 | Üs/hangar/uzay limanı/yörünge fırlatma büyük sanat dönüşümü (LM-10..12) | **GELİŞTİRME-PR / CI DOĞRULAMA** | [PR #38](https://github.com/zxc28tarik/daethlyspacerace2202/pull/38) DRAFT: LM10/36.200 zırhlı karakol, LM11/42.600 iki açık hangarlı liman + 3 pad, LM12/48.300 roket/gantry ve 5 seviye. W01/VQ02 eski son bölge tekrarları gizlendi, GFX01 patrol_fighter GLB korundu, 0 yeni collider. [CI](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43924211454) devam ediyor; açılışta erken doku atlası referans hatası [2725c42](https://github.com/zxc28tarik/daethlyspacerace2202/commit/2725c4212799741241c9cb3a612e3e8cc6e085fc) ile düzeltildi. Screenshot/FPS/estetik açık. |
 | 07 | NEXT-07 | GFX-07: sektörler arası seçici ışık, gölge, sis, atmosfer geçişleri | **YAPILMADI** | gün/ışık A/B, performans |
 | 08 | NEXT-08 | GFX-08: efekt, mühimmat, hasar ve motor görünümü finalizasyonu | **YAPILMADI** | gerçek olay VFX testi |
 | 09 | NEXT-09 | GFX-09: 2 kamera, HUD, post-processing ve okunabilirlik | **YAPILMADI** | 720p+1080p / clipping / savaş |
@@ -156,6 +156,9 @@ GFX-02 adaptif terrain/LOD, GFX-03'nin kalan hero sanatları, gemi sınıfların
 Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi daha önceki işler mevcut olsa da final kabul verilmiş gibi işaretlenmez.
 
 ## 8) Değişiklik günlüğü / son durum
+
+- **2026-11-16 · tek nokta NEXT-06:** Son sektörün LM10/LM11/LM12 noktalarına üç ayrı özgün 3D mimari [taslak PR #38](https://github.com/zxc28tarik/daethlyspacerace2202/pull/38) dalında eklendi. Eski üç W01/VQ02 görünür kopyası kapatıldı; GFX01 devriye gemisi korunuyor. Kod, 3x aynı kamera A/B screenshot ve 850 irtifa görsel testi eklendi. **İlk CI #43923379247 ve #43923534416 FAIL**: henüz yaratılmamış GFX06M/D doku atlası referansı oyun başlangıcını bozuyordu; [2725c42](https://github.com/zxc28tarik/daethlyspacerace2202/commit/2725c4212799741241c9cb3a612e3e8cc6e085fc) ile önceden oluşturulan H4 shared map'lere geçildi. [Yeni CI #43924211454](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43924211454) gözleniyor. Gerçek CI PASS/estetik/GPU olmadan ana dala birleştirilmeyecek.
+
 
 - **2026-11-16 GFX06D-C teknik test tamam:** [CI #43919072541](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43919072541) **SUCCESS** (offline HTML, Map1/Map4 Chromium smoke, atlas/66 decal ve collider testi, üç tesisin 6 sabit-kamera A/B resmi). Decal görünür farkı üç karede +4 drawcall ve +22 üçgen: 403→407 / 279→283 / 239→243. IN06 etiketi okunur, IN01/04 etiketleri bazı açılarda büyük yapıların arkasında kısmen kalıyor; **görsel kapanış yapılmadı**. [Yeni offline HTML artefaktı #14253885996](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43919072541/artifacts/14253885996), 5.437.030 byte. Bir sonraki kullanıcı · komutunda **NEXT-06 LM10–12** başlamalı; açık estetik ve GPU borcu korunacak. [PR #37](https://github.com/zxc28tarik/daethlyspacerace2202/pull/37) taslak ve `main` birleşimi yok.
 
