@@ -30,6 +30,9 @@ const {pathToFileURL}=require('node:url');
    assert.equal(await page.evaluate(()=>h4Gfx10ProfileName),'BALANCED');
    await page.locator('#start-btn').click();
    await page.waitForFunction(()=>state.running&&state.raceTime>.06,null,{timeout:30000});
+   // Stabilize the game timeline while changing graphics. The 3D renderer
+   // keeps drawing when paused, but no racer, score or phase can drift.
+   await page.evaluate(()=>{state.paused=true;});
    const initial=await page.evaluate(()=>({
      competitors:racers.length,hunters:hunterTargets.length,
      canyonColliders:typeof h4Gfx02ColliderStats!=='undefined' ? h4Gfx02ColliderStats.count : null,
@@ -100,8 +103,10 @@ const {pathToFileURL}=require('node:url');
        orbitAltitude:MAP4_PHASES.orbitAltitude,
        score:state.score,weaponShots:state.hunterShots
      };
+     state.paused=false;
      h4Gfx10RecordFrame(16.6);
      h4Gfx10RecordFrame(18.0);
+     state.paused=true;
      const counters={samples:h4Gfx10Stats.samples,
        triangles:h4Gfx10Stats.triangles,
        geometries:h4Gfx10Stats.geometries,
@@ -119,7 +124,9 @@ const {pathToFileURL}=require('node:url');
    // Confirm live F7 switch and return to Map1 restores exactly original render scale.
    const current=await page.evaluate(()=>h4Gfx10ProfileName);
    assert.equal(current,'LOW');
+   await page.evaluate(()=>{state.paused=false;});
    await page.keyboard.press('F7');
+   await page.evaluate(()=>{state.paused=true;});
    assert.equal(await page.evaluate(()=>h4Gfx10ProfileName),'HIGH','F7 cycles presets');
    await page.evaluate(()=>{
      endGame(false);
