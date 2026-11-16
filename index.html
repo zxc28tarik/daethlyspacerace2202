@@ -1670,7 +1670,12 @@
             color(h4AtmosphereUniforms.sunTint.value,'sun');
             h4AtmosphereUniforms.haze.value=1-orbit*.85;
             h4AtmosphereUniforms.orbitFade.value=orbit;
-            h4AtmosphereUniforms.cloudiness.value=lerpNumber('cloud')*(1-orbit*.86);
+            // VIS-01: repeated vertical cirrus bands dominated the industrial
+            // skyline in real Chromium images. Fade only in sector 3,
+            // keeping canyon, arena, and orbital sky visual identity.
+            const industrialSkyWeight=w2*(1-w3);
+            h4AtmosphereUniforms.cloudiness.value=lerpNumber('cloud')*
+                (1-orbit*.86)*(1-.76*industrialSkyWeight);
             h4AtmosphereUniforms.horizonDust.value=lerpNumber('dust')*(1-orbit*.96);
             h4AtmosphereUniforms.atmosTime.value=time;
             color(scene.fog.color,'fog').lerp(h4VQ04ScratchColor.setHex(0x091329),orbit);
