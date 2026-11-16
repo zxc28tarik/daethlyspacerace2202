@@ -1675,7 +1675,9 @@
             // keeping canyon, arena, and orbital sky visual identity.
             const industrialSkyWeight=w2*(1-w3);
             h4AtmosphereUniforms.cloudiness.value=lerpNumber('cloud')*
-                (1-orbit*.86)*(1-.76*industrialSkyWeight);
+                (1-orbit*.86)*(1-.76*industrialSkyWeight)*
+                (1-.58*THREE.MathUtils.smoothstep(
+                    state.routeProgress,34200,38800));
             h4AtmosphereUniforms.horizonDust.value=lerpNumber('dust')*(1-orbit*.96);
             h4AtmosphereUniforms.atmosTime.value=time;
             color(scene.fog.color,'fog').lerp(h4VQ04ScratchColor.setHex(0x091329),orbit);
@@ -1686,6 +1688,15 @@
             nebulaLight1.intensity=1.72-orbit*.35;
             color(nebulaLight2.color,'rim');
             nebulaLight2.intensity=.83+orbit*.22;
+            // Final-sector-only color separation + high-altitude clarity.
+            // Earlier phase lights, fog and Map1 stay unchanged.
+            const finalBlend=THREE.MathUtils.smoothstep(
+                state.routeProgress,34000,38200);
+            scene.fog.density*=1-.19*finalBlend*(1-orbit*.5);
+            ambientLight.intensity*=1-.16*finalBlend;
+            nebulaLight1.intensity*=1+.05*finalBlend;
+            nebulaLight2.intensity*=1+.12*finalBlend;
+            h4Gfx07Stats.finalAtmosphereWeight=finalBlend;
             color(h4SunHalo.material.color,'sun');
             h4SunHalo.material.opacity=(1-orbit*.87)*(1-w2*.11);
             h4SunHalo.scale.setScalar(1750+180*w1);
@@ -1768,7 +1779,8 @@
             // This is scenery, not a collision promise (W03/W05 own terrain hits).
             const verts=[],colors=[],uvs=[],steps=def.type==='canyon'?160:80,
                 across=def.type==='canyon'?40:16,halfWidth=5850;
-            const baseColor=new THREE.Color(def.ground);
+            const baseColor=new THREE.Color(
+                def.type==='fortress'?0x56616a:def.ground);
             const pos=(progress,side)=>{
                 const normalized=Math.abs(side)/halfWidth;
                 const ridge=Math.max(0,(normalized-0.18)/0.82);
@@ -1813,9 +1825,11 @@
                     const right=-halfWidth+2*halfWidth*(x+1)/across;
                     const p1=pos(a,left),p2=pos(a,right),p3=pos(b,left),p4=pos(b,right);
                     const band=(x%4)*(def.type==='industrial'?.004:
-                        def.type==='canyon'?.023:.035);
-                    const contour=(def.type==='industrial'?.96:.90)+
-                        (def.type==='industrial'?.014:.07)*
+                        def.type==='fortress'?.002:def.type==='canyon'?.023:.035);
+                    const contour=(def.type==='industrial'?.96:
+                        def.type==='fortress'?.98:.90)+
+                        (def.type==='industrial'?.014:
+                         def.type==='fortress'?.018:.07)*
                         Math.sin(i*0.53+x*1.6)+
                         (def.type==='canyon'?Math.sin(a*.005+x*.73)*.055:0);
                     const u1=left/560,u2=right/560,v1=a/670,v2=b/670;
@@ -1829,16 +1843,21 @@
             geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
             geo.computeVertexNormals();
             const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
-                map:def.type==='battlefield'?
-                    h4Gfx04BattleGroundAtlas:h4SurfaceMaps.ground,
-                normalMap:h4MicroMaps.rock.normal,
-                roughnessMap:h4MicroMaps.rock.roughness,
+                map:def.type==='battlefield'?h4Gfx04BattleGroundAtlas:
+                    def.type==='fortress'?h4Gfx07GroundMap:h4SurfaceMaps.ground,
+                color:def.type==='fortress'?0x757d87:0xffffff,
+                normalMap:def.type==='fortress'?null:h4MicroMaps.rock.normal,
+                roughnessMap:def.type==='fortress'?null:h4MicroMaps.rock.roughness,
                 normalScale:new THREE.Vector2(
-                    def.type==='canyon'?.40:def.type==='battlefield'?.11:.30,
-                    def.type==='canyon'?.40:def.type==='battlefield'?.11:.30),vertexColors:true,roughness:.99,
+                    def.type==='canyon'?.40:def.type==='battlefield'?.11:
+                    def.type==='fortress'?.085:.30,
+                    def.type==='canyon'?.40:def.type==='battlefield'?.11:
+                    def.type==='fortress'?.085:.30),vertexColors:true,roughness:.99,
                 side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
+            if(def.type==='fortress')
+                mesh.name='MAP4_GFX07_FINAL_SECTOR_MATTE_GROUND';
             if(def.type==='canyon'){
                 mesh.name='MAP4_GFX02_SCULPTED_CANYON_GROUND';
                 h4TerrainArtStats.canyonVertices=geo.attributes.position.count;
@@ -4721,6 +4740,215 @@
         // W02: large, repeatable silhouettes and mid-range scenery. Visual only.
         // Fixed arrays, shared materials and geometries; Map4 scenery is never an
         // invisible hitbox. Physical canyon hazards are a separate W03 deliverable.
+
+        // NEXT-07 / GFX07: final-sector composition cleanup, NOT physics.
+        // 28 old flight-corridor boxes + 58 W02 near/far skyline meshes are
+        // replaced IN PLACE by five original single-drawcall silhouette kits.
+        // Existing landmark art, 12 waypoints, ship AI and colliders remain.
+        const h4Gfx07Stats={corridor:0,near:0,far:0,replaced:0,
+            families:5,heroShadows:0,localLights:0,addedColliders:0,
+            activeLights:0,finalAtmosphereWeight:0,groundAtlasCount:0};
+        const h4Gfx07Styled=[];
+        const h4Gfx07Lights=[];
+        const h4Gfx07Shadows=[];
+        const h4Gfx07Palette=Object.freeze({
+            steel:new THREE.Color(0x72808a),
+            armor:new THREE.Color(0x9aa4a9),
+            graphite:new THREE.Color(0x334451),
+            copper:new THREE.Color(0x9f8067),
+            concrete:new THREE.Color(0x827b7a)
+        });
+        function h4Gfx07SilhouetteGeometry(kind){
+            const box=new THREE.BoxGeometry(1,1,1);
+            const tower=new THREE.CylinderGeometry(.38,.47,1,10);
+            const roof=new THREE.CylinderGeometry(.27,.50,1,10);
+            const dish=new THREE.SphereGeometry(.5,12,8);
+            const pole=new THREE.CylinderGeometry(.06,.09,1,8);
+            const arch=H4_GFX06E_GEO.frame;
+            const pieces=[],palette=h4Gfx07Palette;
+            const add=(base,x,y,z,w,h,d,color,angle=0)=>{
+                let g=base.clone();
+                if(g.index){const raw=g;g=raw.toNonIndexed();raw.dispose()}
+                g.scale(w,h,d);if(angle)g.rotateZ(angle);g.translate(x,y,z);
+                const a=g.attributes.position,rgba=[];
+                for(let i=0;i<a.count;i++)rgba.push(color.r,color.g,color.b);
+                g.setAttribute('color',
+                    new THREE.Float32BufferAttribute(rgba,3));
+                pieces.push(g);
+            };
+            // Coordinates normalized to original mesh bounds (about 1x1x1).
+            // Type 0: stepped military depot / perimeter bunker.
+            if(kind===0){
+                add(box,0,-.31,0,.92,.32,.83,palette.concrete);
+                add(box,0,-.04,0,.75,.35,.66,palette.steel);
+                add(box,0,.24,0,.88,.13,.72,palette.graphite);
+                add(box,-.37,.32,-.27,.20,.28,.20,palette.copper);
+                add(box,.37,.32,-.27,.20,.28,.20,palette.copper);
+            // Type 1: genuinely open hangar building.
+            }else if(kind===1){
+                add(arch,0,-.04,0,1.03,.94,.76,palette.armor);
+                add(box,0,-.44,0,1.02,.10,.90,palette.graphite);
+                add(box,0,.43,-.17,1.09,.09,.64,palette.copper);
+                add(box,0,-.09,.37,.94,.43,.09,palette.steel);
+            // Type 2: radome, bridge and radar mast.
+            }else if(kind===2){
+                add(tower,0,-.20,0,.51,.66,.52,palette.steel);
+                add(box,0,.20,0,.75,.09,.75,palette.graphite);
+                add(dish,0,.39,0,.72,.31,.74,palette.armor);
+                add(pole,.23,.37,-.22,.08,.33,.08,palette.copper);
+            // Type 3: logistics gantry with readable open negative space.
+            }else if(kind===3){
+                add(arch,0,-.02,0,1.12,.96,.62,palette.steel);
+                add(box,0,.45,0,1.17,.09,.75,palette.graphite);
+                add(box,-.23,-.35,0,.19,.12,.73,palette.copper);
+                add(box,.23,-.35,0,.19,.12,.73,palette.copper);
+                add(pole,0,.04,.21,.09,.47,.09,palette.copper);
+            // Type 4: comms/control spire with dish, not a plain cylinder.
+            }else{
+                add(roof,0,-.19,0,.64,.65,.64,palette.concrete);
+                add(tower,0,.18,0,.25,.55,.25,palette.steel);
+                add(box,0,.41,0,.54,.09,.54,palette.graphite);
+                add(dish,0,.48,0,.36,.22,.42,palette.armor);
+                add(pole,.17,.33,-.10,.08,.30,.08,palette.copper);
+            }
+            const xyz=[],rgb=[];
+            for(const g of pieces){
+                const position=g.attributes.position,color=g.attributes.color;
+                for(let i=0;i<position.count;i++){
+                    xyz.push(position.getX(i),position.getY(i),position.getZ(i));
+                    rgb.push(color.getX(i),color.getY(i),color.getZ(i));
+                }
+                g.dispose();
+            }
+            for(const g of [box,tower,roof,dish,pole])g.dispose();
+            const result=new THREE.BufferGeometry();
+            result.setAttribute('position',
+                new THREE.Float32BufferAttribute(xyz,3));
+            result.setAttribute('color',
+                new THREE.Float32BufferAttribute(rgb,3));
+            result.computeVertexNormals();
+            result.name='MAP4_GFX07_FINAL_SKYLINE_FAMILY_'+kind;
+            return result;
+        }
+        const H4_GFX07_KITS=Object.freeze([0,1,2,3,4].map(
+            h4Gfx07SilhouetteGeometry));
+        const h4Gfx07SkylineMaterial=new THREE.MeshStandardMaterial({
+            vertexColors:true,color:0x677482,metalness:.52,roughness:.70,
+            side:THREE.DoubleSide,flatShading:false
+        });
+        function h4Gfx07GroundTexture(){
+            // Fewer visible checker/grid repeats: broad dusty metal-rich
+            // earth/landing-pad gradations and fine low-alpha erosion.
+            const n=512,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=n;
+            const ctx=canvas.getContext('2d'),data=ctx.createImageData(n,n);
+            const tau=Math.PI*2;
+            let random=0x4a156c0d;
+            const rng=()=>{
+                random^=random<<13;random^=random>>>17;random^=random<<5;
+                return (random>>>0)/4294967295;
+            };
+            for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+                const u=x/n,v=y/n,o=(y*n+x)*4;
+                const large=Math.sin(tau*(2*u+v*.65))*.082+
+                    Math.cos(tau*(u*1.3-v*2.6))*.061;
+                const grit=(rng()-.5)*.062;
+                const scratches=Math.sin(tau*(34*u+5*v))*.012;
+                const weather=large+grit+scratches;
+                data.data[o]=Math.round(165*(.96+weather));
+                data.data[o+1]=Math.round(172*(.96+weather));
+                data.data[o+2]=Math.round(180*(.96+weather));
+                data.data[o+3]=255;
+            }
+            ctx.putImageData(data,0,0);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX07_512_FINAL_GROUND_MATTE_ATLAS';
+            tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+            tex.encoding=THREE.sRGBEncoding;
+            tex.anisotropy=Math.min(8,
+                renderer.capabilities.getMaxAnisotropy());
+            tex.generateMipmaps=true;
+            h4Gfx07Stats.groundAtlasCount++;
+            return tex;
+        }
+        const h4Gfx07GroundMap=h4Gfx07GroundTexture();
+        function h4Gfx07DressFinalSector(zone){
+            if(zone.userData.h4Gfx07Applied)return;
+            const wide=zone.getObjectByName('MAP4_W02_WIDE_SCENERY_3');
+            if(!wide)throw new Error('GFX07 final-sector W02 missing');
+            const near=wide.getObjectByName('NEAR_TERRAIN_AND_SETTLEMENT');
+            const far=wide.getObjectByName('HORIZON_SILHOUETTE');
+            const corridor=zone.children.filter(obj=>
+                obj.isMesh&&!obj.userData.h4Collider&&
+                (obj.geometry===H4_MESHES.structure||
+                 obj.geometry===H4_MESHES.tower)&&obj.scale.y>=200);
+            const style=(mesh,kind,category)=>{
+                if(mesh.userData.h4Collider)throw new Error(
+                    'GFX07 cannot swap collider mesh');
+                mesh.userData.h4Gfx07OriginalGeometry=mesh.geometry;
+                mesh.userData.h4Gfx07OriginalMaterial=mesh.material;
+                mesh.geometry=H4_GFX07_KITS[kind];
+                mesh.material=h4Gfx07SkylineMaterial;
+                mesh.userData.h4Gfx07Styled=true;
+                mesh.userData.h4Gfx07Kind=kind;
+                mesh.userData.visualOnly=true;
+                mesh.name='MAP4_GFX07_'+category+'_STRUCTURE';
+                h4Gfx07Styled.push(mesh);
+                h4Gfx07Stats.replaced++;
+                h4Gfx07Stats[category.toLowerCase()]++;
+            };
+            corridor.forEach((m,i)=>style(m,(i*3+2)%5,'CORRIDOR'));
+            near.children.filter(m=>m.isMesh)
+                .forEach((m,i)=>style(m,(i*2+1)%5,'NEAR'));
+            far.children.filter(m=>m.isMesh)
+                .forEach((m,i)=>style(m,(i*3+4)%5,'FAR'));
+            // Soft pre-existing transparent contact-shadow texture, no
+            // costly whole-scene shadowMap flip or fake collision walls.
+            for(const landmark of h4WorldLandmarks.filter(l=>l.zone===3)){
+                const art=landmark.group.children.find(m=>m.userData.h4Gfx06e);
+                if(!art)throw new Error('GFX07 missing final hero '+landmark.kind);
+                const shadow=new THREE.Mesh(h4ShadowPlane,h4ShadowMat);
+                shadow.name='MAP4_GFX07_SOFT_HERO_CONTACT_'+landmark.kind;
+                shadow.position.copy(h4WorldPosition(landmark.at,
+                    art.userData.anchorSide,-432));
+                shadow.quaternion.setFromUnitVectors(H4_DECAL_UP,
+                    getRaceFrameAtDistance(landmark.at).up);
+                shadow.scale.set(2000,1400,1);
+                shadow.userData.visualOnly=true;
+                landmark.group.add(shadow);
+                h4Gfx07Shadows.push(shadow);
+                h4Gfx07Stats.heroShadows++;
+                const light=new THREE.PointLight(
+                    landmark.kind==='outpost'?0xffbc86:
+                    landmark.kind==='spaceport'?0xa2d8f2:0xc4c0ff,
+                    landmark.kind==='launch'?1.7:1.5,
+                    2700,2);
+                light.name='MAP4_GFX07_HERO_BOUNCE_'+landmark.kind;
+                light.position.copy(h4WorldPosition(landmark.at,
+                    art.userData.anchorSide,
+                    landmark.kind==='launch'?870:480));
+                light.userData.h4Gfx07=true;
+                landmark.group.add(light);
+                h4Gfx07Lights.push(light);
+                h4Gfx07Stats.localLights++;
+            }
+            zone.userData.h4Gfx07Applied=true;
+        }
+        function h4Gfx07UpdateLighting(){
+            // Zone is already hidden for Map1; additionally gate the three
+            // local lights by range to avoid waste in the canyon/industry.
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            let visible=0;
+            for(const light of h4Gfx07Lights){
+                const parent=light.parent;
+                const target=h4WorldLandmarks.find(l=>
+                    l.group===parent);
+                const delta=target?Math.abs(target.at-state.routeProgress):Infinity;
+                light.visible=delta<3500&&state.map4Phase===4;
+                if(light.visible)visible++;
+            }
+            h4Gfx07Stats.activeLights=visible;
+        }
         const h4WideScenery={byRegion:[0,0,0,0],total:0};
         const h4SceneryGroups=[];
         function h4PopulateWideScenery(zone,regionIndex,def){
@@ -5665,6 +5893,7 @@
                 }
                 h4PopulateRegion(zone,zoneIndex);
                 h4PopulateWideScenery(zone,zoneIndex,def);
+                if(zoneIndex===3)h4Gfx07DressFinalSector(zone);
                 h4AddCloudLayer(zone,zoneIndex,def);
                 h4AddAtmosphericField(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
@@ -5765,6 +5994,7 @@
             }
             // Cull distant compositions inside active regions to limit draw calls.
             h4Gfx06eUpdateFineDetail();
+            h4Gfx07UpdateLighting();
             let nextLandmark=null;
             for(const point of h4WorldLandmarks) {
                 point.group.visible=point.at>=state.routeProgress-3200 &&

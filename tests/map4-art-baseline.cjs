@@ -580,6 +580,100 @@ const percentile=(numbers,p)=>{
   assert(out.gfx06eAscent.map4&&out.gfx06eAscent.altitude>=850&&
     out.gfx06eAscent.launchArt&&
     out.gfx06eAscent.industrialColliderCount===36);
+  // NEXT07: three true same-camera, same-sky screenshot pairs. Toggle
+  // ONLY 86 render mesh identities, decorative contact shadows and local
+  // point lights. No physics, waypoint, route or HUD state is changed.
+  out.gfx07BeforeAfter=[];
+  await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+  for(const spec of [
+    {name:'final-outpost',kind:'outpost',progress:36200,laneY:410},
+    {name:'final-spaceport',kind:'spaceport',progress:42600,laneY:520},
+    {name:'final-orbit-launch',kind:'launch',progress:48300,laneY:1110}
+  ]){
+    const old=await page.evaluate(input=>{
+      state.paused=true;state.map4Phase=4;
+      state.routeProgress=input.progress;
+      state.laneX=0;state.laneY=input.laneY;
+      const lm=h4WorldLandmarks.find(l=>l.kind===input.kind);
+      const hero=lm.group.children.find(c=>c.userData.h4Gfx06e);
+      const aim=hero.children.find(c=>c.isMesh&&
+        (c.name.includes('CITADEL')||c.name.includes('FLIGHT_DECK')||
+         c.name.includes('ROCKET_MAIN_STAGE')));
+      const from=h4WorldPosition(input.progress-1850,0,input.laneY+120);
+      camera.position.copy(from);camera.lookAt(aim.position);
+      camera.fov=60;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      const ground=planetaryWorldRegions[3].children[0];
+      const originals=h4Gfx07Styled.map(mesh=>({
+        mesh,modernGeometry:mesh.geometry,modernMaterial:mesh.material
+      }));
+      const shadows=h4Gfx07Shadows.map(mesh=>({
+        mesh,visible:mesh.visible
+      }));
+      const lights=h4Gfx07Lights.map(light=>({
+        light,visible:light.visible
+      }));
+      window.__gfx07AB={
+        cam:camera.position.clone(),quaternion:camera.quaternion.clone(),
+        originals,ground,modernMap:ground.material.map,shadows,lights
+      };
+      for(const v of originals){
+        v.mesh.geometry=v.mesh.userData.h4Gfx07OriginalGeometry;
+        v.mesh.material=v.mesh.userData.h4Gfx07OriginalMaterial;
+      }
+      ground.material.map=h4SurfaceMaps.ground;
+      ground.material.needsUpdate=true;
+      shadows.forEach(v=>v.mesh.visible=false);
+      lights.forEach(v=>v.light.visible=false);
+      renderer.render(scene,camera);
+      return {
+        name:input.name,oldCalls:renderer.info.render.calls,
+        oldTriangles:renderer.info.render.triangles,
+        oldGeometryCount:originals.length,
+        colliderCount:h4IndustrialColliders.length
+      };
+    },spec);
+    const oldBuffer=await page.screenshot({path:path.join(directory,
+      'gfx07-'+spec.name+'-old.png')});
+    const latest=await page.evaluate(()=>{
+      const a=window.__gfx07AB;
+      for(const o of a.originals){
+        o.mesh.geometry=o.modernGeometry;o.mesh.material=o.modernMaterial;
+      }
+      a.ground.material.map=a.modernMap;
+      a.ground.material.needsUpdate=true;
+      a.shadows.forEach(v=>v.mesh.visible=v.visible);
+      a.lights.forEach(v=>v.light.visible=v.visible);
+      renderer.render(scene,camera);
+      const res={
+        newCalls:renderer.info.render.calls,
+        newTriangles:renderer.info.render.triangles,
+        sameCamera:camera.position.distanceTo(a.cam)<.001&&
+          camera.quaternion.angleTo(a.quaternion)<.001,
+        newGeometryCount:h4Gfx07Styled.filter(m=>
+          m.geometry.name.startsWith('MAP4_GFX07_')).length,
+        fog:scene.fog.density,
+        liveLights:h4Gfx07Stats.activeLights
+      };
+      delete window.__gfx07AB;
+      return res;
+    });
+    const newBuffer=await page.screenshot({path:path.join(directory,
+      'gfx07-'+spec.name+'-new.png')});
+    out.gfx07BeforeAfter.push({...old,...latest,
+      screenshotChanged:!oldBuffer.equals(newBuffer)});
+  }
+  await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+  assert.equal(out.gfx07BeforeAfter.length,3);
+  console.log('NEXT07 SAME CAMERA COMPARISON',
+    JSON.stringify(out.gfx07BeforeAfter));
+  assert(out.gfx07BeforeAfter.every(e=>
+    e.sameCamera&&e.oldGeometryCount===86&&
+    e.newGeometryCount===86&&e.colliderCount===36&&
+    e.oldCalls>0&&e.newCalls>0&&
+    e.oldTriangles>0&&e.newTriangles>0&&e.screenshotChanged),
+    'final-sector overhaul must be visibly different without altering physics');
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];

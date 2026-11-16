@@ -777,6 +777,118 @@ const assert = require('node:assert/strict');
       'all existing world collision proxies remain registered');
     assert(finalHeroes.stillMap4);
 
+    // NEXT07: no extra collisions, same 86 scenery mesh references, five
+    // genuinely different authored 3D families and sector-4-only lighting.
+    const gfx07=await page.evaluate(()=>{
+      const zone=planetaryWorldRegions[3];
+      const wide=zone.getObjectByName('MAP4_W02_WIDE_SCENERY_3');
+      const near=wide.getObjectByName('NEAR_TERRAIN_AND_SETTLEMENT');
+      const far=wide.getObjectByName('HORIZON_SILHOUETTE');
+      const styled=h4Gfx07Styled;
+      const geos=[...new Set(styled.map(m=>m.geometry.name))];
+      const before={
+        route:state.routeProgress,phase:state.map4Phase,
+        camera:camera.position.clone(),
+        planet:planetaryWorldGroup.visible,
+        collision:h4IndustrialColliders.length
+      };
+      const inCorridor=zone.children.filter(m=>
+        m.isMesh&&m.userData.h4Gfx07Styled);
+      const zoneGround=zone.children[0];
+      const oldTag=styled.every(m=>
+        m.userData.visualOnly&&m.userData.h4Gfx07OriginalGeometry&&
+        m.userData.h4Gfx07OriginalMaterial&&!m.userData.h4Collider);
+      const newTag=styled.every(m=>
+        m.geometry.name.startsWith('MAP4_GFX07_FINAL_SKYLINE_FAMILY_')&&
+        m.material===h4Gfx07SkylineMaterial);
+      const matCheck={
+        name:zoneGround.name,
+        map:zoneGround.material.map===h4Gfx07GroundMap,
+        size:h4Gfx07GroundMap.image.width,
+        color:zoneGround.material.color.getHex(),
+        noHarshRockNormal:zoneGround.material.normalMap===null,
+        silhouetteTint:h4Gfx07SkylineMaterial.color.getHex(),
+        canyonUnchanged:planetaryWorldRegions[0].children[0].material.map!==
+          h4Gfx07GroundMap,
+        industryUnchanged:planetaryWorldRegions[2].children[0].material.map!==
+          h4Gfx07GroundMap
+      };
+      state.routeProgress=42600;state.map4Phase=4;
+      h4Gfx07UpdateLighting();h4UpdateCinematicAtmosphere(18);
+      const final={
+        localActive:h4Gfx07Stats.activeLights,
+        fog:scene.fog.density,
+        blend:h4Gfx07Stats.finalAtmosphereWeight,
+        ambient:ambientLight.intensity,
+        key:nebulaLight1.intensity
+      };
+      state.routeProgress=23500;state.map4Phase=3;
+      h4Gfx07UpdateLighting();h4UpdateCinematicAtmosphere(18);
+      const industry={
+        localActive:h4Gfx07Stats.activeLights,
+        blend:h4Gfx07Stats.finalAtmosphereWeight
+      };
+      state.routeProgress=before.route;state.map4Phase=before.phase;
+      camera.position.copy(before.camera);
+      h4Gfx07UpdateLighting();h4UpdateCinematicAtmosphere(18);
+      return {
+        stats:{...h4Gfx07Stats},geometryFamilies:geos,
+        corridor:inCorridor.length,near:near.children.filter(
+          m=>m.userData.h4Gfx07Styled).length,
+        far:far.children.filter(m=>m.userData.h4Gfx07Styled).length,
+        total:styled.length,oldTag,newTag,matCheck,
+        lights:h4Gfx07Lights.map(l=>({
+          kind:l.name,castShadow:l.castShadow,
+          parentIsLandmark:h4WorldLandmarks.some(x=>x.group===l.parent)
+        })),
+        shadows:h4Gfx07Shadows.map(m=>({
+          valid:m.userData.visualOnly&&!m.userData.h4Collider,
+          textureShared:m.material===h4ShadowMat,
+          name:m.name
+        })),
+        canyonPhysics:h4CanyonColliders.length,
+        industryPhysics:h4IndustrialColliders.length,
+        collisionsGained:before.collision-h4IndustrialColliders.length,
+        final,industry
+      };
+    });
+    assert.equal(gfx07.stats.replaced,86);
+    assert.equal(gfx07.stats.corridor,28);
+    assert.equal(gfx07.stats.near,30);
+    assert.equal(gfx07.stats.far,28);
+    assert.equal(gfx07.corridor,28);
+    assert.equal(gfx07.near,30);
+    assert.equal(gfx07.far,28);
+    assert.equal(gfx07.total,86);
+    assert.equal(gfx07.geometryFamilies.length,5);
+    assert(gfx07.oldTag&&gfx07.newTag,
+      'new signature forms are render-only and original render buffers retained');
+    assert.equal(gfx07.matCheck.name,
+      'MAP4_GFX07_FINAL_SECTOR_MATTE_GROUND');
+    assert(gfx07.matCheck.map&&gfx07.matCheck.size===512&&
+      gfx07.matCheck.canyonUnchanged&&gfx07.matCheck.industryUnchanged);
+    assert.equal(gfx07.matCheck.color,0x757d87,
+      'last sector ground must be muted rather than overexposed');
+    assert.equal(gfx07.matCheck.silhouetteTint,0x677482,
+      'final skyline kit requires darker steel-to-concrete separation');
+    assert(gfx07.matCheck.noHarshRockNormal,
+      'do not apply harsh canyon micro-rock bump to final military landing ground');
+    assert.equal(gfx07.stats.groundAtlasCount,1);
+    assert.equal(gfx07.stats.heroShadows,3);
+    assert.equal(gfx07.stats.localLights,3);
+    assert.equal(gfx07.stats.addedColliders,0);
+    assert(gfx07.shadows.every(m=>m.valid&&m.textureShared));
+    assert(gfx07.lights.every(l=>l.parentIsLandmark&&!l.castShadow),
+      'three selective bounce lights, no global shadow-map cost');
+    assert(gfx07.final.localActive>=1&&gfx07.final.localActive<=2,
+      'only nearby final-sector hero lights activated');
+    assert.equal(gfx07.industry.localActive,0);
+    assert(gfx07.final.blend>.99&&gfx07.industry.blend===0);
+    assert.equal(gfx07.canyonPhysics,6);
+    assert.equal(gfx07.industryPhysics,36);
+    assert.equal(gfx07.collisionsGained,0);
+
+
     assert(content.meshes>=55 && content.meshes<200,'bounded additional geometry');
     assert(content.zones.every(z=>z.regionVisible&&z.landmarkVisible),
       'visible landmarks throughout all four sectors');
