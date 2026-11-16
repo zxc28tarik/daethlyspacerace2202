@@ -265,6 +265,7 @@
                         <span id="leader-gap-text" class="text-yellow-300">LİDER FARKI: —</span>
                         <span id="active-bonus-status" class="ml-3 text-cyan-200">BONUS: YOK</span>
                         <span id="pause-hint" class="ml-3 text-cyan-300/80">P / H: DURAKLAT & KONTROLLER</span>
+                        <span id="h4-quality-hud" class="hidden ml-3 text-emerald-300">GFX: HIGH (F7)</span>
                     </div>
                 </div>
 
@@ -381,6 +382,15 @@
                     </button>
                 </div>
                 <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
+                <div id="h4-quality-picker" class="hidden mt-3 text-left font-['Share_Tech_Mono'] text-xs">
+                    <label for="h4-quality-select" class="text-cyan-200 font-bold mr-2">HARİTA 4 GRAFİK PROFİLİ</label>
+                    <select id="h4-quality-select" class="bg-slate-900 text-white px-3 py-2 rounded border border-cyan-500/50" aria-label="Harita 4 grafik kalite profili">
+                        <option value="HIGH">High · tam çözünürlük</option>
+                        <option value="BALANCED">Balanced · dengeli</option>
+                        <option value="LOW">Low · performans</option>
+                    </select>
+                    <span class="text-slate-400 ml-2">Oyun içinde F7 ile değiştirilebilir.</span>
+                </div>
             </div>
 
             <div id="map1-instructions" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
@@ -908,6 +918,61 @@
         const renderer = new THREE.WebGLRenderer({ canvas: gameCanvas, antialias: true });
         renderer.setSize(W, H);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // NEXT10/GFX10: user-selectable render budgets for Map4 only.
+        // All game rules, weapon timing, pilot AI and collision remain invariant.
+        const H4_GFX10_PROFILES=Object.freeze({
+            HIGH:Object.freeze({resolutionScale:1,lodRange:1,detailRange:1,fxCap:1,localLights:true}),
+            BALANCED:Object.freeze({resolutionScale:.84,lodRange:.86,detailRange:.84,fxCap:.75,localLights:true}),
+            LOW:Object.freeze({resolutionScale:.67,lodRange:.68,detailRange:.66,fxCap:.50,localLights:false})
+        });
+        const H4_GFX10_ORDER=Object.freeze(['HIGH','BALANCED','LOW']);
+        let h4Gfx10ProfileName='HIGH';
+        const h4Gfx10Stats={preset:'HIGH',pixelRatio:Math.min(window.devicePixelRatio||1,2),
+            samples:0,frameP95Ms:null,frameMedianMs:null,renderCalls:0,
+            triangles:0,geometries:0,textures:0,profileChanges:0,
+            changedColliders:0,hardwareGpuFpsVerified:false};
+        const h4Gfx10FrameWindow=[];
+        function h4Gfx10CurrentProfile(){return H4_GFX10_PROFILES[h4Gfx10ProfileName];}
+        function h4Gfx10SetProfile(preset){
+            if(!Object.prototype.hasOwnProperty.call(H4_GFX10_PROFILES,preset))return false;
+            h4Gfx10ProfileName=preset;
+            h4Gfx10Stats.preset=preset;
+            h4Gfx10Stats.profileChanges++;
+            const isMap4=state.activeMap===MAP_MODES.MAP4;
+            const dpr=Math.min(window.devicePixelRatio||1,2);
+            const ratio=isMap4?dpr*h4Gfx10CurrentProfile().resolutionScale:dpr;
+            renderer.setPixelRatio(ratio);
+            h4Gfx10Stats.pixelRatio=ratio;
+            const select=document.getElementById('h4-quality-select');
+            if(select)select.value=preset;
+            const hud=document.getElementById('h4-quality-hud');
+            if(hud){
+                hud.textContent='GFX: '+preset+' (F7)';
+                hud.classList.toggle('hidden',!isMap4);
+            }
+            return true;
+        }
+        function h4Gfx10RecordFrame(frameMilliseconds){
+            if(state.activeMap!==MAP_MODES.MAP4||!state.running||
+                state.paused||!Number.isFinite(frameMilliseconds)||
+                frameMilliseconds<=0||frameMilliseconds>250)return;
+            h4Gfx10FrameWindow.push(frameMilliseconds);
+            if(h4Gfx10FrameWindow.length>240)h4Gfx10FrameWindow.shift();
+            h4Gfx10Stats.samples++;
+            h4Gfx10Stats.renderCalls=renderer.info.render.calls;
+            h4Gfx10Stats.triangles=renderer.info.render.triangles;
+            h4Gfx10Stats.geometries=renderer.info.memory.geometries;
+            h4Gfx10Stats.textures=renderer.info.memory.textures;
+            if(h4Gfx10FrameWindow.length>=30 && h4Gfx10Stats.samples%30===0){
+                const ordered=[...h4Gfx10FrameWindow].sort((a,b)=>a-b);
+                h4Gfx10Stats.frameMedianMs=ordered[Math.floor((ordered.length-1)*.5)];
+                h4Gfx10Stats.frameP95Ms=ordered[Math.floor((ordered.length-1)*.95)];
+            }
+            // Browser rAF timing/SwiftShader != real native-GPU timing;
+            // this flag intentionally stays false until external acceptance.
+        }
+
 
         // Işıklandırma
         const ambientLight = new THREE.AmbientLight(0x443366, 1.6);
@@ -3002,10 +3067,11 @@
         }
         function h4Gfx06eUpdateFineDetail(){
             if(state.activeMap!==MAP_MODES.MAP4)return;
+            const range=h4Gfx10CurrentProfile().detailRange;
             for(const mesh of h4Gfx06eFineArt){
                 const dist2=camera.position.distanceToSquared(mesh.position);
-                if(mesh.visible&&dist2>7800*7800)mesh.visible=false;
-                else if(!mesh.visible&&dist2<6950*6950)mesh.visible=true;
+                if(mesh.visible&&dist2>(7800*range)**2)mesh.visible=false;
+                else if(!mesh.visible&&dist2<(6950*range)**2)mesh.visible=true;
             }
         }
         function h4CreateLandmark(zone, regionIndex, plan) {
@@ -4365,6 +4431,7 @@
         function h4Gfx06dUpdateLod(){
             const zone=planetaryWorldRegions[2];
             if(!zone||!zone.visible||state.map4Phase===2)return;
+            const range=h4Gfx10CurrentProfile().lodRange;
             let lod0=0,lod1=0,lod2=0;
             for(const mesh of h4Gfx06dLodObjects){
                 // Each mesh is already in world-space with identity scene
@@ -4374,14 +4441,14 @@
                 let level=previous;
                 // 250-500 unit hysteresis avoids visible LOD flicker.
                 if(previous===0){
-                    if(d2>6100*6100)level=2;
-                    else if(d2>2900*2900)level=1;
+                    if(d2>(6100*range)**2)level=2;
+                    else if(d2>(2900*range)**2)level=1;
                 }else if(previous===1){
-                    if(d2<2500*2500)level=0;
-                    else if(d2>6100*6100)level=2;
+                    if(d2<(2500*range)**2)level=0;
+                    else if(d2>(6100*range)**2)level=2;
                 }else if(previous===2){
-                    if(d2<2500*2500)level=0;
-                    else if(d2<5550*5550)level=1;
+                    if(d2<(2500*range)**2)level=0;
+                    else if(d2<(5550*range)**2)level=1;
                 }
                 if(level!==previous){
                     mesh.geometry=mesh.userData.h4Gfx06dLevels[level];
@@ -4395,9 +4462,9 @@
             h4Gfx06dcUpdateRange();
             for(const mesh of h4Gfx06dMicroObjects){
                 const d2=mesh.position.distanceToSquared(camera.position);
-                if(mesh.visible&&d2>6000*6000){
+                if(mesh.visible&&d2>(6000*range)**2){
                     mesh.visible=false;h4Gfx06dStats.detailHidden++;
-                }else if(!mesh.visible&&d2<5500*5500){
+                }else if(!mesh.visible&&d2<(5500*range)**2){
                     mesh.visible=true;h4Gfx06dStats.detailRestored++;
                 }
             }
@@ -4975,7 +5042,7 @@
                 const target=h4WorldLandmarks.find(l=>
                     l.group===parent);
                 const delta=target?Math.abs(target.at-state.routeProgress):Infinity;
-                light.visible=delta<3500&&state.map4Phase===4;
+                light.visible=h4Gfx10CurrentProfile().localLights&&delta<3500&&state.map4Phase===4;
                 if(light.visible)visible++;
             }
             h4Gfx07Stats.activeLights=visible;
@@ -5969,6 +6036,7 @@
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
             document.body.classList.toggle('map4-composition',active);
+            h4Gfx10SetProfile(h4Gfx10ProfileName);
             if(!active){
                 document.body.classList.remove('gfx09-photo-mode');
                 h4Gfx09CameraInfo.photoMode=false;
@@ -8807,7 +8875,10 @@
                     const e=list[i];e.age+=dt;
                     if(e.age>=e.life){list.splice(i,1);continue;}
                 }
-                for(const e of list){
+                // Muzzle/impact/shock remain fully readable; thin only smoke and engine accents.
+                const budget=type>=3?Math.max(12,Math.floor(H4_GFX08_LIMITS[type]*h4Gfx10CurrentProfile().fxCap)):H4_GFX08_LIMITS[type];
+                for(let n=Math.max(0,list.length-budget);n<list.length;n++){
+                    const e=list[n];
                     const t=THREE.MathUtils.clamp(e.age/e.life,0,1);
                     const fade=1-t;
                     const growth=type===3?1+2.0*t:
@@ -11462,6 +11533,11 @@
             if (e.code === 'KeyQ') triggerBarrelRoll(-1);
             if (e.code === 'KeyE') triggerBarrelRoll(1);
             if (e.code === 'KeyC') toggleCameraMode();
+            if (e.code === 'F7' && state.activeMap===MAP_MODES.MAP4){
+                e.preventDefault();
+                const next=(H4_GFX10_ORDER.indexOf(h4Gfx10ProfileName)+1)%H4_GFX10_ORDER.length;
+                h4Gfx10SetProfile(H4_GFX10_ORDER[next]);
+            }
             if (e.code === 'F8' && h4Gfx09PhotoDebug && state.activeMap===MAP_MODES.MAP4){
                 e.preventDefault();
                 h4Gfx09CameraInfo.photoMode=!h4Gfx09CameraInfo.photoMode;
@@ -11486,6 +11562,8 @@
             const isMap4=mapId===MAP_MODES.MAP4;
             document.getElementById('map1-instructions').classList.toggle('hidden',isMap4);
             document.getElementById('map4-instructions').classList.toggle('hidden',!isMap4);
+            document.getElementById('h4-quality-picker').classList.toggle('hidden',!isMap4);
+            h4Gfx10SetProfile(h4Gfx10ProfileName);
             launch.textContent = ready ? (isMap4?'HARİTA 4 · AVCI YARIŞINI BAŞLAT':'HARİTA 1 · YARIŞI BAŞLAT') :
                 'HARİTA 4 · GELİŞTİRİLİYOR';
             const status = document.getElementById('map-selection-status');
@@ -11496,6 +11574,10 @@
         }
         document.getElementById('map-choice-1').addEventListener('click', () => selectMap(MAP_MODES.MAP1));
         document.getElementById('map-choice-4').addEventListener('click', () => selectMap(MAP_MODES.MAP4));
+        document.getElementById('h4-quality-select').addEventListener('change',event=>{
+            if(state.running||state.activeMap!==MAP_MODES.MAP4)return;
+            h4Gfx10SetProfile(event.target.value);
+        });
         selectMap(MAP_MODES.MAP1);
         // Return from either results screen to the chooser without launching a race.
         function returnToMapSelection() {
@@ -11528,6 +11610,7 @@
             camera.aspect = W / H;
             camera.updateProjectionMatrix();
             renderer.setSize(W, H);
+            h4Gfx10SetProfile(h4Gfx10ProfileName);
             if (fxCanvas) {
                 fxCanvas.width = W;
                 fxCanvas.height = H;
@@ -11537,7 +11620,8 @@
         let lastTime = performance.now();
         function animate(now) {
             requestAnimationFrame(animate);
-            const dt = Math.min(0.05, (now - lastTime) / 1000);
+            const rawFrameMs=now-lastTime;
+            const dt = Math.min(0.05, rawFrameMs / 1000);
             lastTime = now;
 
             if (state.running && !state.paused) {
@@ -11559,6 +11643,7 @@
             }
             h4Gfx09PostFrame();
             renderer.render(scene, camera);
+            h4Gfx10RecordFrame(rawFrameMs);
         }
 
         window.onload = () => {
