@@ -414,6 +414,47 @@ const percentile=(numbers,p)=>{
   }
   assert.equal(out.gfx05bCloseups.length,3);
   assert(out.gfx05bCloseups.every(x=>x.paintTextures===3));
+  // GFX05C: identical player camera and scene with animated heat-plume
+  // instancing enabled and disabled, proving an in-engine A/B improvement.
+  const heatEvidence=await page.evaluate(()=>{
+    state.paused=true;state.map4Phase=2;state.routeProgress=13200;
+    const before=geoSwordMesh.visible;
+    geoSwordMesh.visible=true;
+    const craft=h4GeoSwordArt.userData.h4Gfx05Craft;
+    craft.updateWorldMatrix(true,false);
+    const center=craft.getWorldPosition(new THREE.Vector3());
+    const rotation=craft.getWorldQuaternion(new THREE.Quaternion());
+    camera.position.copy(center)
+      .add(new THREE.Vector3(8,4,34).applyQuaternion(rotation));
+    camera.lookAt(center.clone().add(
+      new THREE.Vector3(0,0,3.0).applyQuaternion(rotation)));
+    camera.fov=52;camera.updateProjectionMatrix();
+    updatePlanetaryWorld();h4UpdateSkyVisuals();h4UpdateCinematicAtmosphere(16);
+    h4UpdateGfx05cExhaust(12.30);
+    renderer.render(scene,camera);
+    window.__gfx05cViewerRestore={geo:before};
+    return {
+      plumeCount:h4Gfx05cMesh.count,
+      paletteCount:h4Gfx05cPalette.length,
+      drawCalls:renderer.info.render.calls,
+      triangles:renderer.info.render.triangles
+    };
+  });
+  await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+  await page.screenshot({path:path.join(directory,'gfx05c-player-engine-heat.png')});
+  await page.evaluate(()=>{
+    h4Gfx05cMesh.count=0;
+    renderer.render(scene,camera);
+  });
+  await page.screenshot({path:path.join(directory,'gfx05c-player-engine-heat-off.png')});
+  await page.evaluate(()=>{
+    document.body.classList.remove('map4-photo-probe');
+    geoSwordMesh.visible=window.__gfx05cViewerRestore.geo;
+    delete window.__gfx05cViewerRestore;
+    h4UpdateGfx05cExhaust(12.30);
+  });
+  assert(heatEvidence.plumeCount>0&&heatEvidence.plumeCount<=28);
+  out.gfx05cHeatEvidence=heatEvidence;
   const durations=await page.evaluate(()=>{
     state.paused=true;
     const durations=[];
