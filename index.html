@@ -8669,29 +8669,55 @@
         h4Gfx08Root.name='MAP4_GFX08_TRANSIENT_POOLED_FX';
         h4Gfx08Root.userData.visualOnly=true;
         planetaryWorldGroup.add(h4Gfx08Root);
+        // A shared feathered ring atlas replaces harsh white torus outlines.
+        // One CanvasTexture is shared by hit, shockwave and engine glyphs.
+        const h4Gfx08SoftRingAtlas=(()=>{
+            const n=128,canvas=document.createElement('canvas');
+            canvas.width=canvas.height=n;
+            const c=canvas.getContext('2d'),data=c.createImageData(n,n);
+            for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+                const dx=(x+0.5-n/2)/(n/2),dy=(y+0.5-n/2)/(n/2);
+                const rad=Math.hypot(dx,dy);
+                const ripple=Math.exp(-Math.pow((rad-.57)/.125,2));
+                const halo=Math.exp(-Math.pow((rad-.60)/.28,2))*.19;
+                const angle=Math.atan2(dy,dx);
+                const breakup=.87+.13*Math.cos(angle*9+rad*4);
+                const alpha=THREE.MathUtils.clamp(
+                    (ripple+halo)*breakup,0,1)*155;
+                const o=(y*n+x)*4;
+                data.data[o]=255;data.data[o+1]=255;
+                data.data[o+2]=255;data.data[o+3]=Math.round(alpha);
+            }
+            c.putImageData(data,0,0);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX08_SHARED_SOFT_IMPACT_RING_ATLAS';
+            tex.encoding=THREE.sRGBEncoding;
+            tex.generateMipmaps=true;
+            return tex;
+        })();
         const h4Gfx08Emitters=Object.freeze([
             new THREE.ConeGeometry(1,5,10,1),
-            new THREE.TorusGeometry(4,.62,7,24),
-            new THREE.TorusGeometry(7,.9,8,32),
             new THREE.PlaneGeometry(1,1),
-            new THREE.TorusGeometry(2.5,.52,8,20)
+            new THREE.PlaneGeometry(1,1),
+            new THREE.PlaneGeometry(1,1),
+            new THREE.PlaneGeometry(1,1)
         ]);
         h4Gfx08Emitters[0].rotateX(-Math.PI/2);
         const h4Gfx08Materials=Object.freeze([
             new THREE.MeshBasicMaterial({color:0xffffff,
-                transparent:true,opacity:.84,depthWrite:false,
+                transparent:true,opacity:.35,depthWrite:false,
                 blending:THREE.AdditiveBlending,side:THREE.DoubleSide}),
-            new THREE.MeshBasicMaterial({color:0xffffff,
-                transparent:true,opacity:.90,depthWrite:false,
-                blending:THREE.AdditiveBlending,side:THREE.DoubleSide}),
-            new THREE.MeshBasicMaterial({color:0xffffff,
-                transparent:true,opacity:.67,depthWrite:false,
-                blending:THREE.AdditiveBlending,side:THREE.DoubleSide}),
+            new THREE.MeshBasicMaterial({map:h4Gfx08SoftRingAtlas,color:0xffffff,
+                transparent:true,opacity:.55,depthWrite:false,
+                blending:THREE.NormalBlending,side:THREE.DoubleSide}),
+            new THREE.MeshBasicMaterial({map:h4Gfx08SoftRingAtlas,color:0xffffff,
+                transparent:true,opacity:.42,depthWrite:false,
+                blending:THREE.NormalBlending,side:THREE.DoubleSide}),
             new THREE.MeshBasicMaterial({map:h4SmokeAtlas,color:0xffffff,
-                transparent:true,opacity:.48,depthWrite:false,
+                transparent:true,opacity:.36,depthWrite:false,
                 side:THREE.DoubleSide}),
-            new THREE.MeshBasicMaterial({color:0xffffff,
-                transparent:true,opacity:.58,depthWrite:false,
+            new THREE.MeshBasicMaterial({map:h4Gfx08SoftRingAtlas,color:0xffffff,
+                transparent:true,opacity:.31,depthWrite:false,
                 blending:THREE.AdditiveBlending,side:THREE.DoubleSide})
         ]);
         const h4Gfx08Meshes=H4_GFX08_LIMITS.map((limit,i)=>{
@@ -8755,7 +8781,10 @@
                     h4Gfx08Dummy.position.copy(e.pos);
                     h4Gfx08Dummy.quaternion.copy(
                         e.quaternion||camera.quaternion);
-                    const radius=e.size*growth;
+                    // Ring quads are soft decals; scale back to the former
+                    // torus diameter so blast/hit timing and framing hold.
+                    const ringDiameter=type===1?8:type===2?14:type===4?5:1;
+                    const radius=e.size*growth*ringDiameter;
                     h4Gfx08Dummy.scale.set(
                         radius,radius,type===0?radius:1);
                     h4Gfx08Dummy.updateMatrix();
