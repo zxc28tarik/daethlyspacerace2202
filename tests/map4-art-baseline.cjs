@@ -352,6 +352,58 @@ const percentile=(numbers,p)=>{
     out.gfx06dLodViews[2].geometryVertices);
   assert(out.gfx06dLodViews.every(x=>
     x.physics===36&&x.atlases===2&&x.drawCalls>0));
+  // GFX06D fair visual A/B/C: lock camera, framing, world, lighting and
+  // renderer, force only the target mesh's already-authored LOD geometry.
+  // Distance-driven LOD is verified separately by gfx06dLodViews and smoke.
+  // These three screenshots are labelled DEBUG / same camera, not gameplay
+  // images pretending to be three naturally equal-sized camera distances.
+  await page.evaluate(()=>{
+    state.paused=true;state.map4Phase=3;state.routeProgress=22500;
+    state.laneX=0;state.laneY=500;
+    const target=h4Gfx06dLodObjects[9],aim=target.position.clone();
+    camera.position.copy(aim).add(new THREE.Vector3(0,220,-1550));
+    camera.lookAt(aim);camera.fov=60;camera.updateProjectionMatrix();
+    updatePlanetaryWorld();h4UpdateSkyVisuals();
+    h4UpdateCinematicAtmosphere(18);
+    window.__gfx06dLocked={target,originalGeometry:target.geometry,
+      originalLod:target.userData.h4Gfx06dLod,
+      fixedCamera:camera.position.clone()};
+  });
+  out.gfx06dSameCamera=[];
+  for(const lod of [0,1,2]){
+    const measurement=await page.evaluate(level=>{
+      const spec=window.__gfx06dLocked,
+        target=spec.target;
+      target.geometry=target.userData.h4Gfx06dLevels[level];
+      target.userData.h4Gfx06dLod=level;
+      renderer.render(scene,camera);
+      return {
+        lod:level,
+        sameCamera:camera.position.distanceTo(spec.fixedCamera)<.001,
+        geom:target.geometry.name,
+        vertices:target.geometry.attributes.position.count,
+        renderCalls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        visible:target.visible
+      };
+    },lod);
+    await page.screenshot({path:path.join(directory,
+      'gfx06d-debug-same-camera-lod'+lod+'.png')});
+    out.gfx06dSameCamera.push(measurement);
+  }
+  await page.evaluate(()=>{
+    const p=window.__gfx06dLocked;
+    p.target.geometry=p.originalGeometry;
+    p.target.userData.h4Gfx06dLod=p.originalLod;
+    delete window.__gfx06dLocked;
+    updatePlanetaryWorld();
+  });
+  assert(out.gfx06dSameCamera.every(x=>x.sameCamera&&x.visible));
+  assert.deepEqual(out.gfx06dSameCamera.map(x=>x.lod),[0,1,2]);
+  assert(out.gfx06dSameCamera[0].vertices>
+    out.gfx06dSameCamera[1].vertices);
+  assert(out.gfx06dSameCamera[1].vertices>
+    out.gfx06dSameCamera[2].vertices);
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
