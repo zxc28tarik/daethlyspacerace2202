@@ -37,6 +37,17 @@
 - CI: Ubuntu 24.04 üzerinde Chromium smoke + offline paket + görsel artefakt. **Yeni CI sonucu doğrulanmadan PASS yazılmayacak.**
 - Gerçek GPU FPS / bellek / oyuncu estetik onayı **ayrı açık kabul kapılarıdır**.
 
+## 16 Kasım son doğrulama — kod/CI PASS, görsel final RED
+
+- **Gerçek GitHub Actions CI PASS:** [#43888729100](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43888729100): `GFX01 OFFLINE`, Harita 1/4 browser smoke, GFX06C 2 yeni istasyon assert'leri, bütün önceki VIS02 A/B ve sanat baseline kareleri, tek HTML build ve artifact upload adımları başarılı.
+- İn-engine [sanat artefaktları](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43888729100): `gfx06c-in05-freight-gantries*.png` ve `gfx06c-in06-power-reactor*.png`, her biri HUD açık/kapalı gerçek 1600×900.
+- Kamera kanıtı: IN05 **34 görsel mesh**, **82 draw call / 37.550 üçgen**; IN06 **26 görsel mesh**, **58 draw call / 39.390 üçgen** (bu sayılar kamera/kadrajın **toplam render değeridir**, sadece yeni modellerin maliyeti değildir).
+- Genel sabit sanayi örnek kadrajlarında `07` ~505 draw call /84.178 üçgen, `08` ~368 /63.588, `09` ~286 /33.486. Bu rakamların desktop GPU FPS olduğu iddia edilmez.
+- 18 örnekli SwiftShader yazılım render süreleri yaklaşık median **1,5 ms**, p95 **2,0 ms**; gerçek kullanıcı GPU / VRAM / sürüş sırasında p95 FPS ayrı ölçülmeli.
+- **Gerçek görsel inceleme:** IN05 montaj lojistik kapısı ve IN06 çift enerji halkası ayırt edilebilir; fakat zemin tekrarları, küçük sanat modellerinin basitliği, atmosferik ışık ve yakın mikrodoku halen yayıncı 7–8/10 hedefi için yetersiz. **Nihai görsel onay verilmedi.**
+- **Oynanabilir dal önizlemesi:** CI artifact `map4-current-branch-playable-html`, [artefakt #14235259166](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43888729100/artifacts/14235259166); tek HTML **5.413.076 bayt**, çevrimdışı GLB testinden geçti. Bu ana dal sürümü değildir.
+- PR #35 **DRAFT** kalır. Alt PR #34, #33, #32 sırası korunur, görsel/performans borçları kaybolmaz.
+
 ## Burada kapatılmayan işler
 
 - IN-01..06 artık temel özgün görsel denemeleri bakımından kodlanmış olabilir; **profesyonel el işlenmiş GLB modeller, nihai PBR/normal/ORM bake, detay LOD, kurgu ışığı ve 7–8/10 kullanıcı estetik kabulü tamamlanmış değildir**.
