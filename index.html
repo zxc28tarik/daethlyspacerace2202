@@ -1797,6 +1797,16 @@
             h4SunHalo.material.opacity=(1-orbit*.87)*(1-w2*.11);
             h4SunHalo.scale.setScalar(1750+180*w1);
             renderer.toneMappingExposure=1.23-orbit*.14;
+            // NEXT11C3: restore industrial depth and readable values, but
+            // only in stage 3. Do not retune canyon, 60s arena or orbit.
+            if(state.map4Phase===3 && h4Gfx11c3Stats.enabled){
+                const industrialGrade=industrialSkyWeight;
+                scene.fog.color.lerp(h4Gfx11c3FogTone,.17*industrialGrade);
+                ambientLight.intensity*=1-.06*industrialGrade;
+                nebulaLight1.intensity*=1-.10*industrialGrade;
+                h4SunHalo.material.opacity*=1-.12*industrialGrade;
+                renderer.toneMappingExposure*=1-.055*industrialGrade;
+            }
             // Orbit clouds fade, rather than popping at an altitude threshold.
             for(let i=0;i<h4CloudGroups.length;i++){
                 h4CloudGroups[i].visible=i!==3 || orbit<.92;
@@ -5082,6 +5092,111 @@
                 throw new Error('GFX11C2: no authored W05 industrial materials curated');
         }
 
+        // NEXT11C3 / QA-VIS-SCENE: suppress *only* 18 redundant old
+        // NONPHYSICAL silo/refinery placeholders. Replace their long-range
+        // profile with six open-centre authored loading gantries. Existing
+        // W02 physical support meshes/colliders are preserved; only their
+        // materials follow the three industrial identity palettes.
+        const h4Gfx11c3FogTone=new THREE.Color(0x5a6572);
+        const h4Gfx11c3Stats={
+            sites:0,legacyHidden:0,solidRegraded:0,
+            arches:0,archBatches:0,newColliders:0,
+            originalColliderReferencesPreserved:true,
+            enabled:true,humanVisualApproval:false
+        };
+        const h4Gfx11c3LegacyVisuals=[];
+        const h4Gfx11c3PhysicalMaterials=[];
+        let h4Gfx11c3ArchBatch=null;
+        function h4Gfx11c3SetComposition(enabled){
+            if(h4Gfx11c3Stats.enabled===enabled)return;
+            for(const mesh of h4Gfx11c3LegacyVisuals)mesh.visible=!enabled;
+            for(const item of h4Gfx11c3PhysicalMaterials)
+                item.mesh.material=enabled?item.styled:item.original;
+            if(h4Gfx11c3ArchBatch)h4Gfx11c3ArchBatch.visible=enabled;
+            h4Gfx11c3Stats.enabled=enabled;
+        }
+        function h4Gfx11c3BuildComposition(zone){
+            if(h4Gfx11c3ArchBatch)return;
+            const obsolete=new Set(['SILO','REFINERY']);
+            for(const station of h4IndustrialGroups){
+                for(const child of station.children){
+                    if(!child.isMesh||!obsolete.has(child.userData.w05Kind))
+                        continue;
+                    // Route markers, lamps, the upper safe-lane beacon and
+                    // all physical obstacles MUST stay; never hide solids.
+                    if(child.userData.h4Collider)throw new Error(
+                        'NEXT11C3 attempted to suppress a physical collider');
+                    h4Gfx11c3LegacyVisuals.push(child);
+                    child.visible=false;
+                    child.userData.h4Gfx11c3ReplacedVisual=true;
+                    h4Gfx11c3Stats.legacyHidden++;
+                }
+            }
+            // W02 protected physical buildings keep mesh identity AND exact
+            // original collision AABB. Re-grade their existing materials only.
+            for(const child of zone.children){
+                if(!child.isMesh||!child.userData.h4Vis02Protected)continue;
+                const collider=child.userData.h4Collider;
+                if(!collider)throw new Error('NEXT11C3 physical shell missing AABB');
+                const closest=H4_GFX11C_SITES.reduce((best,at,i)=>{
+                    return Math.abs(at-collider.progress)<
+                      Math.abs(H4_GFX11C_SITES[best]-collider.progress)?i:best;
+                },0);
+                const palette=H4_GFX11C2_MATS[Math.floor(closest/2)];
+                const styled=h4Gfx11c3PhysicalMaterials.length%4===0?
+                    palette.shell:palette.structure;
+                h4Gfx11c3PhysicalMaterials.push({
+                    mesh:child,original:child.material,styled,collider,
+                    originalGeometry:child.geometry
+                });
+                child.material=styled;
+                h4Gfx11c3Stats.solidRegraded++;
+            }
+            const material=new THREE.MeshStandardMaterial({
+                name:'MAP4_GFX11C3_SCULPTED_OPEN_GANTRY_STEEL',
+                map:h4Gfx06mSteelMap,color:0xbdc9d0,
+                metalness:.65,roughness:.72,
+                side:THREE.DoubleSide
+            });
+            // GFX06C has an explicitly sculpted extruded crane frame with
+            // a true negative-space opening, unlike the old solid boxes.
+            const gantries=new THREE.InstancedMesh(
+                H4_GFX06C_GEO.cargoCrane,material,H4_GFX11C_SITES.length);
+            gantries.name='MAP4_GFX11C3_OPEN_PROCESS_GANTRIES';
+            gantries.userData.visualOnly=true;
+            gantries.userData.noCollider=true;
+            gantries.userData.h4Gfx11c3Architecture=true;
+            gantries.frustumCulled=false;
+            const dummy=new THREE.Object3D();
+            for(let i=0;i<H4_GFX11C_SITES.length;i++){
+                const progress=H4_GFX11C_SITES[i]+515;
+                const flank=i%2===0?-1:1;
+                const side=flank*(1250+(i%3)*85);
+                const frame=getRaceFrameAtDistance(progress);
+                dummy.position.copy(h4WorldPosition(progress,side,-75));
+                dummy.quaternion.setFromUnitVectors(H4_UP,frame.up);
+                dummy.rotateY(flank*.12);
+                dummy.scale.set(1040+(i%3)*95,760+(i%2)*120,680);
+                dummy.updateMatrix();
+                gantries.setMatrixAt(i,dummy.matrix);
+                gantries.setColorAt(i,new THREE.Color(
+                    [0xcea78c,0x9bd7dc,0xb7add8][Math.floor(i/2)]));
+                h4Gfx11c3Stats.sites++;
+            }
+            gantries.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+            gantries.instanceMatrix.needsUpdate=true;
+            if(gantries.instanceColor)gantries.instanceColor.needsUpdate=true;
+            zone.add(gantries);
+            h4Gfx11c3ArchBatch=gantries;
+            h4Gfx11c3Stats.arches=gantries.count;
+            h4Gfx11c3Stats.archBatches=1;
+            h4Gfx11c3Stats.enabled=true;
+            if(h4Gfx11c3Stats.legacyHidden!==18)
+                throw new Error('NEXT11C3 expected exactly 18 old visual props');
+            if(h4Gfx11c3Stats.solidRegraded<20)
+                throw new Error('NEXT11C3 missing VIS02 protected physical art');
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -6390,6 +6505,7 @@
                     h4Gfx06dcAddStationDecals();
                     h4Gfx11cBuildIndustryIdentities(zone);
                     h4Gfx11c2CurateIndustry();
+                    h4Gfx11c3BuildComposition(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
