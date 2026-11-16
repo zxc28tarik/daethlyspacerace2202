@@ -9,8 +9,8 @@
 ## GFX11C gerçek oyun değişiklikleri
 
 - **Altı gerçek tesise üç özgün endüstriyel aile:** IN-01/02 **ayırma-rafineri kuleleri**, IN-03/04 **içe kıvrılan soğutma bacaları**, IN-05/06 **enerji akümülatörleri**. Her aile tekrar eden kare prizmalar yerine özgün **LatheGeometry profiline** sahip.
-- Her istasyonda bacalar, yatay gantriler, hizmet halkaları, kırık ısı kalkanları ve küçük sinyal çekirdekleri. Tonlama: koyu çelik/mavi, eskitilmiş sıcak bakır, ışıklı mavi ve sıcak sinyal.
-- **Toplam 60 yalnız görsel instance, 8 GPU batch:** 5 büyük form grubu + 3 küçük detay grubu. Üç ana silüet ailesi. Tüm 6 endüstriyel istasyona `MAP4_GFX11C_SIX_FACTORY_IDENTITIES` altında tek kez monte edilir; `frustumCulled=false` ile deterministik, üst bölge görünürlüğü korunur.
+- Her istasyonda **yolun iki yanında farklı yükseklikte ana/ikincil tesisler** ve karşılıklı bacalar, yatay gantriler, hizmet halkaları, kırık ısı kalkanları ve küçük sinyal çekirdekleri. Tonlama: koyu çelik/mavi, eskitilmiş sıcak bakır, ışıklı mavi ve sıcak sinyal.
+- **Toplam 72 yalnız görsel instance, 8 GPU batch:** 5 büyük form grubu + 3 küçük detay grubu. Üç ana silüet ailesi. Tüm 6 endüstriyel istasyona `MAP4_GFX11C_SIX_FACTORY_IDENTITIES` altında tek kez monte edilir; `frustumCulled=false` ile deterministik, üst bölge görünürlüğü korunur.
 - Görsellerin tamamı `visualOnly=true`; **yeni engel, AABB veya collider kesinlikle yok**. Motor şekilleri değişmez, 36 sanayi + 6 kanyon + 200 diğer authored bina collider sabit kalmalı.
 - High / Balanced profilde her 8 batch; Low profilde büyük mimari 5 batch sabit, küçük hizmet halkası/kanat/sinyal 3 batch gizlenir. 60 saniyelik arena sırasında endüstri yapıları GFX11B kararı gereği tamamen gizli kalır.
 - **Arena renk ayrımı:** NEXT11B'nin mevcut 74 art-only instanced parçaları gri/metal/bakır/ışıklı renklerle farklılaştırıldı. Mesh veya çizim sayısı değişmez.
@@ -20,8 +20,8 @@
 ## Kabul testleri
 
 Yeni [tests/map4-gfx11c-industrial-identity.cjs](tests/map4-gfx11c-industrial-identity.cjs) gerçek offline-webgl kodundan:
-- [ ] 07 Endüstri giriş, 08 Fabrika ve 09 Çıkış için **aynı kamera, GFX11C kapalı/açık** gerçek PNG ve değişen piksel/triangle/draw-call kanıtı.
-- [ ] 6 adet site / 3 özgün profilli geometrik aile / 60 instance / 8 batch / 0 collider.
+- [ ] 07 Endüstri giriş ve 08 Fabrika için **aynı kamera, GFX11C kapalı/açık** gerçek PNG ve değişen piksel/triangle/draw-call kanıtı; 09 Çıkış için *GFX11B sütun-kamera görünürlüğü ve fizik korunur* (ek yeni tesisin 09'da piksel farkı yaratması zorunlu değil).
+- [ ] 6 adet site / 3 özgün profilli geometrik aile / 72 instance / 8 batch / 0 collider.
 - [ ] Harita 4 High, Balanced, Low profilleri doğru silüet ve seçmeli microdetail görünürlüğü.
 - [ ] Arena 74 orijinal görsel instance üzerinde farklı renk bilgisi, 60 saniyede gizli endüstri kararı.
 - [ ] 5 yarışçı, 8 avcı, 6 kanyon + 36 sanayi + 200 mimari collider, 300s limit, 60s arena, 850m orbit ve skor/atış tamamen aynı.
