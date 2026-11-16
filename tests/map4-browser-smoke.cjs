@@ -695,6 +695,88 @@ const assert = require('node:assert/strict');
     assert.equal(content.total,12,'12 named landmark groups');
     assert.deepEqual(content.byRegion,[3,3,3,3],'three landmarks in each zone');
     assert.equal(content.names,12,'every landmark has a distinct identity');
+
+    // NEXT-06: LM10/11/12 final sector has three distinct hero compositions
+    // rather than repeated W01 boxes/VQ02 signatures. GFX01's existing
+    // imported patrol fighter at the spaceport must remain independently
+    // mounted. No physical obstacles or route constraints are added.
+    const finalHeroes=await page.evaluate(()=>{
+      const records=h4WorldLandmarks.filter(p=>p.zone===3);
+      const heroes=records.map(point=>{
+        const old=point.group.getObjectByName(
+          'MAP4_LEGACY_W01_'+point.kind.toUpperCase());
+        const signature=point.group.children.find(c=>
+          c.userData.signature===point.kind);
+        const art=point.group.children.find(c=>c.userData.h4Gfx06e);
+        const meshes=[];
+        art?.traverse(obj=>{if(obj.isMesh)meshes.push(obj)});
+        return {
+          kind:point.kind,progress:point.at,
+          name:point.name,group:art?.name,
+          anchorProgress:art?.userData.anchorProgress,
+          anchorSide:art?.userData.anchorSide,
+          parts:meshes.length,oldHidden:old?.visible===false,
+          sigHidden:signature?.visible===false,
+          visualOnly:art?.userData.visualOnly===true&&
+            meshes.every(x=>x.userData.visualOnly&&
+              x.userData.h4Gfx06e&&!x.userData.h4Collider),
+          frameCount:meshes.filter(m=>m.geometry===H4_GFX06E_GEO.frame).length,
+          uniqueKinds:new Set(meshes.map(m=>m.geometry.type)).size,
+          tags:meshes.map(m=>m.name),
+          importedFighterRetained:point.kind!=='spaceport'||
+            point.group.userData.h4Gfx01Requested===true
+        };
+      });
+      const before=camera.position.clone();
+      const fine=h4Gfx06eFineArt[0];
+      camera.position.copy(fine.position).add(new THREE.Vector3(1000,0,0));
+      h4Gfx06eUpdateFineDetail();
+      const near=fine.visible;
+      camera.position.copy(fine.position).add(new THREE.Vector3(10000,0,0));
+      h4Gfx06eUpdateFineDetail();
+      const far=!fine.visible;
+      camera.position.copy(fine.position).add(new THREE.Vector3(900,0,0));
+      h4Gfx06eUpdateFineDetail();
+      const restored=fine.visible;
+      camera.position.copy(before);
+      h4Gfx06eUpdateFineDetail();
+      return {heroes,stats:{...h4Gfx06eStats},
+        fineCount:h4Gfx06eFineArt.length,near,far,restored,
+        canyonPhysics:h4CanyonColliders.length,
+        industrialPhysics:h4IndustrialColliders.length,
+        worldPhysics:planetaryBuildingColliders.length,
+        stillMap4:state.activeMap===MAP_MODES.MAP4};
+    });
+    assert.equal(finalHeroes.stats.sites,3);
+    assert.equal(finalHeroes.stats.legacyHidden,3);
+    assert.equal(finalHeroes.stats.signatureHidden,3);
+    assert.equal(finalHeroes.stats.physicsAdded,0);
+    assert.deepEqual(finalHeroes.heroes.map(x=>x.kind),
+      ['outpost','spaceport','launch']);
+    assert.deepEqual(finalHeroes.heroes.map(x=>x.progress),
+      [36200,42600,48300]);
+    assert(finalHeroes.heroes.every(x=>x.parts>=20&&
+      x.oldHidden&&x.sigHidden&&x.visualOnly&&
+      x.anchorProgress===x.progress&&
+      Math.abs(x.anchorSide)>1500&&x.uniqueKinds>=3&&
+      x.importedFighterRetained));
+    assert(finalHeroes.heroes[0].tags.includes('LM10_COMMAND_CITADEL'));
+    assert(finalHeroes.heroes[0].tags.includes('LM10_OPEN_SECURITY_GATE'));
+    assert.equal(finalHeroes.heroes[0].frameCount,1);
+    assert.equal(finalHeroes.heroes[1].frameCount,2);
+    assert(finalHeroes.heroes[1].tags.includes('LM11_FLIGHT_DECK_SPINE'));
+    assert(finalHeroes.heroes[1].tags.includes('LM11_AIR_TRAFFIC_CONTROL_TOWER'));
+    assert.equal(finalHeroes.heroes[2].frameCount,2);
+    assert(finalHeroes.heroes[2].tags.includes('LM12_ROCKET_MAIN_STAGE'));
+    assert(finalHeroes.heroes[2].tags.includes('LM12_UPLINK_MAST'));
+    assert(finalHeroes.fineCount>=12&&
+      finalHeroes.near&&finalHeroes.far&&finalHeroes.restored);
+    assert.equal(finalHeroes.canyonPhysics,6);
+    assert.equal(finalHeroes.industrialPhysics,36);
+    assert(finalHeroes.worldPhysics>finalHeroes.industrialPhysics,
+      'all existing world collision proxies remain registered');
+    assert(finalHeroes.stillMap4);
+
     assert(content.meshes>=55 && content.meshes<200,'bounded additional geometry');
     assert(content.zones.every(z=>z.regionVisible&&z.landmarkVisible),
       'visible landmarks throughout all four sectors');
