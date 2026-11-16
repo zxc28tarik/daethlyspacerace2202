@@ -1,6 +1,6 @@
 # NEXT-11C — Endüstriyel sahnelerde tesis kimliği ve arena materyal ayrımı
 
-**Durum:** Gerçek oyun kodu ve Chromium QA testi oluşturuldu; GitHub Actions sonucu ayrıca doğrulanacak. [PR #45 NEXT11B](https://github.com/zxc28tarik/daethlyspacerace2202/pull/45) temel alınır, eski draft PR zinciri korunur.
+**Durum:** **NEXT11C teknik CI PASS:** [GitHub Actions #43973921520](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43973921520), son HEAD 9aee745... (belge commitidir). Gerçek 7–8/10 estetik ve native-GPU kabulü henüz verilmedi. [PR #45 NEXT11B](https://github.com/zxc28tarik/daethlyspacerace2202/pull/45) temel alınır, eski draft PR zinciri korunur.
 
 ## Gerçek görüntüde görülen kalite borcu
 
@@ -20,13 +20,17 @@
 ## Kabul testleri
 
 Yeni [tests/map4-gfx11c-industrial-identity.cjs](tests/map4-gfx11c-industrial-identity.cjs) gerçek offline-webgl kodundan:
-- [ ] 07 Endüstri giriş ve 08 Fabrika için **aynı kamera, GFX11C kapalı/açık** gerçek PNG ve değişen piksel/triangle/draw-call kanıtı; 09 Çıkış için *GFX11B sütun-kamera görünürlüğü ve fizik korunur* (ek yeni tesisin 09'da piksel farkı yaratması zorunlu değil).
-- [ ] 6 adet site / 3 özgün profilli geometrik aile / 72 instance / 8 batch / 0 collider.
-- [ ] Harita 4 High, Balanced, Low profilleri doğru silüet ve seçmeli microdetail görünürlüğü.
-- [ ] Arena 74 orijinal görsel instance üzerinde farklı renk bilgisi, 60 saniyede gizli endüstri kararı.
-- [ ] 5 yarışçı, 8 avcı, 6 kanyon + 36 sanayi + 200 mimari collider, 300s limit, 60s arena, 850m orbit ve skor/atış tamamen aynı.
-- [ ] Eski tüm offline HTML, Harita1/4, GFX09 kamera, GFX10 grafik, GFX10B VFX/bellek, GFX11B kamera/art, GFX11 tarihsel 62 görüntü QA CI PASS.
+- [x] **07/08 gerçek aynı-kamera A/B farkı PASS:** 07 drawcalls **497→505**, üçgenler **53.260→65.620**, görüntü farklı; 08 **357→365**, üçgenler **43.412→55.772**, görüntü farklı. **09** drawcalls 291→299 ama yeni art ekran dışında kaldığı için PNG **değişmedi**; bu plan dahilinde kabul, önceki kamerayı onarma etkisi korunuyor.
+- [x] **6 tesis, 3 özgün geometrik aile, 72 görsel instance, 8 batch ve 0 yeni collider** doğrulandı. Mevcut 6 kanyon/36 sanayi/**200 bina** collider aynı.
+- [x] Harita 4 **High/Balanced = 8 batch** (5 ana + 3 detay), **Low = 5 ana batch**, 3 detay gizli. Profiller Chromium'da PASS.
+- [x] Arena 74 orijinal görsel instance üzerinde **farklı materyal tonu/instanceColor**, 60sn savaş sırasında sonraki sanayi fabrikalarının gizli olması PASS.
+- [x] **5 rakip, 8 avcı, 6 kanyon +36 sanayi +200 mimari collider, 300s/60s/850m ve skor/atış tamamen aynı** testle doğrulandı.
+- [x] **Full GitHub Actions CI PASS:** offline HTML ve GLB, Harita1/4, GFX09 kamera/HUD, GFX10 profil, GFX10B simüle VFX/bellek, GFX11B kamera/art ve GFX11 tarihsel 62 görüntü QA. İlk başlatma sırası ve 09 art görsel-kare yanlış beklentisi giderildi.
 
 **Açık kabul:** Otomatik ekran görüntüsü **insan tarafından 7–8/10 estetik onay** veya native GPU/VRAM/FPS kanıtı değildir. Gerçek 5dk oynanış, oyuncu kabulü ve yayıncı 3 oynanabilir harita da tamamlanmış sayılmayacak.
 
 **Sonraki `.`:** CI hatası varsa önce GFX11C aynı PR'da düzelt; CI başarıyla biterse ekran görüntülerine göre art tuning yap ve ardından gerçek cihaz GPU ve görsel insan kabul aşamasını önceliklendir.
+
+## Son gözle inceleme (17 Kasım)
+
+Gerçek 1600×900 kadrajlar gözle karşılaştırıldı: **07 ve 08'de** yeni koyu/mavi rafineri-soğutma profilleri seçiliyor, ancak sahnenin orta bölümü hâlâ çok sayıda açık renkli benzer çizgisel kolon/kutu ile dolu. Sonuç teknik olarak başarılı ama **7–8/10 sanatsal hedef için yeterli kabul edilmedi**. 09 görüntüsü temiz, önceki NEXT11B kameraya-çok-yakın sütun maskesi bozulmadı. Sıradaki görsel borç: yeni büyük sanat yapılarını daha bütünleşik, yüksek kontrastlı ve sahne kompozisyonu odaklı hale getirmek (NEXT11C2); gerçek GPU ile 5dk insan onayı daha sonra.
