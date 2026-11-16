@@ -12,6 +12,7 @@
 - Sıradaki göreve geçmeden önce: görev hedefi, korunan kurallar, kod/PR, otomatik testler, ekran görüntüsü, performans, kullanıcı estetik onayı ve durum kaydı güncellenir. İlgili kategorilerden uygulanmayanlar açıkça belirtilir.
 - Bir geliştirme konuşmasının sonunda bu dosyanın **Durum / Kanıt / Sonraki adım / Günlük** alanları güncellenir. Açık işler atlanmaz; öncekinin eksikleri kayıt altında tutulur.
 - **Sohbetten alınan kararlar** ile **GitHub'dan doğrulanan uygulamalar** birbirine karıştırılmaz.
+- **Kısa devam komutu:** Kullanıcı sonraki mesajda yalnız `.` yazarsa **bir sıradaki açık alt görevi** uygula; `..` veya `. .` gibi birden fazla nokta aynı sayıda ardışık geliştirme adımı demektir. Önceki işte hata varsa **önce hata giderilip test edilir**, sonra yeni adıma geçilir. Gerçek CI/estetik onayı olmadan yapılmış iş otomatik tamamlanmaz. Bu komut **arkada/otomatik zamanlanmış iş değildir**; kullanıcı yeni mesaj gönderdiğinde uygulanır.
 
 ## 1) Kilitlenmiş ürün kararları (KD)
 
