@@ -36,6 +36,18 @@ GFX08, önceki GFX05C (tek InstancedMesh'te en fazla 28 motor egzozu), GFX04D st
 3. `.github/workflows/map-browser-smoke.yml`: dal üzerine her push'ta Ubuntu24.04 Chromium, offline asset+tek HTML ve screenshot artifact.
 4. **CI PASS gerçek run sonucuyla teyit edilmeden bu iş tamamlandı sayılmaz.** SwiftShader süreleri desktop GPU FPS değildir. Yayıncı 7–8/10 son estetik / GLB, PBR, büyük patlama ses ve ışık cilası / gerçek hedef GPU p95 FPS, VRAM ve screenshot kullanıcının kabulü ayrıca açık kalır.
 
+## 16 Kasım — Gerçek ilk CI ve görsel kalite düzeltmesi
+
+- İlk [GitHub Actions #43944845546](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43944845546) ve [#43944704632](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43944704632) **SUCCESS**: offline tek HTML + GLB, Harita 1/4 Chromium, gerçek oyuncu ikiz namlu/avcı hasarı/büyük patlama olay bağları, beş bounded pool, 55 arka arkaya darbede cap+eviction, reset, mevcut VQ03 ve GFX05C, 12 sabit kamera + üç yeni GFX08 aynı kamera ekran çifti.
+- Gerçek render karşılaştırmaları (aynı kamera, BEFORE→AFTER, tüm sahne):
+  - Arena: **24→29 drawcall, 22.006→23.240 üçgen**
+  - Sanayi: **439→444 drawcall, 51.762→52.996 üçgen**
+  - Yörünge: **56→61 drawcall, 16.936→18.170 üçgen**
+  - Her kadrajda sadece 5 ortak çizim grubu eklenmiştir, 5 türün aktif sayısı [2 muzzle,1 impact,1 shock,3 smoke,1 engine], 36 sanayi collider korunuyor. Bunlar SwiftShader/WebGL renderer değerleridir, gerçek oyuncu GPU FPS değildir.
+- **Görsel sorunu tespit edildi:** İlk in-engine fotoğraflarda daha önceden kullanılan klasik düz TorusGeometry halkalar ve additive blend, patlamanın ortasında sert, çok beyaz üst üste halkalar oluşturuyordu. Teknik PASS **nihai estetik PASS** değildir.
+- [763ced0](https://github.com/zxc28tarik/daethlyspacerace2202/commit/763ced0d21c48cbbe1d34eca9dd2eb7938b77751) ile gerçek shared **128px feathered alpha ring atlası** eklendi, hit/shock/engine **üçü aynı texture/PlaneGeometry** kullandı; hit/shock NormalBlending ve ölçülü opacity ile gölgeli alanda renk korumaya yöneldi. [206be79](https://github.com/zxc28tarik/daethlyspacerace2202/commit/206be79e4a40474c23a3a975121ddad259f9720f) bu değişimin regresyon koşullarını ekledi. [Güncel CI #43945991830](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43945991830) sonucu henüz doğrulanmadan PASS ilan edilmeyecek.
+- Son görseller ve gerçek hedef donanım p95 FPS/VRAM, son VFX/3D/ışık estetiği, yayıncı 7–8/10 kabulü halen açık; GFX08 taslak PR #40 `main` ile birleştirilmedi.
+
 ## Sıradaki nokta
 
 Sıradaki `.` **NEXT-09 / GFX-09** (kamera, HUD, post-processing ve okunabilirlik) ama bu GFX08'de bir hata çıkarsa **önce mevcut işin hatası düzeltilecek**, test kapanmadan işi atlamayacağız.
