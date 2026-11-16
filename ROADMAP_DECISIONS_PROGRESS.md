@@ -69,7 +69,7 @@
 | GFX-04 | Savaş arenası + 6 farklı sanayi tesisi | **KISMEN** | [GFX04](MAP4_GFX04_ARENA_VISUAL_PASS.md), [04B](MAP4_GFX04B_CARRIER_GLB.md), [04C](MAP4_GFX04C_ELITE_BATTERY_GLB.md), [04D](MAP4_GFX04D_BATTLE_VFX.md), [04E](MAP4_GFX04E_ATMOSPHERE_LIGHTING.md); **sanayi 6 tesis sanat dönüşümü açık** |
 | GFX-05 | 1 oyuncu + 5 rakip + 2 avcı ailesi; model/renk/anatomi | **KISMEN / ANA KOD VAR** | [GFX05](MAP4_GFX05_CRAFT_ART.md), [GFX05B](MAP4_GFX05B_AIRCRAFT_SURFACES.md); ortak prosedürel geometri/atlas var, profesyonel ayrı GLB/LOD/silüet kabulü açık |
 | GFX-05C | Paylaşımlı konik çift motor egzozları | **YAPILDI-MAIN / CI DOĞRULAMA** | [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31) 16.11.2026 tarihinde **MERGED**; merge SHA [d92830c](https://github.com/zxc28tarik/daethlyspacerace2202/commit/d92830cffe8aed40bc32a1ca44ae3ad7ef824779). CI PASS/gerçek GPU FPS ayrı açık kapılar. |
-| GFX-06 | Tam ölçekli PBR, atlas, endüstri modeli/decal | **KISMEN / İLK İKİ TESİS PR** | Gemi yüzeyinde prosedürel atlas ana dalda; [GFX06A PR #32](https://github.com/zxc28tarik/daethlyspacerace2202/pull/32) ile IN01/02 ilk model dalı. Diğer 4 tesis ve artist-made atlaslar açık. |
+| GFX-06 | Tam ölçekli PBR, atlas, endüstri modeli/decal | **KISMEN / DÖRT TESİS İKİ AÇIK PR** | [GFX06A PR #32](https://github.com/zxc28tarik/daethlyspacerace2202/pull/32) IN01/02; [GFX06B PR #33](https://github.com/zxc28tarik/daethlyspacerace2202/pull/33) IN03/04 (GFX06A'ya bağımlı). IN05/06 ve artist-made PBR/LOD kabulü açık. |
 | GFX-07 | Dinamik seçili gölgeler, ana ışık, atmosfer | **KISMEN** | VQ04 sky/fog/bulut ve arenada 2 lokal ışık var; tüm sahne ışık/gölge mastering açık |
 | GFX-08 (= VQ05) | Motor/silah/darbe/patlama VFX | **KISMEN** | Kıvılcım, duman, motor egzozu geliştirme dalı var; nihai lazer/patlama/hasar VFX kabulü açık |
 | GFX-09 (= VQ06) | Chase/Turret kamera, HUD, post | **KISMEN** | GFX03B HUD sadeleştirme; iki kamerada clipping/720p/1080p/post mastering açık |
@@ -111,8 +111,8 @@ Görsel içerik için önce **büyük silüet**, sonra **oynanabilir orta ölçe
 |---|---:|---|---|
 | IN-01 | 15.750 | Giriş rafinerisi: ayırma tesisi, tank, baca, boru, kontrol kulesi | **KISMEN — GFX06A / PR #32**, son GLB/PBR ve görsel kabul açık |
 | IN-02 | 18.750 | Yüksek basınç transferi: alçak boru köprüsü, vanalar, destekler | **KISMEN — GFX06A / PR #32**, son GLB/PBR ve görsel kabul açık |
-| IN-03 | 21.850 | Ağır pres ve montaj: asimetrik makine kulesi, gantry, servis platformu | **YAPILMADI — son sanat** |
-| IN-04 | 24.950 | Enerji kazanımı: soğutma kuleleri, ısı değiştiriciler, türbin | **YAPILMADI — son sanat** |
+| IN-03 | 21.850 | Ağır pres ve montaj: asimetrik makine kulesi, gantry, servis platformu | **KISMEN — GFX06B / PR #33**, iki pres kemeri + hidrolik/vinç; son GLB/PBR/FPS onayı açık |
+| IN-04 | 24.950 | Enerji kazanımı: soğutma kuleleri, ısı değiştiriciler, türbin | **KISMEN — GFX06B / PR #33**, iki hiperbolik kule + kondenser/türbin; son GLB/PBR/FPS onayı açık |
 | IN-05 | 28.150 | Lojistik ve yükleme: depo, raylı vinç, konteyner, nakliye alanı | **YAPILMADI — son sanat** |
 | IN-06 | 31.500 | Son enerji santrali: jeneratör halkaları, güvenlik kontrol, enerji hatları | **YAPILMADI — son sanat** |
 
@@ -123,8 +123,8 @@ Her düğümün kabulü: (1) uzaktan farklı silüet, (2) alt hızlı / üst gü
 | Sıra | ID | Görev | Durum | Bir sonraki kanıt |
 |---|---|---|---|---|
 | 01 | NEXT-01 | **GFX-05C PR #31 merge kaydı** | **YAPILDI-MAIN; CI/FPS KAPILARI AÇIK** | [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31) / `d92830c`; CI ve gerçek GPU FPS doğrulaması açık |
-| 02 | NEXT-02 | **GFX-06A** sanayi 1–2: rafineri ve basınç borusu, büyük özgün silüetler | **GELİŞTİRME-PR / DOĞRULAMA** | [PR #32](https://github.com/zxc28tarik/daethlyspacerace2202/pull/32) DRAFT: kod + test + 4 screenshot otomasyonu; CI PASS ve görsel/FPS onayı bekliyor |
-| 03 | NEXT-03 | **GFX-06B** sanayi 3–4: ağır pres / soğutma-enerji | **YAPILMADI** | farklı fabrikalar, modeller, collider testi |
+| 02 | NEXT-02 | **GFX-06A** sanayi 1–2: rafineri ve basınç borusu, büyük özgün silüetler | **GELİŞTİRME-PR / TEST DÜZELTİLDİ** | [PR #32](https://github.com/zxc28tarik/daethlyspacerace2202/pull/32) DRAFT; [ilk CI](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43875886124) FAIL (başlangıç dizilimi geç ölçülüyor), [düzeltme](https://github.com/zxc28tarik/daethlyspacerace2202/commit/f1d7348bb2b9467d000baf73decf04ab90e19e2d); yeni CI + 4 görsel/FPS kabulü açık |
+| 03 | NEXT-03 | **GFX-06B** sanayi 3–4: ağır pres / soğutma-enerji | **GELİŞTİRME-PR / DOĞRULAMA** | [PR #33](https://github.com/zxc28tarik/daethlyspacerace2202/pull/33) DRAFT: PR #32 üzerine; 2 pres + 2 soğutma kulesi ve test kodu. CI/görsel/FPS açık. |
 | 04 | NEXT-04 | **GFX-06C** sanayi 5–6: lojistik / enerji istasyonu | **YAPILMADI** | altı düğüm karşılaştırmalı galeri |
 | 05 | NEXT-05 | **GFX-06D** sanayi PBR atlas, aşınma, decals, paylaşılan LOD/instancing | **YAPILMADI** | malzeme atlas testleri + GPU maliyeti |
 | 06 | NEXT-06 | Üs/hangar/uzay limanı/yörünge fırlatma büyük sanat dönüşümü (LM-10..12) | **YAPILMADI** | 3 özgün dev sahne + yükseliş kadrajı |
@@ -150,6 +150,10 @@ GFX-02 adaptif terrain/LOD, GFX-03'nin kalan hero sanatları, gemi sınıfların
 Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi daha önceki işler mevcut olsa da final kabul verilmiş gibi işaretlenmez.
 
 ## 8) Değişiklik günlüğü / son durum
+
+- **2026-11-16:** GFX-06A [CI #43875886124](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43875886124) **FAIL**: Browser testinde `openSpace.firstPositions` artık başlangıç yerine ilerleyen AI konumunu ölçüyordu; [PR #32 düzeltmesi f1d7348](https://github.com/zxc28tarik/daethlyspacerace2202/commit/f1d7348bb2b9467d000baf73decf04ab90e19e2d) ile oyun başlangıcında anlık örnek almaya geçildi. Yeni CI sonucu bekleniyor. **Bu hata fizik/AI değişikliği yapılarak maskelenmedi.**
+- **2026-11-16:** NEXT-03 GFX06B IN03/IN04: 2 açılı pres kemeri, 2 açık üstlü hiperbolik soğutma kulesi, bağlı makine detayları ve 4 görüntü/test kodu [taslak PR #33](https://github.com/zxc28tarik/daethlyspacerace2202/pull/33) içinde. **GFX06A'nın PR #32'si üzerine bağımlı**, ana sürümde değil.
+
 
 - **2026-10-18:** Harita 4'ün geniş 4 aşamalı gezegensel dünya kararı, W02-W05 kapsamı; büyük başlangıç alanı, çevresel doluluk ve üç rota.
 - **2026-10-19:** Görsel kalite 3/10 değerlendirmesi; yalnız prosedürel kutu/efekt eklemek yerine özgün sanat üretimine odaklanma.
