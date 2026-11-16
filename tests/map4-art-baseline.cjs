@@ -404,6 +404,74 @@ const percentile=(numbers,p)=>{
     out.gfx06dSameCamera[1].vertices);
   assert(out.gfx06dSameCamera[1].vertices>
     out.gfx06dSameCamera[2].vertices);
+  // GFX06D-C: honest same-camera, same-light true in-engine A/B screenshots.
+  // Six numbered plants exist; we sample refinery, cooling, and power.
+  // Only decal groups are hidden for A, then visible for B.
+  out.gfx06dcServiceGallery=[];
+  await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+  for(const item of [
+    {i:0,name:'in01-refinery',at:15750},
+    {i:3,name:'in04-cooling',at:24950},
+    {i:5,name:'in06-reactor',at:31500}
+  ]){
+    const off=await page.evaluate(spec=>{
+      state.paused=true;state.map4Phase=3;
+      state.routeProgress=spec.at;state.laneX=0;state.laneY=500;
+      const station=h4IndustrialGroups[spec.i],
+        art=station.children.find(m=>
+          m.userData.h4Gfx06a||m.userData.h4Gfx06b||
+          m.userData.h4Gfx06c),
+        body=art.children.find(m=>
+          m.name===H4_GFX06DC_ANCHORS[spec.i]),
+        decal=h4Gfx06dcGroups[spec.i];
+      const up=new THREE.Vector3(0,1,0)
+          .applyQuaternion(body.quaternion);
+      const out=new THREE.Vector3(0,0,1)
+          .applyQuaternion(body.quaternion);
+      camera.position.copy(body.position).addScaledVector(out,1380)
+        .addScaledVector(up,220);
+      camera.lookAt(body.position.clone().addScaledVector(up,20));
+      camera.fov=57;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      decal.visible=false;
+      renderer.render(scene,camera);
+      window.__gfx06dcVisualProbe={
+        station:spec.i,pos:camera.position.clone(),
+        quaternion:camera.quaternion.clone()
+      };
+      return {name:spec.name,calls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        body:body.name,visible:decal.visible,
+        colliders:h4IndustrialColliders.length};
+    },item);
+    await page.screenshot({path:path.join(directory,
+      'gfx06dc-'+item.name+'-before.png')});
+    const on=await page.evaluate(spec=>{
+      const g=h4Gfx06dcGroups[spec.i],
+        pose=window.__gfx06dcVisualProbe;
+      g.visible=true;
+      renderer.render(scene,camera);
+      return {calls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        visible:g.visible,children:g.children.length,
+        sameCamera:camera.position.distanceTo(pose.pos)<.001&&
+          camera.quaternion.angleTo(pose.quaternion)<.001};
+    },item);
+    await page.screenshot({path:path.join(directory,
+      'gfx06dc-'+item.name+'-after.png')});
+    out.gfx06dcServiceGallery.push({name:item.name,before:off,after:on});
+    await page.evaluate(()=>{delete window.__gfx06dcVisualProbe});
+  }
+  await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+  assert.equal(out.gfx06dcServiceGallery.length,3);
+  assert(out.gfx06dcServiceGallery.every(s=>
+    s.before.colliders===36&&
+    s.before.visible===false&&s.after.visible===true&&
+    s.after.sameCamera&&s.after.children===4&&
+    s.after.calls>=s.before.calls+3&&
+    s.after.triangles>s.before.triangles),
+    'three functional-decal screenshots must change geometry without gameplay');
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
