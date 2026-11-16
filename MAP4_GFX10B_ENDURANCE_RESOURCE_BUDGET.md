@@ -24,7 +24,7 @@ This is **not five minutes of actual gameplay**; neither an FPS/p95 benchmark on
 
 ## Acceptance
 
-- [ ] Final branch Chromium/offline/art CI SUCCESS and 300s simulation PASS verified.
+- [x] **Full CI PASS:** [GitHub Actions #43954482993](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43954482993). Map1/4/offline, GFX09, GFX10, GFX10B and 12 art-baseline captures succeeded. 300s simulated visual test: before/after **3532 Mesh, 8 Light, 672 top-level scene children, 340 renderer geometries and 25 textures**, all unchanged. 4000 emissions, 1500 chase camera probes, all pooled events/instances expired to zero. This does **not** certify native-GPU FPS.
 - [ ] Browser image inspect for unintended LOD switch/camera clipping.
 - [ ] On-device 720p/1080p 5-minute real gameplay, GPU frame-time/p95 and VRAM profile.
 - [ ] Final artistic/user acceptance and dependent PR merge chain.
