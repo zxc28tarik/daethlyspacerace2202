@@ -2771,12 +2771,13 @@
             for(const holder of h4Gfx01LODGroups){
                 const distance=holder.position.distanceTo(camera.position);
                 const previous=holder.userData.h4Gfx01LOD;
-                const thresholds=previous===0?[2000,3750]:
-                    previous===1?[1450,3750]:[1450,3200];
-                const level=distance<thresholds[0]?0:
-                    distance<thresholds[1]?1:2;
+                // GFX10B: stable scalar hysteresis, no per-frame arrays/callbacks.
+                const near=previous===0?2000:1450;
+                const far=previous===2?3200:3750;
+                const level=distance<near?0:distance<far?1:2;
                 if(level!==previous){
-                    holder.children.forEach((root,i)=>{root.visible=i===level;});
+                    for(let i=0;i<holder.children.length;i++)
+                        holder.children[i].visible=i===level;
                     holder.userData.h4Gfx01LOD=level;
                     h4Gfx01Stats.activeLevels[holder.userData.h4Gfx01Model]=level;
                     h4Gfx01Stats.lodSwitches++;
@@ -5026,6 +5027,8 @@
                     art.userData.anchorSide,
                     landmark.kind==='launch'?870:480));
                 light.userData.h4Gfx07=true;
+                // The anchor never moves. Avoid searching all landmarks per frame.
+                light.userData.h4Gfx07AnchorAt=landmark.at;
                 landmark.group.add(light);
                 h4Gfx07Lights.push(light);
                 h4Gfx07Stats.localLights++;
@@ -5038,10 +5041,9 @@
             if(state.activeMap!==MAP_MODES.MAP4)return;
             let visible=0;
             for(const light of h4Gfx07Lights){
-                const parent=light.parent;
-                const target=h4WorldLandmarks.find(l=>
-                    l.group===parent);
-                const delta=target?Math.abs(target.at-state.routeProgress):Infinity;
+                const anchor=light.userData.h4Gfx07AnchorAt;
+                const delta=Number.isFinite(anchor)?
+                    Math.abs(anchor-state.routeProgress):Infinity;
                 light.visible=h4Gfx10CurrentProfile().localLights&&delta<3500&&state.map4Phase===4;
                 if(light.visible)visible++;
             }
@@ -9493,12 +9495,19 @@
             if (state.cameraMode === 'CHASE') {
                 const speedExtra = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.NORMAL) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.NORMAL), 0, 1);
                 const h4Chase=state.activeMap===MAP_MODES.MAP4;
-                const desiredCamPos = state.pos.clone().add(
-                    new THREE.Vector3(-state.roll * 1.2,
-                        (h4Chase?5.5:4) + speedExtra * 1.5,
-                        (h4Chase?19:14) + speedExtra * (h4Chase?6:7))
-                        .applyQuaternion(playerRig.quaternion)
-                );
+                // Map1's original camera path is deliberately untouched.
+                // Map4 uses fixed scratch vectors rather than 2 heap allocations/frame.
+                const desiredCamPos=h4Chase?
+                    h4Gfx10bChaseTarget.copy(state.pos).add(
+                        h4Gfx10bChaseOffset.set(-state.roll * 1.2,
+                            5.5 + speedExtra * 1.5,
+                            19 + speedExtra * 6)
+                            .applyQuaternion(playerRig.quaternion)):
+                    state.pos.clone().add(
+                        new THREE.Vector3(-state.roll * 1.2,
+                            4 + speedExtra * 1.5,
+                            14 + speedExtra * 7)
+                            .applyQuaternion(playerRig.quaternion));
                 const safeCameraPos=h4Chase?
                     h4Gfx09SafeChase(desiredCamPos,routeFrame):desiredCamPos;
                 camera.position.lerp(safeCameraPos, Math.min(1, (h4Chase?9:7) * dt));
@@ -11154,34 +11163,45 @@
         const h4Gfx09CameraInfo={occlusionChecks:0,occlusionAdjustments:0,occluded:false,
             lastFov:68,photoMode:false};
         const h4Gfx09PhotoDebug=new URLSearchParams(window.location.search).has('gfx09debug');
+        // Scratch vectors reused only in the single synchronous camera path.
+        const h4Gfx10bCameraDelta=new THREE.Vector3();
+        const h4Gfx10bCameraSafe=new THREE.Vector3();
+        const h4Gfx10bChaseOffset=new THREE.Vector3();
+        const h4Gfx10bChaseTarget=new THREE.Vector3();
         function h4Gfx09SafeChase(candidate,frame){
             if(state.activeMap!==MAP_MODES.MAP4||state.map4Phase!==3){
                 h4Gfx09CameraInfo.occluded=false;
                 return candidate;
             }
-            const delta=candidate.clone().sub(state.pos);
+            const delta=h4Gfx10bCameraDelta.copy(candidate).sub(state.pos);
             let fraction=1;
-            // Only physically-solid industrial route-space AABBs participate.
-            // Art-only architecture NEVER creates a camera collision.
-            const blockers=planetaryBuildingColliders.concat(h4IndustrialColliders);
+            // GFX10B: walk the two existing collider arrays WITHOUT concat.
+            // Art-only decorations never add collision or alter camera physics.
             for(let attempt=0;attempt<5;attempt++){
                 const p=state.routeProgress+delta.dot(frame.tangent)*fraction;
                 const x=state.laneX+delta.dot(frame.right)*fraction;
                 const y=state.laneY+delta.dot(frame.up)*fraction;
                 let collision=false;
-                for(const c of blockers){
-                    if(Math.abs(c.progress-state.routeProgress)>350)continue;
-                    h4Gfx09CameraInfo.occlusionChecks++;
-                    if(Math.abs(p-c.progress)<c.halfDepth+12 &&
-                       Math.abs(x-c.side)<c.halfSide+12 &&
-                       Math.abs(y-c.altitude)<c.halfUp+12){collision=true;break;}
+                for(let group=0;group<2&&!collision;group++){
+                    const blockers=group===0?planetaryBuildingColliders:h4IndustrialColliders;
+                    for(const c of blockers){
+                        if(Math.abs(c.progress-state.routeProgress)>350)continue;
+                        h4Gfx09CameraInfo.occlusionChecks++;
+                        if(Math.abs(p-c.progress)<c.halfDepth+12 &&
+                           Math.abs(x-c.side)<c.halfSide+12 &&
+                           Math.abs(y-c.altitude)<c.halfUp+12){
+                            collision=true;
+                            break;
+                        }
+                    }
                 }
                 if(!collision)break;
                 fraction*=.52;
             }
             h4Gfx09CameraInfo.occluded=fraction<1;
             if(fraction<1)h4Gfx09CameraInfo.occlusionAdjustments++;
-            return fraction===1?candidate:state.pos.clone().addScaledVector(delta,fraction);
+            return fraction===1?candidate:
+                h4Gfx10bCameraSafe.copy(state.pos).addScaledVector(delta,fraction);
         }
         function h4Gfx09PostFrame(){
             const active=state.activeMap===MAP_MODES.MAP4;
