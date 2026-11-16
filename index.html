@@ -3278,6 +3278,41 @@
         // VQ02: visually continuous refinery pipes, crane arms and exposed
         // structure across six W05 buildings. Not gameplay hitboxes.
         const h4IndustrialArtStats={stations:0,parts:0};
+        // NEXT11B / QA-VIS-09: the stage-3, sixth-station central gantry
+        // column surrounds the fixed camera at route 31600 / Y 450.
+        // Fade ONLY that mesh when it is extremely close to the camera.
+        // Keep the exact original mesh, geometry and physical AABB.
+        const h4Gfx11bCameraMask={
+            mesh:null,original:null,faded:null,
+            bounds:new THREE.Box3(),active:false,updates:0,
+            changedColliders:0
+        };
+        function h4Gfx11bFinalizeCameraMask(){
+            const target=h4Gfx11bCameraMask;
+            if(!target.mesh)return;
+            // GFX06m/VIS02 modify the final material AFTER station placement.
+            // Capture the authoritative material only after those passes.
+            target.original=target.mesh.material;
+            target.faded=target.original.clone();
+            target.faded.name='MAP4_GFX11B_CAMERA_NEAR_FADE';
+            target.faded.transparent=true;
+            target.faded.opacity=.075;
+            target.faded.depthWrite=false;
+            target.mesh.updateWorldMatrix(true,false);
+            target.bounds.setFromObject(target.mesh);
+        }
+        function h4Gfx11bUpdateCameraMask(){
+            const target=h4Gfx11bCameraMask;
+            if(!target.mesh)return;
+            const close=state.activeMap===MAP_MODES.MAP4 &&
+                state.map4Phase===3 && planetaryWorldGroup.visible &&
+                target.bounds.distanceToPoint(camera.position)<100;
+            if(close!==target.active){
+                target.mesh.material=close?target.faded:target.original;
+                target.active=close;
+            }
+            target.updates++;
+        }
         function h4IndustrialModelDetail(group,at,serial){
             const geo=H4_HERO_GEOMETRY,mat=H4_HERO_MATERIAL;
             const add=(delta,x,y,geometry,material,scale)=>{
@@ -3300,8 +3335,17 @@
             // Separate all six silhouettes with different gantry heights.
             const gantryY=390+(serial%3)*85;
             for(const x of [-1570,0,1700]){
-                add(90,x,gantryY*.5,geo.column,mat.shadowSteel,[52,gantryY,65]);
-                add(90,x,gantryY,geo.mesaShelf,mat.paintedSteel,[156,24,140]);
+                const support=add(90,x,gantryY*.5,geo.column,
+                    mat.shadowSteel,[52,gantryY,65]);
+                if(serial===5&&x===0){
+                    // The diagnosed near-camera support is also a PHYSICAL
+                    // structure. Never move, delete or de-collide it.
+                    const target=h4Gfx11bCameraMask;
+                    target.mesh=support;
+                    support.userData.h4Gfx11bCameraOccluder=true;
+                }
+                add(90,x,gantryY,geo.mesaShelf,
+                    mat.paintedSteel,[156,24,140]);
             }
             pipe(90,0,gantryY+46,1510,54);
             pipe(105,0,gantryY+96,1430,22);
@@ -5533,6 +5577,82 @@
             if(pocket.id==='DEFENSE')h4MountGfx04Defense(artist,pocket);
             h4Gfx04Stats.sites++;
         }
+        // NEXT11B / QA-VIS-ARENA: purposeful warfront skyline in stage 2.
+        // The NEXT03 decision stays: NO future-stage refinery/factory models
+        // during the 60-second arena. Never reactivate gfx04IndustrialVisuals.
+        // Native jagged carrier, battered defensive tower and wing geometry
+        // is drawn in four shared instanced batches, all visual only.
+        const h4Gfx11bArenaStats={batches:0,instances:0,addedColliders:0,
+            expectedInstances:74,visualOnly:true};
+        let h4Gfx11bArenaSkylineGroup=null;
+        function h4Gfx11bBuildArenaSkyline(zone){
+            if(zone.userData.h4Gfx11bArenaBuilt)return;
+            const group=new THREE.Group();
+            group.name='MAP4_GFX11B_ARENA_SKYLINE';
+            group.userData.visualOnly=true;
+            const specs=[
+                {name:'FRACTURED_CARRIERS',count:16,geo:H4_GFX04_GEO.fracturedCarrier,
+                    mat:H4_GFX04_MAT.armor},
+                {name:'BATTERED_DEFENSE_SPIRES',count:26,geo:H4_GFX04_GEO.cannon,
+                    mat:H4_GFX04_MAT.defense},
+                {name:'SHATTERED_OUTER_WINGS',count:22,geo:H4_GFX04_GEO.brokenPlate,
+                    mat:H4_GFX04_MAT.soot},
+                {name:'POCKET_SIGNAL_FIRES',count:10,geo:H4_GFX04_GEO.beacon,
+                    mat:H4_GFX04_MAT.ember}
+            ];
+            const dummy=new THREE.Object3D();
+            for(const spec of specs){
+                const batch=new THREE.InstancedMesh(spec.geo,spec.mat,spec.count);
+                batch.name='MAP4_GFX11B_'+spec.name;
+                batch.userData.visualOnly=true;
+                batch.userData.h4Gfx11bArenaVisualOnly=true;
+                batch.frustumCulled=false;
+                for(let i=0;i<spec.count;i++){
+                    const sign=i%2?-1:1;
+                    let progress,side,alt,width,height,depth;
+                    if(spec.name==='FRACTURED_CARRIERS'){
+                        progress=13840+(i%8)*103+(Math.floor(i/8)*60);
+                        side=sign*(690+(i*151)%1100);
+                        alt=-305+(i%4)*50;
+                        width=480+(i%3)*130;height=320+(i%4)*75;
+                        depth=420+(i%3)*90;
+                    }else if(spec.name==='BATTERED_DEFENSE_SPIRES'){
+                        progress=13680+(i%13)*96;
+                        side=sign*(390+(i*137)%1450);
+                        height=420+(i*67)%510;
+                        alt=-430+height*.50;
+                        width=88+(i%4)*24;depth=100+(i%3)*32;
+                    }else if(spec.name==='SHATTERED_OUTER_WINGS'){
+                        progress=13720+(i%11)*90;
+                        side=sign*(510+(i*151)%1370);
+                        alt=-365+(i%3)*90;
+                        width=410+(i%4)*80;height=95+(i%3)*35;
+                        depth=530+(i%4)*75;
+                    }else{
+                        progress=13900+(i%5)*165;
+                        side=sign*(460+(i*149)%1130);
+                        alt=190+(i%3)*110;
+                        width=35;height=35;depth=35;
+                    }
+                    dummy.position.copy(h4WorldPosition(progress,side,alt));
+                    dummy.quaternion.setFromUnitVectors(
+                        H4_UP,getRaceFrameAtDistance(progress).up);
+                    dummy.rotateY((i%7-3)*.13);
+                    dummy.scale.set(width,height,depth);
+                    dummy.updateMatrix();
+                    batch.setMatrixAt(i,dummy.matrix);
+                }
+                batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                batch.instanceMatrix.needsUpdate=true;
+                group.add(batch);
+                h4Gfx11bArenaStats.batches++;
+                h4Gfx11bArenaStats.instances+=spec.count;
+            }
+            zone.add(group);
+            h4Gfx11bArenaSkylineGroup=group;
+            zone.userData.h4Gfx11bArenaBuilt=true;
+        }
+
         function h4BuildArenaWarfront(zone){
             if(h4ArenaWarfrontGroups.length)return;
             // Each pocket has its own readable silhouettes, ground-level cover
@@ -5618,6 +5738,7 @@
                 h4ArenaWarfrontGroups.push(group);
                 h4ArenaWarfrontStats.groups++;
             }
+            h4Gfx11bBuildArenaSkyline(zone);
         }
 
         // GFX-04D: four authored wreck/fortification smoke columns as ONE
@@ -6017,6 +6138,7 @@
                     h4BuildIndustrialGauntlet(zone);
                     h4Gfx06mApplyIndustrialMaterials(zone);
                     h4Vis02DressIndustry(zone);
+                    h4Gfx11bFinalizeCameraMask();
                     h4Gfx06dInitializeLod(zone);
                     h4Gfx06dcAddStationDecals();
                     // GFX04: visually gate next-stage factories, not the
@@ -6097,6 +6219,12 @@
                     planetaryWorldRegions[i].userData.gfx04IndustrialVisuals.visible=
                         state.map4Phase!==2;
             }
+            // NEXT11B: reveal the distinct warfront skyline on the approach
+            // and during the 60s arena; NEVER leak it into later factory flight.
+            if(h4Gfx11bArenaSkylineGroup)
+                h4Gfx11bArenaSkylineGroup.visible=
+                    state.map4Phase===2 ||
+                    (state.map4Phase===1 && state.routeProgress>11200);
             // Cull distant compositions inside active regions to limit draw calls.
             h4Gfx06eUpdateFineDetail();
             h4Gfx07UpdateLighting();
@@ -6116,6 +6244,7 @@
                 scenery.far.visible=true;
             }
             h4Gfx06dUpdateLod();
+            h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
                 const route=h4CanyonRoute(state.routeProgress,state.laneX);
@@ -11204,6 +11333,7 @@
                 h4Gfx10bCameraSafe.copy(state.pos).addScaledVector(delta,fraction);
         }
         function h4Gfx09PostFrame(){
+            h4Gfx11bUpdateCameraMask();
             const active=state.activeMap===MAP_MODES.MAP4;
             const overlay=document.getElementById('h4-post-overlay');
             if(!active){overlay.style.opacity='0';return;}
