@@ -51,6 +51,14 @@ NEXT-06 gerçek Chromium kareleri üzerinde son bölümdeki koridor ve W02 ufuk 
 - [525d235](https://github.com/zxc28tarik/daethlyspacerace2202/commit/525d235489aec097d7fa6b8e7d46e31ac131bdec) ile **yıkanmış zemin rengi, koyu silüet ve sert kaya normalMap kapalı** regresyon assert'leri eklendi. Güncel [CI #43941405657](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43941405657) sonucunu görmeden son teknik düzeltmeye PASS yazma.
 - Yüksek nitelikli çok yakın endüstri PBR/GLB, son ışık mastering, gerçek GPU ve kullanıcı estetik kabulü hâlâ açık. Üç yerel PointLight gerçek fizik gölgesi üretmez; mevcut soft contact-shadow sanatının yerine donanım shadowMap varmış gibi gösterilmemeli.
 
+## GFX07 renk düzeltmesi sonrası test kapanışı
+
+- **Son kod ve smoke kontrolü başarılı:** [CI #43941405657](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43941405657) **SUCCESS**: offline GLB/tek HTML, Harita 1/4 Chromium, 86 mevcut dekoratif Mesh / beş orijinal silüet ailesi / 512px zemin atlası / 3 yakın yerel ışık / 3 yumuşak temas gölgesi / sıfır yeni collider ve önceki sabit foto testleri. Aşırı açık zemin tekrarını engelleyen `0x757d87` zemin tint, `0x677482` silüet tint ve son bölge sert kaya normalMap kapalı testleri de dahil.
+- **Üç gerçek aynı kamera eski/yeni ekran** ve metrikler: LM10 123→124 drawcall, 30.656→36.810 üçgen; LM11 119→119, 13.430→18.040; LM12 66→67, 13.390→14.968. Tüm sahne içinde 86 görsel modelin referansı korunuyor ve 36 sanayi collider değişmiyor. Kaynak: gerçek Chromium/SwiftShader screenshot ve `metrics.json`, donanım FPS değildir.
+- İlk CI görselini gözle inceledim: eski düz kütle tekrarları azalırken **zemin/duvarlar fazla açık** kalmıştı. Yeni `311ef7d` renk/doku değişimi sonrası gerçek görüntülerde zemin **daha koyu ve düşük frekanslı**, silüet ayrımı daha okunur, önceki çok beyaz mikro-rock aydınlanması azalmış. Ancak materyal hâlâ profesyonel baked GLB düzeyinde değil, renk/kompozisyon nihai estetik **KISMEN**.
+- Nihai görsel kabul kapısı halen açık: soft temas decal'leri fiziksel dinamik shadowMap yerine geçmez; yüksek detay GLB, görsel kompozisyon, gerçek hedef GPU 1080p p95 FPS/VRAM ve 7–8/10 kullanıcı kabulü ayrıca ölçülecek.
+- [Başarılı CI görsel artefaktları](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43941352110) (düzeltilmiş art ilk PASS), [güncel test #43941405657](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43941405657). Bu değişiklikler üst PR #39'da, `main` henüz birleşmedi.
+
 ## Sonraki sıra
 
 1. GFX07 otomatik testlerini gerçek CI'de doğrula, sorun çıkarsa düzelt.
