@@ -63,6 +63,15 @@ const {pathToFileURL}=require('node:url');
         h4Gfx10SetProfile(preset);
         for(const stage of stages)setStage(stage);
       }
+      // Prime all five pooled GPU geometries before memory baseline:
+      // otherwise the first real blast could appear as a false leak.
+      h4Gfx10SetProfile('HIGH');
+      for(const kind of ['MUZZLE','IMPACT','SHOCK','SMOKE','ENGINE'])
+        h4Gfx08Emit(kind,state.pos,1,0x8cefff);
+      h4Gfx08Update(.015);
+      renderer.render(scene,camera);
+      h4Gfx08Reset();
+      renderer.render(scene,camera);
       const first=signatures();
       const fixed={
         competitors:racers.length,hunters:hunterTargets.length,
