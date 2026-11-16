@@ -33,6 +33,19 @@
 - **CI PASS henüz gerçek GitHub Actions sonucu ile doğrulanana kadar bu işi 'tamamlandı' diye işaretlemeyeceğiz.**
 - Gerçek GPU FPS/p95/VRAM ve kullanıcı son estetik onayı bu PR ile verilmiş sayılamaz. 1024 px atlas procedural; profesyonel baked 2K/4K GLB/PBR sanat kabulü halen açık.
 
+## Test ve gerçek görüntü sonucu — 16 Kasım
+
+- [GitHub Actions #43919072541](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43919072541) **SUCCESS**: Ubuntu 24.04 offline tek HTML build, çevrimdışı GLB önbelleği, Harita 1 ve Harita 4 tarayıcı regresyon testleri, yeni 1024px atlas/tüm 6 fabrika/24 instanced batch/66 instance/36 W05 +34 W02 koruması, 3 istasyonda 6 sabit kamera A/B gerçek oyun karesi ve sonuç artifact upload.
+- Aynı kamera/kadrajda yalnız GFX06DC decal gizlenip yeniden açıldığında:
+  - **IN01 rafineri:** 403→407 drawcall, 63.704→63.726 sahne üçgeni.
+  - **IN04 soğutma:** 279→283 drawcall, 50.534→50.556 sahne üçgeni.
+  - **IN06 reaktör:** 239→243 drawcall, 39.320→39.342 sahne üçgeni.
+  - Her gösterilen tesiste **4 ek drawcall +22 üçgen**; bu sayı yalnız decals açık/kapalı farkıdır, gerçek masaüstü FPS ölçümü değildir.
+- Aynı kadrajlar gerçek 1600×900 Chromium çıktısıdır; [görsel artefakt](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43919072541/artifacts/14254560598) içinde `gfx06dc-*-before.png` ve `after.png` bulunur.
+- **Görsel kalite incelemesi:** İşaretlerin gerçekten sahneye oturduğu kanıtlandı. IN06 tabela iyi okunuyor, IN01 ve IN04 tabela bazılarında büyük kolon/soğutma kulesi arkasında kısmen kapalı. Bu nedenle **kod/CI kabulü: PASS; estetik/okunurluk son kabulü: KISMEN**. Devam eden ışık, kamera kompozisyonu ve profesyonel 3D/PBR tasarımlarında iyileştirme açık. Kapatılmamış bu işi görev panosunda gizleme.
+- Çevrimdışı tek HTML test artefaktı [#14253885996](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43919072541/artifacts/14253885996) — 5.437.030 byte, dış internet gerektirmeyen dağıtım dosyası. Bu bir **taslak PR** sürümüdür, `main` değildir.
+- PR #37 ancak görsel / gerçek GPU / üst PR zinciri değerlendirilince ana dala birleştirilecek. CI PASS tek başına yayıncı kalitesi 7–8/10 anlamına gelmez.
+
 ## Sıradaki adım
 
 Tek `.` komutunda **NEXT-06 / LM10–12**: Harita 4'ün son 34.000–50.000 ilerleme kısmında hudut karakolu, askeri uzay limanı ve yörünge fırlatma kompleksi. Ancak mevcut decal testlerinde hata varsa öncelikle düzeltilecek. Önceki büyük sanat/LOD/optimizasyon borçları silinmez.
