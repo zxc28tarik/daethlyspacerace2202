@@ -1230,6 +1230,62 @@ const assert = require('node:assert/strict');
     assert.equal(gfx06a.roots,'MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS',
       'old arena-to-industry visibility gating is preserved');
 
+    // GFX-06B / IN-03/IN-04: art is intentionally NOT collision geometry.
+    const gfx06b=await page.evaluate(()=>{
+      const sites=h4IndustrialGroups.map((group,i)=>{
+        const art=group.children.find(x=>x.userData.h4Gfx06b);
+        if(!art)return {i,active:false};
+        const meshes=[];
+        art.traverse(obj=>{if(obj.isMesh)meshes.push(obj)});
+        return {
+          i,active:true,name:art.name,parts:meshes.length,
+          archCount:meshes.filter(m=>m.name.startsWith(
+            'IN03_OPEN_PRESS_ARCH_')).length,
+          hyperboloidCount:meshes.filter(m=>m.name.startsWith(
+            'IN04_HYPERBOLOID_COOLING_TOWER_')).length,
+          geometryTypes:[...new Set(meshes.map(m=>m.geometry.type))],
+          materials:[...new Set(meshes.map(m=>m.material.uuid))].length,
+          visualOnly:meshes.every(m=>
+            m.userData.visualOnly&&m.userData.w05VisualOnly&&
+            !m.userData.h4Collider),
+          hiddenLegacy:group.children.some(x=>
+            x.userData.w05Kind==='SILO'&&!x.visible),
+          artHasNoColliders:art.children.every(x=>
+            !x.userData.h4Collider)
+        };
+      });
+      return {sites,stats:{...h4Gfx06bStats},
+        physical:h4IndustrialColliders.length,
+        art06a:h4IndustrialGroups.filter(g=>
+          g.children.some(x=>x.userData.h4Gfx06a)).length,
+        map1ArtHiddenWhenSwitched:!planetaryWorldGroup.visible||
+          state.activeMap===MAP_MODES.MAP4
+      };
+    });
+    assert.equal(gfx06b.stats.stations,2,'exactly two new IN03/04 art groups');
+    assert.equal(gfx06b.stats.presses,1);
+    assert.equal(gfx06b.stats.cooling,1);
+    assert.equal(gfx06b.stats.addedColliders,0);
+    assert.equal(gfx06b.physical,36,
+      'GFX06B cannot modify 36 established W05 physics obstacles');
+    assert.equal(gfx06b.art06a,2,'earlier refinery/transfer art stays intact');
+    assert.deepEqual(gfx06b.sites.filter(x=>x.active).map(x=>x.i),[2,3],
+      'fifth and sixth industrial stations are deliberately untouched');
+    assert.equal(gfx06b.sites[2].name,
+      'MAP4_GFX06B_IN03_HEAVY_PRESS_ASSEMBLY');
+    assert.equal(gfx06b.sites[3].name,
+      'MAP4_GFX06B_IN04_COOLING_RECLAMATION');
+    assert.equal(gfx06b.sites[2].archCount,2,
+      'two authentic punched-through heavy press extrusion silhouettes');
+    assert.equal(gfx06b.sites[3].hyperboloidCount,2,
+      'two distinct open-topped cooling tower lathe silhouettes');
+    assert(gfx06b.sites[2].geometryTypes.includes('ExtrudeGeometry'));
+    assert(gfx06b.sites[3].geometryTypes.includes('LatheGeometry'));
+    assert(gfx06b.sites.slice(2,4).every(x=>
+      x.visualOnly&&x.artHasNoColliders&&x.hiddenLegacy&&
+      x.parts>=20&&x.materials>=5));
+
+
     assert(industrial.kinds.includes('OVERHEAD_PIPE')&&
       industrial.kinds.includes('TRANSFER_BRIDGE')&&
       industrial.kinds.includes('HUNTER_SIDE_TOWER'),
