@@ -2716,17 +2716,19 @@
             prow:new THREE.OctahedronGeometry(.5,1),
             frame:h4Gfx06eOpenArch()
         });
+                // Keep final-sector PBR materials on atlas objects initialized before
+        // this kit. GFX06M/D texture declarations occur later in this file.
         const H4_GFX06E_MAT=Object.freeze({
             fortress:new THREE.MeshStandardMaterial({
-                map:h4Gfx06mSteelMap,normalMap:h4Gfx06dMaps.normal,
-                roughnessMap:h4Gfx06dMaps.roughness,
+                map:h4SurfaceMaps.steel,normalMap:h4MicroMaps.metal.normal,
+                roughnessMap:h4MicroMaps.metal.roughness,
                 normalScale:new THREE.Vector2(.08,.08),
                 color:0x6b7d86,metalness:.55,roughness:.72,
                 side:THREE.DoubleSide
             }),
             armor:new THREE.MeshStandardMaterial({
-                map:h4Gfx06mSteelMap,normalMap:h4Gfx06dMaps.normal,
-                roughnessMap:h4Gfx06dMaps.roughness,
+                map:h4SurfaceMaps.steel,normalMap:h4MicroMaps.metal.normal,
+                roughnessMap:h4MicroMaps.metal.roughness,
                 normalScale:new THREE.Vector2(.10,.10),
                 color:0x9cabb4,metalness:.64,roughness:.56,
                 side:THREE.DoubleSide
@@ -2736,7 +2738,7 @@
                 side:THREE.DoubleSide
             }),
             weathered:new THREE.MeshStandardMaterial({
-                map:h4Gfx06mSteelMap,normalMap:h4Gfx06dMaps.normal,
+                map:h4SurfaceMaps.steel,normalMap:h4MicroMaps.metal.normal,
                 color:0x8d806f,metalness:.44,roughness:.77,
                 side:THREE.DoubleSide
             }),
