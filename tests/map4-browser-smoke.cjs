@@ -1293,6 +1293,42 @@ const assert = require('node:assert/strict');
       x.visualOnly&&x.artHasNoColliders&&x.hiddenLegacy&&
       x.parts>=20&&x.materials>=5));
 
+    // GFX06M: visual evidence showed excessive repeated checker/grid paint.
+    // Material remapping is industry-only. Preserve all solid mesh identities.
+    const gfx06m=await page.evaluate(()=>{
+      const industry=planetaryWorldRegions[2];
+      const ground=industry.children[0];
+      const one=h4IndustrialColliders[0],original=one.mesh;
+      return {
+        stats:{...h4Gfx06mStats},
+        applied:industry.userData.h4Gfx06mApplied,
+        groundMap:ground.material.map?.name,
+        metalMap:h4Gfx06mSteelMap.name,
+        groundNormalScale:ground.material.normalScale.x,
+        phys:h4IndustrialColliders.length,
+        colliderMeshLinked:one.mesh===original&&
+          one.mesh.userData.h4Collider===one,
+        industryOnly:planetaryWorldRegions.filter((z,i)=>i!==2)
+          .every(z=>!z.userData.h4Gfx06mApplied),
+        map1Safe:!h4GeoSwordArt.userData.h4Gfx06m
+      };
+    });
+    assert.equal(gfx06m.stats.atlases,2,'two fixed reusable 512px atlases');
+    assert.equal(gfx06m.stats.groundUpdated,true);
+    assert(gfx06m.stats.mappedMeshes>=30,
+      'old industry meshes replace metallic checkerboard materials');
+    assert.equal(gfx06m.stats.addedColliders,0);
+    assert.equal(gfx06m.phys,36);
+    assert.equal(gfx06m.colliderMeshLinked,true,
+      'all original collision mesh pointers remain unchanged');
+    assert.equal(gfx06m.applied,true);
+    assert.equal(gfx06m.groundMap,
+      'MAP4_GFX06M_SMOOTH_ERODED_INDUSTRY_GROUND');
+    assert.equal(gfx06m.metalMap,'MAP4_GFX06M_DIRTY_STEEL_NO_GRID_ALBEDO');
+    assert(gfx06m.groundNormalScale<=.1);
+    assert(gfx06m.industryOnly&&gfx06m.map1Safe);
+
+
 
     assert(industrial.kinds.includes('OVERHEAD_PIPE')&&
       industrial.kinds.includes('TRANSFER_BRIDGE')&&
