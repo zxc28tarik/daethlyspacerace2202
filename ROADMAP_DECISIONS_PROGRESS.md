@@ -68,21 +68,21 @@
 | GFX-03 | 12 özel mekânın özgün kahraman 3D sanatı | **KISMEN** | 3 kanyon anıtı + arena sanat geçişleri; geriye kalan 12/12 profesyonel özgün landmark kabulü açık |
 | GFX-04 | Savaş arenası + 6 farklı sanayi tesisi | **KISMEN** | [GFX04](MAP4_GFX04_ARENA_VISUAL_PASS.md), [04B](MAP4_GFX04B_CARRIER_GLB.md), [04C](MAP4_GFX04C_ELITE_BATTERY_GLB.md), [04D](MAP4_GFX04D_BATTLE_VFX.md), [04E](MAP4_GFX04E_ATMOSPHERE_LIGHTING.md); **sanayi 6 tesis sanat dönüşümü açık** |
 | GFX-05 | 1 oyuncu + 5 rakip + 2 avcı ailesi; model/renk/anatomi | **KISMEN / ANA KOD VAR** | [GFX05](MAP4_GFX05_CRAFT_ART.md), [GFX05B](MAP4_GFX05B_AIRCRAFT_SURFACES.md); ortak prosedürel geometri/atlas var, profesyonel ayrı GLB/LOD/silüet kabulü açık |
-| GFX-05C | Paylaşımlı konik çift motor egzozları | **GELİŞTİRME-PR / DOĞRULAMA** | [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31), 8 commit ana dalın önünde; CI PASS ve merge teyit edilmedi |
-| GFX-06 | Tam ölçekli PBR, atlas, endüstri modeli/decal | **KISMEN** | Gemi yüzeyinde 256² prosedürel atlas var; **6 sanayi düğümü ve dünya geneli artist-made atlaslar YAPILMADI** |
+| GFX-05C | Paylaşımlı konik çift motor egzozları | **YAPILDI-MAIN / CI DOĞRULAMA** | [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31) 16.11.2026 tarihinde **MERGED**; merge SHA [d92830c](https://github.com/zxc28tarik/daethlyspacerace2202/commit/d92830cffe8aed40bc32a1ca44ae3ad7ef824779). CI PASS/gerçek GPU FPS ayrı açık kapılar. |
+| GFX-06 | Tam ölçekli PBR, atlas, endüstri modeli/decal | **KISMEN / İLK İKİ TESİS PR** | Gemi yüzeyinde prosedürel atlas ana dalda; [GFX06A PR #32](https://github.com/zxc28tarik/daethlyspacerace2202/pull/32) ile IN01/02 ilk model dalı. Diğer 4 tesis ve artist-made atlaslar açık. |
 | GFX-07 | Dinamik seçili gölgeler, ana ışık, atmosfer | **KISMEN** | VQ04 sky/fog/bulut ve arenada 2 lokal ışık var; tüm sahne ışık/gölge mastering açık |
 | GFX-08 (= VQ05) | Motor/silah/darbe/patlama VFX | **KISMEN** | Kıvılcım, duman, motor egzozu geliştirme dalı var; nihai lazer/patlama/hasar VFX kabulü açık |
 | GFX-09 (= VQ06) | Chase/Turret kamera, HUD, post | **KISMEN** | GFX03B HUD sadeleştirme; iki kamerada clipping/720p/1080p/post mastering açık |
 | GFX-10 | GPU optimizasyon, kalite profilleri, bundle | **KISMEN** | GLB LOD, paylaşımlı geometri ve offline build temel var; gerçek GPU FPS ve High/Balanced/Low profilleri açık |
 | GFX-11 | Görsel kalite kabulü, 12+ kanıt kadrajı, yayın | **KISMEN** | Kadraj/test otomasyonu var; kullanıcı estetik onayı, uçtan uca yayıncı kapısı ve doğrulanmış nihai release açık |
 
-### GFX-05C açık PR'ın kapanış şartları (ÖNCE BU)
+### GFX-05C ana dala birleşme kaydı (NEXT-01)
 - [x] [GFX-05C](https://github.com/zxc28tarik/daethlyspacerace2202/blob/codex/map4-gfx05c-instanced-exhaust/MAP4_GFX05C_INSTANCED_EXHAUST.md) dalında gerçek kod, yeni 3D egzoz ve smoke/art test değişiklikleri var.
 - [x] [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31) açıldı; 16 Kasım'da **OPEN**, **8 commit ahead / 0 behind**, ana dal **GFX05B**.
 - [ ] CI'nin ilgili işleri gerçekten PASS olarak doğrulansın (mevcut connector checks sonucu boş; bu, PASS anlamına gelmez).
 - [ ] 28 instance / tek draw call / boost değişimi / restart & Map1 izolasyonu gerçek test çıktıları incelensin.
 - [ ] Egzoz açık/kapalı aynı kamera karşılaştırması ve gerçek GPU FPS notu alınsın.
-- [ ] Ancak kontroller sonrası PR merge; merge SHA ve tracker güncellemesi işlensin.
+- [x] PR #31 ana dala **merge** edilmiş; SHA `d92830cffe8aed40bc32a1ca44ae3ad7ef824779`. GitHub'dan 16 Kasım'da doğrulandı. CI PASS ve kullanıcı estetik onayı birleşmeden ayrı açık kapılardır.
 
 ## 4) Korunan 12 görsel landmark (LM)
 
@@ -109,8 +109,8 @@ Görsel içerik için önce **büyük silüet**, sonra **oynanabilir orta ölçe
 
 | ID | İlerleme | Gerekli karakter ve içerik | Durum |
 |---|---:|---|---|
-| IN-01 | 15.750 | Giriş rafinerisi: ayırma tesisi, tank, baca, boru, kontrol kulesi | **YAPILMADI — son sanat** |
-| IN-02 | 18.750 | Yüksek basınç transferi: alçak boru köprüsü, vanalar, destekler | **YAPILMADI — son sanat** |
+| IN-01 | 15.750 | Giriş rafinerisi: ayırma tesisi, tank, baca, boru, kontrol kulesi | **KISMEN — GFX06A / PR #32**, son GLB/PBR ve görsel kabul açık |
+| IN-02 | 18.750 | Yüksek basınç transferi: alçak boru köprüsü, vanalar, destekler | **KISMEN — GFX06A / PR #32**, son GLB/PBR ve görsel kabul açık |
 | IN-03 | 21.850 | Ağır pres ve montaj: asimetrik makine kulesi, gantry, servis platformu | **YAPILMADI — son sanat** |
 | IN-04 | 24.950 | Enerji kazanımı: soğutma kuleleri, ısı değiştiriciler, türbin | **YAPILMADI — son sanat** |
 | IN-05 | 28.150 | Lojistik ve yükleme: depo, raylı vinç, konteyner, nakliye alanı | **YAPILMADI — son sanat** |
@@ -122,8 +122,8 @@ Her düğümün kabulü: (1) uzaktan farklı silüet, (2) alt hızlı / üst gü
 
 | Sıra | ID | Görev | Durum | Bir sonraki kanıt |
 |---|---|---|---|---|
-| 01 | NEXT-01 | **GFX-05C PR #31 son doğrulama / güvenli merge** | **DOĞRULAMA** | CI + gerçek diff/test + merge SHA |
-| 02 | NEXT-02 | **GFX-06A** sanayi 1–2: rafineri ve basınç borusu, büyük özgün silüetler | **YAPILMADI** | gerçek motor içi görüntü, model+test |
+| 01 | NEXT-01 | **GFX-05C PR #31 merge kaydı** | **YAPILDI-MAIN; CI/FPS KAPILARI AÇIK** | [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31) / `d92830c`; CI ve gerçek GPU FPS doğrulaması açık |
+| 02 | NEXT-02 | **GFX-06A** sanayi 1–2: rafineri ve basınç borusu, büyük özgün silüetler | **GELİŞTİRME-PR / DOĞRULAMA** | [PR #32](https://github.com/zxc28tarik/daethlyspacerace2202/pull/32) DRAFT: kod + test + 4 screenshot otomasyonu; CI PASS ve görsel/FPS onayı bekliyor |
 | 03 | NEXT-03 | **GFX-06B** sanayi 3–4: ağır pres / soğutma-enerji | **YAPILMADI** | farklı fabrikalar, modeller, collider testi |
 | 04 | NEXT-04 | **GFX-06C** sanayi 5–6: lojistik / enerji istasyonu | **YAPILMADI** | altı düğüm karşılaştırmalı galeri |
 | 05 | NEXT-05 | **GFX-06D** sanayi PBR atlas, aşınma, decals, paylaşılan LOD/instancing | **YAPILMADI** | malzeme atlas testleri + GPU maliyeti |
@@ -155,8 +155,10 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **2026-10-19:** Görsel kalite 3/10 değerlendirmesi; yalnız prosedürel kutu/efekt eklemek yerine özgün sanat üretimine odaklanma.
 - **2026-10-20:** [Kapsamlı 12 GFX paketli plan](MAP4_GRAPHICS_MASTERPLAN_VQ04_PLUS.md); GFX00/01/01B/02/03/03B/04/04B/04C/04D/04E uygulama kanıtları.
 - **2026-10-21:** GFX-05 ve GFX-05B ana dalda; son doğrulanmış ana dal commit'i [16cabc4fd](https://github.com/zxc28tarik/daethlyspacerace2202/commit/16cabc4fd0ff92d9901a9b611fa14a8287fdb751).
-- **2026-11-16:** GFX-05C yeni egzoz sistemi [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31) açık; head `4ed2bf502e00839025b14aa136e6b41c5904bcb4`, main gerisinde 0 / ilerisinde 8 commit. **CI PASS veya merge doğrulanmadı.**
+- **2026-11-16:** GFX-05C [PR #31](https://github.com/zxc28tarik/daethlyspacerace2202/pull/31) 13:10 UTC'de **MERGED**; ana dal merge commit [d92830c](https://github.com/zxc28tarik/daethlyspacerace2202/commit/d92830cffe8aed40bc32a1ca44ae3ad7ef824779). CI PASS/FPS görüntü onayı ayrı kapı.
 - **2026-11-16:** Bu takip dosyası açıldı; bundan sonraki her geliştirmede ID, durum, kanıt ve sıradaki görev burada korunacak.
+- **2026-11-16:** **NEXT-02 / GFX-06A / IN01–02** ilk görsel 3D modeller ve Chromium regresyon/görsel testleri ayrı dalda işlendi. [PR #32](https://github.com/zxc28tarik/daethlyspacerace2202/pull/32) **DRAFT**, CI PASS ve gerçek görüntü/FPS incelemesi bekliyor; **main'e birleşmedi**. Ayrıntı [GFX06A raporu](https://github.com/zxc28tarik/daethlyspacerace2202/blob/codex/map4-gfx06a-refinery-transfer-art/MAP4_GFX06A_REFINERY_TRANSFER_ART.md).
+
 
 ### Her güncellemenin kısa şablonu
 
