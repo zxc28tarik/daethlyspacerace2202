@@ -4039,11 +4039,16 @@
                 const previous=mesh.userData.h4Gfx06dLod;
                 let level=previous;
                 // 250-500 unit hysteresis avoids visible LOD flicker.
-                if(previous===0&&d2>2900*2900)level=1;
-                else if(previous===1){
+                if(previous===0){
+                    if(d2>6100*6100)level=2;
+                    else if(d2>2900*2900)level=1;
+                }else if(previous===1){
                     if(d2<2500*2500)level=0;
                     else if(d2>6100*6100)level=2;
-                }else if(previous===2&&d2<5550*5550)level=1;
+                }else if(previous===2){
+                    if(d2<2500*2500)level=0;
+                    else if(d2<5550*5550)level=1;
+                }
                 if(level!==previous){
                     mesh.geometry=mesh.userData.h4Gfx06dLevels[level];
                     mesh.userData.h4Gfx06dLod=level;
