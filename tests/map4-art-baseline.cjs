@@ -99,6 +99,46 @@ const percentile=(numbers,p)=>{
       visibility:hidden !important;
     }
   `});
+  // GFX06A: two actual in-engine industrial hero cameras at unchanged
+  // authored coordinates. Keep the original 12 comparison cameras intact.
+  out.gfx06aSites=[];
+  for(const spec of [
+    {name:'in01-refinery',i:0,at:15750,targetX:-2950,viewX:-970,
+      targetY:425,viewY:770},
+    {name:'in02-transfer',i:1,at:18750,targetX:-3120,viewX:-970,
+      targetY:665,viewY:830}
+  ]){
+    const details=await page.evaluate(info=>{
+      state.paused=true;state.map4Phase=3;state.routeProgress=info.at;
+      state.laneX=info.viewX;state.laneY=info.viewY;
+      const view=h4WorldPosition(info.at-1120,info.viewX,info.viewY);
+      const focus=h4WorldPosition(info.at,info.targetX,info.targetY);
+      camera.position.copy(view);
+      camera.lookAt(focus);
+      camera.fov=61;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      renderer.render(scene,camera);
+      const art=h4IndustrialGroups[info.i].children.find(
+        x=>x.userData.h4Gfx06a);
+      return {name:info.name,artName:art?.name,parts:art?.children.length,
+        drawCalls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        distance:view.distanceTo(focus),
+        colliders:h4IndustrialColliders.length};
+    },spec);
+    await page.screenshot({path:path.join(directory,
+      'gfx06a-'+spec.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,
+      'gfx06a-'+spec.name+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.gfx06aSites.push(details);
+  }
+  assert.equal(out.gfx06aSites.length,2);
+  assert(out.gfx06aSites.every(x=>
+    x.artName?.startsWith('MAP4_GFX06A_')&&x.parts>=14&&
+    x.triangles>1000&&x.colliders===36));
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
