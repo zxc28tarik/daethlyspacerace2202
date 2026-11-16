@@ -333,6 +333,67 @@ const assert = require('node:assert/strict');
       'surface quality does not create a unique VBO for each craft');
 
 
+    // GFX05C: one InstancedMesh renders up to 28 dynamic twin-nozzle
+    // heat plumes. Replaces Map4's square pilot streaks, preserves Map1.
+    const exhaust=await page.evaluate(()=>{
+      const mesh=h4Gfx05cMesh;
+      const before=mesh.instanceMatrix.uuid;
+      h4Gfx05AnimateCraft(.016,12.40);
+      const n=mesh.count;
+      const first=new THREE.Matrix4();
+      mesh.getMatrixAt(0,first);
+      const baseline=first.elements.slice();
+      const boostBefore=state.currentSpeed;
+      state.currentSpeed=state.baseSpeed*1.40;
+      h4Gfx05AnimateCraft(.016,14.2);
+      mesh.getMatrixAt(0,first);
+      const after=first.elements.slice();
+      state.currentSpeed=boostBefore;
+      h4Gfx05AnimateCraft(.016,14.8);
+      const atlas=h4Gfx05cTex.image.getContext('2d')
+        .getImageData(0,0,128,128).data;
+      const alpha=new Set();
+      for(let i=3;i<atlas.length;i+=4*131)alpha.add(atlas[i]);
+      return {
+        name:mesh.name,type:mesh.type,
+        capacity:mesh.instanceMatrix.count,instances:n,
+        active:h4Gfx05cStats.activeInstances,
+        drawCalls:h4Gfx05cStats.drawCalls,
+        transparent:mesh.material.transparent,
+        additive:mesh.material.blending===THREE.AdditiveBlending,
+        colorChannel:!!mesh.instanceColor,
+        atlasName:h4Gfx05cTex.name,textureSets:h4Gfx05cStats.textureCount,
+        alphaVariance:alpha.size,
+        instanceBuffer:mesh.instanceMatrix.uuid,
+        bufferUnchanged:mesh.instanceMatrix.uuid===before,
+        boostChange:Math.abs(after[10]-baseline[10])>.01||
+          Math.abs(after[14]-baseline[14])>.01,
+        burstInstances:h4Gfx05cStats.burstInstances,
+        resetCount:h4Gfx05cStats.resets,
+        squarePilots:racers.filter(r=>r.speedTrailGroup.visible).length,
+        gpuGeometryShared:h4Gfx05SharedGeometries.has(h4Gfx05cGeometry),
+        visualOnly:mesh.userData.visualOnly&&!mesh.userData.h4Collider
+      };
+    });
+    assert.equal(exhaust.name,'MAP4_GFX05C_INSTANCED_ENGINE_HEAT');
+    assert.equal(exhaust.type,'Mesh','Three InstancedMesh inherits Mesh');
+    assert.equal(exhaust.capacity,28,'fixed two-nozzle budget for fourteen craft');
+    assert(exhaust.instances>=18&&exhaust.instances<=28,
+      'exhaust is rendered for living player/racers/hunters');
+    assert.equal(exhaust.active,exhaust.instances);
+    assert.equal(exhaust.drawCalls,1,'one GPU draw call for all exhausts');
+    assert(exhaust.transparent&&exhaust.additive,'non-opaque heat plume blend');
+    assert(exhaust.colorChannel,'pilot-specific instance colours');
+    assert.equal(exhaust.textureSets,1,'one exhaust canvas/texture for all craft');
+    assert.equal(exhaust.atlasName,'MAP4_GFX05C_TAPERED_HEAT_ATLAS');
+    assert(exhaust.alphaVariance>=6,'exhaust has real alpha taper');
+    assert.equal(exhaust.bufferUnchanged,true,'no dynamic GPU geometry replacement');
+    assert.equal(exhaust.boostChange,true,'boost meaningfully changes exhaust length');
+    assert.equal(exhaust.squarePilots,0,
+      'Map4 does not show legacy box-shaped racer engine streaks');
+    assert(exhaust.gpuGeometryShared&&exhaust.visualOnly,
+      'heat geometry is reusable non-physical craft art');
+
     const blast=await page.evaluate(()=>{
       const before={...h4ExplosionStats};
       createExplosion(state.pos.clone().add(new THREE.Vector3(0,10,-100)),
@@ -1252,6 +1313,21 @@ const assert = require('node:assert/strict');
           r.mesh.userData.h4Gfx05Craft.userData.h4Gfx05Palette)).size
       };
     });
+    const gfx05cRestart=await page.evaluate(()=>({
+      reset:h4Gfx05cStats.resets,
+      count:h4Gfx05cMesh.count,
+      instanceBuffer:h4Gfx05cMesh.instanceMatrix.uuid,
+      stillSingle:planetaryWorldGroup.children.filter(
+        x=>x.name==='MAP4_GFX05C_INSTANCED_ENGINE_HEAT').length,
+      texture:h4Gfx05cTex.uuid,
+      models:h4Gfx05cStats.models
+    }));
+    assert(gfx05cRestart.reset>=2,'restart clears old exhaust instances');
+    assert.equal(gfx05cRestart.stillSingle,1,
+      'restart creates no second exhaust InstancedMesh');
+    assert.equal(gfx05cRestart.instanceBuffer,exhaust.instanceBuffer,
+      'restart reuses the original GPU instance buffer');
+    assert.equal(gfx05cRestart.models,1);
     assert.equal(gfx05Restart.rigs,14,'restart recreates exactly existing 5+8 aircraft');
     assert.equal(gfx05Restart.valid,true,'all new craft are complete');
     assert.equal(gfx05Restart.shared,true,'restart must not dispose shared VBO geometry');
