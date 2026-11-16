@@ -337,7 +337,7 @@ const assert = require('node:assert/strict');
     // heat plumes. Replaces Map4's square pilot streaks, preserves Map1.
     const exhaust=await page.evaluate(()=>{
       const mesh=h4Gfx05cMesh;
-      const before=mesh.instanceMatrix.uuid;
+      const before=mesh.instanceMatrix.array;
       h4Gfx05AnimateCraft(.016,12.40);
       const n=mesh.count;
       const first=new THREE.Matrix4();
@@ -364,8 +364,9 @@ const assert = require('node:assert/strict');
         colorChannel:!!mesh.instanceColor,
         atlasName:h4Gfx05cTex.name,textureSets:h4Gfx05cStats.textureCount,
         alphaVariance:alpha.size,
-        instanceBuffer:mesh.instanceMatrix.uuid,
-        bufferUnchanged:mesh.instanceMatrix.uuid===before,
+        instanceBufferBytes:mesh.instanceMatrix.array.byteLength,
+        geometryId:mesh.geometry.uuid,
+        bufferUnchanged:mesh.instanceMatrix.array===before,
         boostChange:Math.abs(after[10]-baseline[10])>.01||
           Math.abs(after[14]-baseline[14])>.01,
         burstInstances:h4Gfx05cStats.burstInstances,
@@ -376,7 +377,7 @@ const assert = require('node:assert/strict');
       };
     });
     assert.equal(exhaust.name,'MAP4_GFX05C_INSTANCED_ENGINE_HEAT');
-    assert.equal(exhaust.type,'Mesh','Three InstancedMesh inherits Mesh');
+    assert.equal(exhaust.type,'InstancedMesh','true GPU-instanced exhaust mesh');
     assert.equal(exhaust.capacity,28,'fixed two-nozzle budget for fourteen craft');
     assert(exhaust.instances>=18&&exhaust.instances<=28,
       'exhaust is rendered for living player/racers/hunters');
@@ -1316,7 +1317,7 @@ const assert = require('node:assert/strict');
     const gfx05cRestart=await page.evaluate(()=>({
       reset:h4Gfx05cStats.resets,
       count:h4Gfx05cMesh.count,
-      instanceBuffer:h4Gfx05cMesh.instanceMatrix.uuid,
+      geometryId:h4Gfx05cMesh.geometry.uuid,
       stillSingle:planetaryWorldGroup.children.filter(
         x=>x.name==='MAP4_GFX05C_INSTANCED_ENGINE_HEAT').length,
       texture:h4Gfx05cTex.uuid,
@@ -1325,7 +1326,7 @@ const assert = require('node:assert/strict');
     assert(gfx05cRestart.reset>=2,'restart clears old exhaust instances');
     assert.equal(gfx05cRestart.stillSingle,1,
       'restart creates no second exhaust InstancedMesh');
-    assert.equal(gfx05cRestart.instanceBuffer,exhaust.instanceBuffer,
+    assert.equal(gfx05cRestart.geometryId,exhaust.geometryId,
       'restart reuses the original GPU instance buffer');
     assert.equal(gfx05cRestart.models,1);
     assert.equal(gfx05Restart.rigs,14,'restart recreates exactly existing 5+8 aircraft');
