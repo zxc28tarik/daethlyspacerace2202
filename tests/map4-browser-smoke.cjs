@@ -355,7 +355,7 @@ const assert = require('node:assert/strict');
       const alpha=new Set();
       for(let i=3;i<atlas.length;i+=4*131)alpha.add(atlas[i]);
       return {
-        name:mesh.name,type:mesh.type,
+        name:mesh.name,isInstancedMesh:mesh.isInstancedMesh===true,
         capacity:mesh.instanceMatrix.count,instances:n,
         active:h4Gfx05cStats.activeInstances,
         drawCalls:h4Gfx05cStats.drawCalls,
@@ -377,7 +377,7 @@ const assert = require('node:assert/strict');
       };
     });
     assert.equal(exhaust.name,'MAP4_GFX05C_INSTANCED_ENGINE_HEAT');
-    assert.equal(exhaust.type,'InstancedMesh','true GPU-instanced exhaust mesh');
+    assert.equal(exhaust.isInstancedMesh,true,'true GPU-instanced exhaust mesh');
     assert.equal(exhaust.capacity,28,'fixed two-nozzle budget for fourteen craft');
     assert(exhaust.instances>=18&&exhaust.instances<=28,
       'exhaust is rendered for living player/racers/hunters');
