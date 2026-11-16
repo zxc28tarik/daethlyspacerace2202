@@ -101,10 +101,6 @@ const {pathToFileURL}=require('node:url');
   assert(occlusion.scorePreserved,'camera change is visual only');
 
   await page.evaluate(()=>{state.paused=false;endGame(false);});
-  await page.locator('#restart-btn').click().catch(async()=>{
-    // Alternate route via start menu (depends on endgame button version).
-    await page.evaluate(()=>{state.running=false;});
-  });
   // Explicitly choose Map1 from the start screen once game is inactive.
   await page.evaluate(()=>{
     state.running=false;state.paused=false;
