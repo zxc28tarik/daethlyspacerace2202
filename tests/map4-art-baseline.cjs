@@ -139,6 +139,50 @@ const percentile=(numbers,p)=>{
   assert(out.gfx06aSites.every(x=>
     x.artName?.startsWith('MAP4_GFX06A_')&&x.parts>=14&&
     x.triangles>1000&&x.colliders===36));
+  // GFX06B adds two real-world camera probes in addition to GFX06A and the
+  // original 12 fixed probes. No manipulated marketing renders.
+  out.gfx06bSites=[];
+  for(const spec of [
+    {name:'in03-heavy-press',i:2,at:21850,targetX:3350,viewX:1100,
+      targetY:475,viewY:760},
+    {name:'in04-cooling-plant',i:3,at:24950,targetX:3170,viewX:900,
+      targetY:580,viewY:810}
+  ]){
+    const details=await page.evaluate(info=>{
+      state.paused=true;state.map4Phase=3;
+      state.routeProgress=info.at;
+      state.laneX=info.viewX;state.laneY=info.viewY;
+      const view=h4WorldPosition(info.at-1350,info.viewX,info.viewY);
+      const focal=h4WorldPosition(info.at,info.targetX,info.targetY);
+      camera.position.copy(view);camera.lookAt(focal);
+      camera.fov=60;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      renderer.render(scene,camera);
+      const art=h4IndustrialGroups[info.i].children.find(
+        obj=>obj.userData.h4Gfx06b);
+      return {
+        name:info.name,
+        group:art?.name,
+        parts:art?.children.length,
+        drawCalls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        colliderCount:h4IndustrialColliders.length,
+        cameraDistance:view.distanceTo(focal)
+      };
+    },spec);
+    await page.screenshot({path:path.join(directory,
+      'gfx06b-'+spec.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,
+      'gfx06b-'+spec.name+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.gfx06bSites.push(details);
+  }
+  assert.equal(out.gfx06bSites.length,2);
+  assert(out.gfx06bSites.every(x=>
+    x.group?.startsWith('MAP4_GFX06B_')&&
+    x.parts>=20&&x.triangles>1000&&x.colliderCount===36));
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
