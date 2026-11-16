@@ -3825,6 +3825,101 @@
             station.add(art);
             h4Gfx06cStats.stations++;
         }
+
+        // GFX-06D-A / NEXT-05: one shared deterministic 512px industrial
+        // normal + roughness atlas (the GFX06M steel albedo remains shared).
+        // Technical procedural PBR, NOT an artist-authored baked 2K texture.
+        const h4Gfx06dStats={textureSize:512,normalMaps:0,roughnessMaps:0,
+            metalMaterials:0,noiseMin:1,noiseMax:0,
+            lod0:0,lod1:0,lod2:0,detailHidden:0,
+            detailRestored:0,addedColliders:0};
+        function h4Gfx06dBuildMicroMaps(){
+            const n=512,heights=new Float32Array(n*n);
+            const normalCanvas=document.createElement('canvas');
+            const roughCanvas=document.createElement('canvas');
+            normalCanvas.width=roughCanvas.width=n;
+            normalCanvas.height=roughCanvas.height=n;
+            const nc=normalCanvas.getContext('2d'),
+                rc=roughCanvas.getContext('2d');
+            const normal=nc.createImageData(n,n),
+                rough=rc.createImageData(n,n);
+            const rand=(x,y)=>{
+                const ax=(x+n)%n,ay=(y+n)%n;
+                let seed=Math.imul(ax+31,374761393)^Math.imul(ay+79,668265263);
+                seed=Math.imul(seed^(seed>>>13),1274126177);
+                return ((seed^(seed>>>16))>>>0)/4294967295;
+            };
+            const tau=Math.PI*2;
+            for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+                const u=x/n,v=y/n;
+                const low=Math.sin(tau*(2*u+v))*.22+
+                    Math.cos(tau*(u-3*v))*.16;
+                const longScratch=Math.sin(tau*(51*u+7*v))*.024;
+                const sporadic=(rand(x,y)-.5)*.09;
+                const pitting=Math.max(0,rand((x>>2)*4,(y>>2)*4)-.74)*.28;
+                heights[y*n+x]=low+longScratch+sporadic-pitting;
+            }
+            const at=(x,y)=>heights[((y+n)%n)*n+((x+n)%n)];
+            for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+                const index=(y*n+x)*4;
+                const gx=(at(x+1,y)-at(x-1,y))*.80;
+                const gy=(at(x,y+1)-at(x,y-1))*.80;
+                const length=Math.hypot(gx,gy,1);
+                normal.data[index]=Math.round(127.5-(gx/length)*127);
+                normal.data[index+1]=Math.round(127.5-(gy/length)*127);
+                normal.data[index+2]=Math.round(127.5+127/length);
+                normal.data[index+3]=255;
+                const rust=Math.max(0,Math.sin(tau*(3*x/n+2*y/n))*.13);
+                const r=THREE.MathUtils.clamp(
+                    .77+at(x,y)*.19+rust+(rand(x+7,y+13)-.5)*.075,
+                    .54,.99);
+                h4Gfx06dStats.noiseMin=Math.min(h4Gfx06dStats.noiseMin,r);
+                h4Gfx06dStats.noiseMax=Math.max(h4Gfx06dStats.noiseMax,r);
+                const grey=Math.round(255*r);
+                rough.data[index]=rough.data[index+1]=
+                    rough.data[index+2]=grey;
+                rough.data[index+3]=255;
+            }
+            nc.putImageData(normal,0,0);
+            rc.putImageData(rough,0,0);
+            const make=(canvas,name)=>{
+                const t=new THREE.CanvasTexture(canvas);
+                t.name=name;
+                t.wrapS=t.wrapT=THREE.RepeatWrapping;
+                t.encoding=THREE.LinearEncoding;
+                t.anisotropy=Math.min(8,
+                    renderer.capabilities.getMaxAnisotropy());
+                t.generateMipmaps=true;
+                return t;
+            };
+            h4Gfx06dStats.normalMaps++;
+            h4Gfx06dStats.roughnessMaps++;
+            return Object.freeze({
+                normal:make(normalCanvas,'MAP4_GFX06D_METAL_NORMAL_512'),
+                roughness:make(roughCanvas,'MAP4_GFX06D_METAL_ROUGHNESS_512')
+            });
+        }
+        const h4Gfx06dMaps=h4Gfx06dBuildMicroMaps();
+        const h4Gfx06dMetals=[
+            H4_GFX06M_MAT.oldSteel,H4_GFX06M_MAT.armour,
+            H4_GFX06M_MAT.shadow,H4_GFX06M_MAT.warm,
+            H4_GFX06A_MAT.paint,H4_GFX06A_MAT.dark,
+            H4_GFX06A_MAT.copper,H4_GFX06A_MAT.cream,
+            H4_GFX06B_MAT.armored,H4_GFX06B_MAT.heatSteel,
+            H4_GFX06B_MAT.dark,H4_GFX06B_MAT.copper,
+            H4_GFX06C_MAT.armor,H4_GFX06C_MAT.frame,
+            H4_GFX06C_MAT.brass,H4_GFX06C_MAT.cargo,
+            h4Vis02FacadeMats[0],h4Vis02FacadeMats[2]
+        ];
+        // Do not attach UV-based maps to h4Vis02Kits: its merged
+        // vertex-color BufferGeometry deliberately contains no UV attribute.
+        for(const material of h4Gfx06dMetals){
+            material.normalMap=h4Gfx06dMaps.normal;
+            material.roughnessMap=h4Gfx06dMaps.roughness;
+            material.normalScale=new THREE.Vector2(.11,.11);
+            material.needsUpdate=true;
+            h4Gfx06dStats.metalMaterials++;
+        }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
             const stations=[15750,18750,21850,24950,28150,31500];
