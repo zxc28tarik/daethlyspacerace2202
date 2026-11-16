@@ -4991,7 +4991,7 @@
             h4Gfx11cIndustryDetail.visible=
                 state.activeMap===MAP_MODES.MAP4 &&
                 state.map4Phase===3 &&
-                h4Gfx10CurrentProfile().name!=='LOW';
+                h4Gfx10ProfileName!=='LOW';
         }
 
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
@@ -5788,8 +5788,21 @@
                     dummy.updateMatrix();
                     batch.setMatrixAt(i,dummy.matrix);
                 }
+                // NEXT11C: per-instance weathering/tint breaks identical,
+                // monochrome pylons without extra geometry or draw calls.
+                for(let i=0;i<spec.count;i++){
+                    const tone=spec.name==='POCKET_SIGNAL_FIRES'?
+                        (i%3===0?0xffb065:i%3===1?0xe87b51:0x91cfe6):
+                        spec.name==='BATTERED_DEFENSE_SPIRES'?
+                        (i%4===0?0x7e8992:i%4===1?0x8e775f:0x647487):
+                        spec.name==='FRACTURED_CARRIERS'?
+                        (i%3===0?0xb9a69b:i%3===1?0x6c8291:0x8d8c89):
+                        (i%2?0x7c7270:0x647f8e);
+                    batch.setColorAt(i,new THREE.Color(tone));
+                }
                 batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
                 batch.instanceMatrix.needsUpdate=true;
+                if(batch.instanceColor)batch.instanceColor.needsUpdate=true;
                 group.add(batch);
                 h4Gfx11bArenaStats.batches++;
                 h4Gfx11bArenaStats.instances+=spec.count;
