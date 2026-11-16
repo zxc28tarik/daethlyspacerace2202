@@ -1675,7 +1675,9 @@
             // keeping canyon, arena, and orbital sky visual identity.
             const industrialSkyWeight=w2*(1-w3);
             h4AtmosphereUniforms.cloudiness.value=lerpNumber('cloud')*
-                (1-orbit*.86)*(1-.76*industrialSkyWeight);
+                (1-orbit*.86)*(1-.76*industrialSkyWeight)*
+                (1-.58*THREE.MathUtils.smoothstep(
+                    state.routeProgress,34200,38800));
             h4AtmosphereUniforms.horizonDust.value=lerpNumber('dust')*(1-orbit*.96);
             h4AtmosphereUniforms.atmosTime.value=time;
             color(scene.fog.color,'fog').lerp(h4VQ04ScratchColor.setHex(0x091329),orbit);
@@ -1691,7 +1693,7 @@
             const finalBlend=THREE.MathUtils.smoothstep(
                 state.routeProgress,34000,38200);
             scene.fog.density*=1-.19*finalBlend*(1-orbit*.5);
-            ambientLight.intensity*=1-.085*finalBlend;
+            ambientLight.intensity*=1-.16*finalBlend;
             nebulaLight1.intensity*=1+.05*finalBlend;
             nebulaLight2.intensity*=1+.12*finalBlend;
             h4Gfx07Stats.finalAtmosphereWeight=finalBlend;
@@ -1778,7 +1780,7 @@
             const verts=[],colors=[],uvs=[],steps=def.type==='canyon'?160:80,
                 across=def.type==='canyon'?40:16,halfWidth=5850;
             const baseColor=new THREE.Color(
-                def.type==='fortress'?0x6f747b:def.ground);
+                def.type==='fortress'?0x56616a:def.ground);
             const pos=(progress,side)=>{
                 const normalized=Math.abs(side)/halfWidth;
                 const ridge=Math.max(0,(normalized-0.18)/0.82);
@@ -1843,11 +1845,14 @@
             const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
                 map:def.type==='battlefield'?h4Gfx04BattleGroundAtlas:
                     def.type==='fortress'?h4Gfx07GroundMap:h4SurfaceMaps.ground,
-                normalMap:h4MicroMaps.rock.normal,
-                roughnessMap:h4MicroMaps.rock.roughness,
+                color:def.type==='fortress'?0x757d87:0xffffff,
+                normalMap:def.type==='fortress'?null:h4MicroMaps.rock.normal,
+                roughnessMap:def.type==='fortress'?null:h4MicroMaps.rock.roughness,
                 normalScale:new THREE.Vector2(
-                    def.type==='canyon'?.40:def.type==='battlefield'?.11:.30,
-                    def.type==='canyon'?.40:def.type==='battlefield'?.11:.30),vertexColors:true,roughness:.99,
+                    def.type==='canyon'?.40:def.type==='battlefield'?.11:
+                    def.type==='fortress'?.085:.30,
+                    def.type==='canyon'?.40:def.type==='battlefield'?.11:
+                    def.type==='fortress'?.085:.30),vertexColors:true,roughness:.99,
                 side:THREE.DoubleSide,flatShading:true
             }));
             mesh.userData.h4TerrainSceneryOnly=true;
@@ -4828,7 +4833,7 @@
         const H4_GFX07_KITS=Object.freeze([0,1,2,3,4].map(
             h4Gfx07SilhouetteGeometry));
         const h4Gfx07SkylineMaterial=new THREE.MeshStandardMaterial({
-            vertexColors:true,metalness:.43,roughness:.71,
+            vertexColors:true,color:0x677482,metalness:.52,roughness:.70,
             side:THREE.DoubleSide,flatShading:false
         });
         function h4Gfx07GroundTexture(){
@@ -4850,9 +4855,9 @@
                 const grit=(rng()-.5)*.062;
                 const scratches=Math.sin(tau*(34*u+5*v))*.012;
                 const weather=large+grit+scratches;
-                data.data[o]=Math.round(191*(.96+weather));
-                data.data[o+1]=Math.round(196*(.96+weather));
-                data.data[o+2]=Math.round(199*(.96+weather));
+                data.data[o]=Math.round(165*(.96+weather));
+                data.data[o+1]=Math.round(172*(.96+weather));
+                data.data[o+2]=Math.round(180*(.96+weather));
                 data.data[o+3]=255;
             }
             ctx.putImageData(data,0,0);
