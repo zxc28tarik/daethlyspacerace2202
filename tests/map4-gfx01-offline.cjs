@@ -27,7 +27,8 @@ for(const [id,v] of Object.entries(pack)){
  ]});
  const page=await browser.newPage({viewport:{width:1440,height:900}});
  const errors=[],network=[];
- page.on('pageerror',e=>errors.push(e.message));
+ page.on('pageerror',e=>{errors.push(e.message);console.error('[GFX01 PAGEERROR]',e.stack||e.message);});
+ page.on('console',m=>{if(m.type()==='error')console.error('[GFX01 CONSOLE ERROR]',m.text());});
  page.on('request',req=>{
   if(/^https?:/i.test(req.url()))network.push(req.url());
  });

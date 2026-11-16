@@ -4848,6 +4848,161 @@
                 h4IndustrialStats.stations++;
             }
         }
+
+        // GFX11C: six distinct industrial signatures without new solid AABBs.
+        // Sculpted distillation towers, cooling funnels and power accumulators
+        // are batched by shape, not individually by station (<=10 draw calls).
+        // The visual kit uses the existing steel surface maps, no fetches.
+        const H4_GFX11C_SITES=[15750,18750,21850,24950,28150,31500];
+        const H4_GFX11C_GEO=Object.freeze({
+            separator:new THREE.LatheGeometry([
+                [.38,-.5],[.48,-.43],[.44,-.30],[.31,-.24],
+                [.33,.13],[.48,.39],[.39,.49],[.30,.5]
+            ].map(p=>new THREE.Vector2(p[0],p[1])),16),
+            cooling:new THREE.LatheGeometry([
+                [.49,-.5],[.46,-.42],[.29,-.22],[.23,.09],
+                [.32,.35],[.48,.49],[.51,.5]
+            ].map(p=>new THREE.Vector2(p[0],p[1])),18),
+            accumulator:new THREE.LatheGeometry([
+                [.31,-.5],[.48,-.42],[.51,-.29],[.42,-.16],
+                [.52,.12],[.42,.30],[.28,.43],[.23,.5]
+            ].map(p=>new THREE.Vector2(p[0],p[1])),20),
+            stack:new THREE.LatheGeometry([
+                [.31,-.5],[.30,-.37],[.18,-.15],[.16,.31],
+                [.28,.47],[.30,.5]
+            ].map(p=>new THREE.Vector2(p[0],p[1])),12),
+            collar:new THREE.TorusGeometry(.47,.055,7,24),
+            gantry:new THREE.BoxGeometry(1,1,1),
+            // This shared authored hull is initialized before GFX11C.
+            // GFX04_GE0 is declared later and would crash on script startup.
+            blade:H4_HERO_GEOMETRY.carvedHull,
+            signal:new THREE.IcosahedronGeometry(.5,1)
+        });
+        const H4_GFX11C_MAT=Object.freeze({
+            steel:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,color:0x697f90,
+                roughness:.68,metalness:.59,flatShading:true}),
+            patina:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.steel,color:0xa48b79,
+                roughness:.69,metalness:.46,flatShading:true}),
+            cobalt:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.darkSteel,color:0x587888,
+                roughness:.46,metalness:.66,flatShading:true}),
+            brace:new THREE.MeshStandardMaterial({
+                map:h4SurfaceMaps.steel,color:0x50545b,
+                roughness:.83,metalness:.41,flatShading:true}),
+            light:new THREE.MeshBasicMaterial({color:0x88dbeb,side:THREE.DoubleSide}),
+            warning:new THREE.MeshBasicMaterial({color:0xffa25e})
+        });
+        const h4Gfx11cIndustrialStats={
+            stations:0,heroBatches:0,detailBatches:0,instances:0,
+            newColliders:0,materials:6,sculptedFamilies:3
+        };
+        let h4Gfx11cIndustryDetail=null;
+        function h4Gfx11cBuildIndustryIdentities(zone){
+            if(zone.userData.h4Gfx11cIdentityBuilt)return;
+            const root=new THREE.Group();
+            root.name='MAP4_GFX11C_SIX_FACTORY_IDENTITIES';
+            root.userData.visualOnly=true;
+            const hero=new THREE.Group();
+            hero.name='MAP4_GFX11C_HERO_SILHOUETTES';
+            hero.userData.visualOnly=true;
+            const detail=new THREE.Group();
+            detail.name='MAP4_GFX11C_FACTORY_FINE_DETAIL';
+            detail.userData.visualOnly=true;
+            const specs=[
+                {name:'DISTILLATION',geo:H4_GFX11C_GEO.separator,mat:H4_GFX11C_MAT.patina,detail:false,entries:[]},
+                {name:'COOLING_FUNNELS',geo:H4_GFX11C_GEO.cooling,mat:H4_GFX11C_MAT.steel,detail:false,entries:[]},
+                {name:'POWER_ACCUMULATORS',geo:H4_GFX11C_GEO.accumulator,mat:H4_GFX11C_MAT.cobalt,detail:false,entries:[]},
+                {name:'EXHAUST_STACKS',geo:H4_GFX11C_GEO.stack,mat:H4_GFX11C_MAT.brace,detail:false,entries:[]},
+                {name:'HORIZONTAL_GANTRIES',geo:H4_GFX11C_GEO.gantry,mat:H4_GFX11C_MAT.steel,detail:false,entries:[]},
+                {name:'SERVICE_COLLARS',geo:H4_GFX11C_GEO.collar,mat:H4_GFX11C_MAT.light,detail:true,entries:[]},
+                {name:'BROKEN_HEAT_FINS',geo:H4_GFX11C_GEO.blade,mat:H4_GFX11C_MAT.brace,detail:true,entries:[]},
+                {name:'SIGNAL_CORES',geo:H4_GFX11C_GEO.signal,mat:H4_GFX11C_MAT.warning,detail:true,entries:[]}
+            ];
+            const entry=(id,progress,side,alt,scale,rot=0,tint=null)=>{
+                specs[id].entries.push({progress,side,alt,scale,rot,tint});
+            };
+            for(let i=0;i<H4_GFX11C_SITES.length;i++){
+                const at=H4_GFX11C_SITES[i];
+                const family=Math.floor(i/2); // two distinct facilities per family
+                const direction=i%2?1:-1;
+                const side=direction*(1050+family*120);
+                const height=710+(i%3)*125;
+                entry(family,at+210,side,-435+height/2,
+                    [430+family*60,height,430+family*60],i*.04);
+                // Visually balance the forward approach on BOTH sides;
+                // the partner plant is 25% lower and farther down the road.
+                const partnerHeight=Math.round(height*.76);
+                entry(family,at+520,-side*.82,-435+partnerHeight/2,
+                    [315+family*40,partnerHeight,340+family*35],-i*.07);
+                // Thin exhaust funnels give a different long-range silhouette
+                // than rectangular towers, placed well off the central lane.
+                const chimney=direction*(1800+family*100);
+                entry(3,at+540,chimney,-440+(890+i*25)/2,
+                    [170,890+i*25,170],-.10+i*.03);
+                entry(3,at+640,-chimney*.86,-440+(690+i*31)/2,
+                    [132,690+i*31,132],.12-i*.03);
+                entry(4,at+400,side+direction*180,255+(i%2)*70,
+                    [870,46,90],(i%2?-.18:.18));
+                // High-contrast service rings break uninterrupted vertical walls.
+                for(let j=0;j<3;j++)
+                    entry(5,at+210,side,
+                        -435+height*(.20+j*.25),
+                        [430+family*60,430+family*60,1],0,
+                        j===2?0x9edbec:0x73bccb);
+                for(let j=0;j<2;j++){
+                    const dir=j?1:-1;
+                    entry(6,at+330+j*170,side+dir*240,
+                        -280+j*210,[260,135,380],dir*.35);
+                    entry(7,at+510+j*60,chimney+dir*115,
+                        180+(i%3)*60,[42,42,42],0,
+                        j===0?0xffb15f:0x8ee0ee);
+                }
+                h4Gfx11cIndustrialStats.stations++;
+            }
+            const dummy=new THREE.Object3D();
+            for(const spec of specs){
+                if(spec.entries.length===0)continue;
+                const mesh=new THREE.InstancedMesh(
+                    spec.geo,spec.mat,spec.entries.length);
+                mesh.name='MAP4_GFX11C_'+spec.name;
+                mesh.frustumCulled=false; // static world-space pooled instances
+                mesh.userData.visualOnly=true;
+                mesh.userData.h4Gfx11cIdentity=true;
+                spec.entries.forEach((e,i)=>{
+                    dummy.position.copy(h4WorldPosition(
+                        e.progress,e.side,e.alt));
+                    dummy.quaternion.setFromUnitVectors(
+                        H4_UP,getRaceFrameAtDistance(e.progress).up);
+                    if(e.rot)dummy.rotateY(e.rot);
+                    dummy.scale.set(...e.scale);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(i,dummy.matrix);
+                    if(e.tint)mesh.setColorAt(i,new THREE.Color(e.tint));
+                });
+                mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                mesh.instanceMatrix.needsUpdate=true;
+                if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+                (spec.detail?detail:hero).add(mesh);
+                h4Gfx11cIndustrialStats.instances+=spec.entries.length;
+                if(spec.detail)h4Gfx11cIndustrialStats.detailBatches++;
+                else h4Gfx11cIndustrialStats.heroBatches++;
+            }
+            root.add(hero,detail);
+            zone.add(root);
+            h4Gfx11cIndustryDetail=detail;
+            zone.userData.h4Gfx11cIdentityBuilt=true;
+        }
+        function h4Gfx11cUpdateIndustryDetail(){
+            if(!h4Gfx11cIndustryDetail)return;
+            // Low quality: retain large distinct silhouettes, drop fine accents.
+            h4Gfx11cIndustryDetail.visible=
+                state.activeMap===MAP_MODES.MAP4 &&
+                state.map4Phase===3 &&
+                h4Gfx10ProfileName!=='LOW';
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -5642,8 +5797,21 @@
                     dummy.updateMatrix();
                     batch.setMatrixAt(i,dummy.matrix);
                 }
+                // NEXT11C: per-instance weathering/tint breaks identical,
+                // monochrome pylons without extra geometry or draw calls.
+                for(let i=0;i<spec.count;i++){
+                    const tone=spec.name==='POCKET_SIGNAL_FIRES'?
+                        (i%3===0?0xffb065:i%3===1?0xe87b51:0x91cfe6):
+                        spec.name==='BATTERED_DEFENSE_SPIRES'?
+                        (i%4===0?0x7e8992:i%4===1?0x8e775f:0x647487):
+                        spec.name==='FRACTURED_CARRIERS'?
+                        (i%3===0?0xb9a69b:i%3===1?0x6c8291:0x8d8c89):
+                        (i%2?0x7c7270:0x647f8e);
+                    batch.setColorAt(i,new THREE.Color(tone));
+                }
                 batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
                 batch.instanceMatrix.needsUpdate=true;
+                if(batch.instanceColor)batch.instanceColor.needsUpdate=true;
                 group.add(batch);
                 h4Gfx11bArenaStats.batches++;
                 h4Gfx11bArenaStats.instances+=spec.count;
@@ -6141,6 +6309,7 @@
                     h4Gfx11bFinalizeCameraMask();
                     h4Gfx06dInitializeLod(zone);
                     h4Gfx06dcAddStationDecals();
+                    h4Gfx11cBuildIndustryIdentities(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -6244,6 +6413,7 @@
                 scenery.far.visible=true;
             }
             h4Gfx06dUpdateLod();
+            h4Gfx11cUpdateIndustryDetail();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
