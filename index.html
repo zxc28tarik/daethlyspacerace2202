@@ -3633,6 +3633,198 @@
             zone.userData.h4Vis02Applied=true;
             zone.userData.h4Vis02Facades=facades;
         }
+
+        // GFX-06C / NEXT-04 / IN-05+IN-06: high silhouette contrast for the
+        // final two industrial nodes. NO new physical building volumes.
+        // Exterior logistics and reactor are deliberately placed outside
+        // the fast low / upper safe / hunter combat center-lines.
+        const h4Gfx06cStats={stations:0,logistics:0,energy:0,
+            meshes:0,hiddenLegacy:0,addedColliders:0,visualOnly:true};
+        function h4Gfx06cCargoCraneFrame(){
+            const outer=new THREE.Shape();
+            outer.moveTo(-.62,-.5);outer.lineTo(-.44,.48);
+            outer.lineTo(-.33,.51);outer.lineTo(.34,.51);
+            outer.lineTo(.45,.48);outer.lineTo(.62,-.5);
+            outer.closePath();
+            const gap=new THREE.Path();
+            gap.moveTo(-.38,-.40);gap.lineTo(-.29,.32);
+            gap.lineTo(.29,.32);gap.lineTo(.39,-.40);gap.closePath();
+            outer.holes.push(gap);
+            const geo=new THREE.ExtrudeGeometry(outer,{
+                depth:.20,steps:1,curveSegments:1,
+                bevelEnabled:true,bevelThickness:.022,
+                bevelSize:.018,bevelSegments:2
+            });
+            geo.translate(0,0,-.1);geo.computeVertexNormals();
+            return geo;
+        }
+        const H4_GFX06C_GEO=Object.freeze({
+            cargoCrane:h4Gfx06cCargoCraneFrame(),
+            box:new THREE.BoxGeometry(1,1,1),
+            drum:new THREE.CylinderGeometry(.50,.50,1,12),
+            hydraulic:new THREE.CylinderGeometry(.11,.18,1,10),
+            pillar:new THREE.CylinderGeometry(.25,.46,1,10),
+            ring:new THREE.TorusGeometry(.50,.065,10,32),
+            powerRing:new THREE.TorusGeometry(.50,.085,12,36),
+            core:new THREE.IcosahedronGeometry(.5,2),
+            hook:new THREE.TorusGeometry(.50,.16,8,16),
+            beacon:new THREE.SphereGeometry(.5,12,8)
+        });
+        const H4_GFX06C_MAT=Object.freeze({
+            armor:new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,
+                normalMap:h4MicroMaps.metal.normal,
+                color:0x657986,metalness:.67,roughness:.63,
+                side:THREE.DoubleSide
+            }),
+            frame:new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,
+                color:0x354a59,metalness:.71,roughness:.57,
+                side:THREE.DoubleSide
+            }),
+            brass:new THREE.MeshStandardMaterial({
+                color:0x9e8063,metalness:.70,roughness:.47
+            }),
+            cargo:new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,
+                color:0xb59a79,metalness:.43,roughness:.72
+            }),
+            warning:new THREE.MeshBasicMaterial({
+                color:0xffae64
+            }),
+            ice:new THREE.MeshStandardMaterial({
+                color:0x81b3c2,metalness:.53,roughness:.36,
+                emissive:0x123448,emissiveIntensity:.25
+            }),
+            power:new THREE.MeshStandardMaterial({
+                color:0x6fb4c4,metalness:.35,roughness:.35,
+                emissive:0x266b87,emissiveIntensity:.35
+            }),
+            insulation:new THREE.MeshStandardMaterial({
+                color:0x4b5761,metalness:.28,roughness:.89
+            })
+        });
+        function h4BuildGfx06cStation(station,at,index){
+            if(index!==4&&index!==5)return;
+            const art=new THREE.Group();
+            art.name=index===4?
+                'MAP4_GFX06C_IN05_INTERMODAL_LOGISTICS':
+                'MAP4_GFX06C_IN06_REACTOR_SECURITY_POWER';
+            art.userData.h4Gfx06c=true;
+            art.userData.visualOnly=true;
+            art.userData.station=index+1;
+            const geo=H4_GFX06C_GEO,mat=H4_GFX06C_MAT;
+            const add=(name,delta,x,y,geometry,material,scale,rx=0,rz=0)=>{
+                const d=at+delta,mesh=new THREE.Mesh(geometry,material);
+                mesh.name=name;
+                mesh.userData.h4Gfx06c=true;
+                mesh.userData.visualOnly=true;
+                mesh.userData.w05VisualOnly=true;
+                mesh.position.copy(h4WorldPosition(d,x,y));
+                mesh.quaternion.setFromUnitVectors(H4_UP,
+                    getRaceFrameAtDistance(d).up);
+                if(rx)mesh.rotateX(rx);
+                if(rz)mesh.rotateZ(rz);
+                mesh.scale.set(scale[0],scale[1],scale[2]);
+                art.add(mesh);h4Gfx06cStats.meshes++;
+                return mesh;
+            };
+            if(index===4){
+                // Loading yards need recognizable crane shapes, a long
+                // service deck, parallel rails and suspended real containers.
+                add('IN05_FREIGHT_TERMINAL_DECK',0,-3330,-379,
+                    geo.box,mat.frame,[2150,100,1200]);
+                for(const [i,d] of [-380,300].entries()){
+                    add('IN05_OPEN_AFRAME_CRANE_'+i,d,-3330,135,
+                        geo.cargoCrane,mat.armor,[1670,1150,320]);
+                    add('IN05_CRANE_UPPER_SPAN_'+i,d,-3330,800,
+                        geo.box,mat.frame,[1830,98,345]);
+                    add('IN05_GANTRY_RAIL_PULLEY_'+i,d,
+                        -3330+(i===0?-310:300),744,
+                        geo.drum,mat.brass,[140,90,140],Math.PI/2);
+                    add('IN05_SUSPENSION_CABLE_'+i,d,
+                        -3330+(i===0?-310:300),430,
+                        geo.hydraulic,mat.insulation,[48,550,48]);
+                    add('IN05_SUSPENDED_CONTAINER_'+i,d,
+                        -3330+(i===0?-310:300),70,
+                        geo.box,i===0?mat.cargo:mat.armor,[650,250,440]);
+                    add('IN05_SPREAD_BAR_'+i,d,
+                        -3330+(i===0?-310:300),242,
+                        geo.box,mat.brass,[690,55,155]);
+                    add('IN05_SAFETY_LAMP_'+i,d,-3330,896,
+                        geo.beacon,mat.warning,[76,76,76]);
+                }
+                for(const x of [-4060,-2730]){
+                    add('IN05_LOADING_RAIL',30,x,-301,
+                        geo.box,mat.brass,[40,35,1720]);
+                    add('IN05_VERTICAL_RACK',0,x,20,
+                        geo.box,mat.frame,[75,720,85]);
+                }
+                for(let i=0;i<5;i++){
+                    const x=-4200+(i%3)*390;
+                    const delta=620+Math.floor(i/3)*290;
+                    add('IN05_STACKED_FREIGHT_'+i,delta,x,
+                        -305+(i%2)*150,
+                        geo.box,i%2?mat.armor:mat.cargo,
+                        [560,230,300]);
+                    for(const side of [-1,1]){
+                        add('IN05_CONTAINER_REINFORCEMENT_'+i+'_'+side,
+                            delta,x+side*265,-295+(i%2)*150,
+                            geo.box,mat.frame,[24,210,310]);
+                    }
+                }
+                h4Gfx06cStats.logistics++;
+            }else{
+                // The last factory is an energy and security landmark, not a
+                // fake interactive hoop. Real arrival route stays at x ~0.
+                const x=3460;
+                add('IN06_REACTOR_FOUNDATION',20,x,-351,
+                    geo.box,mat.frame,[1540,160,1010]);
+                for(const [i,d] of [-225,230].entries()){
+                    add('IN06_CENTRAL_POWER_TOROID_'+i,d,x,790,
+                        geo.powerRing,i===0?mat.brass:mat.ice,
+                        [1120,1120,1120],0,i===0?.17:-.17);
+                    add('IN06_TOROID_CORE_'+i,d,x,790,
+                        geo.core,mat.power,[440,440,440]);
+                    for(const dir of [-1,1]){
+                        add('IN06_REACTOR_SUPPORT_'+i+'_'+dir,d,
+                            x+dir*570,275,
+                            geo.pillar,mat.armor,[205,1220,205]);
+                        add('IN06_PYLON_CAP_'+i+'_'+dir,d,
+                            x+dir*570,885,
+                            geo.drum,mat.brass,[210,92,210]);
+                    }
+                }
+                // Heavy substation transformers and outgoing coolant/energy
+                // conduits suggest a real plant instead of free floating rings.
+                for(let i=0;i<3;i++){
+                    const d=570+i*230,offset=(i-1)*340;
+                    add('IN06_GRID_TRANSFORMER_'+i,d,x+offset,-42,
+                        geo.box,mat.armor,[335,600,300]);
+                    add('IN06_TRANSFORMER_WINDING_'+i,d,x+offset,290,
+                        geo.ring,mat.brass,[340,340,340],Math.PI/2);
+                    add('IN06_TRANSFORMER_WARNING_'+i,d,x+offset,440,
+                        geo.beacon,mat.warning,[58,58,58]);
+                }
+                for(const y of [40,180,320]){
+                    add('IN06_TRANSFER_CONDUIT',420,x,y,
+                        geo.hydraulic,mat.insulation,[74,1860,74],0,Math.PI/2);
+                }
+                add('IN06_REMOTE_SECURITY_BEACON',-440,x+900,1080,
+                    geo.beacon,mat.warning,[115,115,115]);
+                h4Gfx06cStats.energy++;
+            }
+            // Hide only duplicates without physical hit boxes; no W05 solid
+            // can vanish while its collision volume remains active.
+            for(const child of station.children){
+                if(child.userData.h4Collider)continue;
+                if(['SILO','BEACON','REFINERY'].includes(child.userData.w05Kind)){
+                    child.visible=false;h4Gfx06cStats.hiddenLegacy++;
+                }
+            }
+            station.add(art);
+            h4Gfx06cStats.stations++;
+        }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
             const stations=[15750,18750,21850,24950,28150,31500];
@@ -3707,6 +3899,7 @@
                 h4IndustrialModelDetail(group,at,i);
                 if(i<2)h4BuildGfx06aStation(group,at,i);
                 if(i===2||i===3)h4BuildGfx06bStation(group,at,i);
+                if(i===4||i===5)h4BuildGfx06cStation(group,at,i);
                 zone.add(group);
                 h4IndustrialGroups.push(group);
                 h4IndustrialStats.stations++;
