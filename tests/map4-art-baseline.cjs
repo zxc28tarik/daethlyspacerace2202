@@ -267,6 +267,49 @@ const percentile=(numbers,p)=>{
     x.artTriangles>x.oldTriangles&&
     x.artDrawCalls>0&&x.oldCalls>0),
     'VIS02 art upgrades are real new geometry in identical engine cameras');
+  // GFX-06C: authored fifth and sixth compound at true world coords.
+  // Two 1600x900 cameras, art-only and HUD-on for each. Legacy 12 unchanged.
+  out.gfx06cSites=[];
+  for(const item of [
+    {name:'in05-freight-gantries',i:4,at:28150,
+      targetX:-3340,targetY:360,viewX:-1100,viewY:730},
+    {name:'in06-power-reactor',i:5,at:31500,
+      targetX:3450,targetY:745,viewX:900,viewY:980}
+  ]){
+    const frame=await page.evaluate(info=>{
+      state.paused=true;state.map4Phase=3;
+      state.routeProgress=info.at;
+      state.laneX=info.viewX;state.laneY=info.viewY;
+      const from=h4WorldPosition(info.at-1200,info.viewX,info.viewY);
+      const target=h4WorldPosition(info.at,info.targetX,info.targetY);
+      camera.position.copy(from);camera.lookAt(target);
+      camera.fov=60;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      renderer.render(scene,camera);
+      const art=h4IndustrialGroups[info.i].children.find(
+        m=>m.userData.h4Gfx06c);
+      return {
+        name:info.name,group:art?.name,parts:art?.children.length,
+        drawCalls:renderer.info.render.calls,
+        triangles:renderer.info.render.triangles,
+        colliders:h4IndustrialColliders.length,
+        artVisible:art?.visible,
+        cameraDistance:from.distanceTo(target)
+      };
+    },item);
+    await page.screenshot({path:path.join(directory,
+      'gfx06c-'+item.name+'.png')});
+    await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+    await page.screenshot({path:path.join(directory,
+      'gfx06c-'+item.name+'-art-only.png')});
+    await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+    out.gfx06cSites.push(frame);
+  }
+  assert.equal(out.gfx06cSites.length,2);
+  assert(out.gfx06cSites.every(x=>
+    x.group?.startsWith('MAP4_GFX06C_')&&x.parts>=25&&
+    x.triangles>1000&&x.colliders===36&&x.artVisible));
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
