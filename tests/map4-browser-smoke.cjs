@@ -1328,6 +1328,22 @@ const assert = require('node:assert/strict');
     assert(gfx06m.groundNormalScale<=.1);
     assert(gfx06m.industryOnly&&gfx06m.map1Safe);
 
+    const skyPolish=await page.evaluate(()=>{
+      const before=state.routeProgress;
+      state.routeProgress=22000;
+      h4UpdateCinematicAtmosphere(3);
+      const industrial=h4AtmosphereUniforms.cloudiness.value;
+      state.routeProgress=2000;
+      h4UpdateCinematicAtmosphere(3);
+      const canyon=h4AtmosphereUniforms.cloudiness.value;
+      state.routeProgress=before;
+      h4UpdateCinematicAtmosphere(3);
+      return {industrial,canyon};
+    });
+    assert(skyPolish.industrial<skyPolish.canyon*.48,
+      'sector 3 cirrus stripes reduced without altering canyon sky');
+
+
 
 
     assert(industrial.kinds.includes('OVERHEAD_PIPE')&&
