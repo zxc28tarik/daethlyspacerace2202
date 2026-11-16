@@ -26,6 +26,15 @@ jobs:
         env:
           GFX01_HTML_PATH: dist/Uzay_Yarisi_Guncel_Oynanabilir.html
         run: node tests/map4-art-baseline.cjs
+      # Independent playable preview for review before merging into main.
+      # The source HTML still loads CDNs; this built artifact is truly offline.
+      - name: Keep branch-specific playable offline HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-current-branch-playable-html
+          path: dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+          if-no-files-found: error
       - name: Keep GFX01 offline build evidence
         if: always()
         uses: actions/upload-artifact@v4
