@@ -186,12 +186,43 @@
                 width:29vw!important;padding:7px!important;
             }
         }
+
+        /* NEXT09 / GFX-09: zero-extra-draw-call, center-clear cockpit grade.
+           Map1 retains its existing exact canvas colors and HUD. */
+        #h4-post-overlay {
+            position:absolute;inset:0;z-index:18;pointer-events:none;opacity:0;
+            background:
+                radial-gradient(ellipse 61% 57% at 50% 48%,
+                    transparent 52%,rgba(8,19,36,.08) 83%,rgba(6,13,28,.33) 100%),
+                linear-gradient(180deg,rgba(14,26,45,.12),transparent 23%,transparent 80%,rgba(7,18,35,.15));
+            transition:opacity 120ms linear;
+        }
+        body.gfx09-photo-mode #h4-hud-root,
+        body.gfx09-photo-mode #shield-ring,
+        body.gfx09-photo-mode #boundary-scrape-overlay,
+        body.gfx09-photo-mode #damage-flash,
+        body.gfx09-photo-mode #emp-flash,
+        body.gfx09-photo-mode #h4-post-overlay { visibility:hidden!important; }
+        @media (min-width: 900px) and (max-height: 760px) {
+            body.map4-composition #planetary-zone-hud {top:6px;padding:4px 9px!important;max-width:295px;}
+            body.map4-composition #planetary-zone-hud .text-xs {font-size:10px;line-height:1.1;}
+            body.map4-composition #planetary-zone-hud .text-\[10px\] {font-size:9px;line-height:1.12;margin-top:1px;}
+            body.map4-composition #hunter-competition-hud {top:68px;right:12px;padding:5px 8px!important;max-height:110px;overflow:hidden;}
+            body.map4-composition .map4-flight-status {padding:6px 9px!important;line-height:1.2;}
+            body.map4-composition .map4-bottom-panel {padding:6px 8px!important;}
+        }
+        @media (max-width: 899px) {
+            body.map4-composition #hunter-competition-hud {top:112px;max-width:34vw;}
+            body.map4-composition .map4-flight-status {max-width:45vw;}
+            body.map4-composition #planetary-zone-hud {max-width:48vw;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
 
     <canvas id="game-canvas"></canvas>
     <canvas id="fx-canvas"></canvas>
+    <div id="h4-post-overlay" aria-hidden="true"></div>
 
     <!-- Ekran Çevresi Enerji Kalkanı Çemberi -->
     <div id="shield-ring" class="shield-ring-overlay"></div>
@@ -201,7 +232,7 @@
     <div id="damage-flash" class="absolute inset-0 bg-red-600/40 pointer-events-none z-30 opacity-0 transition-opacity duration-100"></div>
     <div id="emp-flash" class="absolute inset-0 bg-cyan-400/50 pointer-events-none z-30 opacity-0 transition-opacity duration-300"></div>
 
-    <div class="absolute inset-0 z-40 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+    <div id="h4-hud-root" class="absolute inset-0 z-40 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
         <div id="planetary-zone-hud" class="hidden hud-box self-center text-center px-4 py-2 max-w-sm">
             <div class="text-xs text-amber-200 font-bold">GEZEGEN GEÇİŞ OPERASYONU</div>
             <div id="planetary-zone-name" class="text-sm text-white font-black">KAYALIK VADİLER</div>
@@ -5938,6 +5969,10 @@
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
             document.body.classList.toggle('map4-composition',active);
+            if(!active){
+                document.body.classList.remove('gfx09-photo-mode');
+                h4Gfx09CameraInfo.photoMode=false;
+            }
             h4GeoSwordArt.visible=active;
             geoSwordMesh.children.forEach(child=>{
                 if(child!==h4GeoSwordArt)child.visible=!active;
@@ -9283,7 +9318,9 @@
 
                 // Dinamik Kamera FOV (Boost Hissi)
                 const speedRatio = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.BRAKE) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.BRAKE), 0, 1);
-                const targetFov = braking ? 64 : 65 + speedRatio * 18;
+                const targetFov = state.activeMap===MAP_MODES.MAP4 ?
+                    (state.cameraMode==='CHASE' ? (braking?66:71+speedRatio*7) : (braking?64:66+speedRatio*7)) :
+                    (braking ? 64 : 65 + speedRatio * 18);
                 camera.fov += (targetFov - camera.fov) * Math.min(1, 6 * dt);
                 camera.updateProjectionMatrix();
 
@@ -9384,15 +9421,21 @@
             // Kamera: FPS sabit ve temiz, CHASE ise geminin arkasından yumuşak takip eder.
             if (state.cameraMode === 'CHASE') {
                 const speedExtra = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.NORMAL) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.NORMAL), 0, 1);
+                const h4Chase=state.activeMap===MAP_MODES.MAP4;
                 const desiredCamPos = state.pos.clone().add(
-                    new THREE.Vector3(-state.roll * 1.2, 4 + speedExtra * 1.5, 14 + speedExtra * 7)
+                    new THREE.Vector3(-state.roll * 1.2,
+                        (h4Chase?5.5:4) + speedExtra * 1.5,
+                        (h4Chase?19:14) + speedExtra * (h4Chase?6:7))
                         .applyQuaternion(playerRig.quaternion)
                 );
-                camera.position.lerp(desiredCamPos, Math.min(1, 7 * dt));
+                const safeCameraPos=h4Chase?
+                    h4Gfx09SafeChase(desiredCamPos,routeFrame):desiredCamPos;
+                camera.position.lerp(safeCameraPos, Math.min(1, (h4Chase?9:7) * dt));
                 camera.quaternion.slerp(playerRig.quaternion, Math.min(1, 9 * dt));
             } else {
                 camera.position.copy(state.pos);
                 camera.quaternion.copy(playerRig.quaternion);
+                if(state.activeMap===MAP_MODES.MAP4)h4Gfx09CameraInfo.occluded=false;
             }
             if (state.shake > 0) {
                 camera.position.addScaledVector(routeFrame.right, (Math.random() - 0.5) * state.shake * 2.2);
@@ -11034,6 +11077,53 @@
             }
         }
 
+
+        // GFX09 visual camera safety. This never moves the physical ship, collider,
+        // rival, weapon projectile or race state; it ONLY shortens the chase view.
+        const h4Gfx09CameraInfo={occlusionChecks:0,occlusionAdjustments:0,occluded:false,
+            lastFov:68,photoMode:false};
+        const h4Gfx09PhotoDebug=new URLSearchParams(window.location.search).has('gfx09debug');
+        function h4Gfx09SafeChase(candidate,frame){
+            if(state.activeMap!==MAP_MODES.MAP4||state.map4Phase!==3){
+                h4Gfx09CameraInfo.occluded=false;
+                return candidate;
+            }
+            const delta=candidate.clone().sub(state.pos);
+            let fraction=1;
+            // Only physically-solid industrial route-space AABBs participate.
+            // Art-only architecture NEVER creates a camera collision.
+            const blockers=planetaryBuildingColliders.concat(h4IndustrialColliders);
+            for(let attempt=0;attempt<5;attempt++){
+                const p=state.routeProgress+delta.dot(frame.tangent)*fraction;
+                const x=state.laneX+delta.dot(frame.right)*fraction;
+                const y=state.laneY+delta.dot(frame.up)*fraction;
+                let collision=false;
+                for(const c of blockers){
+                    if(Math.abs(c.progress-state.routeProgress)>350)continue;
+                    h4Gfx09CameraInfo.occlusionChecks++;
+                    if(Math.abs(p-c.progress)<c.halfDepth+12 &&
+                       Math.abs(x-c.side)<c.halfSide+12 &&
+                       Math.abs(y-c.altitude)<c.halfUp+12){collision=true;break;}
+                }
+                if(!collision)break;
+                fraction*=.52;
+            }
+            h4Gfx09CameraInfo.occluded=fraction<1;
+            if(fraction<1)h4Gfx09CameraInfo.occlusionAdjustments++;
+            return fraction===1?candidate:state.pos.clone().addScaledVector(delta,fraction);
+        }
+        function h4Gfx09PostFrame(){
+            const active=state.activeMap===MAP_MODES.MAP4;
+            const overlay=document.getElementById('h4-post-overlay');
+            if(!active){overlay.style.opacity='0';return;}
+            // No fullscreen composer / blur / DOF: preserve the hunter reticle.
+            const ratio=THREE.MathUtils.clamp(
+                (state.currentSpeed-RACE_SPEEDS.NORMAL)/
+                (RACE_SPEEDS.BOOST-RACE_SPEEDS.NORMAL),0,1);
+            overlay.style.opacity=String(state.running ? .11+.13*ratio : .08);
+            h4Gfx09CameraInfo.lastFov=camera.fov;
+        }
+
         function toggleCameraMode() {
             if (state.cameraMode === 'TURRET') {
                 state.cameraMode = 'CHASE';
@@ -11187,6 +11277,9 @@
             camera.position.set(0, 0, 0);
             camera.fov = 68;
             camera.updateProjectionMatrix();
+            h4Gfx09CameraInfo.occluded=false;
+            h4Gfx09CameraInfo.photoMode=false;
+            document.body.classList.remove('gfx09-photo-mode');
             state.yaw = 0;
             state.pitch = 0;
             state.roll = 0;
@@ -11369,6 +11462,11 @@
             if (e.code === 'KeyQ') triggerBarrelRoll(-1);
             if (e.code === 'KeyE') triggerBarrelRoll(1);
             if (e.code === 'KeyC') toggleCameraMode();
+            if (e.code === 'F8' && h4Gfx09PhotoDebug && state.activeMap===MAP_MODES.MAP4){
+                e.preventDefault();
+                h4Gfx09CameraInfo.photoMode=!h4Gfx09CameraInfo.photoMode;
+                document.body.classList.toggle('gfx09-photo-mode',h4Gfx09CameraInfo.photoMode);
+            }
         });
         window.addEventListener('keyup', e => {
             keys[e.code] = false;
@@ -11459,6 +11557,7 @@
                 if(state.running&&!state.paused)
                     h4UpdateGfx04D(dt,now*.001);
             }
+            h4Gfx09PostFrame();
             renderer.render(scene, camera);
         }
 
