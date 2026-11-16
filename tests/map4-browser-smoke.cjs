@@ -805,6 +805,9 @@ const assert = require('node:assert/strict');
         name:zoneGround.name,
         map:zoneGround.material.map===h4Gfx07GroundMap,
         size:h4Gfx07GroundMap.image.width,
+        color:zoneGround.material.color.getHex(),
+        noHarshRockNormal:zoneGround.material.normalMap===null,
+        silhouetteTint:h4Gfx07SkylineMaterial.color.getHex(),
         canyonUnchanged:planetaryWorldRegions[0].children[0].material.map!==
           h4Gfx07GroundMap,
         industryUnchanged:planetaryWorldRegions[2].children[0].material.map!==
@@ -864,6 +867,12 @@ const assert = require('node:assert/strict');
       'MAP4_GFX07_FINAL_SECTOR_MATTE_GROUND');
     assert(gfx07.matCheck.map&&gfx07.matCheck.size===512&&
       gfx07.matCheck.canyonUnchanged&&gfx07.matCheck.industryUnchanged);
+    assert.equal(gfx07.matCheck.color,0x757d87,
+      'last sector ground must be muted rather than overexposed');
+    assert.equal(gfx07.matCheck.silhouetteTint,0x677482,
+      'final skyline kit requires darker steel-to-concrete separation');
+    assert(gfx07.matCheck.noHarshRockNormal,
+      'do not apply harsh canyon micro-rock bump to final military landing ground');
     assert.equal(gfx07.stats.groundAtlasCount,1);
     assert.equal(gfx07.stats.heroShadows,3);
     assert.equal(gfx07.stats.localLights,3);
