@@ -1363,7 +1363,8 @@ const assert = require('node:assert/strict');
         scenery:{near:near.children.length,far:far.children.length},
         featureNamed:visual.every(m=>m.userData.h4Vis02Sculpted&&
           m.name.startsWith('MAP4_VIS02_AUTHORED_SKYLINE_')),
-        fourKitTypes:[...new Set(visual.map(m=>m.geometry.name))],
+        fourKitTypes:[...new Set(visual.map(m=>
+          m.userData.h4Gfx06dLevels?.[0]?.name||m.geometry.name))],
         sourcePreserved:visual.every(m=>
           !!m.userData.h4Vis02LegacyGeometry&&
           !!m.userData.h4Vis02LegacyMaterial),
@@ -1470,6 +1471,102 @@ const assert = require('node:assert/strict');
       'highly differentiated art, no hidden W05 physical solids');
     assert(gfx06c.oldGfx06a&&gfx06c.oldGfx06b);
     assert.equal(gfx06c.art06c,2);
+
+    // GFX06D-A/B: shared physically based maps + actual 3-level geometry
+    // substitution on only the 58 visual skyline meshes. All physical
+    // obstacles and Map1 materials/ship meshes remain untouched.
+    const gfx06d=await page.evaluate(()=>{
+      const before=state.routeProgress,phase=state.map4Phase;
+      const beforeCam=camera.position.clone();
+      const beforeTarget=camera.getWorldDirection(new THREE.Vector3());
+      state.routeProgress=22000;state.map4Phase=3;
+      const item=h4Gfx06dLodObjects[0];
+      const detail=h4Gfx06dMicroObjects[0];
+      const size=(geometry)=>geometry.attributes.position.count;
+      camera.position.copy(item.position).add(new THREE.Vector3(1000,0,0));
+      h4Gfx06dUpdateLod();
+      const close={level:item.userData.h4Gfx06dLod,
+        vertices:size(item.geometry),matches:
+          item.geometry===item.userData.h4Gfx06dLevels[0]};
+      camera.position.copy(item.position).add(new THREE.Vector3(4000,0,0));
+      h4Gfx06dUpdateLod();
+      const middle={level:item.userData.h4Gfx06dLod,
+        vertices:size(item.geometry),matches:
+          item.geometry===item.userData.h4Gfx06dLevels[1]};
+      camera.position.copy(item.position).add(new THREE.Vector3(9000,0,0));
+      h4Gfx06dUpdateLod();
+      const distant={level:item.userData.h4Gfx06dLod,
+        vertices:size(item.geometry),matches:
+          item.geometry===item.userData.h4Gfx06dLevels[2]};
+      camera.position.copy(detail.position)
+          .add(new THREE.Vector3(1000,0,0));
+      h4Gfx06dUpdateLod();
+      const detailClose=detail.visible;
+      camera.position.copy(detail.position)
+          .add(new THREE.Vector3(10000,0,0));
+      h4Gfx06dUpdateLod();
+      const detailFar=detail.visible;
+      const materialQuality={
+        pixels:h4Gfx06dStats.textureSize,
+        normalName:h4Gfx06dMaps.normal.name,
+        roughName:h4Gfx06dMaps.roughness.name,
+        normalWidth:h4Gfx06dMaps.normal.image.width,
+        roughWidth:h4Gfx06dMaps.roughness.image.width,
+        uniqueAtlases:h4Gfx06dStats.normalMaps+
+          h4Gfx06dStats.roughnessMaps,
+        materials:h4Gfx06dStats.metalMaterials,
+        shared:h4Gfx06dMetals.every(m=>
+          m.normalMap===h4Gfx06dMaps.normal&&
+          m.roughnessMap===h4Gfx06dMaps.roughness),
+        roughnessSpread:h4Gfx06dStats.noiseMax-h4Gfx06dStats.noiseMin,
+        silhouetteVertexColors:!!h4Vis02Mat.vertexColors,
+        silhouetteHasNoUVMaps:!h4Vis02Mat.normalMap&&
+          !h4Vis02Mat.roughnessMap
+      };
+      const physics={
+        W05:h4IndustrialColliders.length,
+        preservedW05:h4IndustrialColliders.every(c=>
+          c.mesh.userData.h4Collider===c),
+        protectedW02:h4Vis02Stats.physical,
+        noNew:h4Gfx06dStats.addedColliders,
+        lodCount:h4Gfx06dLodObjects.length,
+        detailCount:h4Gfx06dMicroObjects.length,
+        geometryOnly:h4Gfx06dLodObjects.every(m=>
+          !m.userData.h4Collider&&m.userData.visualOnly)
+      };
+      camera.position.copy(beforeCam);
+      camera.lookAt(beforeCam.clone().add(beforeTarget));
+      state.routeProgress=before;state.map4Phase=phase;
+      h4Gfx06dUpdateLod();
+      return {close,middle,distant,detailClose,detailFar,
+        materialQuality,physics};
+    });
+    assert.deepEqual([gfx06d.close.level,gfx06d.middle.level,
+      gfx06d.distant.level],[0,1,2]);
+    assert(gfx06d.close.matches&&gfx06d.middle.matches&&
+      gfx06d.distant.matches);
+    assert(gfx06d.close.vertices>gfx06d.middle.vertices&&
+      gfx06d.middle.vertices>gfx06d.distant.vertices,
+      'three geometry budgets genuinely shrink by distance');
+    assert(gfx06d.detailClose&&!gfx06d.detailFar,
+      'small art parts fade at range and restore when close');
+    assert.equal(gfx06d.materialQuality.pixels,512);
+    assert.equal(gfx06d.materialQuality.normalWidth,512);
+    assert.equal(gfx06d.materialQuality.roughWidth,512);
+    assert.equal(gfx06d.materialQuality.uniqueAtlases,2);
+    assert.equal(gfx06d.materialQuality.materials,18);
+    assert(gfx06d.materialQuality.shared&&
+      gfx06d.materialQuality.roughnessSpread>.10);
+    assert(gfx06d.materialQuality.silhouetteVertexColors&&
+      gfx06d.materialQuality.silhouetteHasNoUVMaps,
+      'non-UV merged silhouette geometry cannot use normal/roughness maps');
+    assert.equal(gfx06d.physics.lodCount,58);
+    assert(gfx06d.physics.detailCount>=15);
+    assert.equal(gfx06d.physics.W05,36);
+    assert.equal(gfx06d.physics.protectedW02,34);
+    assert.equal(gfx06d.physics.noNew,0);
+    assert(gfx06d.physics.preservedW05&&gfx06d.physics.geometryOnly);
+
 
 
 
