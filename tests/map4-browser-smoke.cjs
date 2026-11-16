@@ -469,7 +469,15 @@ const assert = require('node:assert/strict');
         poolObjects:h4Gfx08Root.children.length,
         zeroNewColliders:h4Gfx08Stats.addedColliders===0,
         groupVisible:h4Gfx08Root.parent===planetaryWorldGroup,
-        atlasShared:h4Gfx08Meshes[3].material.map===h4SmokeAtlas};
+        atlasShared:h4Gfx08Meshes[3].material.map===h4SmokeAtlas,
+        ringAtlasSize:h4Gfx08SoftRingAtlas.image.width,
+        threeRingsShare:h4Gfx08Meshes[1].material.map===h4Gfx08SoftRingAtlas&&
+          h4Gfx08Meshes[2].material.map===h4Gfx08SoftRingAtlas&&
+          h4Gfx08Meshes[4].material.map===h4Gfx08SoftRingAtlas,
+        noHarshRings:h4Gfx08Meshes[1].geometry.type==='PlaneGeometry'&&
+          h4Gfx08Meshes[2].geometry.type==='PlaneGeometry'&&
+          h4Gfx08Meshes[1].material.blending===THREE.NormalBlending&&
+          h4Gfx08Meshes[2].material.blending===THREE.NormalBlending};
     });
     assert(gfx08.started,'Map4 VFX tested during an actual active mission');
     assert.deepEqual(gfx08.types,['MUZZLE','IMPACT','SHOCK','SMOKE','ENGINE']);
@@ -480,6 +488,9 @@ const assert = require('node:assert/strict');
     assert(gfx08.hitValid.hit&&gfx08.realHit>=1,'real hunter hit triggers one pooled impact');
     assert(gfx08.active.every(n=>n>=1),'every transient class gets rendered');
     assert(gfx08.bounded&&gfx08.atlasShared&&gfx08.groupVisible);
+    assert(gfx08.threeRingsShare&&gfx08.noHarshRings&&
+      gfx08.ringAtlasSize===128,
+      'all hit/shock/engine rings share one feathered texture without white hard toruses');
     assert.equal(gfx08.drawPools,5);
     assert.equal(gfx08.poolObjects,5);
     assert.equal(gfx08.cap,36,'bounded rapid hit stream cannot create extra meshes');
