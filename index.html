@@ -2882,7 +2882,12 @@
             const add=(delta,x,y,geometry,material,scale)=>{
                 const mesh=h4PlaceStructure(group,at+delta,x,y,geometry,material,scale);
                 mesh.userData.vq02IndustrialDetail=true;
-                mesh.userData.w05VisualOnly=true;
+                // This decorator used h4PlaceStructure, which also registers
+                // a real industrial collider. Correct metadata, not physics.
+                mesh.userData.w05VisualOnly=!mesh.userData.h4Collider;
+                if(mesh.userData.h4Collider)
+                    mesh.userData.vis02PhysicalDetail=true;
+                else mesh.userData.visualOnly=true;
                 h4IndustrialArtStats.parts++;
                 return mesh;
             };
@@ -3419,6 +3424,206 @@
                 h4Gfx06mStats.mappedMeshes++;
             });
             zone.userData.h4Gfx06mApplied=true;
+        }
+
+        // VIS-02: proper silhouettes for the 58 W02 non-physical background
+        // placeholders, + instanced cladding on the existing W02 physical
+        // buildings. No new collider is registered and the physics Mesh stays.
+        const h4Vis02Stats={sculpted:0,physical:0,facadeBatches:0,
+            facadeInstances:0,geometryPreserved:0,addedColliders:0,
+            dualTaggedPhysical:0,visualOnly:true};
+        function h4Vis02Kit(style){
+            const vertices=[],colors=[];
+            const tone={
+                steel:new THREE.Color(0x597786),
+                black:new THREE.Color(0x293b47),
+                copper:new THREE.Color(0xa17e60),
+                cement:new THREE.Color(0x9b9b90),
+                light:new THREE.Color(0xc99c6b)
+            };
+            const b=new THREE.BoxGeometry(1,1,1);
+            const c=new THREE.CylinderGeometry(.5,.5,1,12,1);
+            const t=new THREE.CylinderGeometry(.3,.48,1,12,1);
+            const r=new THREE.TorusGeometry(.5,.08,7,18);
+            const add=(primitive,x,y,z,w,h,d,color,rx=0,rz=0)=>{
+                const p=primitive.clone();
+                p.scale(w,h,d);if(rx)p.rotateX(rx);if(rz)p.rotateZ(rz);
+                p.translate(x,y,z);
+                const g=p.index?p.toNonIndexed():p;
+                for(let i=0;i<g.attributes.position.count;i++){
+                    const a=g.attributes.position;
+                    vertices.push(a.getX(i),a.getY(i),a.getZ(i));
+                    const shade=tone[color];
+                    colors.push(shade.r,shade.g,shade.b);
+                }
+                if(g!==p)g.dispose();
+                p.dispose();
+            };
+            if(style===0){ // pressure distillation, collar and pipework
+                add(b,0,-.44,0,.92,.12,.87,'black');
+                add(t,-.1,-.02,0,.55,.85,.52,'steel');
+                add(c,.29,-.13,.12,.24,.62,.24,'copper');
+                add(c,-.32,-.20,-.11,.19,.52,.19,'black');
+                for(const y of [-.27,.01,.23,.39])
+                    add(r,-.1,y,0,.56,.56,.56,'copper',Math.PI/2);
+                add(b,0,.41,0,.86,.065,.49,'black');
+                add(c,-.1,.48,0,.15,.07,.15,'light');
+            }else if(style===1){ // real open-frame assembly gantry
+                for(const x of [-.35,.35]){
+                    add(b,x,-.08,0,.16,.80,.36,'steel');
+                    add(b,x,.38,0,.19,.13,.5,'copper');
+                }
+                add(b,0,.39,0,.89,.12,.54,'black');
+                add(b,0,-.40,0,.91,.12,.59,'black');
+                add(b,0,.13,0,.66,.10,.37,'copper');
+                add(b,0,-.04,0,.13,.56,.18,'cement');
+                add(b,-.22,-.08,.28,.08,.65,.055,'steel',0,-.19);
+                add(b,.22,-.08,.28,.08,.65,.055,'steel',0,.19);
+                add(b,0,-.33,0,.36,.10,.31,'black');
+            }else if(style===2){ // twin flared cooling stacks + condenser
+                add(b,0,-.43,0,.94,.13,.82,'black');
+                for(const x of [-.24,.24]){
+                    add(t,x,-.07,0,.43,.80,.44,'cement');
+                    add(r,x,.30,0,.45,.45,.45,'copper',Math.PI/2);
+                    add(r,x,-.24,0,.48,.48,.48,'steel',Math.PI/2);
+                    add(c,x,.42,0,.32,.12,.32,'black');
+                }
+                add(b,0,-.14,.32,.79,.10,.14,'copper');
+                add(b,0,.15,-.29,.80,.06,.11,'steel');
+            }else{ // power substation with turbines and transformers
+                add(b,0,-.42,0,.97,.12,.81,'black');
+                add(b,0,.00,0,.62,.70,.65,'steel');
+                add(t,0,.38,0,.68,.23,.7,'cement');
+                for(const x of [-.35,.35]){
+                    add(c,x,-.03,.28,.18,.60,.18,'copper');
+                    add(r,x,.17,.28,.24,.24,.24,'light',Math.PI/2);
+                }
+                for(const y of [-.26,-.06,.18])
+                    add(b,0,y,.34,.77,.055,.09,'black');
+                add(r,0,.22,.34,.42,.42,.42,'copper');
+                add(c,0,.49,0,.12,.055,.12,'light');
+            }
+            for(const p of [b,c,t,r])p.dispose();
+            const g=new THREE.BufferGeometry();
+            g.setAttribute('position',
+                new THREE.Float32BufferAttribute(vertices,3));
+            g.setAttribute('color',
+                new THREE.Float32BufferAttribute(colors,3));
+            g.computeVertexNormals();
+            g.name='MAP4_VIS02_ONE_DRAW_KIT_'+style;
+            return g;
+        }
+        const h4Vis02Kits=Object.freeze([0,1,2,3].map(h4Vis02Kit));
+        const h4Vis02Mat=new THREE.MeshStandardMaterial({
+            vertexColors:true,metalness:.54,roughness:.68,
+            side:THREE.DoubleSide
+        });
+        const h4Vis02PanelGeo=new THREE.BoxGeometry(1,1,1);
+        const h4Vis02RingGeo=new THREE.TorusGeometry(.5,.045,7,18);
+        const h4Vis02LampGeo=new THREE.SphereGeometry(.5,8,6);
+        const h4Vis02FacadeMats=Object.freeze([
+            new THREE.MeshStandardMaterial({
+                map:h4Gfx06mSteelMap,color:0x5c7582,
+                metalness:.54,roughness:.70,side:THREE.DoubleSide
+            }),
+            new THREE.MeshStandardMaterial({
+                color:0x30414e,metalness:.60,roughness:.66
+            }),
+            new THREE.MeshStandardMaterial({
+                color:0x997255,metalness:.70,roughness:.50
+            }),
+            new THREE.MeshBasicMaterial({color:0xf0b46d})
+        ]);
+        function h4Vis02DressIndustry(zone){
+            const wide=zone.children.find(g=>
+                g.name==='MAP4_W02_WIDE_SCENERY_2');
+            if(!wide)throw new Error('VIS02 W02 scenery missing');
+            let n=0;
+            wide.traverse(mesh=>{
+                if(!mesh.isMesh)return;
+                if(mesh.userData.h4Collider)
+                    throw new Error('VIS02 may not replace physical art');
+                mesh.geometry=h4Vis02Kits[(n*3+Math.floor(n/4))%4];
+                mesh.material=h4Vis02Mat;
+                mesh.name='MAP4_VIS02_AUTHORED_SKYLINE_'+n++;
+                mesh.userData.h4Vis02Sculpted=true;
+                mesh.userData.visualOnly=true;
+                h4Vis02Stats.sculpted++;
+            });
+            const solids=zone.children.filter(mesh=>mesh.isMesh&&
+                mesh.userData.h4Collider&&mesh.scale.y>=300&&
+                (mesh.geometry===H4_MESHES.tower||
+                 mesh.geometry===H4_MESHES.structure));
+            // 34 historical W02 obstacles: preserve identity and dimensions.
+            const protectedSolids=solids.map(m=>({
+                mesh:m,collider:m.userData.h4Collider,geometry:m.geometry
+            }));
+            const specs=[
+                {name:'PLATE',geo:h4Vis02PanelGeo,mat:h4Vis02FacadeMats[0],matrices:[]},
+                {name:'BRACE',geo:h4Vis02PanelGeo,mat:h4Vis02FacadeMats[1],matrices:[]},
+                {name:'COLLAR',geo:h4Vis02RingGeo,mat:h4Vis02FacadeMats[2],matrices:[]},
+                {name:'LAMP',geo:h4Vis02LampGeo,mat:h4Vis02FacadeMats[3],matrices:[]}
+            ];
+            const local=new THREE.Matrix4(),p=new THREE.Vector3(),
+                rot=new THREE.Quaternion(),sc=new THREE.Vector3();
+            const pack=(kind,mesh,x,y,z,w,h,d,rx=0)=>{
+                mesh.updateMatrix();
+                local.compose(p.set(x,y,z),
+                    rot.setFromAxisAngle(new THREE.Vector3(1,0,0),rx),
+                    sc.set(w,h,d));
+                specs[kind].matrices.push(new THREE.Matrix4()
+                    .multiplyMatrices(mesh.matrix,local));
+                h4Vis02Stats.facadeInstances++;
+            };
+            solids.forEach((mesh,index)=>{
+                const tower=mesh.geometry===H4_MESHES.tower;
+                mesh.userData.h4Vis02Protected=true;
+                mesh.name='MAP4_VIS02_PHYSICAL_STRUCTURE_'+index;
+                mesh.material=index%3===0?
+                    H4_GFX06M_MAT.shadow:H4_GFX06M_MAT.oldSteel;
+                if(tower){
+                    // W02 tower has 7-sided unit-radius walls; preserve its
+                    // existing render mesh, collar touches that same outline.
+                    for(const y of [-.30,.14,.39])
+                        pack(2,mesh,0,y,0,1.94,1.94,1.94,Math.PI/2);
+                    pack(3,mesh,0,.49,0,.19,.03,.19);
+                }else{
+                    // Keep all armour within original half-extent collider,
+                    // avoiding an apparently solid new invisible obstruction.
+                    for(const x of [-.32,.32]){
+                        pack(0,mesh,x,.05,.487,.28,.75,.022);
+                        pack(1,mesh,x,-.10,-.487,.075,.66,.022);
+                    }
+                    pack(2,mesh,0,.38,0,.80,.80,.80,Math.PI/2);
+                    pack(3,mesh,.30,.49,.42,.12,.025,.12);
+                }
+            });
+            const facades=new THREE.Group();
+            facades.name='MAP4_VIS02_BATCHED_COLLIDER_FACADES';
+            facades.userData.visualOnly=true;
+            for(const spec of specs){
+                if(!spec.matrices.length)continue;
+                const im=new THREE.InstancedMesh(
+                    spec.geo,spec.mat,spec.matrices.length);
+                im.name='MAP4_VIS02_'+spec.name;
+                im.userData.visualOnly=true;
+                im.userData.noCollider=true;
+                im.frustumCulled=false;
+                spec.matrices.forEach((mat,i)=>im.setMatrixAt(i,mat));
+                im.instanceMatrix.needsUpdate=true;
+                facades.add(im);
+                h4Vis02Stats.facadeBatches++;
+            }
+            zone.add(facades);
+            for(const item of protectedSolids){
+                if(item.mesh.userData.h4Collider!==item.collider||
+                   item.mesh.geometry!==item.geometry)
+                    throw new Error('VIS02 has modified physics geometry');
+                h4Vis02Stats.geometryPreserved++;
+            }
+            h4Vis02Stats.physical=solids.length;
+            zone.userData.h4Vis02Applied=true;
+            zone.userData.h4Vis02Facades=facades;
         }
         function h4BuildIndustrialGauntlet(zone) {
             if(h4IndustrialGroups.length)return;
@@ -4500,6 +4705,7 @@
                 if(zoneIndex===2){
                     h4BuildIndustrialGauntlet(zone);
                     h4Gfx06mApplyIndustrialMaterials(zone);
+                    h4Vis02DressIndustry(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
