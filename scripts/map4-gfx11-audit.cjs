@@ -14,6 +14,9 @@ const output=path.join(root,'dist','gfx11-visual-review');
 const imageDir=path.join(output,'images');
 const metricFile=path.join(artDir,'metrics.json');
 const metrics=JSON.parse(fs.readFileSync(metricFile,'utf8'));
+const oldRoot=path.join(root,'tests','gfx11-historical');
+const historicRun='https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/39392177682';
+const historicalMetrics=JSON.parse(fs.readFileSync(path.join(oldRoot,'metrics.json'),'utf8'));
 const pairs=[
  {id:'V02-01',group:'silhouette',label:'Sanayi yaklaşımı / yontulmuş modül',before:'vis02-near-assembly-old.png',after:'vis02-near-assembly-new.png'},
  {id:'V02-02',group:'silhouette',label:'Uzak rafineri silüeti',before:'vis02-far-refinery-old.png',after:'vis02-far-refinery-new.png'},
@@ -67,8 +70,8 @@ const stagesFromMetric=new Set(metrics.cases.map(item=>item.name));
 for(const stage of stages)assert(stagesFromMetric.has(stage.id),'not a captured fixed camera '+stage.id);
 fs.mkdirSync(imageDir,{recursive:true});
 const assets=new Map();
-function append(file,base=artDir){
- if(assets.has(file))return;
+function append(file,base=artDir,destination=file){
+ if(assets.has(destination))return;
  const from=path.join(base,file);
  assert(fs.existsSync(from),'missing raw engine PNG '+from);
  const buffer=fs.readFileSync(from);
@@ -77,8 +80,8 @@ function append(file,base=artDir){
  const width=buffer.readUInt32BE(16),height=buffer.readUInt32BE(20);
  assert(width>=900&&height>=700,'nonstandard image '+file+' '+width+'x'+height);
  const hash=crypto.createHash('sha256').update(buffer).digest('hex');
- fs.copyFileSync(from,path.join(imageDir,file));
- assets.set(file,{file:'images/'+file,sha256:hash,width,height,bytes:buffer.length});
+ fs.copyFileSync(from,path.join(imageDir,destination));
+ assets.set(destination,{file:'images/'+destination,sha256:hash,width,height,bytes:buffer.length});
 }
 for(const pair of pairs){
  append(pair.before);append(pair.after);
@@ -96,6 +99,37 @@ for(const stage of stages){
  stage.drawCalls=original.calls;
  stage.triangles=original.triangles;
 }
+// TRUE historical game-build A/B: GFX00 2026-10-20 vs NEXT10B 2026-11-16.
+ // These are real different commits, unlike the 15 within-build feature toggles.
+ // Match every authored camera parameter, phase, viewport and image size.
+assert.equal(historicalMetrics.viewport,metrics.viewport,
+ 'Historical/current screenshot viewport mismatch');
+assert.equal(historicalMetrics.cases.length,stages.length,
+ 'Historical GFX00 baseline lacks 12 fixed cameras');
+const historicalPairs=[];
+for(const stage of stages){
+ const older=historicalMetrics.cases.find(x=>x.name===stage.id);
+ const newer=metrics.cases.find(x=>x.name===stage.id);
+ assert(older&&newer,'historical/current camera ID missing '+stage.id);
+ for(const key of ['progress','laneX','laneY','phase'])
+  assert.equal(older[key],newer[key],
+   'Real version comparison camera drift '+stage.id+' '+key);
+ const oldFile='gfx00-'+stage.id+'.png';
+ append(stage.id+'.png',oldRoot,oldFile);
+ const prior=assets.get(oldFile),latest=assets.get(stage.id+'.png');
+ assert.equal(prior.width,latest.width,'historical width mismatch');
+ assert.equal(prior.height,latest.height,'historical height mismatch');
+ assert.notEqual(prior.sha256,latest.sha256,
+   'historical and current screenshot identical '+stage.id);
+ historicalPairs.push({
+  id:stage.id,label:stage.label,stage:stage.group,
+  oldImage:'images/'+oldFile,newImage:stage.image,
+  oldDrawCalls:older.calls,newDrawCalls:newer.calls,
+  oldTriangles:older.triangles,newTriangles:newer.triangles,
+  sameViewport:true,sameCameraParameters:true,
+  oldRun:historicRun
+ });
+}
 // Supplemental screenshots live in tests/ rather than tests/art-baseline.
 for(const item of extras){
  append(item.file,path.join(root,'tests'));
@@ -106,10 +140,10 @@ const issues=[
    title:'Sanayi çıkışı sabit kamera kadrajı neredeyse tamamen yakın büyük bir yüzeyle kapanmış',
    source:'09-industry-exit.png',proof:'Görüntüde sahne yerine mavi/gri geniş yüzey hâkim.',
    next:'Bu sabit kamera konumunun görsel/solid geometri ile çakışmasını ve gerçek CHASE/TURRET akışını yeniden test et.'},
- {id:'QA-VIS-ARENA',severity:'HIGH',stage:'04–06',
-   title:'60 saniyelik av arenasının üç sabit kadrajı çok boş; avcı/enkaz/ateş baskısı görünmüyor',
-   source:'04-arena-center.png / 05-arena-wreck.png / 06-arena-defense.png',
-   next:'Gerçek 60sn savaş oturumu + çevresel landmark görünürlük ve vizyon testini denetle.'},
+ {id:'QA-VIS-ARENA',severity:'BLOCKER',stage:'04–06',
+   title:'GFX00 tarihsel sürümdeki yoğun arena silüeti güncel sabit 04–06 kadrajlarında büyük ölçüde kayıp',
+   source:'GFX00 20.10.2026 vs NEXT10B 16.11.2026: 04/05/06, aynı 1600×900 kamera, 443→44 / 440→24 / 439→20 draw call',
+   next:'Bölge 2 görünürlük/region culling ve art-only grup kaybını kökten araştır; sabit testte eski görünürlük katmanlarının korunmasını kanıtla, sonra canlı 60sn savaş oturumunu denetle.'},
  {id:'QA-VIS-MAT',severity:'HIGH',stage:'07–08',
    title:'Sanayi model ve malzemeleri hâlâ tekrar eden geometrik primitifler olarak okunabiliyor',
    source:'07-industry-entry.png / 08-industry-factory.png',
@@ -124,27 +158,31 @@ const provenance={
  sourceRun:process.env.GITHUB_RUN_ID?
   'https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/'+process.env.GITHUB_RUN_ID:
   'https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/43954482993',
+ historicRun,
  generatedUtc:new Date().toISOString(),
  package:'GFX01 packaged offline HTML / real WebGL screenshots',
  renderer:'Chromium SwiftShader / SOFTWARE GPU',
- auditType:'fixed 12 camera + 15 true same-camera within-build A/B toggles',
+ auditType:'12 real two-build historical camera A/B + 15 independent within-build same-camera feature toggles',
  performanceCaution:'Not real 5-minute live gameplay; no native GPU/VRAM proof.',
  acceptance:'AUTOMATED_PROVENANCE_PASS_HUMAN_VISUAL_REVIEW_REQUIRED',
  visualScore:null
 };
 const manifest={schemaVersion:1,title:'Harita 4 — GFX11 gerçek motor görüntüsü kabul dosyası',
- provenance,counts:{fixedStages:stages.length,pairs:pairs.length,comparisonImages:pairs.length*2,
- extras:extras.length,totalPng:assets.size},issues,pairs,stages,extras,assets:Object.fromEntries(assets),
+ provenance,counts:{fixedStages:stages.length,pairs:pairs.length,historicalPairs:historicalPairs.length,
+ comparisonImages:pairs.length*2,extras:extras.length,totalPng:assets.size},
+ issues,pairs,historicalPairs,stages,extras,assets:Object.fromEntries(assets),
  sourceMetrics:{
   renderer:metrics.note,
   medianDrawCalls:metrics.cases.map(x=>x.calls).sort((a,b)=>a-b)[5],
   all12Cases:metrics.cases.map(x=>({name:x.name,calls:x.calls,triangles:x.triangles})),
+  historical12Cases:historicalMetrics.cases.map(x=>({name:x.name,calls:x.calls,triangles:x.triangles})),
   vfxChecks:metrics.gfx08VfxGallery.map(v=>({name:v.name,
    screenshotChanged:v.screenshotChanged,sameCamera:v.after.sameCamera}))
  }};
 assert.equal(manifest.counts.fixedStages,12);
 assert.equal(manifest.counts.pairs,15);
-assert.equal(manifest.counts.totalPng,50); // 30 A/B + 12 stages + 8 extras
+assert.equal(manifest.counts.historicalPairs,12);
+assert.equal(manifest.counts.totalPng,62); // 30 feature toggles + 12 current stages + 12 real GFX00 historical + 8 extras
 fs.writeFileSync(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 fs.writeFileSync(path.join(output,'manifest.js'),
  'window.GFX11_MANIFEST='+JSON.stringify(manifest)+';\n');
@@ -155,15 +193,17 @@ fs.writeFileSync(path.join(output,'HOW_TO_REVIEW.txt'),
   'HARITA 4 — GFX11 GÖRSEL KABUL PAKETI',
   'index.html dosyasını internet olmadan tarayıcıda aç.',
   'A/B soldaki SADECE özellik kapalı eski render, sağdaki özellik açık yeni render.',
-  'Bunlar farklı tarihteki iki oyun sürümü değildir; aynı kod aynı kamera geçişi.',
+  '15 özellik-A/B çifti iki farklı sürüm değildir; aynı oyunda bir özellik kapalı/açık.',
+  '12 tarihsel A/B çifti ise GERÇEK farklı sürümlerdir: 20 Ekim GFX00 vs 16 Kasım NEXT10B.',
   '12 frozen-stage kadrajı gerçek 5 dakikalık oynanış değildir.',
   'ÖNCELİKLİ BLOKER: 09-industry-exit.png yakın yüzey/duvar kadrajı.',
-  '05–06 dahil arena ve sanayi sanat kalitesi insan kabulü olmadan 7/10 sayılmaz.',
+  '04–06 arenanın eski sahne doluluğunun güncel sürümde kaybolduğu 12 gerçek iki-build çiftiyle görünür.',
+  'Arena ve sanayi sanat kalitesi insan kabulü olmadan 7/10 sayılmaz.',
   'Kaynak, SHA256 ve ölçüler manifest.json içindedir.',
   'Yalnız screenshot/visual QA; fizik ve renderer runtime değiştirilmedi.'
  ].join('\n')+'\n');
 console.log('GFX11 dossier PASS',JSON.stringify({
  fixedStages:stages.length,comparisonPairs:pairs.length,
- extras:extras.length,images:assets.size,issues:issues.length,
+ historicalPairs:historicalPairs.length,extras:extras.length,images:assets.size,issues:issues.length,
  visualGate:'OPEN',folder:path.relative(root,output)
 }));
