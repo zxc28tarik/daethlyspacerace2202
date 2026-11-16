@@ -472,6 +472,114 @@ const percentile=(numbers,p)=>{
     s.after.calls>=s.before.calls+3&&
     s.after.triangles>s.before.triangles),
     'three functional-decal screenshots must change geometry without gameplay');
+  // NEXT06 proof: exact same game camera and lighting, W01/VQ02
+  // fallback vs new 3D art. Original 12 fixed sector cameras are unchanged.
+  // No Photoshop, no image-gen, and no hidden changes to physics.
+  out.gfx06eGallery=[];
+  await page.evaluate(()=>document.body.classList.add('map4-photo-probe'));
+  for(const spec of [
+    {name:'LM10-outpost',kind:'outpost',at:36200,target:'LM10_COMMAND_CITADEL',
+      laneY:430,lookY:210},
+    {name:'LM11-spaceport',kind:'spaceport',at:42600,
+      target:'LM11_FLIGHT_DECK_SPINE',laneY:550,lookY:100},
+    {name:'LM12-orbital-launch',kind:'launch',at:48300,
+      target:'LM12_ROCKET_MAIN_STAGE',laneY:1110,lookY:1300}
+  ]){
+    const before=await page.evaluate(input=>{
+      state.paused=true;state.map4Phase=4;
+      state.routeProgress=input.at;state.laneX=0;state.laneY=input.laneY;
+      const landmark=h4WorldLandmarks.find(x=>x.kind===input.kind),
+        art=landmark.group.children.find(c=>c.userData.h4Gfx06e),
+        old=landmark.group.getObjectByName(
+          'MAP4_LEGACY_W01_'+input.kind.toUpperCase()),
+        sig=landmark.group.children.find(c=>
+          c.userData.signature===input.kind),
+        aim=art.children.find(c=>c.name===input.target);
+      const from=h4WorldPosition(input.at-1900,0,input.laneY+110);
+      const focus=aim.position.clone().addScaledVector(
+        getRaceFrameAtDistance(input.at).up,input.lookY*.15);
+      camera.position.copy(from);camera.lookAt(focus);
+      camera.fov=61;camera.updateProjectionMatrix();
+      updatePlanetaryWorld();h4UpdateSkyVisuals();
+      h4UpdateCinematicAtmosphere(18);
+      art.visible=false;old.visible=true;sig.visible=true;
+      renderer.render(scene,camera);
+      window.__gfx06eShot={
+        kind:input.kind,camera:camera.position.clone(),
+        rotation:camera.quaternion.clone(),art,old,sig
+      };
+      return {name:input.name,
+        oldCalls:renderer.info.render.calls,
+        oldTriangles:renderer.info.render.triangles,
+        oldVisible:old.visible&&sig.visible&&!art.visible,
+        physics:h4IndustrialColliders.length};
+    },spec);
+    const originalPng=await page.screenshot({path:path.join(directory,
+      'gfx06e-'+spec.name+'-before.png')});
+    const after=await page.evaluate(()=>{
+      const p=window.__gfx06eShot;
+      p.art.visible=true;p.old.visible=false;p.sig.visible=false;
+      renderer.render(scene,camera);
+      const geometry=[];
+      p.art.traverse(obj=>{if(obj.isMesh)geometry.push(obj)});
+      return {
+        afterCalls:renderer.info.render.calls,
+        afterTriangles:renderer.info.render.triangles,
+        artParts:geometry.length,
+        sameCamera:camera.position.distanceTo(p.camera)<.001&&
+          camera.quaternion.angleTo(p.rotation)<.001,
+        visualOnly:geometry.every(x=>
+          x.userData.visualOnly&&!x.userData.h4Collider),
+        artVisible:p.art.visible&&!p.old.visible&&!p.sig.visible
+      };
+    });
+    const updatedPng=await page.screenshot({path:path.join(directory,
+      'gfx06e-'+spec.name+'-after.png')});
+    out.gfx06eGallery.push({...before,...after,
+      screenshotChanged:!originalPng.equals(updatedPng)});
+    await page.evaluate(()=>{delete window.__gfx06eShot});
+  }
+  // The final fly-through screenshot remains tied to player laneX=0,
+  // altitude 1050, not inside any ornamental structure.
+  const finalAscent=await page.evaluate(()=>{
+    state.map4Phase=4;state.routeProgress=47900;
+    state.laneX=0;state.laneY=1050;
+    const near=h4WorldPosition(47700,0,1050),
+      ahead=h4WorldPosition(49400,0,1460);
+    camera.position.copy(near);camera.lookAt(ahead);
+    camera.fov=68;camera.updateProjectionMatrix();
+    updatePlanetaryWorld();h4UpdateSkyVisuals();
+    h4UpdateCinematicAtmosphere(18);
+    renderer.render(scene,camera);
+    return {
+      progress:state.routeProgress,
+      altitude:state.laneY,
+      map4:state.activeMap===MAP_MODES.MAP4,
+      launchArt:h4WorldLandmarks.find(l=>l.kind==='launch')
+        .group.children.some(c=>c.userData.h4Gfx06e),
+      industrialColliderCount:h4IndustrialColliders.length,
+      drawCalls:renderer.info.render.calls,
+      triangles:renderer.info.render.triangles
+    };
+  });
+  out.gfx06eAscent=finalAscent;
+  await page.screenshot({path:path.join(directory,
+    'gfx06e-LM12-clear-ascent-corridor.png')});
+  await page.evaluate(()=>document.body.classList.remove('map4-photo-probe'));
+  assert.equal(out.gfx06eGallery.length,3);
+  // Scene draw calls are NOT expected to increase: optimized authored art
+  // may use fewer draw calls or triangles than the original repeated boxes.
+  // The correct acceptance is verified camera lock, physics preservation,
+  // and a real screenshot pixel change, with both costs logged as evidence.
+  console.log('NEXT06 SAME CAMERA GALLERY',JSON.stringify(out.gfx06eGallery));
+  assert(out.gfx06eGallery.every(e=>
+    e.oldVisible&&e.artVisible&&e.sameCamera&&e.visualOnly&&
+    e.physics===36&&e.artParts>=20&&e.screenshotChanged&&
+    e.oldCalls>0&&e.afterCalls>0&&
+    e.oldTriangles>0&&e.afterTriangles>0));
+  assert(out.gfx06eAscent.map4&&out.gfx06eAscent.altitude>=850&&
+    out.gfx06eAscent.launchArt&&
+    out.gfx06eAscent.industrialColliderCount===36);
   // GFX-03 supplemental close-range hero compositions (original 12 probes
   // remain unchanged, preserving apples-to-apples GFX-00 metrics).
   out.heroGallery=[];
