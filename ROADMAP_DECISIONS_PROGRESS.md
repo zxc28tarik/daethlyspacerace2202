@@ -473,3 +473,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Görünürlük anlık/LOD odaklı: bir kamerada 33 collider sahibi gizliyse bu **genel phantom-wall iddiası değildir**; sınırdaki uzak bölgeler normal görünürlük filtrelerine tabidir. İki fabrika ilgili kamerada görünür, fiziksel yerleşim/AI/rota kararı kullanıcı onayı bekliyor.
 - `6d32a2e` ile bu bulgu test sözleşmesine yazıldı: **236/236 owner resolution** ve 08 fast fabrikalarının **görünür** olması artık zorunlu regresyon kapısı. [Bu son kod testi hızlı CI](https://github.com/zxc28tarik/daethlyspacerace2202/actions/workflows/map4-next11c14-collider-lane-audit.yml) sonucu ayrıca doğrulanacak. Güncel [Map1/Map4 full](https://github.com/zxc28tarik/daethlyspacerace2202/actions/workflows/map-browser-smoke.yml) sonucu açık.
 - Halen **YAPILMADI:** kullanıcı onaysız fiziksel fabrika taşıma, AI kaçınma güncellemesi, oyun hat/bariyer değişikliği, native GPU ve kesintisiz 300s uçuş, yayıncı üç oynanabilir harita onayı, 7–8/10 görsel kalite ve PR merge.
+
+
+### 18 Kasım — C14 son tam CI sonucu doğrulandı (oyun kodu değişmedi)
+
+- **C14 son kod HEAD** `6d32a2e` için [hızlı WebGL #44093556723](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44093556723) **completed/success, 9/9 PASS** ve [Map1/Map4 full #44093556645](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44093556645) **completed/success** (browser-smoke job tüm adımları başarılı) GitHub'dan yeniden doğrulandı.
+- PR #59 son HEAD `01d50c0` yalnızca ROADMAP dokümanını değiştirir (`[skip ci]`); test sonrası **oyun/QA kodu değişmedi**. Bu nedenle C14 kod testleri geçerli, son doküman commitine ayrı test koşusu atfedilmiyor.
+- **C14 read-only analiz QA kabulü tamam**: 236/236 collider sahibi çözüldü, 08'de iki fabrika görünür fiziksel engel, riskli sabit şerit kesitleri 19/15/7/15. Kesintisiz pilot uçuşu veya şerit güvenliği garanti edilmiş değildir.
+- **AÇIK / kullanıcının önemli kararına bağlı:** iki fabrikanın fiziksel taşınması ya da bilinçli riskli rota olarak bırakılması; rakip W01 kaçınma değişikliği; 300s gerçek pilot uçuşu, native GPU fps/p95/VRAM, 7–8/10 estetik kabul ve PR merge. Bu konularda açık onay alınmadı; hiçbir değişiklik ve merge yapılmadı.
+- **Sıradaki güvenli iş:** fizik/AI/bonus/rotayı değiştirmeden C14 çarpışma raporunu rotaya özgü alternatif geçiş ve 300s uçuş senaryosu için hazırlamak; fiziki uygulama ancak kullanıcı kararıyla.
