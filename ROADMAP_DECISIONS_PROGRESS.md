@@ -281,3 +281,37 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Açık QA:** gerçek GPU FPS/p95/VRAM (720p/1080p), 5 dk uçuş, yayıncı ilk pitch 3/6 playable, kullanıcı estetik ve PR merge onayı.
 
 **Günlük:** `2026-11-17 | NEXT-11C9 | C8 FULL PASS, C9 KOD+HIZLI WEBGL PASS, C9 FULL AÇIK | PR#54 / 900ae30 / 0073698 | 07-08 zayıf, 09 belirgin düzeldi | 7-8/10 onay YOK | merge YOK`.
+
+
+## 16) 17 Kasım 2026 — Özgünlük koruması + NEXT-11C10
+
+**Yeni ve geçerli kullanıcı tasarım kararı:** Örnek oyunlardan ve 3D varlık galerilerinden atmosfer, üretim tekniği ve hedef kalite düzeyine göre **ilham alınabilir**. Ancak tasarım **birebir veya aşırı yakın kopya** olamaz; ürün, harita yerleşimi, özgün ayırt edici model/doku/silüetleri çalınmaz. CGTrader gibi ticari kaynaklardan kaynak asset indirilmez, kod/mesh/doku kopyalanmaz. Kaynakların yalnız **genel görsel kalite kıyasına** izin var. Özgünlük ve 7–8/10 estetik kalite ayrı kabullerdir. [C10 özgünlük sözleşmesi](MAP4_GFX11C10_ORIGINAL_DISTRICTS_ACCEPTANCE.md).
+
+- **Önceki sabit:** NEXT-11C9 [PR #54](https://github.com/zxc28tarik/daethlyspacerace2202/pull/54) DRAFT, tam [CI #44073322882](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44073322882) **32/32 PASS**. Önceki kullanıcı görsel 7–8/10 onayı **yok**. C9 code 09'da hakiki halkasız enerji silüeti, 07/08'de fonksiyonel çatı/kiriş art; görsel fark 07 %1,21/08 %1,89/09 %18,74; kalite puanı değil.
+- **Aktif kod / PR:** [NEXT-11C10 PR #55](https://github.com/zxc28tarik/daethlyspacerace2202/pull/55), DRAFT/STACKED #54 üzerinde, merge yok. Kod `cc75b42` oyun özelinde **3 farklı özgün model geometrisi**: açık ısı geri kazanımı, askılı malzeme transfer gantry'si, basamaklı geri dönüşüm/ayırma. Önceki bir modele benzemek için dış varlık kullanılmadı. 6 konumda 3 batched InstancedMesh, paylaşılmış NEXT11C5 PBR atlas; **0 yeni collider, light, external asset**. Yalnız Map4 sanayi phase3 High/Balanced, Low ve diğer fazlar kapalı.
+- **Yönlendirme/fizik:** W05 24 BEACON/HIGH_MARKER kimlik, materyal ve matris değiştirilmedi; 6 kanyon/36 sanayi/200 bina collider korunur. Map1 yarış-only; 5 rakip/8 avcı, arena 60s, yarış 300s, orbit 850m, 6 harita ve ilk pitch ≥3 playable kararı aynen.
+- **QA:** `tests/map4-gfx11c10-original-districts.cjs`, 07/08/09 gerçek 1600×900 Chromium/WebGL A/B, 3 drawcalls ve üçgen bütçesi, Low + 1/2/4 phase, gameplay ve korunan fizik. C4–C9 tarihselleri bağımsız A/B için C10 katmanını kapatır. Hızlı CI ve full smoke eklendi. İlk hızlı [#44075783370](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44075783370) **test eşiği FAIL**: gerçek 3.800 görsel üçgene rağmen gereksiz minimum 5.000. `4d24372` test gereksiz eşiği 3.000'e düzeltti; yeni [hızlı #44076017106](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076017106) **sonuç henüz doğrulanmadı**. Geometri değiştirilmedi.
+- **Açık kabul:** C10 güncel hızlı CI, 07/08/09 screenshot görsel incelemesi, güncel full CI, native GPU 720/1080p FPS/p95/VRAM, gerçek 5 dk uçuş, kullanıcı 7–8/10 estetik ve yayıncı ilk pitch 3/6 playable onayı. Main veya herhangi stacked PR merge için kullanıcı açık izni şart.
+- **NEXT:** C10 görsel çıktısını kontrol et, çok uzakta veya yapay duruyorsa aynı PR içinde düzelt; gerçek kalite kapanmadan NEXT11C11'e geçme.
+
+**Günlük:** `2026-11-17 | NEXT-11C10 | ÖZGÜNLÜK KARARI ONAYLI, PR#55 KOD+TEST+CI DOSYALARI YAPILDI | HIZLI TEST EŞİK DÜZELTMESİ 4d24372, GÜNCEL QA AÇIK | 7–8/10 ONAY YOK | MERGE YOK`.
+
+
+### 17 Kasım — NEXT-11C10-B ilk ekran görüşü ve zemin bağlamı düzeltmesi
+
+- [İlk C10-A gerçek WebGL #44076017106](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076017106) **PASS**, 07/08/09 aynı-kamera screenshot. Değişen RGB ortalama piksel alanı eşik >1/255: **07 %1,76; 08 %0,60; 09 %9,42**. Sayılar **kalite puanı değil**; 07/08 üretim silüetleri uzakta, büyük açık zemin hâlâ yapay. **7–8/10 kabul yok**.
+- C10-B kod `bd016e3`: oyuna özel ve dış kaynak kullanmayan **6 açık bakım yolu/servis alanı** (07/08/09 üç bölge × iki taraf) statik mesh ile düz sanayi arazisini bağlar; materyal kendi vertex-color geometrisi, yeni texture, collider, ışık **yok**. Eski 3 sanayi aile batch + 1 statik servis zemini drawcall. Eski W05 BEACON/HIGH_MARKER, 6/36/200 collider değişmez.
+- Yeni `074625d` gerçek Chromium/WebGL testi 4 drawcall, altı nonphysical servis alanı, bütçe, High/Balanced/Low ve phase 1/2/4 izolasyonu denetler. [Son hızlı #44076681861](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076681861) **henüz sonuç bekleniyor**. [C10-A ilk QA PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076017106) güncel C10-B QA yerine geçmez.
+- Özgünlük ilkesi **devam ediyor**: CGTrader veya başka bir üçüncü taraf hazır modelin ayırt edici mimarisi, geometri/doku/yerleşimi kopyalanmadı; görsel araştırma yalnız ilham. Kullanıcı açık merge onayı olmadan main'e PR alınmaz.
+- **Kalan kabul:** güncel C10-B hızlı ve full CI, 07/08/09 gerçek ekran göz incelemesi, GPU FPS/p95/VRAM native, beş dakikalık uçuş, yayıncı 3/6 playable, kullanıcı estetik 7–8/10.
+
+**Günlük:** `NEXT11C10-B | KOD/QA GEOMETRİ EKLENDİ | bd016e3/074625d | HIZLI CI/SCREEN AÇIK | 7-8 ESTETİK ONAY YOK | PR55 DRAFT, MERGE YOK`.
+
+
+### NEXT-11C10-B son hızlı görsel kontrolü — 17 Kasım
+
+- **Güncel C10-B renk onarımı `7a37470`:** eski açık renkli servis şeritleri, yeni koyu tonemapping'e girmeyen matte vertex-colors malzemesiyle giderildi.
+- [Hızlı Chromium/WebGL QA #44077131958](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131958) **PASS 9/9 job adımı**, güncel oyun kodu + 07/08/09 aynı-kamera görüntü arşivi `map4-next11c10-07-08-09`. 3 özgün sanayi aile batch + 1 servis-yol Mesh drawcall; 6/36/200 collider ve 24 W05 BEACON/HIGH_MARKER değişmedi.
+- **Son gerçek ekran görsel incelemesi:** aşırı açık beyaz şeritler kalktı. Önce/sonra değişen RGB alanı (eşik ortalama 1/255, HUD dahil) 07 **%2,72**, 08 **%1,14**, 09 **%9,62**. Sayılar yeni çizimin gözlenen değişimi, **7–8/10 estetik puanı değildir**. 07/08'in büyük düz mimari ve uzak ufuk kompozisyonu hâlâ yeterli değil.
+- **Güncel full regression:** [#44077131964](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131964) sonucu **henüz tamamlanmadı**; geçtiği teyit edilmeden 'full PASS' yazılmaz.
+- **Açık:** özgünlük yaklaşımı sürdürülür; CGTrader referansını kopyalama / dış mesh alma yok. Native GPU FPS/p95/VRAM, 5dk gerçek uçuş, 3/6 yayıncı haritası ve kullanıcının 7–8/10 onayı; açık izin olmadan merge yok.

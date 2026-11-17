@@ -6597,6 +6597,334 @@
             h4Gfx11c9Stats.active=active;
         }
 
+
+        // NEXT11C10: independently authored industrial districts, purpose-built
+        // for this game's route, NOT copied/imported from a third-party model.
+        // Designs: open heat recovery, suspended materials transfer, staggered
+        // sorting/reclamation. No portal/ring silhouette and no collision.
+        const H4_GFX11C10_LOCATIONS=Object.freeze([
+            {site:0,at:19300,side:-1220,altitude:-105,size:930,turn:.15},
+            {site:1,at:20400,side:1540,altitude:-145,size:770,turn:-.18},
+            {site:2,at:26100,side:-1240,altitude:-155,size:1060,turn:.14},
+            {site:3,at:27500,side:1510,altitude:-140,size:800,turn:-.12},
+            {site:4,at:33300,side:-1160,altitude:-135,size:830,turn:.10},
+            {site:5,at:32700,side:1470,altitude:-185,size:750,turn:-.16}
+        ]);
+        const h4Gfx11c10Stats={
+            originalFamilies:0,originalDistricts:0,drawBatches:0,
+            serviceYards:0,serviceDraws:0,serviceTriangles:0,
+            newColliders:0,newLights:0,newExternalAssets:0,
+            closedRouteMarkersAltered:0,lookEnabled:true,
+            artReviewApproved:false,nativeGpuVerified:false
+        };
+        let h4Gfx11c10Root=null;
+        function h4Gfx11c10DistrictGeometry(family){
+            // All silhouettes are composed here from new mathematical parts.
+            // Every batch is an authored single geometry with bounded cost.
+            const box=new THREE.BoxGeometry(1,1,1);
+            const pipe=new THREE.CylinderGeometry(.5,.5,1,10);
+            const taper=new THREE.CylinderGeometry(.25,.5,1,10);
+            const geom=[box,pipe,taper];
+            const positions=[],normals=[],colors=[],uvs=[];
+            const transform=new THREE.Matrix4(),normalMatrix=new THREE.Matrix3();
+            const position=new THREE.Vector3(),scale=new THREE.Vector3();
+            const rot=new THREE.Euler(),q=new THREE.Quaternion();
+            const p=new THREE.Vector3(),n=new THREE.Vector3();
+            const add=(kind,x,y,z,w,h,d,c,rx=0,ry=0,rz=0)=>{
+                const source=geom[kind];
+                const expanded=source.index?source.toNonIndexed():source;
+                position.set(x,y,z);scale.set(w,h,d);
+                rot.set(rx,ry,rz);q.setFromEuler(rot);
+                transform.compose(position,q,scale);
+                normalMatrix.getNormalMatrix(transform);
+                const xyz=expanded.getAttribute('position');
+                const nor=expanded.getAttribute('normal');
+                const tex=expanded.getAttribute('uv');
+                const tint=new THREE.Color(c);
+                for(let i=0;i<xyz.count;i++){
+                    p.fromBufferAttribute(xyz,i).applyMatrix4(transform);
+                    n.fromBufferAttribute(nor,i).applyMatrix3(normalMatrix).normalize();
+                    positions.push(p.x,p.y,p.z);
+                    normals.push(n.x,n.y,n.z);
+                    colors.push(tint.r,tint.g,tint.b);
+                    uvs.push(tex.getX(i)*1.4,tex.getY(i)*1.4);
+                }
+                if(expanded!==source)expanded.dispose();
+            };
+            const dark=0x263842,steel=0x667d80,aged=0x8b7565,
+                blade=0x8ca1a5,soot=0x303d44;
+            // Unobstructed negative-space lower rig, with actual support feet.
+            for(const x of [-.49,.49])
+                for(const z of [-.34,.34]){
+                    add(0,x,-.30,z,.065,.37,.09,dark);
+                    add(0,x,-.49,z,.17,.035,.21,soot);
+                }
+            for(const z of [-.36,.36]){
+                add(0,0,-.13,z,1.02,.065,.09,steel);
+                for(const x of [-.38,.38])
+                    add(0,x,-.30,z,.045,.56,.065,soot,0,0,x<0?-.23:.23);
+            }
+            if(family===0){
+                // HEAT RECOVERY: offset cyclone separator + elevated six-bay
+                // heat exchanger, porous rack and tall unequal exhaust pipes.
+                for(const [j,x] of [-.36,-.09,.18].entries()){
+                    add(1,x,.05,-.05,.22,.76-j*.12,.22,
+                        j===0?aged:steel);
+                    add(2,x,.42-j*.06,-.05,.27,.15,.27,dark);
+                    add(1,x,.53-j*.06,-.05,.075,.35+j*.14,.075,soot);
+                    add(0,x,-.14,-.23,.26,.055,.28,aged);
+                }
+                for(let bay=0;bay<6;bay++){
+                    const x=.38+bay*.045;
+                    add(0,x,.04,-.21,.024,.51,.41,bay%2?steel:blade);
+                    add(0,x,.24,-.21,.065,.035,.43,dark);
+                }
+                add(0,0,.31,.32,.92,.07,.09,steel);
+                for(const x of [-.38,-.14,.12,.36])
+                    add(0,x,.19,.32,.025,.27,.065,dark);
+                add(0,.20,.31,.11,.59,.09,.20,aged,0,0,-.17);
+            }else if(family===1){
+                // MATERIALS TRANSFER: angled lifting gantry, two tiered
+                // container cassettes and visible belt/hoist mechanisms.
+                for(const x of [-.36,.36]){
+                    add(0,x,.06,-.12,.065,.82,.085,steel,0,0,x<0?-.18:.18);
+                    add(0,x,.35,-.12,.08,.16,.10,dark);
+                }
+                add(0,0,.43,-.12,1.03,.065,.10,blade);
+                add(0,.17,.32,-.12,.085,.23,.13,aged);
+                add(0,.17,.17,-.12,.02,.29,.025,dark);
+                add(0,.17,.02,-.12,.23,.08,.16,steel);
+                for(let j=0;j<5;j++){
+                    const x=-.39+j*.20;
+                    add(0,x,-.22,.11,.17,.15,.30,
+                        j%2?aged:steel);
+                    add(0,x,-.12,.11,.13,.02,.33,dark);
+                    add(0,x,-.39,.14,.14,.02,.29,soot);
+                }
+                for(const z of [-.19,.32])
+                    add(1,0,-.24,z,.082,.87,.082,dark,0,0,Math.PI/2);
+                for(const j of [-1,0,1])
+                    add(0,j*.27,.09,-.33,.025,.48,.032,steel);
+            }else{
+                // RECLAMATION: staggered press beds, stepped crusher housing,
+                // fluted outfeed chutes and small enclosed cyclone plenum.
+                for(let j=0;j<4;j++){
+                    const x=-.38+j*.22,y=-.18+j*.035;
+                    add(0,x,y,.06,.19,.18+j*.03,.42,
+                        j%2?steel:aged);
+                    add(0,x,y+.18,.06,.14,.075,.41,dark);
+                    for(const z of [-.22,.27])
+                        add(0,x,y+.27,z,.03,.14,.055,blade);
+                }
+                for(const x of [-.43,.43])
+                    add(0,x,.20,-.14,.09,.55,.12,soot,0,0,
+                        x<0?-.13:.13);
+                add(0,0,.43,-.14,.92,.07,.13,steel);
+                add(2,.25,.30,.31,.24,.30,.24,aged);
+                add(1,.25,.58,.31,.09,.26,.09,dark);
+                add(0,-.21,.02,.37,.48,.085,.12,steel,0,0,-.15);
+                for(let i=0;i<6;i++)
+                    add(0,-.36+i*.13,.08,.39,.04,.09,.09,
+                        i%2?blade:dark,0,0,-.15);
+            }
+            geom.forEach(g=>g.dispose());
+            const result=new THREE.BufferGeometry();
+            result.name=[
+                'MAP4_GFX11C10_ORIGINAL_HEAT_RECOVERY_GEOMETRY',
+                'MAP4_GFX11C10_ORIGINAL_TRANSFER_GEOMETRY',
+                'MAP4_GFX11C10_ORIGINAL_RECLAMATION_GEOMETRY'
+            ][family];
+            result.setAttribute('position',
+                new THREE.Float32BufferAttribute(positions,3));
+            result.setAttribute('normal',
+                new THREE.Float32BufferAttribute(normals,3));
+            result.setAttribute('color',
+                new THREE.Float32BufferAttribute(colors,3));
+            result.setAttribute('uv',
+                new THREE.Float32BufferAttribute(uvs,2));
+            result.computeBoundingBox();result.computeBoundingSphere();
+            return result;
+        }
+
+        // NEXT11C10 service/access roads. Their role is grounding the
+        // factory site silhouettes and adding nonrepeated industrial context.
+        // Flat visual-only surface ribbons: NO walls or collision promises.
+        // Originate from our own route geometry; no source asset or texture.
+        function h4Gfx11c10ServiceYards(){
+            const vertices=[],colors=[];
+            const tint={
+                asphalt:new THREE.Color(0x485057),
+                edge:new THREE.Color(0x687279),
+                worn:new THREE.Color(0x67655f),
+                oil:new THREE.Color(0x343d43)
+            };
+            const point=(progress,side)=>h4WorldPosition(
+                progress,side,-433);
+            const face=(points,color,factor)=>{
+                const c=tint[color];
+                for(const p of points){
+                    vertices.push(p.x,p.y,p.z);
+                    colors.push(
+                        c.r*factor,c.g*factor,c.b*factor);
+                }
+            };
+            const quad=(from,to,left,right,color,factor)=>{
+                const a=point(from,left),b=point(from,right),
+                    c=point(to,left),d=point(to,right);
+                face([a,b,d],color,factor);
+                face([a,d,c],color,factor*.989);
+            };
+            const regions=[
+                [16800,21000], // 07 open recovery approach
+                [23400,28400], // 08 transfer and production yards
+                [30500,33700]  // 09 power distribution support
+            ];
+            for(let region=0;region<regions.length;region++){
+                const [from,to]=regions[region];
+                for(const side of [-1,1]){
+                    const sideBase=side*(region===2?1260:1370);
+                    const segments=Math.ceil((to-from)/190);
+                    for(let k=0;k<segments;k++){
+                        const at=from+(to-from)*k/segments,
+                            bt=from+(to-from)*(k+1)/segments;
+                        const bend=Math.sin(k*.33+region*2.3)*
+                            (region===1?48:31);
+                        const center=sideBase+side*bend;
+                        const stripe=1+Math.sin(k*1.71+region*2.4)*.055;
+                        // Dark asphalt. Four irregular narrow edge lines
+                        // give utility roads visible manufactured identity.
+                        quad(at,bt,center-115,center+115,
+                            'asphalt',stripe);
+                        quad(at,bt,center-117,center-107,
+                            'edge',.94);
+                        quad(at,bt,center+107,center+117,
+                            'edge',.94);
+                        if(k%3===1){
+                            const end=Math.min(bt,at+15);
+                            quad(at,end,center-105,center+105,
+                                'oil',.91);
+                        }
+                        if(k%5===0){
+                            // Irregular short loading apron, not endless
+                            // prefabricated tiled runway segments.
+                            const apron=side>0?1:-1;
+                            const y=center+apron*169;
+                            quad(at,Math.min(to,at+125),
+                                y-68,y+68,'worn',.86);
+                        }
+                    }
+                    h4Gfx11c10Stats.serviceYards++;
+                }
+            }
+            const geometry=new THREE.BufferGeometry();
+            geometry.name='MAP4_GFX11C10_ORIGINAL_SERVICE_ACCESS_BEDS';
+            geometry.setAttribute('position',
+                new THREE.Float32BufferAttribute(vertices,3));
+            geometry.setAttribute('color',
+                new THREE.Float32BufferAttribute(colors,3));
+            geometry.computeVertexNormals();
+            // Solid matte soot/asphalt. Unlit ground signage avoids the
+            // overexposed, unnaturally white triangles found in real 07/08
+            // Chromium screenshots under this map's cinematic sun rig.
+            const material=new THREE.MeshBasicMaterial({
+                name:'MAP4_GFX11C10_DIRT_STAINED_SERVICE_ROADS',
+                vertexColors:true,color:0x829099,
+                toneMapped:false,fog:true,
+                depthTest:true,depthWrite:true,side:THREE.DoubleSide,
+                polygonOffset:true,polygonOffsetFactor:-1
+            });
+            const surface=new THREE.Mesh(geometry,material);
+            surface.name='MAP4_GFX11C10_FUNCTIONAL_SERVICE_YARDS';
+            surface.userData.visualOnly=true;
+            surface.userData.noCollider=true;
+            surface.frustumCulled=false;
+            h4Gfx11c10Stats.serviceDraws=1;
+            h4Gfx11c10Stats.serviceTriangles=
+                geometry.getAttribute('position').count/3;
+            return surface;
+        }
+
+        function h4Gfx11c10BuildDistricts(zone){
+            if(h4Gfx11c10Root)return;
+            if(!h4Gfx11c9Root||!h4Gfx11c5WeatherMap)
+                throw new Error('NEXT11C10 C9 plant and shared atlas missing');
+            const physics=[h4CanyonColliders.length,
+                h4IndustrialColliders.length,planetaryBuildingColliders.length];
+            const markers=h4IndustrialGroups.flatMap(g=>
+                g.children.filter(m=>m.userData.w05Kind==='BEACON'||
+                    m.userData.w05Kind==='HIGH_MARKER'));
+            const originalMarkers=markers.map(mesh=>({
+                mesh,geometry:mesh.geometry,material:mesh.material,
+                matrix:mesh.matrix.clone(),collider:mesh.userData.h4Collider
+            }));
+            const root=new THREE.Group();
+            root.name='MAP4_GFX11C10_ORIGINAL_FUNCTIONAL_DISTRICTS';
+            root.userData.visualOnly=true;root.userData.noCollider=true;
+            const dummy=new THREE.Object3D();
+            for(let family=0;family<3;family++){
+                const geometry=h4Gfx11c10DistrictGeometry(family);
+                const mat=new THREE.MeshStandardMaterial({
+                    name:'MAP4_GFX11C10_UNIQUE_MATTE_FACTORY_'+family,
+                    map:h4Gfx11c5WeatherMap,bumpMap:h4Gfx11c5WeatherMap,
+                    bumpScale:.010,color:0xb3bab6,vertexColors:true,
+                    metalness:.42,roughness:.85,
+                    side:THREE.DoubleSide
+                });
+                const batch=new THREE.InstancedMesh(geometry,mat,2);
+                batch.name=['MAP4_GFX11C10_OPEN_RECOVERY_WORKS',
+                    'MAP4_GFX11C10_LIFT_AND_TRANSFER_YARD',
+                    'MAP4_GFX11C10_STEP_CRUSHER_RECLAMATION'][family];
+                batch.userData.visualOnly=true;
+                batch.userData.noCollider=true;
+                batch.frustumCulled=false;
+                for(let i=0;i<2;i++){
+                    const def=H4_GFX11C10_LOCATIONS[family*2+i];
+                    const frame=getRaceFrameAtDistance(def.at);
+                    dummy.position.copy(h4WorldPosition(
+                        def.at,def.side,def.altitude));
+                    dummy.quaternion.setFromUnitVectors(H4_UP,frame.up);
+                    dummy.rotateY(def.turn);
+                    dummy.scale.set(def.size,def.size*1.10,def.size*.82);
+                    dummy.updateMatrix();
+                    batch.setMatrixAt(i,dummy.matrix);
+                    batch.setColorAt(i,new THREE.Color(
+                        i===0?0xa5b3b6:0x8d9da4));
+                    h4Gfx11c10Stats.originalDistricts++;
+                }
+                batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                batch.instanceMatrix.needsUpdate=true;
+                if(batch.instanceColor)batch.instanceColor.needsUpdate=true;
+                root.add(batch);
+                h4Gfx11c10Stats.originalFamilies++;
+                h4Gfx11c10Stats.drawBatches++;
+            }
+            root.add(h4Gfx11c10ServiceYards());
+            if(markers.length!==24||
+                physics[0]!==h4CanyonColliders.length||
+                physics[1]!==h4IndustrialColliders.length||
+                physics[2]!==planetaryBuildingColliders.length)
+                throw new Error('NEXT11C10 changed historical physics counts');
+            if(!originalMarkers.every(x=>
+                x.mesh.geometry===x.geometry&&
+                x.mesh.material===x.material&&
+                x.mesh.userData.h4Collider===x.collider&&
+                x.mesh.matrix.equals(x.matrix)))
+                throw new Error('NEXT11C10 moved route marker');
+            zone.add(root);
+            h4Gfx11c10Root=root;
+            h4Gfx11c10UpdateQuality();
+        }
+        function h4Gfx11c10SetLook(enabled){
+            h4Gfx11c10Stats.lookEnabled=!!enabled;
+            h4Gfx11c10UpdateQuality();
+        }
+        function h4Gfx11c10UpdateQuality(){
+            if(!h4Gfx11c10Root)return;
+            h4Gfx11c10Root.visible=h4Gfx11c10Stats.lookEnabled &&
+                state.activeMap===MAP_MODES.MAP4 &&
+                state.map4Phase===3 && h4Gfx10ProfileName!=='LOW';
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -7912,6 +8240,7 @@
                     h4Gfx11c7BuildCuration(zone);
                     h4Gfx11c8BuildFacades(zone);
                     h4Gfx11c9BuildFunctionalIndustry(zone);
+                    h4Gfx11c10BuildDistricts(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -8022,6 +8351,7 @@
             h4Gfx11c7UpdateQuality();
             h4Gfx11c8UpdateQuality();
             h4Gfx11c9UpdateQuality();
+            h4Gfx11c10UpdateQuality();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
