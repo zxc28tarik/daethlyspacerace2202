@@ -126,6 +126,10 @@ const {pathToFileURL}=require('node:url');
       'FAST_LOW','CENTRAL','HUNTER_FLANK','SAFE_UPPER'
     ]);
     assert.equal(scan.factory08.length,4);
+    assert(Array.isArray(scan.hiddenPhysicalColliders));
+    assert(scan.hiddenPhysicalColliders.every(x=>
+      x.index>=0&&x.index<236&&!!x.hiddenBy));
+
     for(const track of scan.tracks){
       assert(track.sampledSegments>=260&&track.sampledSegments<=270);
       assert(track.collidingSegments>=0&&
@@ -142,6 +146,7 @@ const {pathToFileURL}=require('node:url');
         assert(['W01_BUILDING_COLLIDER',
           'W05_INDUSTRIAL_COLLIDER'].includes(obstacle.source));
         assert(obstacle.collidingSegments>=1);
+        assert.equal(typeof obstacle.visiblyRendered,'boolean');
       }
     }
     for(const point of scan.factory08){
