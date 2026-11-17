@@ -1,6 +1,6 @@
 # NEXT-11C6 — Sanayi büyük silüet / üç katmanlı derinlik kadrajı
 
-**Durum:** KOD GELİŞTİRME DALINDA; CI / 07-08-09 gerçek Chromium görsel kabulü **sonraki test çalışmasında doğrulanacak**. Kullanıcı 7–8/10 estetik onayı ve native GPU FPS/VRAM açık.
+**Durum:** İlk 07/08/09 gerçek Chromium/WebGL A/B teknik testi PASS (CI #44063426264); **ilk görsel denetim yetersiz**, düzeltme commitleri yazıldı ve yeni CI/görsel kanıt henüz açık. Kullanıcı 7–8/10 estetik onayı ve native GPU FPS/VRAM açık.
 
 ## Tasarım gerekçesi
 
@@ -29,3 +29,14 @@ NEXT-11C5'te PBR aşınma ve ışık değişti, ancak 07 giriş ve 08 fabrika ka
 **Merge kuralı:** Bu PR, NEXT-11C5 PR #50 üzerine stacked DRAFT olacaktır; hiçbir PR açık kullanıcı onayı olmadan `main` ile birleştirilmez.
 
 **Başarısız QA'da:** Aynı dalda düzelt, yeniden CI başlat, olumsuz görüntü varsa art borcu olarak açık tut. `PASS` demek insan estetik onayı değildir.
+
+
+## 17 Kasım — İlk gerçek görsel denetimi ve takip onarımı
+
+**Kaynak:** [Actions #44063426264](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44063426264) / artifact `map4-browser-smoke-images`, `map4-gfx11c6-07-entry-before/after`, `08-factory-before/after`, `09-exit-before/after`. 1600×900 gerçek Chromium/WebGL aynı-kamera A/B, yalnız `h4Gfx11c6SetLook` aç-kapa, geçmiş sürüm tarihsel karşılaştırması değildir.
+
+- İlk geçişte değişen alan: **07 %17,01**, **08 %9,88**, **09 %3,60** (ortalama RGB farkı >1/255 eşiği; estetik kalite puanı değildir).
+- **Görsel sorun:** 07 ön planda büyük düz bloklar, 08 sağ tarafta aşırı büyük açık renkli kutu/sundurma, 09'da çok az etki. Bu nedenle otomatik A/B PASS olsa bile **estetik KABUL VERİLMEDİ**.
+- **Düzeltme:** Büyük boş levhalar küçültülüp metalik açık iskelet/kolonlara çevrildi; yeni modellerin konumu uçuş hattından biraz daha dışa/ileriye taşındı, boyutlar daraltıldı, koyu soğuk metal/pas paleti kullanıldı; yeni düz malzeme yerine **mevcut NEXT-11C5 256² PBR atlas/bump UV ile paylaşıldı**, yeni texture yok.
+- Yeni gerçek ekran görüntülerinin incelenmesi ve yeni CI HEAD için PASS **AÇIK**; önceki ilk geçişin teknik PASS'ı düzeltilmiş sürümün kabulü sayılmaz.
+- Sadece PR #51'de işlem yapıldı; PR #50 ve diğer stacked PR'lar **merge edilmedi**.
