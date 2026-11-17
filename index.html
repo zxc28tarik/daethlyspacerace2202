@@ -5197,6 +5197,235 @@
                 throw new Error('NEXT11C3 missing VIS02 protected physical art');
         }
 
+
+        // NEXT11C4: deliberately AUTHORED large-scale industrial hero
+        // architecture, not scaled primitive placeholders. Build three
+        // separate multi-part geometries, each baked into one BufferGeometry
+        // with physically shaded face normals and intentional vertex colors:
+        // refinery columns & pipe galleries, twin hyperboloid cooling towers,
+        // and a circular power-core gantry. Twelve instances total, 3 calls.
+        // All models are NON-COLLIDING, off the player's three flight lanes.
+        const h4Gfx11c4Stats={
+            architectureFamilies:3,heroBatches:0,heroInstances:0,
+            bakedPrimitives:0,geometryTriangles:[],
+            newColliders:0,originalCollisionMeshesChanged:0,
+            sixSites:true,visualOnly:true
+        };
+        let h4Gfx11c4HeroRoot=null;
+        function h4Gfx11c4AuthoredGeometry(family){
+            const pos=[],normal=[],color=[];
+            const source=[];
+            const shape=(g)=>{source.push(g);return g;};
+            const box=shape(new THREE.BoxGeometry(1,1,1));
+            const round=shape(new THREE.CylinderGeometry(.5,.5,1,12));
+            const slim=shape(new THREE.CylinderGeometry(.09,.09,1,10));
+            const lens=shape(new THREE.SphereGeometry(.5,14,10));
+            const torus=shape(new THREE.TorusGeometry(.5,.045,8,24));
+            const arc=shape(new THREE.TorusGeometry(.5,.07,8,24,Math.PI*1.48));
+            const tapered=shape(new THREE.CylinderGeometry(.31,.51,1,12));
+            const cooling=shape(new THREE.LatheGeometry([
+                new THREE.Vector2(.45,-.5),
+                new THREE.Vector2(.39,-.37),
+                new THREE.Vector2(.27,-.11),
+                new THREE.Vector2(.27,.12),
+                new THREE.Vector2(.39,.37),
+                new THREE.Vector2(.47,.5)
+            ],18));
+            const dark=0x253b49,steel=0x526e7e,
+                copper=0xa87559,light=0xa7c9c9,
+                cyan=0x42c9df,amber=0xe8a359,
+                purple=0x9381c8;
+            const transform=new THREE.Matrix4();
+            const euler=new THREE.Euler(),quat=new THREE.Quaternion();
+            const v=new THREE.Vector3(),n=new THREE.Vector3();
+            const nm=new THREE.Matrix3(),p=new THREE.Vector3(),scale=new THREE.Vector3();
+            const add=(geo,x,y,z,w,h,d,tint=steel,rx=0,ry=0,rz=0)=>{
+                p.set(x,y,z);euler.set(rx,ry,rz);quat.setFromEuler(euler);
+                scale.set(w,h,d);transform.compose(p,quat,scale);
+                nm.getNormalMatrix(transform);
+                const g=geo.index?geo.toNonIndexed():geo;
+                if(!g.getAttribute('normal'))g.computeVertexNormals();
+                const a=g.getAttribute('position'),b=g.getAttribute('normal');
+                const c=new THREE.Color(tint);
+                for(let i=0;i<a.count;i++){
+                    v.fromBufferAttribute(a,i).applyMatrix4(transform);
+                    n.fromBufferAttribute(b,i).applyMatrix3(nm).normalize();
+                    pos.push(v.x,v.y,v.z);
+                    normal.push(n.x,n.y,n.z);
+                    color.push(c.r,c.g,c.b);
+                }
+                if(g!==geo)g.dispose();
+                h4Gfx11c4Stats.bakedPrimitives++;
+            };
+            if(family===0){
+                // Refinery: staggered distillation drums, sculpted flared
+                // cracking column, two tall stacks and traversing pipe deck.
+                add(box,0,-.47,0,1.42,.12,.82,dark);
+                add(box,0,.02,-.03,1.08,.10,.63,steel);
+                add(tapered,-.33,-.08,-.15,.42,.90,.42,copper);
+                add(round,-.33,.37,-.15,.35,.12,.35,light);
+                add(cooling,.23,-.07,.05,.50,.88,.50,steel);
+                add(round,.23,.41,.05,.35,.09,.35,copper);
+                add(round,.59,-.02,-.20,.13,1.12,.13,dark);
+                add(round,.73,.09,.11,.09,.94,.09,copper);
+                add(torus,-.33,.19,-.15,.45,.45,.45,amber,Math.PI/2);
+                add(torus,-.33,-.24,-.15,.43,.43,.43,steel,Math.PI/2);
+                add(torus,.23,.25,.05,.48,.48,.48,cyan,Math.PI/2);
+                add(box,0,.29,-.37,.92,.045,.15,dark);
+                add(box,0,.31,-.40,.85,.025,.08,light);
+                add(box,0,-.13,.36,.86,.065,.07,copper);
+                add(box,0,-.24,.39,.82,.065,.06,dark);
+                for(let i=0;i<6;i++){
+                    const x=-.46+i*.17;
+                    add(slim,x,.05,.32,.035,.53,.035,steel);
+                }
+                for(let i=0;i<4;i++){
+                    const x=-.47+i*.30;
+                    add(slim,x,.27,-.38,.035,.21,.035,light);
+                }
+                add(round,.01,-.27,.16,.23,.31,.23,copper);
+                add(lens,.01,-.13,.16,.22,.17,.22,light);
+                add(arc,.12,-.02,.19,.65,.65,.65,amber,Math.PI/2);
+                for(const dir of [-1,1]){
+                    add(box,dir*.54,-.22,-.36,.07,.52,.10,steel,0,0,dir*.22);
+                    add(box,dir*.53,-.40,.24,.10,.20,.08,dark);
+                }
+            }else if(family===1){
+                // Cooling: paired real hyperboloid shell towers, exposed
+                // overhead cooling fans, ducts and a ventilated bridge.
+                add(box,0,-.46,0,1.48,.11,.83,dark);
+                for(const side of [-1,1]){
+                    const x=side*.36;
+                    add(cooling,x,-.035,.06,.58,.92,.58,side<0?steel:0x7193a0);
+                    add(torus,x,.425,.06,.60,.60,.60,cyan,Math.PI/2);
+                    add(torus,x,-.385,.06,.62,.62,.62,dark,Math.PI/2);
+                    add(round,x,.465,.06,.13,.10,.13,amber);
+                    add(torus,x,.478,.06,.40,.40,.40,light);
+                    for(let j=0;j<5;j++){
+                        const angle=j*Math.PI*2/5;
+                        add(box,x+Math.cos(angle)*.17,.478,
+                            .06+Math.sin(angle)*.17,
+                            .29,.015,.075,dark,0,angle,angle);
+                    }
+                    add(box,x,-.39,-.31,.54,.055,.16,copper);
+                }
+                add(box,0,-.12,-.39,1.18,.09,.21,steel);
+                add(box,0,.14,-.35,1.05,.045,.14,dark);
+                add(box,0,.16,-.39,1.04,.016,.08,light);
+                for(let i=0;i<7;i++){
+                    const x=(i-3)*.14;
+                    add(slim,x,.01,-.38,.025,.27,.025,steel);
+                }
+                add(round,0,-.28,.34,.26,.31,.26,dark);
+                add(lens,0,-.12,.34,.20,.16,.20,cyan);
+                for(const side of [-1,1]){
+                    add(tapered,side*.67,-.30,-.21,.14,.40,.13,copper);
+                    add(box,side*.62,.23,-.30,.08,.29,.10,steel,0,0,side*.24);
+                }
+            }else{
+                // Power plant: vertical circular turbine / gravity ring with
+                // actual open centre, nested reactor arcs, radial fins and
+                // three supported high-voltage discharge pylons.
+                add(box,0,-.47,0,1.35,.12,.78,dark);
+                add(box,0,-.33,-.04,.88,.19,.53,steel);
+                add(torus,0,.09,0,.92,.92,.92,copper);
+                add(torus,0,.09,.045,.72,.72,.72,cyan);
+                add(torus,0,.09,.095,.47,.47,.47,purple);
+                add(lens,0,.09,.13,.30,.30,.23,light);
+                add(torus,0,.09,.25,.34,.34,.34,amber);
+                for(let j=0;j<8;j++){
+                    const angle=j*Math.PI/4;
+                    add(box,Math.sin(angle)*.34,.09+Math.cos(angle)*.34,.15,
+                        .12,.06,.18,dark,0,0,-angle);
+                    add(box,Math.sin(angle)*.54,.09+Math.cos(angle)*.54,.01,
+                        .15,.05,.22,steel,0,0,-angle);
+                }
+                for(const dir of [-1,1]){
+                    add(box,dir*.65,-.15,0,.12,.70,.14,dark,0,0,dir*.22);
+                    add(round,dir*.70,.26,-.14,.12,.32,.12,purple);
+                    add(torus,dir*.70,.47,-.14,.23,.23,.23,cyan,Math.PI/2);
+                    add(box,dir*.45,-.37,-.29,.09,.22,.20,steel);
+                }
+                add(box,0,.51,-.18,.69,.065,.23,copper);
+                add(torus,0,.54,-.18,.25,.25,.25,light,Math.PI/2);
+                for(let j=0;j<5;j++){
+                    add(slim,(j-2)*.14,-.04,-.38,.02,.53,.02,copper);
+                }
+                add(arc,0,.15,-.38,.74,.74,.74,purple,0,0,Math.PI*.2);
+            }
+            const geometry=new THREE.BufferGeometry();
+            geometry.name=['MAP4_GFX11C4_AUTHORED_REFINERY',
+                'MAP4_GFX11C4_AUTHORED_COOLING',
+                'MAP4_GFX11C4_AUTHORED_REACTOR'][family];
+            geometry.setAttribute('position',
+                new THREE.Float32BufferAttribute(pos,3));
+            geometry.setAttribute('normal',
+                new THREE.Float32BufferAttribute(normal,3));
+            geometry.setAttribute('color',
+                new THREE.Float32BufferAttribute(color,3));
+            geometry.computeBoundingSphere();
+            geometry.computeBoundingBox();
+            h4Gfx11c4Stats.geometryTriangles.push(pos.length/9);
+            source.forEach(g=>g.dispose());
+            return geometry;
+        }
+        function h4Gfx11c4BuildHeroArchitecture(zone){
+            if(h4Gfx11c4HeroRoot)return;
+            const group=new THREE.Group();
+            group.name='MAP4_GFX11C4_AUTHORED_HERO_ARCHITECTURE';
+            group.userData.visualOnly=true;
+            const dummy=new THREE.Object3D();
+            for(let family=0;family<3;family++){
+                const geo=h4Gfx11c4AuthoredGeometry(family);
+                const mat=new THREE.MeshStandardMaterial({
+                    name:'MAP4_GFX11C4_AUTHORED_METAL_'+family,
+                    vertexColors:true,metalness:.54,roughness:.67,
+                    side:THREE.DoubleSide,flatShading:true
+                });
+                const mesh=new THREE.InstancedMesh(geo,mat,4);
+                mesh.name=['MAP4_GFX11C4_REFINERY',
+                    'MAP4_GFX11C4_COOLING',
+                    'MAP4_GFX11C4_ENERGY'][family];
+                mesh.frustumCulled=false;
+                mesh.userData.visualOnly=true;
+                mesh.userData.noCollider=true;
+                mesh.userData.h4Gfx11c4Hero=true;
+                for(let index=0;index<4;index++){
+                    const site=family*2+Math.floor(index/2);
+                    const partner=index%2===1;
+                    const at=H4_GFX11C_SITES[site];
+                    const progress=at+(partner?720:270);
+                    const flank=site%2===0?-1:1;
+                    const side=partner?-flank*1740:flank*1590;
+                    const f=getRaceFrameAtDistance(progress);
+                    dummy.position.copy(h4WorldPosition(
+                        progress,side,partner?110:150));
+                    dummy.quaternion.setFromUnitVectors(H4_UP,f.up);
+                    dummy.rotateY((partner?-1:1)*(0.12+site*.025));
+                    const factor=partner?.75:1;
+                    dummy.scale.set(930*factor,(1090+family*75)*factor,
+                        900*factor);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(index,dummy.matrix);
+                    const tint=new THREE.Color(
+                        [0xf1d9c6,0xbfdde4,0xd3c4ed][family]);
+                    tint.multiplyScalar(partner?.86:1);
+                    mesh.setColorAt(index,tint);
+                    h4Gfx11c4Stats.heroInstances++;
+                }
+                mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                mesh.instanceMatrix.needsUpdate=true;
+                if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+                group.add(mesh);
+                h4Gfx11c4Stats.heroBatches++;
+            }
+            zone.add(group);
+            h4Gfx11c4HeroRoot=group;
+        }
+        function h4Gfx11c4SetHeroVisible(enabled){
+            if(h4Gfx11c4HeroRoot)h4Gfx11c4HeroRoot.visible=enabled;
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -6506,6 +6735,7 @@
                     h4Gfx11cBuildIndustryIdentities(zone);
                     h4Gfx11c2CurateIndustry();
                     h4Gfx11c3BuildComposition(zone);
+                    h4Gfx11c4BuildHeroArchitecture(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
