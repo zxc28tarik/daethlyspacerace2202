@@ -42,3 +42,11 @@
 - **İkinci hedefli düzeltme:** `c4a1944` iki `IN06_CENTRAL_POWER_TOROID` görsel-only meshinin malzemelerini mat PBR yaptı; scale 1.0→0.76, orijinal ölçek A/B bayrağıyla geri yüklenir. `4eb8643` testi 17 görsel malzeme kaydını ve iki ölçeğin doğru geri dönüşünü denetler.
 - **Yeni son kod CI ve ikinci 07/08/09 görüntü incelemesi:** Henüz açık; [hızlı test #44067601417](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44067601417) ve ayrıca tam Smoke workflow sonucu doğrulanmadan PASS veya nihai estetik karar yazılmayacak.
 - Gerçek GPU FPS/VRAM, 5 dakikalık oynanış ve yayıncı için 3/6 playable kabulü hâlâ açık. Main merge yok.
+
+
+## 17 Kasım — 09 çıkışı doğru model kimliği denetimi
+
+- **Hızlı QA #44067601417 PASS**: IN06 toroid düzeltmesi teknik olarak uygulanmış olsa da sabit 09 kamerasındaki görüntü değişimi, önceki C7 görüntüsüne göre **%0**. Bu enerji halkaları 09'un baskın yakın kadrajı değildir; gerçek görüntü karşılaştırmasıyla doğrulandı.
+- **Doğru 09 nesnesi:** `h4Gfx11c4HeroRoot.children[2]` içinde **site6 / index2 ve index3** olan mevcut *visual-only* ENERGY kahraman mimarisi. Kod `838a630`: iki instanced matrix **%22** küçültülüp original matrix kayıpsız cache'lendi; kalan 10 model örneği, fizik ve route işaretleri değişmedi.
+- **QA `3c60510`:** C4 iki ENERGY instance A/B scale küçültülmesi de test ediliyor; yeni hızlı [#44068083063](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063) ve tam [#44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **henüz doğrulanmadı**.
+- **Vazgeçilmeyen kabul kriteri:** Görüntüde büyük halkaların azalması nicel değişim demek olabilir, ancak 7–8/10 görsel kalite onayı için yeterli değildir. Gerçek oyun 5 dk, native GPU/FPS ve yayıncı 3/6 harita hâlâ açık.
