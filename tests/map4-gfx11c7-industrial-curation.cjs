@@ -81,12 +81,13 @@ const {pathToFileURL}=require('node:url');
     assert.equal(baseline.stats.oldDecksCurated,12);
     assert.equal(baseline.stats.decorativeBatchesCurated,2);
     assert.equal(baseline.stats.groundCurated,1);
+    assert.equal(baseline.stats.reactorRingsCurated,2);
     for(const k of ['newColliders','newLights','newTextures'])
       assert.equal(baseline.stats[k],0);
     assert(baseline.markerCount>=12);
     assert(baseline.markerProtected);
     assert(baseline.physicalIntact&&baseline.groundIsVisual);
-    assert.equal(baseline.entries.length,15);
+    assert.equal(baseline.entries.length,17);
     assert.equal(baseline.entries.filter(x=>
       x.marked==='BEACON'||x.marked==='HIGH_MARKER').length,0);
     for(const item of baseline.entries)
@@ -114,6 +115,8 @@ const {pathToFileURL}=require('node:url');
       return {
         styleCount:h4Gfx11c7Styled.filter(x=>
           x.mesh.material===x.styled).length,
+        ringScale:h4Gfx11c7Styled.filter(x=>
+          x.kind==='REACTOR_TOROID').map(x=>x.mesh.scale.x),
         calls:renderer.info.render.calls,
         triangles:renderer.info.render.triangles,
         textures:renderer.info.memory.textures,
@@ -151,7 +154,9 @@ const {pathToFileURL}=require('node:url');
         __dirname,'map4-gfx11c7-'+spec.id+'-after.png')});
       assert(!oldImage.equals(newImage),'visual A/B unchanged '+spec.id);
       assert.equal(before.styleCount,0);
-      assert.equal(after.styleCount,15);
+      assert.equal(after.styleCount,17);
+      assert.equal(after.ringScale.length,2);
+      assert(after.ringScale.every((v,i)=>v<before.ringScale[i]));
       assert.equal(after.calls,before.calls,'no new draw calls '+spec.id);
       assert.equal(after.triangles,before.triangles);
       assert.equal(after.textures,before.textures);
@@ -176,7 +181,7 @@ const {pathToFileURL}=require('node:url');
           collisions:h4IndustrialColliders.length};
       },profile);
       assert.equal(data.profile,profile);
-      assert.equal(data.curated,profile==='LOW'?0:15);
+      assert.equal(data.curated,profile==='LOW'?0:17);
       assert.equal(data.collisions,36);
       quality.push(data);
     }
