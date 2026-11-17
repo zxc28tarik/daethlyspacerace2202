@@ -1,0 +1,29 @@
+name: Map 4 NEXT-11C7 Visual Preview
+on:
+  push:
+    branches: [codex/map4-gfx11c7-industrial-curation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c7-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium WebGL QA dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Capture 07 / 08 / 09 real WebGL old/new
+        run: node tests/map4-gfx11c7-industrial-curation.cjs
+      - name: Publish NEXT-11C7 art review PNG pairs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c7-07-08-09-review
+          path: tests/map4-gfx11c7-*.png
+          if-no-files-found: warn

@@ -201,3 +201,35 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Diğer açık kapılar:** native GPU FPS/p95/VRAM, 5 dk gerçek uçuş, 3/6 oynanabilir yayıncı haritası ve açık kullanıcı merge/onay kararı.
 
 **Günlük:** `2026-11-17 | NEXT-11C6 | GÖRSEL PROTOTİP -> İLK ESTETİK RED -> ONARIM WEBGL PASS | PR #51, ea0342d/5cb4be2/6caec39 | hızlı CI #44065387823 PASS, tam CI #44065388118 açık | 07/08 iyileşti, 09 ve genel 7-8/10 açık | NEXT-11C7 önerisi`.
+
+
+## 12) 17 Kasım 2026 — NEXT-11C7 sanayi malzeme/kompozisyon kalite turu
+
+- **Önceki:** [NEXT-11C6 PR #51](https://github.com/zxc28tarik/daethlyspacerace2202/pull/51) DRAFT, eski tam CI [#44065388118](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44065388118) **PASS**. Gerçek estetik 7–8/10 onayı henüz yok.
+- **Aktif:** [NEXT-11C7 PR #52](https://github.com/zxc28tarik/daethlyspacerace2202/pull/52) **DRAFT/STACKED**, main merge yok. Kod `5efc90a`: 12 W05 nonphysical deck, 2 GFX11C dekoratif instanced grup, görsel-only industrial ground mat normal, phase3 High/Balanced güneş/sis ayarı; 0 yeni collider/mesh/texture/light, BEACON/HIGH_MARKER korunacak.
+- **İlk gerçek ekran A/B:** [hızlı CI #44067126151 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44067126151); 07 ve 08'de renk/dekor sadeleşmesi, 09 hâlâ fazla baskın ve büyük IN06 halka silüetleri. **Kullanıcı estetik onayı verilmedi.**
+- **Hedefli 09 onarım:** `c4a1944` IN06 iki visual-only power toroid PBR koyulaştırma, 0.76 scale (toggle orijinal ölçekleri kayıpsız geri yükler); test `4eb8643` 17 style ve ölçek A/B koruması. [Yeni hızlı CI #44067601417](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44067601417) **sonuç ve ekran görseli henüz açık**.
+- **Korunan ürün sözleşmesi:** 6 harita, ilk yayıncı sunumuna ≥3 oynanabilir; Harita 4 4 bölüm/60s arena/300s/850m, 5 rakip/8 avcı, 6/36/200 collider. Bu görev oynanış değil yalnızca görsel kalite.
+- **Kapanmayan kabul:** onarım HEAD tam CI, gerçek WebGL 07/08/09 göz incelemesi, native GPU 720/1080p FPS/p95/VRAM, gerçek 5dk oyun, kullanıcı görsel 7–8/10 onayı, 3/6 playable publisher.
+- **Sıradaki karar:** Yeni gerçek görüntüleri denetle. Sorun sürüyorsa görsel-only mimariyi ve 09 çıkış kadrajını yeniden ele al, korunan fizik/navigasyona dokunma. Birleşim için kullanıcı açık onayı şart.
+
+**Günlük:** `2026-11-17 | NEXT-11C7 | YAPILMADI→GELİŞTİRME-PR | PR#52 / 5efc90a / c4a1944 / 4eb8643 | İlk A/B CI PASS, onarım QA açık | görsel puan açık | NEXT11C7 HEAD kalite kapıları`.
+
+
+### NEXT-11C7 devam — 09 ekranındaki baskın gerçek geometri
+
+- IN06 nonphysical power toroid düzenlemesi `c4a1944` hızlı WebGL `4eb8643` [#44067601417 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44067601417); **09 sabit kadrajda etkisi %0** olduğu görüldü. Yanlış etki varsayımı bırakılmadı.
+- Sabit 09'daki yakın halka yapıları için NEXT11C4 ENERGY ailesindeki yalnız **index 2 ve 3** visual-only instance **%22 küçültüldü**, cached original matrices ile geri alınabilir (`838a630`). 10 diğer C4 instance, W05 navigasyon ve bütün collider korunuyor.
+- `3c60510` test başına 2 hero instance geri dönüşünü ekledi. [Hızlı #44068083063](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063) ve [tam #44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **güncel HEAD sonucu açık**.
+- **NEXT:** Ekranları gözle karşılaştır; 7–8/10 kullanıcı onayı olmadan estetiki kapatma, PR merge yok.
+
+
+### NEXT-11C7 gerçek 09 görsel incelemesi — 17 Kasım sonuç
+
+- `838a630` / `3c60510`: yalnız iki C4 ENERGY visual-only site6 instance %22 küçültüldü; original matrix A/B geri yüklenebiliyor.
+- **Tekrarlanabilir Chromium/WebGL art QA:** [hızlı #44068083063 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063). Gerçek 1600×900 07/08/09 görüntüleri 3 A/B çift; 15+2 = 17 curated material slotu ve 2 nonphysical C4 matrix geri dönüşü PASS.
+- **Fark ölçüsü:** 07 %35,37; 08 %27,13; 09 %32,80 önce/sonra changed pixels. 09'un önceki C7 son görseline kıyasla **%18,38** ek görüntü değişimi oldu. Bunlar **estetik kalite puanı değildir**.
+- **Sanat kararı:** 09 ön plan halkaları fiziksel oyun yönlendirmesi olmadıkları için küçültüldü; görüş açıldı. Fakat görüntü hâlâ yaklaşık hedef 7–8/10 seviyesine **onaylı değil**, geniş kutu/zemin/orta mesafe makine detayları çözülmedi.
+- **Güncel kod tam CI** [#44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **SONUCU BEKLENİYOR**; hızlı CI ile karıştırma.
+- **NEXT-11C8** **ÖNERİ / YAPILMADI:** Büyük fiziksel W02 kütlelerin collider kimliği değişmeden daha inandırıcı sanayi cephesi/işlevi, bölgesel tekrar/ışık/zemin çözümleri, gerçek 07/08/09 + hareketli kamera görsel QA. Bütün eski karar, harita ve fizik testleri devam eder.
+- **Hiçbir merge yok:** PR #50/#51/#52 DRAFT, main birleştirmesi kullanıcı açık onayına bağlı.

@@ -1821,6 +1821,16 @@
                 h4SunHalo.scale.multiplyScalar(1-.17*grade);
                 renderer.toneMappingExposure*=1-.072*grade;
             }
+            // NEXT11C7: phase-3-only sky polish, no navigation or new light.
+            if(state.map4Phase===3 && h4Gfx11c7Stats.lookEnabled &&
+                h4Gfx10ProfileName!=='LOW'){
+                const grade=industrialSkyWeight;
+                scene.fog.color.lerp(H4_GFX11C7_FOG,.07*grade);
+                scene.fog.density*=1-.07*grade;
+                h4SunHalo.material.opacity*=1-.21*grade;
+                h4SunHalo.scale.multiplyScalar(1-.11*grade);
+                renderer.toneMappingExposure*=1-.018*grade;
+            }
             // Orbit clouds fade, rather than popping at an altitude threshold.
             for(let i=0;i<h4CloudGroups.length;i++){
                 h4CloudGroups[i].visible=i!==3 || orbit<.92;
@@ -5855,6 +5865,155 @@
                 state.map4Phase===3 && h4Gfx10ProfileName!=='LOW';
         }
 
+
+        // NEXT11C7: visual-only industrial curation; no gameplay, new lights,
+        // texture allocations, collider changes or navigation ring changes.
+        const h4Gfx11c7Stats={
+            oldDecksCurated:0,decorativeBatchesCurated:0,
+            reactorRingsCurated:0,exitHeroInstancesCurated:0,
+            groundCurated:0,
+            protectedMarkersUnchanged:true,newColliders:0,newLights:0,
+            newTextures:0,lookEnabled:true,
+            nativeGpuVerified:false,humanAestheticApproval:false
+        };
+        const H4_GFX11C7_FOG=new THREE.Color(0x4b5865);
+        const h4Gfx11c7Styled=[];
+        const h4Gfx11c7HeroMatrices=[];
+        function h4Gfx11c7BuildCuration(zone){
+            if(h4Gfx11c7Styled.length)return;
+            if(!h4Gfx11c5WeatherMap)
+                throw new Error('NEXT11C7 requires the shared PBR atlas');
+            const add=(mesh,styled,kind)=>{
+                if(!mesh||mesh.userData.h4Collider)
+                    throw new Error('NEXT11C7 must not modify collider art');
+                h4Gfx11c7Styled.push({
+                    mesh,original:mesh.material,styled,kind
+                });
+            };
+            for(const station of h4IndustrialGroups)
+                for(const mesh of station.children){
+                    if(!mesh.isMesh||!mesh.userData.h4VisualOnly)continue;
+                    const kind=mesh.userData.w05Kind;
+                    if(kind!=='SERVICE_DECK'&&kind!=='CARGO_PLATFORM')continue;
+                    if(!mesh.geometry.getAttribute('uv'))
+                        throw new Error('NEXT11C7 W05 deck UV missing');
+                    const material=new THREE.MeshStandardMaterial({
+                        name:'MAP4_GFX11C7_WEATHERED_'+kind,
+                        map:h4Gfx11c5WeatherMap,
+                        bumpMap:h4Gfx11c5WeatherMap,bumpScale:.011,
+                        color:kind==='SERVICE_DECK'?0x6e858e:0x788281,
+                        metalness:.43,roughness:.83,side:THREE.DoubleSide
+                    });
+                    add(mesh,material,kind);
+                    h4Gfx11c7Stats.oldDecksCurated++;
+                }
+            // These are FACTORY processing collars; not route guidance.
+            const identities=zone.getObjectByName(
+                'MAP4_GFX11C_SIX_FACTORY_IDENTITIES');
+            if(!identities)throw new Error('NEXT11C7 missing factories');
+            for(const name of ['SERVICE_COLLARS','SIGNAL_CORES']){
+                const mesh=identities.getObjectByName('MAP4_GFX11C_'+name);
+                if(!mesh||!mesh.isInstancedMesh||
+                    !mesh.userData.visualOnly||
+                    !mesh.geometry.getAttribute('uv'))
+                    throw new Error('NEXT11C7 nonphysical '+name+' missing');
+                const material=new THREE.MeshStandardMaterial({
+                    name:'MAP4_GFX11C7_RECESSED_'+name,
+                    map:h4Gfx11c5WeatherMap,
+                    metalness:.44,roughness:.84,
+                    color:name==='SERVICE_COLLARS'?0x647d84:0xb08c67,
+                    side:THREE.DoubleSide
+                });
+                add(mesh,material,name);
+                h4Gfx11c7Stats.decorativeBatchesCurated++;
+            }
+            // IN06 visual-only power toroids, NOT race guide hoops.
+            // Massive paired rings currently dominate 09 exit; recess them
+            // as compact industrial turbine collars. Collider AABBs unchanged.
+            const reactor=h4IndustrialGroups[5].getObjectByName(
+                'MAP4_GFX06C_IN06_REACTOR_SECURITY_POWER');
+            if(!reactor)throw new Error('NEXT11C7 IN06 plant missing');
+            for(let i=0;i<2;i++){
+                const mesh=reactor.getObjectByName(
+                    'IN06_CENTRAL_POWER_TOROID_'+i);
+                if(!mesh||!mesh.userData.visualOnly||
+                    !mesh.geometry.getAttribute('uv'))
+                    throw new Error('NEXT11C7 physical reactor ring blocked');
+                const mat=mesh.material.clone();
+                mat.name='MAP4_GFX11C7_RECESSED_REACTOR_'+i;
+                mat.map=h4Gfx11c5WeatherMap;
+                mat.bumpMap=h4Gfx11c5WeatherMap;
+                mat.bumpScale=.012;
+                mat.color.setHex(i?0x657f83:0x847468);
+                mat.roughness=.85;mat.metalness=.43;
+                mat.needsUpdate=true;
+                add(mesh,mat,'REACTOR_TOROID');
+                const entry=h4Gfx11c7Styled[h4Gfx11c7Styled.length-1];
+                entry.originalScale=mesh.scale.clone();
+                entry.styledScale=mesh.scale.clone().multiplyScalar(.76);
+                h4Gfx11c7Stats.reactorRingsCurated++;
+            }
+            // The huge rings inside the 09 frame belong to the pre-existing
+            // C4 ENERGY hero InstancedMesh, not the distant IN06 toroids.
+            // Recompose ONLY site-6's two visual-only instances; preserve
+            // the other ten C4 instances and every gameplay volume.
+            const energy=h4Gfx11c4HeroRoot.children[2];
+            if(!energy||!energy.isInstancedMesh||
+                !energy.userData.noCollider||energy.count!==4)
+                throw new Error('NEXT11C7 energy hero must be nonphysical');
+            for(const index of [2,3]){
+                const original=new THREE.Matrix4();
+                energy.getMatrixAt(index,original);
+                const pos=new THREE.Vector3(),rot=new THREE.Quaternion(),
+                    scale=new THREE.Vector3();
+                original.decompose(pos,rot,scale);
+                const styled=new THREE.Matrix4().compose(
+                    pos,rot,scale.multiplyScalar(.78));
+                h4Gfx11c7HeroMatrices.push({
+                    mesh:energy,index,original,styled,active:false
+                });
+                h4Gfx11c7Stats.exitHeroInstancesCurated++;
+            }
+            // Geometry and terrain height untouched, only its visual normal
+            // ripple is muted. Physically traversable world remains identical.
+            const ground=zone.children.find(x=>
+                x.isMesh&&x.userData.h4TerrainSceneryOnly);
+            if(!ground||ground.userData.h4Collider)
+                throw new Error('NEXT11C7 requires nonphysical ground');
+            const matte=ground.material.clone();
+            matte.name='MAP4_GFX11C7_MATTE_INDUSTRIAL_GROUND';
+            matte.normalMap=null;matte.roughnessMap=null;
+            matte.roughness=1;matte.metalness=0;matte.needsUpdate=true;
+            add(ground,matte,'GROUND');
+            h4Gfx11c7Stats.groundCurated++;
+            h4Gfx11c7UpdateQuality();
+        }
+        function h4Gfx11c7SetLook(enabled){
+            h4Gfx11c7Stats.lookEnabled=!!enabled;
+            h4Gfx11c7UpdateQuality();
+        }
+        function h4Gfx11c7UpdateQuality(){
+            const active=h4Gfx11c7Stats.lookEnabled &&
+                state.activeMap===MAP_MODES.MAP4 &&
+                state.map4Phase===3 && h4Gfx10ProfileName!=='LOW';
+            for(const entry of h4Gfx11c7HeroMatrices){
+                if(entry.active!==active){
+                    entry.mesh.setMatrixAt(entry.index,
+                        active?entry.styled:entry.original);
+                    entry.mesh.instanceMatrix.needsUpdate=true;
+                    entry.active=active;
+                }
+            }
+            for(const item of h4Gfx11c7Styled){
+                const target=active?item.styled:item.original;
+                if(item.mesh.material!==target)item.mesh.material=target;
+                if(item.originalScale){
+                    const scale=active?item.styledScale:item.originalScale;
+                    if(!item.mesh.scale.equals(scale))item.mesh.scale.copy(scale);
+                }
+            }
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -7167,6 +7326,7 @@
                     h4Gfx11c4BuildHeroArchitecture(zone);
                     h4Gfx11c5BuildLook(zone);
                     h4Gfx11c6BuildSkyline(zone);
+                    h4Gfx11c7BuildCuration(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -7274,6 +7434,7 @@
             h4Gfx11c4UpdateQuality();
             h4Gfx11c5UpdateQuality();
             h4Gfx11c6UpdateQuality();
+            h4Gfx11c7UpdateQuality();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
