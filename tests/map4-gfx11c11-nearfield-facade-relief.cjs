@@ -120,8 +120,10 @@ const {pathToFileURL}=require('node:url');
       baseline.stats.facadeBatches);
     assert.equal(baseline.targets.length,
       baseline.stats.facadeTargets);
+    // Game starts in phase 1; C11 material overrides must be OFF until
+    // entry into phase 3. The same test activates them below per camera.
     assert(baseline.targets.every(e=>e.protected&&e.collider&&
-      e.geometry&&e.progress<29200&&e.current.startsWith('MAP4_GFX11C11')));
+      e.geometry&&e.progress<29200&&e.current===e.before));
     const fullTriangles=baseline.batches.reduce((acc,b)=>
       acc+b.triangles*b.count,0);
     assert.equal(baseline.stats.trianglesAdded,fullTriangles);
