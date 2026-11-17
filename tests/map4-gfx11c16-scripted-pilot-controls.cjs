@@ -244,8 +244,8 @@ const {chromium}=require('playwright');
     assert.equal(output.invariants.colliderCount,236);
     assert.equal(output.invariants.markerCount,24);
     assert.equal(output.invariants.w02Count,34);
-    assert.equal(output.invariants.resolvedColliderOwners,200,
-      'W01 owners are map hierarchy; W05 owner meshes live in industry groups');
+    assert.equal(output.invariants.resolvedColliderOwners,236,
+      'all W01/W05 owners must resolve from the full planetary scene');
     assert.equal(output.invariants.gameRules[0],60);
     assert.equal(output.invariants.gameRules[2],850);
     assert.equal(output.invariants.gameRules[3],300);
