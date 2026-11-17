@@ -329,3 +329,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Açık:** Güncel hızlı/son full CI, gerçek 07/08/09 screenshot göz incelemesi; 720/1080 native GPU FPS/p95/VRAM, tam 300s pilot uçuş, kullanıcı 7–8/10 estetik onayı, yayıncı 3 playable ve merge açık izni.
 
 **Günlük:** `2026-11-17 | C11 YAPILDI KOD + TEST DOSYASI + DRAFT PR56 | 0aeaddf/3894441 | GÜNCEL HIZLI/FULL CI AÇIK | SÜRÜMÜ EKRANDAN GÖR KALİTE KARARI | GÜNCEL MERGE YOK`.
+
+
+### NEXT-11C11 — Son hızlı CI ve gerçek ekran incelemesi
+
+- [C11 güncel hızlı WebGL #44079786753 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079786753), 9/9 job adımı. 07/08/09 gerçek 1600×900 aynı-kamera A/B render artifact `map4-next11c11-07-08-09-review` incelendi.
+- **Gerçek kod bütçesi:** 26 fiziksel W02 kabuk (17 blok, 9 yedi yüzlü kule) görsel makro cephesi, **2 batched InstancedMesh**, **22.308 visual-only üçgen**; 34/34 eski fiziksel shell geometry/AABB, 24 W05 BEACON/HIGH_MARKER, 6/36/200 collider, 5 rakip/8 avcı, 60s arena/300s total/850m orbit korunur. **0 yeni collider, light, texture, external asset**.
+- Görsel değişen alan (HUD dahil; piksel başına ortalama RGB >1/255): **07 %7,35 / 08 %6,70 / 09 %0,00**. 07/08 kule cepheleri daha ayrıntılı; 09 **bilinçli olarak sabit**. Bu yüzdeler kalite puanı değildir, 7–8/10 kullanıcı kabulü **YOK**. Hâlâ büyük boş ve düz zemin, tekrarlı kütle algısı, sınırlı derinlik/sanayi ölçeği var.
+- Test güvenliği: ilk hızlı [#44079550403 FAIL](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079550403) yalnız başlangıç Map4 phase1'de **C11 materyalinin kapalı olmasını yanlışlıkla hata sayan** test varsayımıydı; `38944413` bunu düzeltti. C11 hızlı PASS onaylandı.
+- [C11 tam Map1+Map4 #44079786517](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079786517) **sonucu henüz açık**. Tam PASS teyit edilmeden sonraki C12 aşaması bitmiş gösterilmez.
+- Kullanıcı kararı: referanslardan yaratıcı/teknik ilham serbest, fakat CGTrader ve diğer ticari model paketinden ayırt edici silüet, mesh, doku, yerleşim kopyalamak yasak. C11 özgün matematiksel tasarım; fiziksel kabuklar mevcut kendi oyunumuzun önceden var olan binaları. **PR #56 DRAFT / merge YOK**.
