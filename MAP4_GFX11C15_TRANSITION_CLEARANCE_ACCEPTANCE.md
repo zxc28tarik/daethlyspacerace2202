@@ -65,3 +65,9 @@ C14 gerçek 236 fiziksel collider üzerinde 4 **sabit** şerit taradı. C15 sabi
 - `FAST_TO_CENTER_EARLY` ve `MID` her biri **4/80**, ilk risk 24.960–25.120 bölgesinde. Geç giriş `FAST_TO_CENTER_LATE` **8/80**; 23.680–23.840'da risk başlıyor. 08 sonrası merkez geçişi **12/80**, gerçek fabrika riskinden kaçınmak için geç kalıyor.
 - 23.800 noktasında orijinal FAST_LOW **2** W01/VQ02 fabrika collider'ı; merkez/avcı/üst sabit örnekte **0**. Broadphase ile tüm collider brute-force taraması her segmentte aynı; 236/236 owner ve fiziksel/oynanış before-after koruması **PASS**.
 - **Açık:** gerçek dinamik manevra ve kesintisiz 300s uçuş testi, tam Map1/Map4 CI, kullanıcı fizik/AI/rota kararı; bütün PR'lar Draft ve merge yok.
+
+
+## C15 son HEAD CI kapanış kaydı — 18 Kasım 2026
+
+- Son oyun/test kodu değişmeden, [hızlı WebGL #44182868970](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44182868970) **completed/success** ve [tam Map1/Map4 browser suite #44182869011](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44182869011) **completed/success** olarak doğrulandı. Tam testin 39 step'i başarılı. Önceki full #44182747329 `Test both maps with Chromium` ve galeri adımlarında başarısızdı; sonraki son full PASS ile bu hata aşılmıştır. Sonuçlar testin koştuğu `48ec8cd` HEAD'i için geçerlidir; bundan sonraki belge commitlerine yeni test atfedilmez.
+- Geometrik erken hızlı→avcı 0/80 taraması sadece engel kesişimi ölçer. Kullanıcının onayıyla sıradaki **C16 read-only test** normal `updateGame(dt)` oyun kontrol girdilerinin gerçek hareketini gözlemleyecek; fabrika/AI/bonus değişimi yok, PR merge yok.
