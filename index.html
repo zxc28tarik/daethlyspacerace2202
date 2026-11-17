@@ -6925,6 +6925,224 @@
                 state.map4Phase===3 && h4Gfx10ProfileName!=='LOW';
         }
 
+
+        // NEXT11C11: Near-field readability, not another remote city layer.
+        // Original work: broad functional panel rhythm, cooling louvers and
+        // exposed mounting ribs on the EXISTING physical W02 shells.
+        // Asset provenance: self-authored math only, no external mesh/texture.
+        const h4Gfx11c11Stats={
+            facadeTargets:0,boxTargets:0,towerTargets:0,
+            facadeBatches:0,physicalMaterialsRegraded:0,
+            trianglesAdded:0,newTextures:0,newLights:0,newColliders:0,
+            protectedNavUnchanged:true,physicsGeometryUnchanged:true,
+            lookEnabled:true,nativeGpuVerified:false,artApproved:false
+        };
+        const h4Gfx11c11Entries=[];
+        let h4Gfx11c11Root=null;
+        function h4Gfx11c11NearFacadeGeometry(isTower){
+            const primitive=new THREE.BoxGeometry(1,1,1);
+            const plain=primitive.toNonIndexed();
+            const v=plain.getAttribute('position'),
+                n=plain.getAttribute('normal'),uv=plain.getAttribute('uv');
+            const pos=[],normal=[],colors=[],tex=[];
+            const matrix=new THREE.Matrix4(),norm=new THREE.Matrix3(),
+                origin=new THREE.Vector3(),scale=new THREE.Vector3(),
+                quat=new THREE.Quaternion(),euler=new THREE.Euler(),
+                point=new THREE.Vector3(),direction=new THREE.Vector3();
+            const add=(x,y,z,w,h,d,color,angle=0)=>{
+                origin.set(x,y,z);scale.set(w,h,d);
+                euler.set(0,angle,0);quat.setFromEuler(euler);
+                matrix.compose(origin,quat,scale);
+                norm.getNormalMatrix(matrix);
+                const shade=new THREE.Color(color);
+                for(let j=0;j<v.count;j++){
+                    point.fromBufferAttribute(v,j).applyMatrix4(matrix);
+                    direction.fromBufferAttribute(n,j).applyMatrix3(norm).normalize();
+                    pos.push(point.x,point.y,point.z);
+                    normal.push(direction.x,direction.y,direction.z);
+                    colors.push(shade.r,shade.g,shade.b);
+                    tex.push(uv.getX(j)*1.2,uv.getY(j)*1.2);
+                }
+            };
+            const charcoal=0x233640,steel=0x788b8c,
+                patina=0x9b8975,rim=0x4f646b,vent=0x384d53;
+            if(!isTower){
+                // Four wall faces carry readable vertical machinery bays.
+                // Relief is thin relative to the existing collider shell;
+                // large dark bays create depth, narrow slats suggest active
+                // ventilation instead of flat decorative checkerboards.
+                for(const front of [-1,1]){
+                    const z=front*.513;
+                    for(const x of [-.32,0,.32]){
+                        add(x,-.005,z,.277,.76,.022,charcoal);
+                        for(const y of [-.32,-.12,.08,.28])
+                            add(x,y,z+front*.016,.242,.035,.014,
+                                y===.28?patina:vent);
+                        add(x,.385,z+front*.012,.270,.055,.032,steel);
+                        add(x,-.385,z+front*.011,.270,.042,.032,rim);
+                    }
+                    for(const x of [-.475,.475])
+                        add(x,-.003,z,.035,.87,.042,steel);
+                    add(0,.445,z,.98,.036,.09,rim);
+                    add(.33,-.452,z,.21,.045,.047,patina);
+                }
+                for(const sign of [-1,1]){
+                    const x=sign*.512;
+                    for(const z of [-.27,.27]){
+                        add(x,0,z,.025,.75,.40,charcoal);
+                        for(const y of [-.30,-.10,.10,.30])
+                            add(x+sign*.014,y,z,.020,.025,.36,rim);
+                    }
+                    add(x,.445,0,.045,.045,.91,steel);
+                }
+                // Roof as an OPEN perimeter rail; no huge horizontal slab.
+                for(const x of [-.45,.45])
+                    add(x,.492,0,.045,.018,.83,steel);
+                for(const z of [-.40,.40])
+                    add(0,.492,z,.87,.018,.045,steel);
+            }else{
+                // Seven flat tower bays: huge readable intake panels in the
+                // gaps between the earlier C8 vertical steel cooling flutes.
+                // Mesh radius=1; original cylinder facets remain physical.
+                for(let i=0;i<7;i++){
+                    const angle=(i+.5)*Math.PI*2/7;
+                    const radial=.962;
+                    const x=Math.sin(angle)*radial,
+                          z=Math.cos(angle)*radial;
+                    add(x,-.035,z,.59,.69,.024,charcoal,angle);
+                    for(const y of [-.29,-.15,-.01,.13,.27])
+                        add(x,y,z,.52,.029,.035,
+                            y===.27?patina:vent,angle);
+                    add(x,.372,z,.62,.048,.045,steel,angle);
+                    add(x,-.394,z,.62,.044,.039,rim,angle);
+                }
+                for(let i=0;i<7;i++){
+                    const angle=(i+.5)*Math.PI*2/7;
+                    const x=Math.sin(angle)*.92,z=Math.cos(angle)*.92;
+                    add(x,.487,z,.48,.033,.075,steel,angle);
+                }
+            }
+            plain.dispose();primitive.dispose();
+            const geo=new THREE.BufferGeometry();
+            geo.name=isTower?'MAP4_GFX11C11_SEVEN_SIDED_INTAKE':
+                'MAP4_GFX11C11_FUNCTIONAL_WALL_BAYS';
+            geo.setAttribute('position',
+                new THREE.Float32BufferAttribute(pos,3));
+            geo.setAttribute('normal',
+                new THREE.Float32BufferAttribute(normal,3));
+            geo.setAttribute('color',
+                new THREE.Float32BufferAttribute(colors,3));
+            geo.setAttribute('uv',
+                new THREE.Float32BufferAttribute(tex,2));
+            geo.computeBoundingSphere();
+            return geo;
+        }
+        function h4Gfx11c11BuildRelief(zone){
+            if(h4Gfx11c11Root)return;
+            if(!h4Gfx11c10Root||!h4Gfx11c5WeatherMap)
+                throw new Error('NEXT11C11 requires previous authored site');
+            const shells=zone.children.filter(mesh=>
+                mesh.isMesh&&mesh.userData.h4Vis02Protected&&
+                mesh.userData.h4Collider &&
+                mesh.userData.h4Collider.progress<29200);
+            if(shells.length<12)
+                throw new Error('NEXT11C11 missing early physical factories');
+            const allOriginal=zone.children.filter(mesh=>
+                mesh.isMesh&&mesh.userData.h4Vis02Protected&&
+                mesh.userData.h4Collider);
+            if(allOriginal.length!==34)
+                throw new Error('NEXT11C11 physical protected contract');
+            const root=new THREE.Group();
+            root.name='MAP4_GFX11C11_NEARFIELD_FACADE_RELIEF';
+            root.userData.visualOnly=true;root.userData.noCollider=true;
+            const styledMaterials=[0x788a8b,0x8b8278,0x798d95].map(
+                (color,index)=>new THREE.MeshStandardMaterial({
+                    name:'MAP4_GFX11C11_SOURCE_BODIES_'+index,
+                    map:h4Gfx11c5WeatherMap,
+                    color,metalness:.31,roughness:.84,
+                    side:THREE.DoubleSide,flatShading:false
+                }));
+            const sourceTable=h4Gfx11c3PhysicalMaterials;
+            for(const [index,mesh] of shells.entries()){
+                const baseline=sourceTable.find(e=>e.mesh===mesh);
+                if(!baseline||
+                    baseline.originalGeometry!==mesh.geometry||
+                    baseline.collider!==mesh.userData.h4Collider)
+                    throw new Error('NEXT11C11 cannot touch collider identity');
+                const family=mesh.geometry===H4_MESHES.tower?1:0;
+                const closest=H4_GFX11C_SITES.reduce((best,at,i)=>
+                    Math.abs(at-mesh.userData.h4Collider.progress)<
+                    Math.abs(H4_GFX11C_SITES[best]-
+                        mesh.userData.h4Collider.progress)?i:best,0);
+                h4Gfx11c11Entries.push({
+                    mesh,original:mesh.material,
+                    styled:styledMaterials[Math.floor(closest/2)],
+                    geometry:mesh.geometry,
+                    collider:mesh.userData.h4Collider,
+                    family
+                });
+                h4Gfx11c11Stats.physicalMaterialsRegraded++;
+            }
+            for(const isTower of [false,true]){
+                const group=h4Gfx11c11Entries.filter(x=>
+                    x.family===(isTower?1:0));
+                if(!group.length)continue;
+                const geometry=h4Gfx11c11NearFacadeGeometry(isTower);
+                const mat=new THREE.MeshStandardMaterial({
+                    name:isTower?'MAP4_GFX11C11_BAKED_TOWER_PANEL':
+                        'MAP4_GFX11C11_BAKED_FACTORY_WALL',
+                    vertexColors:true,map:h4Gfx11c5WeatherMap,
+                    bumpMap:h4Gfx11c5WeatherMap,bumpScale:.008,
+                    color:0xc4cdca,metalness:.36,roughness:.86,
+                    side:THREE.DoubleSide
+                });
+                const batch=new THREE.InstancedMesh(
+                    geometry,mat,group.length);
+                batch.name=isTower?'MAP4_GFX11C11_TOWER_INTAKES':
+                    'MAP4_GFX11C11_MACHINERY_WALL_BAYS';
+                batch.userData.visualOnly=true;
+                batch.userData.noCollider=true;batch.frustumCulled=false;
+                for(let i=0;i<group.length;i++){
+                    const shell=group[i].mesh;
+                    shell.updateMatrix();
+                    batch.setMatrixAt(i,shell.matrix);
+                    batch.setColorAt(i,new THREE.Color(
+                        [0x879a9a,0xa2a7a5,0x9d9790][i%3]));
+                }
+                batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                batch.instanceMatrix.needsUpdate=true;
+                if(batch.instanceColor)batch.instanceColor.needsUpdate=true;
+                root.add(batch);
+                h4Gfx11c11Stats.facadeBatches++;
+                h4Gfx11c11Stats.trianglesAdded+=
+                    geometry.getAttribute('position').count/3*group.length;
+                if(isTower)h4Gfx11c11Stats.towerTargets=group.length;
+                else h4Gfx11c11Stats.boxTargets=group.length;
+            }
+            h4Gfx11c11Stats.facadeTargets=shells.length;
+            for(const entry of h4Gfx11c11Entries)
+                if(entry.mesh.geometry!==entry.geometry ||
+                   entry.mesh.userData.h4Collider!==entry.collider)
+                    throw new Error('NEXT11C11 changed physical shell');
+            zone.add(root);h4Gfx11c11Root=root;
+            h4Gfx11c11UpdateQuality();
+        }
+        function h4Gfx11c11SetLook(enabled){
+            h4Gfx11c11Stats.lookEnabled=!!enabled;
+            h4Gfx11c11UpdateQuality();
+        }
+        function h4Gfx11c11UpdateQuality(){
+            if(!h4Gfx11c11Root)return;
+            const active=h4Gfx11c11Stats.lookEnabled &&
+                state.activeMap===MAP_MODES.MAP4&&state.map4Phase===3 &&
+                h4Gfx10ProfileName!=='LOW';
+            h4Gfx11c11Root.visible=active;
+            for(const item of h4Gfx11c11Entries){
+                const target=active?item.styled:item.original;
+                if(item.mesh.material!==target)item.mesh.material=target;
+            }
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -8241,6 +8459,7 @@
                     h4Gfx11c8BuildFacades(zone);
                     h4Gfx11c9BuildFunctionalIndustry(zone);
                     h4Gfx11c10BuildDistricts(zone);
+                    h4Gfx11c11BuildRelief(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -8352,6 +8571,7 @@
             h4Gfx11c8UpdateQuality();
             h4Gfx11c9UpdateQuality();
             h4Gfx11c10UpdateQuality();
+            h4Gfx11c11UpdateQuality();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
