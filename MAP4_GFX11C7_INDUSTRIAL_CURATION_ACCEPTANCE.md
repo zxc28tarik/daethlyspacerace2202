@@ -26,9 +26,9 @@
 - [x] Gerçek `index.html` kodu yazıldı ve JavaScript parser PASS.
 - [x] C7 gerçek Chromium/WebGL `tests/map4-gfx11c7-industrial-curation.cjs` eklendi; 07 giriş / 08 fabrika / 09 çıkış aynı 1600×900 kamera eski/yeni. Korumalar, High/Balanced/Low ve diğer fazları test eder.
 - [x] Hızlı görsel workflow ve tam smoke/regresyon workflow'a bağlandı.
-- [ ] Yeni branch **güncel HEAD** hızlı Chromium CI PASS, görüntü arşivi yüklenmesi.
+- [x] Güncel kod `3c60510` **hızlı Chromium/WebGL CI PASS** ve 6 gerçek PNG artifact: [#44068083063](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063).
 - [ ] Tam eski+yeniler CI PASS ve 62 kare sanat galerisi.
-- [ ] 07/08/09 gerçek görüntüler insan gözüyle incelendi; estetik düzeltme gerekiyorsa PR'da yapılacak.
+- [x] 07/08/09 gerçek WebGL görüntüleri **ilk görsel analitik incelemeye** alındı; estetik kalite için kullanıcı onayı **ayrıca açık**.
 - [ ] Native GPU 720p/1080p FPS/p95/VRAM + gerçek 5 dakika uçuş.
 - [ ] Kullanıcı 7–8/10 estetik ve 3/6 playable yayıncı haritası kabulü.
 
@@ -50,3 +50,13 @@
 - **Doğru 09 nesnesi:** `h4Gfx11c4HeroRoot.children[2]` içinde **site6 / index2 ve index3** olan mevcut *visual-only* ENERGY kahraman mimarisi. Kod `838a630`: iki instanced matrix **%22** küçültülüp original matrix kayıpsız cache'lendi; kalan 10 model örneği, fizik ve route işaretleri değişmedi.
 - **QA `3c60510`:** C4 iki ENERGY instance A/B scale küçültülmesi de test ediliyor; yeni hızlı [#44068083063](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063) ve tam [#44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **henüz doğrulanmadı**.
 - **Vazgeçilmeyen kabul kriteri:** Görüntüde büyük halkaların azalması nicel değişim demek olabilir, ancak 7–8/10 görsel kalite onayı için yeterli değildir. Gerçek oyun 5 dk, native GPU/FPS ve yayıncı 3/6 harita hâlâ açık.
+
+
+## 17 Kasım — 09 hero düzeltmesi gerçek görüntü kabulü
+
+- **C4 site6 enerji mimarisinin iki nonphysical örneği küçültüldü** (`838a630`, `3c60510` QA). Test edilmiş hızlı [WebGL CI #44068083063](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063) **PASS**; `map4-next11c7-07-08-09-review` artifact 1600×900 aynı-kamera görüntülerini içeriyor.
+- **Önce/sonra değişen piksel yüzdesi** (ortalama RGB kanal farkı >1/255 eşiği): 07 giriş **%35,37**, 08 fabrika **%27,13**, 09 çıkış **%32,80**. Bunlar sadece renk/görüntü farkıdır, **görsel kalite puanı değil**.
+- Son görüntüde yalnız C4 hero ölçek değişikliğinin **eski C7 'after' kadrajına göre 09'da %18,38** piksel değişimi yarattığı ölçüldü; önceki IN06 toroid ölçek değişimi 09'da %0 idi. Yeni 09 kompozisyonunda büyük halkalar gerçekten küçüldü.
+- **Estetik değerlendirme:** 09 çerçevesi önceye kıyasla daha açık; fakat geniş basit ön plan yapıları, yüzey/zemin deseni, tekrarlanan makine dili ve doğal endüstriyel ayrıntı eksikliği nedeniyle hedeflenen **7–8/10 estetik onayı HÂLÂ AÇIK**.
+- **Tam regresyon** [Actions #44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) henüz sürüyor; PASS yazılmamalı.
+- **Sonraki sanat borcu / NEXT-11C8 önerisi, YAPILMADI:** Ön plan büyük W02 fiziksel mimariyi kaldırmadan, **mevcut collider mesh kimliğine dokunmadan** görsel yüzey/fasat ve işlevsel fabrika düzeninin geliştirilmesi, tekrar eden halka/ışık hiyerarşisi, sahne/zemin tutarlılığı. Oyunun diğer fazları ve W05 navigasyonu korunacak.
