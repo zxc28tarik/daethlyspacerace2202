@@ -169,6 +169,11 @@ const {pathToFileURL}=require('node:url');
       const next=await stateMetrics();
       const image=await page.screenshot({path:path.join(__dirname,
         'map4-gfx11c5-'+sample.id+'-after.png')});
+      console.log('NEXT11C5 FRAME',sample.id,JSON.stringify({
+        oldCalls:old.calls,newCalls:next.calls,oldTris:old.triangles,
+        newTris:next.triangles,oldTextures:old.textures,newTextures:next.textures,
+        pixelChanged:!oldImage.equals(image)
+      }));
       assert(!oldImage.equals(image),
         'weather + industrial lighting not visible: '+sample.id);
       assert.equal(old.heroPBR,false);
