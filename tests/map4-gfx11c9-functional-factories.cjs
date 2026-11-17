@@ -44,6 +44,12 @@ const {pathToFileURL}=require('node:url');
 
 
 
+    // NEXT11C10 is an independent later visual-only layer.
+    // Keep earlier A/B drawcall & pixel comparisons isolated.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c10SetLook==='function')
+        h4Gfx11c10SetLook(false);
+    });
     const baseline=await page.evaluate(()=>{
       const root=h4Gfx11c9Root;
       const shells=planetaryWorldRegions[2].children[0];
