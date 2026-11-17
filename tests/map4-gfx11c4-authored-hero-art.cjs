@@ -153,8 +153,8 @@ const assert=require('node:assert/strict');
    assert.equal(improved.textures,old.textures);
    assert.deepEqual(improved.colliders,baseline.colliders);
    assert.equal(improved.futureFactories,true);
-   if(spec.id!=='09-exit')
-    assert(!oldShot.equals(newShot),'hero must be visible at '+spec.id);
+   assert(!oldShot.equals(newShot),
+    'authored hero architecture must be visible at all three stage cameras: '+spec.id);
    if(spec.id==='09-exit'){
     assert.equal(improved.maskActive,true);
     assert.equal(improved.maskName,'MAP4_GFX11B_CAMERA_NEAR_FADE');
