@@ -365,3 +365,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **YAPILMADI:** Görünür büyük gökyüzü halkalarının kökeni kesin değil; C5 nonnav dekor listesi gerçek motorda 0. Kullanıcı uçuş/estetik 7–8/10 onayı, yerel GPU FPS/p95/VRAM, 5dk uçuş, yayıncı 3/6 playable, merge açık.
 
 **Günlük:** `2026-11-17 | NEXT11C12-B | GÖRSEL-KORİDOR GÜVENLİĞİ KOD/TEST YAPILDI | 9f910c6/55fad1d | YENİ WEBGL PNG ve FULL CI AÇIK | HALKA KURATÖRLÜĞÜ YAPILMADI | PR57 DRAFT, MERGE YOK`.
+
+
+### NEXT11C12-C — güvenli 07/08 silüet kompozisyonunun son QA kaydı
+
+- **Son kod `6b0c31f`:** C12-B güvenceli dış-yan kapasiteli iskeletleri 08 kamerasında daha iyi çerçevelemek için tek ayırma tesisi `progress:27050 -> 25550` çekildi. `side=-1550, size=1040, scaleX=.65*size` **aynı**; uçuş şeridi açıklığı, fizik, W05 işaretleri değişmedi. Kod harici ticari model/doku kullanmıyor.
+- **Nihai güncel hızlı test:** [#44082591667 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44082591667), 07/08/09 gerçek 1600×900 WebGL art A/B, 2 çizim grubu, 6 özgün tesis, **4.524** render üçgen, **0** yeni collider/ışık/doku/dış model. 6/36/200 ve 24 W05, 34 W02 identity ve yeni iki uçuş şeridi görsel envelope güvenlik testi geçti.
+- **Güncel gerçek ekran A/B oranı:** 07 **%5,44**, 08 **%4,32**, 09 **%0**. İlk C12-A 9,53/11,84 görüntü farkı daha önce görsel-şerit sıkışması içerdiğinden **eski/nihai olmayan** sayı; sonucun daha düşük olması güvenli tercih. Bu sayılar hâlâ bir grafik kalite puanı **değildir**.
+- **Kalan:** C12 son tam [#44082591388](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44082591388) **henüz PASS kontrol edilmedi**. 07/08/09 hareketli kamera ve tam 300s pilot uçuş, yerel 720/1080 native GPU FPS/p95/VRAM, kullanıcı **7–8/10 görsel onayı**, yayıncı ilk pitch 3/6 playable ve merge kararı **açık**.
+- **Dekoratif halkalar:** C5'nin sınıflandırılmış nonnav listesi **0**. Dev gökyüzü halkaları **değişmedi**; kaynağı ve işlevi kesinleşmeden dokunma.
+- **Özgünlük kuralı:** atmosfer/kalite referansı serbest ama kopya/çok yakın ayırt edici tasarım yasak, CGTrader ticari model veya doku kullanılmadı.
+
+**Günlük:** `2026-11-17 | NEXT11C12-C | SON KOD 6b0c31f, HIZLI WEBGL #44082591667 PASS | 07 %5.44 08 %4.32 09 %0 | ŞERİT GÜVENLİĞİ PASS | C12 FULL AÇIK | 7-8/10 ONAY YOK | PR57 DRAFT/NO MERGE`.
