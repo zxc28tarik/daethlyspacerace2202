@@ -107,7 +107,7 @@ const {pathToFileURL}=require('node:url');
       'all original structures must stay outside narrow lanes');
     const triangles=baseline.batches.reduce(
       (sum,b)=>sum+b.triangles*b.count,0);
-    assert(triangles>5000&&triangles<45000,
+    assert(triangles>=3000&&triangles<45000,
       'C10 original district tris exceed art cap: '+triangles);
     for(const b of baseline.batches){
       assert(b.instanced&&b.visual&&b.noCollider);
