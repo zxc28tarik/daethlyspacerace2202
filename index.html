@@ -6823,10 +6823,14 @@
             geometry.setAttribute('color',
                 new THREE.Float32BufferAttribute(colors,3));
             geometry.computeVertexNormals();
-            const material=new THREE.MeshStandardMaterial({
+            // Solid matte soot/asphalt. Unlit ground signage avoids the
+            // overexposed, unnaturally white triangles found in real 07/08
+            // Chromium screenshots under this map's cinematic sun rig.
+            const material=new THREE.MeshBasicMaterial({
                 name:'MAP4_GFX11C10_DIRT_STAINED_SERVICE_ROADS',
-                vertexColors:true,metalness:0,roughness:.99,
-                side:THREE.DoubleSide,
+                vertexColors:true,color:0x829099,
+                toneMapped:false,fog:true,
+                depthTest:true,depthWrite:true,side:THREE.DoubleSide,
                 polygonOffset:true,polygonOffsetFactor:-1
             });
             const surface=new THREE.Mesh(geometry,material);
