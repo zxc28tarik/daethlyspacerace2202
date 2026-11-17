@@ -339,3 +339,41 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Test güvenliği: ilk hızlı [#44079550403 FAIL](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079550403) yalnız başlangıç Map4 phase1'de **C11 materyalinin kapalı olmasını yanlışlıkla hata sayan** test varsayımıydı; `38944413` bunu düzeltti. C11 hızlı PASS onaylandı.
 - [C11 tam Map1+Map4 #44079786517](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079786517) **sonucu henüz açık**. Tam PASS teyit edilmeden sonraki C12 aşaması bitmiş gösterilmez.
 - Kullanıcı kararı: referanslardan yaratıcı/teknik ilham serbest, fakat CGTrader ve diğer ticari model paketinden ayırt edici silüet, mesh, doku, yerleşim kopyalamak yasak. C11 özgün matematiksel tasarım; fiziksel kabuklar mevcut kendi oyunumuzun önceden var olan binaları. **PR #56 DRAFT / merge YOK**.
+
+
+## 18) 17 Kasım 2026 — NEXT-11C12 özgün sanayi ölçeği / derinlik PASS (görsel hedef hâlâ açık)
+
+- **Önceki tam kabul:** [NEXT-11C11 PR #56](https://github.com/zxc28tarik/daethlyspacerace2202/pull/56) DRAFT; [Map1/Map4 full #44079786517](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079786517) **34/34 workflow adımı PASS**. Önceki 07/08 mimari derinlik/estetik hedefi kullanıcı onayı olmadan tamamlanmış sayılmaz.
+- **C12 kod işi `8544b95`:** [PR #57](https://github.com/zxc28tarik/daethlyspacerace2202/pull/57) DRAFT STACKED PR56. İki matematiksel, hiçbir hazır 3D modelden kopya olmayan işlevsel endüstri silüeti: asimetrik üç kolonlu ayırma/ısı tesisi ve açık transfer malzeme gantry. 07/08 derinlik profiline göre **6 ayrı ölçek/konum** (18850/20350/21650 ve 25350/27050/28650), **2 InstancedMesh**, 4.524 render üçgen, 0 yeni collider, 0 light, 0 texture, 0 GLB/üçüncü taraf asset.
+- **Kesin korunanlar:** 34 eski W02 fiziksel geometri/AABB referansı, 24 W05 BEACON/HIGH_MARKER route işareti, 6 kanyon+36 sanayi+200 bina collider, 5 rakip/8 avcı, 60s arena, 300s bütün oyun, 850m çıkış, 3 sanayi uçuş hattı, Map1 saf yarış, toplam 6 map ve yayıncı pitch en az 3 playable. HIGH/BALANCED Map4 phase3 açık, LOW/diğer fazlar kapalı; `h4Gfx11c12SetLook` A/B geri dönüşü.
+- **WebGL denetim:** [C12 hızlı #44081480486](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44081480486) **9/9 PASS**, gerçek 1600×900 Chromium/WebGL 07/08/09 aynı-kamera ekran. Değişen görüntü alanı (ortalama RGB >1/255 piksel): **07 %9,53**, **08 %11,84**, **09 %0**. Bu değer kalite puanı değildir. 07 ve 08'de önceki düz profilden açık okunabilir ayırma/gantry silüetine geçiş var; 09 bilinçli olarak etkilenmedi.
+- **Önemli YAPILMADI kaydı:** C5'in güvenli non-nav `h4Gfx11c5DecorRings` listesi gerçek çalıştırmada **0** öğe içeriyor. C12'nin geri alınabilir dekor-pasifleştirme kodu bu nedenle görsel değişiklik yapmadı; fotoğraftaki dev gökyüzü halkaları **aynen kaldı**. Bunların BEACON/HIGH_MARKER veya başka yönlendirme rolü kanıtlanmadan gizleme yok. Sonraki adımlarda bu “tamamlandı” işaretlenmez.
+- **Son C12 tam CI:** [#44081573533](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44081573533) **sonuç bekleniyor**, hızlı PASS tüm geçmiş suite'i otomatik doğrulamaz. Eski 11C4–C11 A/B'ler yeni C12 katmanını kapatarak test edilir.
+- **Özgünlük kuralı (kullanıcı):** ticari CGTrader örneklerinin ayırt edici mesh/doku/silüet/sahne yerleşimi **kopyalanamaz**; genel atmosfer/kalite referansı kullanılabilir. C12 varlıklarının tamamı oyun kodunda kendi matematiksel geometri tasarımıdır.
+- **Açık görsel borcu:** 07/08 büyüklük/derinlik gelişti ama tek renkli büyük kütleler, yapay halkalar ve ışık dengesi nedeniyle kullanıcı **7–8/10 estetik onayını vermedi**. Gerçek native 720/1080p GPU FPS/p95/VRAM, tam 5dk uçuş, sahne harita 3/6 oynanabilir yayıncı paketi ve tüm PR'ların merge onayı açık.
+- **NEXT-11C13 ÖNERİ / YAPILMADI:** aynı 07/08 canlı hareketli kamerada yeni altı tesisin uçuş hattı çevresindeki algısal güvenliği ve ölçek kalitesini denetle; gökyüzündeki büyük halkaların tam kaynak/işlevini keşfet; yalnız kesin dekor olduğu kanıtlananları kompozisyona göre kürate et. Önemli navigasyon/görsel/fizik entegrasyon kararları kullanıcının onayına sunulur.
+
+**Günlük:** `2026-11-17 | NEXT11C12 | 07/08 ÖZGÜN MİMARİ KOD+TEST HIZLI PASS | PR57 / 8544b95 / #44081480486 | C11 FULL 34/34 PASS | C12 FULL AÇIK | HALKA DEKOR 0 YAPILMADI | 7-8/10 KABUL YOK | MERGE YOK`.
+
+
+### NEXT-11C12-B — Görsel uçuş şeridi güvenliği (17 Kasım)
+
+- İlk C12-A [gerçek WebGL #44081480486 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44081480486), 07 %9,53 ve 08 %11,84 ekran etkisi. **Ancak** bazı geniş ve fiziksel olmayan sanayi iskeletleri H4_INDUSTRY şeritlerinin x aralığına yaklaşabildi. **Collider sayısı sabit diye görünürdeki sahte engel riskini kabul etme.**
+- **Kod `9f910c6`:** Yanal sanayi profilleri `size*.92` yerine **`size*.65`** ölçeklenerek daha ince ve gerçek zemine oturur; altı yan konum ±1550–1900'e güvenli biçimde dışarı çekilir. Dikey mimari derinlik ve ölçek çeşitliliği korunur. İlk C12-A görüntüsü güncel sürüm için yeterli kalite kanıtı değildir.
+- **Test `55fad1d`:** Konservatif iç silüet sınırı `abs(side)-.65*.55*size` için fast-low şeritte **≥1140**, hunter-flank şeritte **≥1430** zorunlu. Aktif 3 uçuş çizgisinin fiziksel kolliderları ve W05 rehberleri hâlâ değişmez, görsel çakışma da önlenir.
+- **C12-B gerçek Chromium hızlı QA:** [#44082222325](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44082222325) sonuç ve yeni PNG karşılaştırması **AÇIK**. C12 tam browser suite güncel HEAD sonucu **AÇIK**. C11 [full #44079786517](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079786517) **34/34 PASS**.
+- **YAPILMADI:** Görünür büyük gökyüzü halkalarının kökeni kesin değil; C5 nonnav dekor listesi gerçek motorda 0. Kullanıcı uçuş/estetik 7–8/10 onayı, yerel GPU FPS/p95/VRAM, 5dk uçuş, yayıncı 3/6 playable, merge açık.
+
+**Günlük:** `2026-11-17 | NEXT11C12-B | GÖRSEL-KORİDOR GÜVENLİĞİ KOD/TEST YAPILDI | 9f910c6/55fad1d | YENİ WEBGL PNG ve FULL CI AÇIK | HALKA KURATÖRLÜĞÜ YAPILMADI | PR57 DRAFT, MERGE YOK`.
+
+
+### NEXT11C12-C — güvenli 07/08 silüet kompozisyonunun son QA kaydı
+
+- **Son kod `6b0c31f`:** C12-B güvenceli dış-yan kapasiteli iskeletleri 08 kamerasında daha iyi çerçevelemek için tek ayırma tesisi `progress:27050 -> 25550` çekildi. `side=-1550, size=1040, scaleX=.65*size` **aynı**; uçuş şeridi açıklığı, fizik, W05 işaretleri değişmedi. Kod harici ticari model/doku kullanmıyor.
+- **Nihai güncel hızlı test:** [#44082591667 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44082591667), 07/08/09 gerçek 1600×900 WebGL art A/B, 2 çizim grubu, 6 özgün tesis, **4.524** render üçgen, **0** yeni collider/ışık/doku/dış model. 6/36/200 ve 24 W05, 34 W02 identity ve yeni iki uçuş şeridi görsel envelope güvenlik testi geçti.
+- **Güncel gerçek ekran A/B oranı:** 07 **%5,44**, 08 **%4,32**, 09 **%0**. İlk C12-A 9,53/11,84 görüntü farkı daha önce görsel-şerit sıkışması içerdiğinden **eski/nihai olmayan** sayı; sonucun daha düşük olması güvenli tercih. Bu sayılar hâlâ bir grafik kalite puanı **değildir**.
+- **Kalan:** C12 son tam [#44082591388](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44082591388) **henüz PASS kontrol edilmedi**. 07/08/09 hareketli kamera ve tam 300s pilot uçuş, yerel 720/1080 native GPU FPS/p95/VRAM, kullanıcı **7–8/10 görsel onayı**, yayıncı ilk pitch 3/6 playable ve merge kararı **açık**.
+- **Dekoratif halkalar:** C5'nin sınıflandırılmış nonnav listesi **0**. Dev gökyüzü halkaları **değişmedi**; kaynağı ve işlevi kesinleşmeden dokunma.
+- **Özgünlük kuralı:** atmosfer/kalite referansı serbest ama kopya/çok yakın ayırt edici tasarım yasak, CGTrader ticari model veya doku kullanılmadı.
+
+**Günlük:** `2026-11-17 | NEXT11C12-C | SON KOD 6b0c31f, HIZLI WEBGL #44082591667 PASS | 07 %5.44 08 %4.32 09 %0 | ŞERİT GÜVENLİĞİ PASS | C12 FULL AÇIK | 7-8/10 ONAY YOK | PR57 DRAFT/NO MERGE`.

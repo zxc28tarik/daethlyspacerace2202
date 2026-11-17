@@ -54,6 +54,12 @@ const {pathToFileURL}=require('node:url');
       if(typeof h4Gfx11c11SetLook==='function')
         h4Gfx11c11SetLook(false);
     });
+    // C12 is a later independently tested industrial silhouette layer.
+    // Disable it so historic pixel/drawcall A/B tests stay meaningful.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c12SetLook==='function')
+        h4Gfx11c12SetLook(false);
+    });
     const base=await page.evaluate(()=>{
       const nav=h4IndustrialGroups.flatMap(station=>station.children.filter(m=>
         m.userData.w05Kind==='HIGH_MARKER'||m.userData.w05Kind==='BEACON'));
