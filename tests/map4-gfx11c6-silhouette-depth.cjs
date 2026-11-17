@@ -53,6 +53,9 @@ const {pathToFileURL}=require('node:url');
           pos:mesh.geometry.getAttribute('position').count,
           normal:mesh.geometry.getAttribute('normal')?.count,
           colors:mesh.geometry.getAttribute('color')?.count,
+          uv:mesh.geometry.getAttribute('uv')?.count,
+          textured:mesh.material.map?.name,
+          bump:mesh.material.bumpMap?.name,
           visual:mesh.userData.visualOnly,
           nonphysical:mesh.userData.noCollider,
           material:mesh.material.name,
@@ -90,6 +93,9 @@ const {pathToFileURL}=require('node:url');
     for(const b of construction.batches){
       assert(b.isInstanced&&b.count===4&&b.visual&&b.nonphysical);
       assert(b.pos>100&&b.pos===b.normal&&b.pos===b.colors);
+      assert.equal(b.pos,b.uv,'authored silhouette UVs required');
+      assert.equal(b.textured,'MAP4_GFX11C5_AUTHORED_STEEL_DIRT_RIVETS');
+      assert.equal(b.bump,b.textured,'reuse existing texture, no new atlas');
       assert(b.material.startsWith('MAP4_GFX11C6_MUTED_STRUCTURE_'));
     }
 
