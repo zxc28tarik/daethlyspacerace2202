@@ -454,3 +454,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Açık:** Kullanıcının 08 hızlı şeritte mevcut 2 fiziksel fabrikanın taşınması **ya da** gerçekten riskli alternatif rota olması yönündeki açık seçimi; diğer 07/08/09 fiziksel çarpışma yeniden tasarımı; 720/1080 native GPU FPS/p95/VRAM, gerçek kesintisiz 300s uçuş, yayıncı 3/6 playable ve kullanıcı 7–8/10 görsel kalite onayı.
 
 **Günlük:** `2026-11-17 | NEXT11C14 | GERÇEK PLAYER COLLIDER QA 9/9 PASS (İLK HEAD) | 19/15/7/15 RİSKLİ KESİT | 23800 FAST_LOW 2 FABRİKA | GİZLİ FİZİKSEL GEOMETRİ RAPORU SON HEAD QA AÇIK | PR59 DRAFT | FİZİĞE ONAYSIZ DOKUNMA YOK`.
+
+
+### Son gerçek C14 görsel/mesh sahipliği doğrulaması — 17 Kasım
+
+- **Güncel gerçek HEAD hızlı WebGL [#44092482617](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44092482617) 9/9 PASS.** Son üretim kodu `e0ba729`, son test `3f8afa1`, faz3/08 kamerada render ederek `map4-next11c14-flight-lane-collision-map.json` arşivi üretti. Önceki hatalı phase1 görünürlük analizini **geçersiz** say.
+- **Güncel görünürlük durumu:** Gerçek `routeProgress=23800,x=-800,y=-100,phase3`, `activeRegionVisible=true`. Çarpışma veren `MAP4_LEGACY_W01_FACTORY` (collider index64) ve `VQ02_SIGNATURE_FACTORY` (index73) **ikisi de görünür** (`visiblyRendered:true`, `hiddenBy:null`). Dolayısıyla **08 engeli gizli/geçersiz collider değil, gerçek görünür fiziksel fabrika hacimleri**.
+- **Eski mesh sahipliği eksik olan 2 fiziksel kayıt:** `planetaryBuildingColliders` index **0** (`progress14010,side-807,altitude-213`) ve index **1** (`progress14130,side-225,altitude-185`) için sahnede birebir `mesh.userData.h4Collider===record` eşleşmesi bulunamadı. Bu **sahipsiz referans eşleştirmesi**, `invisible wall` kanıtı değildir. Otomatik silinmedi.
+- **08 kamerasında gizli görünen 31 fiziksel mesh** olabilir fakat görünürlük sorgusu **yalnız o andaki kameraya/phase/LOD'a özeldir**; bölge dışındayken normal mesafe/LOD nedeniyle saklı olan objeler vardır. `hiddenAtCurrentCamera` global “oyunda görünmez collider” iddiasına dönüşmez; şüpheli kayıtlar ancak ilgili progresste poz kurularak ayrı doğrulanır.
+- **Güncel C14 full CI:** [#44092482563](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44092482563) hâlen sonuç bekliyor; en son hızlı PASS tüm suite PASS anlamına gelmez.
+- **Fizik ve UI sözleşmesi:** Hiçbir `h4Collider` veya gerçek `h4SegmentBoxHit` davranışı, AI, W05 route marker'ı, rota bonusu, mevcut 200+36+6 collider veya görsel mesh taşınmadı/değişmedi. Kullanıcı önemli entegrasyon kararı ve Draft merge izni hâlâ açık. Bu C14 **yalnız analiz ve QA**.
