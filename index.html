@@ -7638,7 +7638,16 @@
             };
             h4Gfx11c14Stats.surveys++;
             return {
-                hiddenPhysicalColliders:entries.filter(e=>
+                // Visibility is camera/fade/LOD dependent: NEVER call an
+                // offscreen region's hidden mesh a phantom collision. The
+                // following evidence is valid only at this exact camera pose.
+                visibilityProbe:{
+                    routeProgress:state.routeProgress,
+                    laneX:state.laneX,laneY:state.laneY,
+                    phase:state.map4Phase,
+                    activeRegionVisible:!!region?.visible
+                },
+                hiddenAtCurrentCamera:entries.filter(e=>
                     !e.visiblyRendered).map(e=>({
                     index:e.index,label:e.label,
                     parentPath:e.parentPath,hiddenBy:e.hiddenBy
