@@ -163,3 +163,16 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 `YYYY-AA-GG | ID | ÖNCEKİ DURUM -> YENİ DURUM | Commit/PR | Test/CI | Ekran/FPS | Açık eksiği | NEXT-ID`
 
 **Bu belgenin amacı tamamlanmamışları gizlemek değil, kaybetmemektir.**
+
+
+## 9) 17 Kasım 2026 — NEXT-11C5 güncel takip kaydı (önceki tablolar tarihsel snapshot)
+
+**Aktif dal:** `codex/map4-gfx11c5-weathered-pbr-lighting` · [PR #50](https://github.com/zxc28tarik/daethlyspacerace2202/pull/50), **OPEN/DRAFT/UNMERGED** · kod HEAD `316f7ca` (belge commit'i hariç) · [tam CI PASS #44056983930](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44056983930).
+
+- **NEXT-11C5 / GFX-06D + GFX-07 sanayi kısmi yüzey/ışık:** **GELİŞTİRME-PR / CI PASS / İLK GÖRSEL İNCELEME YAPILDI / ESTETİK ONAY AÇIK**. 3 hero UV+shared weathered PBR, 12 nonphysical contact-shadow instance, Map4 phase3 ışık kontrolü; 0 yeni collider; High/Balanced/Low korunuyor.
+- **A/B 07, 08, 09:** `map4-browser-smoke-images` artifact'ındaki aynı gerçek Chromium/WebGL build'i 1600×900 görünüm toggle eski/yeni; görselde özellikle **09** iyileşti, **07 ve 08** farkı sınırlı. Sahne kompozisyonu, biçim çeşitliliği, halo ve bazı halka/görsel tekrar sorunları **açık**. [Kanıt ve ayrıntı](MAP4_GFX11C5_PBR_SHADOW_LIGHT_ACCEPTANCE.md).
+- **NEXT-11C6 / sahne kompozisyonu, büyük silüet ve kamera okunabilirliği:** **ÖNERİ / YAPILMADI**; mevcut grafik sınırlamalarını, oyun/fizik/navigasyon/Harita1 korumalarını değiştirmeden ele al. 07–09 gerçek WebGL A/B şart.
+- **Mutlaka açık:** Kullanıcı 7–8/10 estetik onayı, gerçek GPU 720/1080p FPS/VRAM ve 5 dk uçuş, en az 3/6 oynanabilir yayıncı haritası.
+- **Birleşim:** Kullanıcı açık onayı olmadan **PR #50 dahil stacked merge yok**. Main'deki durum ile taslak PR'daki iş asla aynı statüye indirgenmez.
+
+**Günlük:** `2026-11-17 | NEXT-11C5 | GELİŞTİRME-PR/CI PASS -> GÖRSEL İNCELEME YAPILDI; ESTETİK BLOKER AÇIK | PR #50 / 316f7ca / CI #44056983930 PASS | 07-09 A/B denetlendi, native GPU YOK | kullanıcı onayı YOK | NEXT-11C6 önerisi`.
