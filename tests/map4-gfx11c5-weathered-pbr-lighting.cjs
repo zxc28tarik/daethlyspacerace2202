@@ -59,7 +59,9 @@ const {pathToFileURL}=require('node:url');
           noCollision:h4Gfx11c5ContactShadows?.userData.noCollider,
           opacity:h4Gfx11c5ContactShadows?.material.opacity,
           map:h4Gfx11c5ContactShadows?.material.map?.name,
-          triangles:h4Gfx11c5ContactShadows?.geometry.getAttribute('position').count/3
+          triangles:(h4Gfx11c5ContactShadows.geometry.index?
+            h4Gfx11c5ContactShadows.geometry.index.count:
+            h4Gfx11c5ContactShadows.geometry.getAttribute('position').count)/3
         },
         navCount:nav.length,
         navProtected:nav.every(item=>
