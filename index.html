@@ -7532,7 +7532,11 @@
             const colliders=planetaryBuildingColliders.concat(h4IndustrialColliders);
             const owner=new Map();
             const region=planetaryWorldRegions[2];
-            if(region)region.traverse(mesh=>{
+            // A few real W01 volumes cross the arena/industry border:
+            // buildingPhysics includes them despite their owners living in
+            // region1. Scan the entire Map4 scene hierarchy, not just
+            // the region2 industrial group, before claiming missing owners.
+            planetaryWorldGroup.traverse(mesh=>{
                 if(mesh.isMesh&&mesh.userData.h4Collider)
                     owner.set(mesh.userData.h4Collider,mesh);
             });
