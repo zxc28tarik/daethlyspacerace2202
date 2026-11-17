@@ -1,0 +1,29 @@
+name: Map 4 NEXT-11C9 Visual Preview
+on:
+  push:
+    branches: [codex/map4-gfx11c9-functional-factories]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c9-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser WebGL QA
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Capture 07 / 08 / 09 functional industry A/B in-engine
+        run: node tests/map4-gfx11c9-functional-factories.cjs
+      - name: Save NEXT-11C9 real WebGL screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c9-07-08-09
+          path: tests/map4-gfx11c9-*.png
+          if-no-files-found: warn
