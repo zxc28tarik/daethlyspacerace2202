@@ -152,6 +152,8 @@ const {pathToFileURL}=require('node:url');
       x.index>=0&&x.index<236&&
       ['W01_BUILDING_COLLIDER','W05_INDUSTRIAL_COLLIDER']
         .includes(x.source)));
+    assert.equal(scan.unresolvedOwnerColliders.length,0,
+      'all 236 runtime colliders must resolve across FULL planetary scene');
     assert(!scan.hiddenAtCurrentCamera.some(x=>
       scan.unresolvedOwnerColliders.some(y=>x.index===y.index)),
       'unknown owner != invisible geometry');
@@ -195,6 +197,8 @@ const {pathToFileURL}=require('node:url');
       '08 physics risk provenance should be factory landmark');
     assert(fast.obstacles.every(obstacle=>
       typeof obstacle.visiblyRendered==='boolean'));
+    assert(fast.obstacles.every(obstacle=>obstacle.visiblyRendered),
+      '08 fast physical factory obstacles must be actually visible');
     // The scan MUST NOT silently make the player a different class or
     // change the map into an auto-corrected flight corridor.
     assert.equal(scan.stats.modifiedPhysics,0);
