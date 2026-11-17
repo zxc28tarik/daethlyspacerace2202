@@ -82,6 +82,7 @@ const {pathToFileURL}=require('node:url');
     assert.equal(baseline.stats.decorativeBatchesCurated,2);
     assert.equal(baseline.stats.groundCurated,1);
     assert.equal(baseline.stats.reactorRingsCurated,2);
+    assert.equal(baseline.stats.exitHeroInstancesCurated,2);
     for(const k of ['newColliders','newLights','newTextures'])
       assert.equal(baseline.stats[k],0);
     assert(baseline.markerCount>=12);
@@ -117,6 +118,11 @@ const {pathToFileURL}=require('node:url');
           x.mesh.material===x.styled).length,
         ringScale:h4Gfx11c7Styled.filter(x=>
           x.kind==='REACTOR_TOROID').map(x=>x.mesh.scale.x),
+        exitHeroScale:h4Gfx11c7HeroMatrices.map(e=>{
+          const matrix=new THREE.Matrix4();
+          e.mesh.getMatrixAt(e.index,matrix);
+          return matrix.getMaxScaleOnAxis();
+        }),
         calls:renderer.info.render.calls,
         triangles:renderer.info.render.triangles,
         textures:renderer.info.memory.textures,
@@ -157,6 +163,9 @@ const {pathToFileURL}=require('node:url');
       assert.equal(after.styleCount,17);
       assert.equal(after.ringScale.length,2);
       assert(after.ringScale.every((v,i)=>v<before.ringScale[i]));
+      assert.equal(after.exitHeroScale.length,2);
+      assert(after.exitHeroScale.every((v,i)=>v<before.exitHeroScale[i]),
+        'nonphysical C4 energy hero should shrink at 09');
       assert.equal(after.calls,before.calls,'no new draw calls '+spec.id);
       assert.equal(after.triangles,before.triangles);
       assert.equal(after.textures,before.textures);
