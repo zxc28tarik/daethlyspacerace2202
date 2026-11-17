@@ -7398,6 +7398,110 @@
             }
         }
 
+
+        // NEXT11C13: read-only provenance & moving-view audit.
+        // NEVER auto-hide a torus. An identical silhouette may be a route
+        // beacon, a machine component, or a composite hero asset.
+        const h4Gfx11c13AuditStats={
+            auditCalls:0,protectedMarkersExpected:24,
+            visualEdits:0,newColliders:0,newLights:0,newTextures:0,
+            movingPilotAcceptance:false,artAcceptance:false
+        };
+        function h4Gfx11c13RingProvenance(){
+            if(!planetaryWorldRegions.length)return null;
+            const region=planetaryWorldRegions[2];
+            const markerObjects=h4IndustrialGroups.flatMap(g=>
+                g.children.filter(m=>m.userData.w05Kind==='BEACON'||
+                    m.userData.w05Kind==='HIGH_MARKER'));
+            const results=[],position=new THREE.Vector3();
+            const look=new THREE.Vector3();
+            const isVisible=(obj)=>{
+                for(let node=obj;node;node=node.parent)
+                    if(!node.visible)return false;
+                return true;
+            };
+            const sourceFor=obj=>{
+                if(markerObjects.includes(obj))
+                    return 'W05_PROTECTED_NAVIGATION';
+                for(const marker of markerObjects){
+                    if(marker===obj||marker.getObjectById(obj.id))
+                        return 'W05_PROTECTED_NAVIGATION';
+                }
+                for(const site of h4WorldLandmarks)
+                    if(site.zone===2 &&
+                        (site.group===obj||site.group.getObjectById(obj.id)))
+                        return 'W01_INDUSTRIAL_LANDMARK';
+                if(h4Gfx11c4HeroRoot&&
+                    (obj===h4Gfx11c4HeroRoot||
+                    h4Gfx11c4HeroRoot.getObjectById(obj.id)))
+                    return 'GFX11C4_BAKED_ARCHITECTURAL_HERO';
+                for(const station of h4IndustrialGroups)
+                    if(station===obj||station.getObjectById(obj.id))
+                        return 'W05_OR_GFX06_STATION_ART';
+                return 'UNCLASSIFIED_DO_NOT_EDIT';
+            };
+            const originAndScreen=mesh=>{
+                mesh.getWorldPosition(position);
+                look.copy(position).project(camera);
+                return {
+                    world:[position.x,position.y,position.z].map(v=>
+                        Math.round(v*10)/10),
+                    ndc:[look.x,look.y,look.z].map(v=>
+                        Math.round(v*10000)/10000),
+                    inScreen:look.z>=-1&&look.z<=1&&
+                        Math.abs(look.x)<=1&&Math.abs(look.y)<=1,
+                    visible:isVisible(mesh)
+                };
+            };
+            region.updateWorldMatrix(true,true);
+            camera.updateWorldMatrix(true,false);
+            region.traverse(mesh=>{
+                if(!mesh.isMesh)return;
+                const geometry=mesh.geometry;
+                const torus=geometry?.type==='TorusGeometry';
+                const designated=mesh.userData.w05Kind==='BEACON'||
+                    mesh.userData.w05Kind==='HIGH_MARKER';
+                const ringName=/ring|portal|toroid|energy/i.test(mesh.name);
+                if(!torus&&!designated&&!ringName)return;
+                // A buffer geometry with baked toroids is classified by
+                // architecture source, not as a safe editable loose ring.
+                const source=sourceFor(mesh);
+                const display=originAndScreen(mesh);
+                results.push({
+                    id:mesh.id,name:mesh.name||'(unnamed)',
+                    kind:mesh.userData.w05Kind||null,
+                    source,geometryType:geometry?.type||null,
+                    geometryName:geometry?.name||null,
+                    torus,instanced:!!mesh.isInstancedMesh,
+                    instanceCount:mesh.isInstancedMesh?mesh.count:1,
+                    collider:!!mesh.userData.h4Collider,
+                    safeToAutoHide:false,
+                    ...display
+                });
+            });
+            const sourceCounts={};
+            for(const item of results)
+                sourceCounts[item.source]=(sourceCounts[item.source]||0)+1;
+            h4Gfx11c13AuditStats.auditCalls++;
+            return {
+                counts:{
+                    total:results.length,
+                    torus:results.filter(x=>x.torus).length,
+                    visible:results.filter(x=>x.visible).length,
+                    onScreen:results.filter(x=>x.visible&&x.inScreen).length,
+                    protectedNav:results.filter(x=>
+                        x.source==='W05_PROTECTED_NAVIGATION').length,
+                    actualW05:markerObjects.length,
+                    bySource:sourceCounts
+                },
+                phase:state.map4Phase,
+                progress:state.routeProgress,
+                laneX:state.laneX,laneY:state.laneY,
+                visualEdits:h4Gfx11c13AuditStats.visualEdits,
+                items:results
+            };
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
