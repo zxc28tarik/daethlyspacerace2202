@@ -20,7 +20,7 @@ NEXT-11C5'te PBR aşınma ve ışık değişti, ancak 07 giriş ve 08 fabrika ka
 
 - [x] Üç farklı mimari ailenin gerçek kodu ve 3×4 instancing entegrasyonu yazıldı.
 - [x] Yeni gerçek Chromium WebGL test dosyası `tests/map4-gfx11c6-silhouette-depth.cjs` yazıldı, workflow'a `NEXT11C6` işi eklendi.
-- [ ] **CI PASS** ve 07/08/09 sabit kamerada before/after PNG farkı doğrulandı (çalışma sonucu bekleniyor).
+- [x] **07/08/09 gerçek WebGL sabit kamera A/B PASS** — son onarım HEAD `6caec39`, [hızlı CI #44065387823](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44065387823). **Tam regresyon CI #44065388118 hâlâ ayrı açık**.
 - [ ] High / Balanced / Low profil bütçesi, 0 collider değişimi ve Map1 / diğer fazlar tam CI PASS.
 - [ ] Gerçek ekran görüntüleri **gözle** karşılaştırıldı; büyük silüetin rota okuyabilirliğini artırdığı estetik olarak değerlendirildi.
 - [ ] Native GPU 720/1080p FPS, p95, VRAM ve 5 dakikalık gerçek pilot uçuşu yapıldı.
@@ -40,3 +40,22 @@ NEXT-11C5'te PBR aşınma ve ışık değişti, ancak 07 giriş ve 08 fabrika ka
 - **Düzeltme:** Büyük boş levhalar küçültülüp metalik açık iskelet/kolonlara çevrildi; yeni modellerin konumu uçuş hattından biraz daha dışa/ileriye taşındı, boyutlar daraltıldı, koyu soğuk metal/pas paleti kullanıldı; yeni düz malzeme yerine **mevcut NEXT-11C5 256² PBR atlas/bump UV ile paylaşıldı**, yeni texture yok.
 - Yeni gerçek ekran görüntülerinin incelenmesi ve yeni CI HEAD için PASS **AÇIK**; önceki ilk geçişin teknik PASS'ı düzeltilmiş sürümün kabulü sayılmaz.
 - Sadece PR #51'de işlem yapıldı; PR #50 ve diğer stacked PR'lar **merge edilmedi**.
+
+
+## 17 Kasım — Onarılmış gerçek görsellerin ikinci incelemesi
+
+**Onarım HEAD:** `6caec393` (kod `ea0342d`, test `5cb4be2`), [hızlı WebGL visual QA #44065387823](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44065387823) **PASS**; artifact `map4-next11c6-fast-07-08-09`. Aynı kamerada yeni görseller önce/sonra doğrulandı. Tam CI [#44065388118](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44065388118) **devam ediyor**; ilk büyük sürümün tam CI #44063534231 PASS olması yeni onarım HEAD'i için tam PASS değildir.
+
+| Kadraj | İlk geçiş değişen alan | Onarım değişen alan | Gözlem |
+|---|---:|---:|---|
+| 07 giriş | %17,01 | **%7,80** | Ön planın üstünü örten geniş levha azaldı; solda hâlâ belirgin yeni blok/kolon var |
+| 08 fabrika | %9,88 | **%4,13** | Sağdaki düz, beyazımsı dev kutu kaldırılmış; daha ince, daha uzaktaki gantry görülüyor |
+| 09 çıkış | %3,60 | **%1,97** | Artık baskın kütle eklemiyor; fakat silüet değişimi **yetersiz** |
+
+**Ölçü tanımı:** Ortalama RGB farkı 1/255'i aşan piksel yüzdesi; **kalite puanı değildir**. Yeni kodun etkisi azaldı çünkü estetiği bozan oversized parçalar azaltıldı; daha küçük değişim her zaman daha iyi kalite anlamına gelmez.
+
+**İkinci sanatsal karar:** İlk sürüme göre 07/08 kadrajları **iyileşti**, fakat bütün sahne hâlâ istenen **7–8/10** seviyesinde değil; 09 çıkış, mevcut eski endüstri foreground blokları, fazla parlak güneş, yinelenen dekoratif halkalar ve zayıf arazi görsel kimliği **açık**. İnsan kullanıcı kalite onayı verilmedi.
+
+**NEXT-11C7 önerisi (henüz uygulanmadı):** Yeni geometri eklemekten ziyade 07/08/09 ve uçuş hattında mevcut **yalnız visual-only** legacy yer tutucuları ayıkla/yeniden biçimlendir; gerçek uçuşun navigasyon BEACON/HIGH_MARKER işaretlerine ve 36 fiziksel sanayi collider'a dokunma. Düşük ön plan blok sayısı, ayırt edici işlevsel makine silüetleri, daha doğal malzeme/zemin, yönlendirmeyi bozmayan ışık/güneş düzeni ve 3-kadraj A/B üzerinden kabul et. Native FPS/VRAM ve 5dk uçuş halen açık.
+
+**İleriye taşınan açık kapılar:** Tam onarım HEAD CI, 7–8/10 kullanıcı estetik kararı, gerçek GPU 720/1080p FPS/VRAM, 5dk uçuş, yayıncı 3/6 oynanabilir harita. **PR merge yok.**
