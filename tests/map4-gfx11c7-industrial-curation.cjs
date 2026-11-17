@@ -42,6 +42,13 @@ const {pathToFileURL}=require('node:url');
       window.requestAnimationFrame=cb=>cb&&cb.name==='animate'?0:raf(cb);
     });
 
+    // Historical NEXT11C7 material-count A/B must isolate later C8 layer:
+    // C8 deliberately overrides the C7 GROUND material in production.
+    // The independent C8 test validates the combined production composition.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c8SetLook==='function')
+        h4Gfx11c8SetLook(false);
+    });
     const baseline=await page.evaluate(()=>{
       const markers=h4IndustrialGroups.flatMap(st=>st.children.filter(m=>
         m.userData.w05Kind==='BEACON'||

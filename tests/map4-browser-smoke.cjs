@@ -1581,6 +1581,16 @@ const assert = require('node:assert/strict');
         stats:{...h4Gfx06mStats},
         applied:industry.userData.h4Gfx06mApplied,
         groundMap:ground.material.map?.name,
+        groundC8Active:typeof h4Gfx11c8Root!=='undefined' &&
+          !!h4Gfx11c8Root&&h4Gfx11c8Stats.lookEnabled &&
+          h4Gfx10ProfileName!=='LOW'&&state.map4Phase===3,
+        groundBaseMap:typeof h4Gfx11c8GroundFallback!=='undefined' &&
+          h4Gfx11c8GroundFallback?
+          h4Gfx11c8GroundFallback.original.map?.name:null,
+        c8GroundMap:typeof h4Gfx11c8GroundMaterial!=='undefined' &&
+          h4Gfx11c8GroundMaterial?
+          h4Gfx11c8GroundMaterial.map?.name:null,
+        groundGeometrySafe:!ground.userData.h4Collider,
         metalMap:h4Gfx06mSteelMap.name,
         groundNormalScale:ground.material.normalScale.x,
         phys:h4IndustrialColliders.length,
@@ -1600,7 +1610,16 @@ const assert = require('node:assert/strict');
     assert.equal(gfx06m.colliderMeshLinked,true,
       'all original collision mesh pointers remain unchanged');
     assert.equal(gfx06m.applied,true);
-    assert.equal(gfx06m.groundMap,
+    // NEXT11C8 may paint the ACTIVE nonphysical industrial ground.
+    // GFX06M's old atlas must remain the immutable fallback, not disappear.
+    if(gfx06m.groundC8Active){
+      assert.equal(gfx06m.groundBaseMap,
+        'MAP4_GFX06M_SMOOTH_ERODED_INDUSTRY_GROUND');
+      assert.equal(gfx06m.c8GroundMap,
+        'MAP4_GFX11C8_AUTHORED_CONCRETE_SILT_ALBEDO');
+      assert.equal(gfx06m.groundMap,gfx06m.c8GroundMap);
+      assert.equal(gfx06m.groundGeometrySafe,true);
+    }else assert.equal(gfx06m.groundMap,
       'MAP4_GFX06M_SMOOTH_ERODED_INDUSTRY_GROUND');
     assert.equal(gfx06m.metalMap,'MAP4_GFX06M_DIRTY_STEEL_NO_GRID_ALBEDO');
     assert(gfx06m.groundNormalScale<=.1);

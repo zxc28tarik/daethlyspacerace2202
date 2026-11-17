@@ -233,3 +233,23 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Güncel kod tam CI** [#44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **SONUCU BEKLENİYOR**; hızlı CI ile karıştırma.
 - **NEXT-11C8** **ÖNERİ / YAPILMADI:** Büyük fiziksel W02 kütlelerin collider kimliği değişmeden daha inandırıcı sanayi cephesi/işlevi, bölgesel tekrar/ışık/zemin çözümleri, gerçek 07/08/09 + hareketli kamera görsel QA. Bütün eski karar, harita ve fizik testleri devam eder.
 - **Hiçbir merge yok:** PR #50/#51/#52 DRAFT, main birleştirmesi kullanıcı açık onayına bağlı.
+
+
+## 13) 17 Kasım 2026 — NEXT-11C8 korunan kabukların endüstriyel cephe/zemin turu
+
+- **Önceki bağımlılık:** [NEXT-11C7 PR #52](https://github.com/zxc28tarik/daethlyspacerace2202/pull/52) DRAFT; tam kod regresyonu [#44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **PASS**. Kullanıcı 7–8/10 estetik kabulü ve gerçek native GPU ölçümleri açık.
+- **Aktif:** [NEXT-11C8 PR #53](https://github.com/zxc28tarik/daethlyspacerace2202/pull/53) **DRAFT / STACKED**, PR #52 üzerine; main'e merge **yok**. [Kabul dokümanı](MAP4_GFX11C8_AUTHORED_FACADES_GROUND_ACCEPTANCE.md).
+- **Kod:** `117b7af` — eski 34 W02 korunan fiziksel kabuğun üzerine **22 blok/12 kule** için yerel UV'li, havalandırma louver'lı, dikey ısı tahliye flütlü yeni orijinal BufferGeometry'ler; **2 InstancedMesh / 20.760 visual-only üçgen**. `h4Gfx11c8SetLook(true/false)` ile AB. Tek 256² deterministik endüstriyel aşınmış beton/zemin atlası. C7 ground matını koruyup yalnız phase3 High/Balanced'ta değiştir; Low ve diğer fazlarda gizli.
+- **Koruma:** 6 kanyon +36 sanayi +200 yapı collider, orijinal 34 W02 mesh geometri + collider referansları, 24 W05 BEACON/HIGH_MARKER, 5 rakip/8 avcı, arena 60s, yarış 300s, yörünge 850m; Map1 ve önceki C3–C7 içerik. **0 yeni collider, 0 ışık**.
+- **İlk gerçek QA:** [C8 hızlı #44069920712](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44069920712) **PASS**, gerçek 07/08/09 1600×900 A/B PNG. Piksel farkı 07 %22,20 / 08 %11,89 / 09 %6,83 (ortalama RGB >1/255 eşik; **sanatsal puan değil**). 07/08 zemini daha malzemeli, ancak dev kutu/sanayi topografyası ve 09 dekor tekrarları sürüyor. **KULLANICI 7–8/10 ONAYI YOK**.
+- **Hata kaydı:** [İlk full #44069920780](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44069920780) **FAIL** çünkü C8 ground overlay, eski C7 tek başına testte 17/17 yerine 16/17 style gösterdi. Bağımsız C7 A/B testi C8 katmanı kapatılarak `b76c148` düzeltildi; hızlı workflow'da C7 + C8 birlikte zorunlu (`e31c9ca`). [Hızlı #44070620158](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620158) **yeni sonucu kontrol edilecek**; tam CI yeni SHA PASS ise sonradan işaretle.
+- **Kalan kapılar:** C7+C8 hızlı test PASS, güncel tam regresyon PASS, 07/08/09'da insan estetik kalite değerlendirmesi (hedef 7–8/10), native 720/1080p GPU FPS/p95/VRAM, 5 dk gerçek uçuş, yayıncı 3/6 playable harita.
+- **NEXT-11C9 (öneri / YAPILMADI):** İri W02 ön plan yüzeylerinin fonksiyonel okunurluğu, 09 fabrikada aşırı tekrarlı non-nav halkaların ve dev çatının özgün endüstriyel kimliğe kavuşması; rota BEACON/HIGH_MARKER'a, fiziksel AABB'ye ve Map1'e dokunma.
+
+**Günlük:** `2026-11-17 | NEXT-11C8 | YAPILMADI -> GERÇEK KOD + İLK WEBGL PASS + C7 REGRESYON FIX | PR#53/117b7af/3477de6/b76c148/e31c9ca | hızlı C8 PASS, yeni C7/Full kontrol açık | estetik 7-8/10 AÇIK | merge YOK`.
+
+### NEXT-11C8 hızlandırılmış regresyon doğrulaması
+
+- [C8+C7 hızlı CI #44070620158](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620158) **PASS**. C8 34 VIS02 protected facades ve gerçek WebGL 07/08/09 + eski C7'nin 17 malzemelik A/B izolasyonu bir arada geçti. Düzeltme `b76c148` önceki C7 smoke hatasını giderdi.
+- [Güncel tam smoke #44070620169](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620169) **devam ediyor; PASS doğrulanmadı**. Bu teste önceki dalın tam PASS'i aktarılmaz.
+- **Sıradaki:** tam CI PASS durumunu kontrol et, gerekirse regresyon düzelt, NEXT-11C9 sanat borcuna ancak sonra geç. Native GPU ve 7–8/10 kullanıcı estetiği açık. **PR #53 DRAFT, merge YOK**.

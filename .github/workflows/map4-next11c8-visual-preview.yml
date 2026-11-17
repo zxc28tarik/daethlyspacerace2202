@@ -1,0 +1,31 @@
+name: Map 4 NEXT-11C8 Visual Preview
+on:
+  push:
+    branches: [codex/map4-gfx11c8-authored-facades-ground]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c8-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium WebGL art QA
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Capture 07 / 08 / 09 true in-engine A/B and strict collisions
+        run: node tests/map4-gfx11c8-authored-facades-ground.cjs
+      - name: Prove historical NEXT11C7 A/B still works with C8 disabled
+        run: node tests/map4-gfx11c7-industrial-curation.cjs
+      - name: Keep NEXT-11C8 07-09 authored art screenshot pairs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c8-07-08-09-review
+          path: tests/map4-gfx11c8-*.png
+          if-no-files-found: warn
