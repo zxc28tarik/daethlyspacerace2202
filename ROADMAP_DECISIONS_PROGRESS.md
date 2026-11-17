@@ -201,3 +201,16 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Diğer açık kapılar:** native GPU FPS/p95/VRAM, 5 dk gerçek uçuş, 3/6 oynanabilir yayıncı haritası ve açık kullanıcı merge/onay kararı.
 
 **Günlük:** `2026-11-17 | NEXT-11C6 | GÖRSEL PROTOTİP -> İLK ESTETİK RED -> ONARIM WEBGL PASS | PR #51, ea0342d/5cb4be2/6caec39 | hızlı CI #44065387823 PASS, tam CI #44065388118 açık | 07/08 iyileşti, 09 ve genel 7-8/10 açık | NEXT-11C7 önerisi`.
+
+
+## 12) 17 Kasım 2026 — NEXT-11C7 sanayi malzeme/kompozisyon kalite turu
+
+- **Önceki:** [NEXT-11C6 PR #51](https://github.com/zxc28tarik/daethlyspacerace2202/pull/51) DRAFT, eski tam CI [#44065388118](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44065388118) **PASS**. Gerçek estetik 7–8/10 onayı henüz yok.
+- **Aktif:** [NEXT-11C7 PR #52](https://github.com/zxc28tarik/daethlyspacerace2202/pull/52) **DRAFT/STACKED**, main merge yok. Kod `5efc90a`: 12 W05 nonphysical deck, 2 GFX11C dekoratif instanced grup, görsel-only industrial ground mat normal, phase3 High/Balanced güneş/sis ayarı; 0 yeni collider/mesh/texture/light, BEACON/HIGH_MARKER korunacak.
+- **İlk gerçek ekran A/B:** [hızlı CI #44067126151 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44067126151); 07 ve 08'de renk/dekor sadeleşmesi, 09 hâlâ fazla baskın ve büyük IN06 halka silüetleri. **Kullanıcı estetik onayı verilmedi.**
+- **Hedefli 09 onarım:** `c4a1944` IN06 iki visual-only power toroid PBR koyulaştırma, 0.76 scale (toggle orijinal ölçekleri kayıpsız geri yükler); test `4eb8643` 17 style ve ölçek A/B koruması. [Yeni hızlı CI #44067601417](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44067601417) **sonuç ve ekran görseli henüz açık**.
+- **Korunan ürün sözleşmesi:** 6 harita, ilk yayıncı sunumuna ≥3 oynanabilir; Harita 4 4 bölüm/60s arena/300s/850m, 5 rakip/8 avcı, 6/36/200 collider. Bu görev oynanış değil yalnızca görsel kalite.
+- **Kapanmayan kabul:** onarım HEAD tam CI, gerçek WebGL 07/08/09 göz incelemesi, native GPU 720/1080p FPS/p95/VRAM, gerçek 5dk oyun, kullanıcı görsel 7–8/10 onayı, 3/6 playable publisher.
+- **Sıradaki karar:** Yeni gerçek görüntüleri denetle. Sorun sürüyorsa görsel-only mimariyi ve 09 çıkış kadrajını yeniden ele al, korunan fizik/navigasyona dokunma. Birleşim için kullanıcı açık onayı şart.
+
+**Günlük:** `2026-11-17 | NEXT-11C7 | YAPILMADI→GELİŞTİRME-PR | PR#52 / 5efc90a / c4a1944 / 4eb8643 | İlk A/B CI PASS, onarım QA açık | görsel puan açık | NEXT11C7 HEAD kalite kapıları`.
