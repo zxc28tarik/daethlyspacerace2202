@@ -1,0 +1,30 @@
+name: Map 4 NEXT-11C6 Visual Preview
+on:
+  push:
+    branches:
+      - codex/map4-gfx11c6-silhouette-depth
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c6-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install lightweight Chromium visual QA dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Capture fixed 07 / 08 / 09 actual in-engine WebGL pairs
+        run: node tests/map4-gfx11c6-silhouette-depth.cjs
+      - name: Upload NEXT-11C6 screenshot evidence first
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c6-fast-07-08-09
+          path: tests/map4-gfx11c6-*.png
+          if-no-files-found: warn
