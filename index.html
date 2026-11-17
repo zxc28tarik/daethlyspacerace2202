@@ -1807,6 +1807,20 @@
                 h4SunHalo.material.opacity*=1-.12*industrialGrade;
                 renderer.toneMappingExposure*=1-.055*industrialGrade;
             }
+            // NEXT11C5: retain the same sun and route geometry, but favor
+            // material relief and depth over a washed-out white skyline.
+            // Phase3 only; active flag allows true same-camera A/B QA.
+            if(state.map4Phase===3 && h4Gfx11c5Stats.lookEnabled){
+                const grade=industrialSkyWeight;
+                scene.fog.color.lerp(H4_GFX11C5_FOG,.20*grade);
+                scene.fog.density*=1-.045*grade;
+                ambientLight.intensity*=1-.12*grade;
+                nebulaLight1.intensity*=1+.06*grade;
+                nebulaLight2.intensity*=1-.03*grade;
+                h4SunHalo.material.opacity*=1-.32*grade;
+                h4SunHalo.scale.multiplyScalar(1-.17*grade);
+                renderer.toneMappingExposure*=1-.072*grade;
+            }
             // Orbit clouds fade, rather than popping at an altitude threshold.
             for(let i=0;i<h4CloudGroups.length;i++){
                 h4CloudGroups[i].visible=i!==3 || orbit<.92;
@@ -5213,7 +5227,7 @@
         };
         let h4Gfx11c4HeroRoot=null;
         function h4Gfx11c4AuthoredGeometry(family){
-            const pos=[],normal=[],color=[];
+            const pos=[],normal=[],color=[],uv=[];
             const source=[];
             const shape=(g)=>{source.push(g);return g;};
             const box=shape(new THREE.BoxGeometry(1,1,1));
@@ -5246,6 +5260,7 @@
                 const g=geo.index?geo.toNonIndexed():geo;
                 if(!g.getAttribute('normal'))g.computeVertexNormals();
                 const a=g.getAttribute('position'),b=g.getAttribute('normal');
+                const u=g.getAttribute('uv');
                 const c=new THREE.Color(tint);
                 for(let i=0;i<a.count;i++){
                     v.fromBufferAttribute(a,i).applyMatrix4(transform);
@@ -5253,6 +5268,9 @@
                     pos.push(v.x,v.y,v.z);
                     normal.push(n.x,n.y,n.z);
                     color.push(c.r,c.g,c.b);
+                    // Retain authored face UVs for NEXT11C5 weathered steel
+                    // (scaled to avoid repeating a whole panel per large mesh).
+                    uv.push(u?u.getX(i)*1.6:0,u?u.getY(i)*1.6:0);
                 }
                 if(g!==geo)g.dispose();
                 h4Gfx11c4Stats.bakedPrimitives++;
@@ -5363,6 +5381,8 @@
                 new THREE.Float32BufferAttribute(normal,3));
             geometry.setAttribute('color',
                 new THREE.Float32BufferAttribute(color,3));
+            geometry.setAttribute('uv',
+                new THREE.Float32BufferAttribute(uv,2));
             geometry.computeBoundingSphere();
             geometry.computeBoundingBox();
             h4Gfx11c4Stats.geometryTriangles.push(pos.length/9);
@@ -5439,6 +5459,192 @@
             // Low: preserve previous GFX11C six-site forms and save the
             // dense new hero triangles. These are art-only, not obstacles.
             h4Gfx11c4HeroRoot.visible=state.map4Phase===3 &&
+                h4Gfx10ProfileName!=='LOW';
+        }
+
+
+        // NEXT11C5: true PBR surface wear, contact-shadow approximation and
+        // stage-3-only cinematic grade. No realtime shadow maps or light
+        // sources are added: baked face shading + one art-only shadow batch.
+        const h4Gfx11c5Stats={
+            pbrFamilies:0,uvGeometries:0,weatherTextureCount:0,
+            sharedTexturePixels:256*256,shadowInstances:0,shadowBatches:0,
+            decorativeRingsRegraded:0,navigationRingsUnmodified:true,
+            addedColliders:0,addedLights:0,
+            lookEnabled:true,hardwareGpuFpsVerified:false,
+            hasHumanAestheticApproval:false
+        };
+        const H4_GFX11C5_FOG=new THREE.Color(0x435766);
+        let h4Gfx11c5WeatherMap=null,
+            h4Gfx11c5ShadowMap=null,
+            h4Gfx11c5ContactShadows=null;
+        const h4Gfx11c5HeroMaterials=[];
+        const h4Gfx11c5DecorRings=[];
+        function h4Gfx11c5MakeWeatherMap(){
+            const canvas=document.createElement('canvas');
+            canvas.width=canvas.height=256;
+            const ctx=canvas.getContext('2d');
+            const frame=ctx.createImageData(256,256);
+            // Deterministic locally made steel, with grime and seam grid.
+            // No remote texture and no nondeterministic Math.random.
+            const hash=(x,y)=>{
+                let n=Math.imul(x+37,374761393)+Math.imul(y+91,668265263);
+                n=Math.imul(n^(n>>>13),1274126177);
+                return ((n^(n>>>16))>>>0)/4294967295;
+            };
+            for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+                const seam=x%48<2 || y%64<2;
+                const grout=x%48<6 || y%64<6;
+                const grain=hash(x,y);
+                const scratch=grain>.987 && x%16<4;
+                const rust=grain>.992 && y%37<18;
+                const level=Math.max(58,Math.min(240,Math.round(
+                    211+(grain-.5)*38-(seam?78:grout?21:0)-
+                    (scratch?48:0)-(rust?23:0))));
+                const off=(y*256+x)*4;
+                frame.data[off]=Math.min(255,level+(rust?14:0));
+                frame.data[off+1]=Math.max(0,level-(rust?14:0));
+                frame.data[off+2]=Math.max(0,level-(rust?26:0));
+                frame.data[off+3]=255;
+            }
+            ctx.putImageData(frame,0,0);
+            // Visible rivet seams: texturing a mesh does not alter its AABB.
+            ctx.fillStyle='rgba(20,28,35,0.64)';
+            for(let x=5;x<256;x+=48){
+                for(let y=6;y<256;y+=32){
+                    ctx.beginPath();ctx.arc(x,y,1.7,0,Math.PI*2);ctx.fill();
+                }
+            }
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX11C5_AUTHORED_STEEL_DIRT_RIVETS';
+            tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+            tex.anisotropy=4;
+            tex.encoding=THREE.sRGBEncoding;
+            tex.needsUpdate=true;
+            return tex;
+        }
+        function h4Gfx11c5MakeContactShadow(){
+            const canvas=document.createElement('canvas');
+            canvas.width=canvas.height=128;
+            const ctx=canvas.getContext('2d');
+            const grd=ctx.createRadialGradient(64,64,9,64,64,62);
+            grd.addColorStop(0,'rgba(14,20,27,.72)');
+            grd.addColorStop(.48,'rgba(19,25,31,.45)');
+            grd.addColorStop(.82,'rgba(20,27,35,.12)');
+            grd.addColorStop(1,'rgba(20,27,35,0)');
+            ctx.fillStyle=grd;ctx.fillRect(0,0,128,128);
+            const tex=new THREE.CanvasTexture(canvas);
+            tex.name='MAP4_GFX11C5_SOFT_CONTACT_SHADOW_ATLAS';
+            tex.needsUpdate=true;return tex;
+        }
+        function h4Gfx11c5BuildLook(zone){
+            if(h4Gfx11c5HeroMaterials.length)return;
+            h4Gfx11c5WeatherMap=h4Gfx11c5MakeWeatherMap();
+            h4Gfx11c5ShadowMap=h4Gfx11c5MakeContactShadow();
+            h4Gfx11c5Stats.weatherTextureCount=2;
+            for(let family=0;family<3;family++){
+                const mesh=h4Gfx11c4HeroRoot.children[family];
+                if(!mesh||!mesh.isInstancedMesh ||
+                    !mesh.geometry.getAttribute('uv'))
+                    throw new Error('NEXT11C5 requires authored UV hero');
+                const old=mesh.material;
+                const style=old.clone();
+                style.name='MAP4_GFX11C5_WEATHERED_PBR_FAMILY_'+family;
+                style.map=h4Gfx11c5WeatherMap;
+                style.bumpMap=h4Gfx11c5WeatherMap;
+                style.bumpScale=.022;
+                style.metalness=.47;
+                style.roughness=.75;
+                style.flatShading=false;
+                style.color.setHex([0xd9b7a0,0xb4c5cb,0xbab3d4][family]);
+                style.needsUpdate=true;
+                h4Gfx11c5HeroMaterials.push({mesh,old,style});
+                mesh.material=style;
+                h4Gfx11c5Stats.pbrFamilies++;
+                h4Gfx11c5Stats.uvGeometries++;
+            }
+            const shadows=new THREE.InstancedMesh(
+                new THREE.PlaneGeometry(1,1),
+                new THREE.MeshBasicMaterial({
+                    name:'MAP4_GFX11C5_SOFT_GROUND_CONTACT',
+                    map:h4Gfx11c5ShadowMap,
+                    color:0x27343d,transparent:true,
+                    opacity:.64,depthWrite:false,
+                    polygonOffset:true,polygonOffsetFactor:-1,
+                    side:THREE.DoubleSide
+                }),12);
+            shadows.name='MAP4_GFX11C5_HERO_CONTACT_SHADOWS';
+            shadows.userData.visualOnly=true;
+            shadows.userData.noCollider=true;
+            shadows.frustumCulled=false;
+            const dummy=new THREE.Object3D();
+            const zAxis=new THREE.Vector3(0,0,1);
+            let instance=0;
+            for(let family=0;family<3;family++)
+                for(let index=0;index<4;index++){
+                    const site=family*2+Math.floor(index/2);
+                    const partner=index%2===1;
+                    const at=H4_GFX11C_SITES[site];
+                    const finalStation=site===5;
+                    const progress=at+(finalStation?
+                        (partner?2150:1450):(partner?1230:720));
+                    const flank=site%2===0?-1:1;
+                    const side=partner?
+                        -flank*(finalStation?1450:1640):
+                        flank*(finalStation?1250:1490);
+                    const f=getRaceFrameAtDistance(progress);
+                    dummy.position.copy(h4WorldPosition(progress,side,-418));
+                    dummy.quaternion.setFromUnitVectors(zAxis,f.up);
+                    dummy.scale.setScalar(1);
+                    const factor=partner?.75:1;
+                    dummy.scale.set(1350*factor,1100*factor,1);
+                    dummy.updateMatrix();
+                    shadows.setMatrixAt(instance++,dummy.matrix);
+                }
+            shadows.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+            shadows.instanceMatrix.needsUpdate=true;
+            zone.add(shadows);
+            h4Gfx11c5ContactShadows=shadows;
+            h4Gfx11c5Stats.shadowInstances=12;
+            h4Gfx11c5Stats.shadowBatches=1;
+            // Tone down only NON-GUIDANCE ornamental W01 toroids.
+            // Critical W05 HIGH_MARKER/BEACON and region guide rings
+            // remain unchanged; the player still sees the same route cues.
+            zone.traverse(mesh=>{
+                if(!mesh.isMesh||mesh.geometry!==H4_DETAIL_GEO.ring ||
+                    mesh.userData.h4Collider ||
+                    mesh.userData.w05Kind ||
+                    mesh.material===H4_MATERIALS.marker)return;
+                const old=mesh.material;
+                const style=old.clone();
+                style.name='MAP4_GFX11C5_RECESSED_ORNAMENT';
+                style.transparent=true;
+                style.opacity=.40;
+                style.depthWrite=false;
+                style.color.multiplyScalar(.57);
+                h4Gfx11c5DecorRings.push({mesh,old,style});
+                mesh.material=style;
+                h4Gfx11c5Stats.decorativeRingsRegraded++;
+            });
+            h4Gfx11c5Stats.lookEnabled=true;
+        }
+        function h4Gfx11c5SetLook(enabled){
+            if(h4Gfx11c5Stats.lookEnabled===enabled)return;
+            for(const item of h4Gfx11c5HeroMaterials)
+                item.mesh.material=enabled?item.style:item.old;
+            for(const item of h4Gfx11c5DecorRings)
+                item.mesh.material=enabled?item.style:item.old;
+            if(h4Gfx11c5ContactShadows)
+                h4Gfx11c5ContactShadows.visible=enabled &&
+                    state.map4Phase===3 &&
+                    h4Gfx10ProfileName!=='LOW';
+            h4Gfx11c5Stats.lookEnabled=enabled;
+        }
+        function h4Gfx11c5UpdateQuality(){
+            if(!h4Gfx11c5ContactShadows)return;
+            h4Gfx11c5ContactShadows.visible=
+                h4Gfx11c5Stats.lookEnabled &&
+                state.map4Phase===3 &&
                 h4Gfx10ProfileName!=='LOW';
         }
 
@@ -6752,6 +6958,7 @@
                     h4Gfx11c2CurateIndustry();
                     h4Gfx11c3BuildComposition(zone);
                     h4Gfx11c4BuildHeroArchitecture(zone);
+                    h4Gfx11c5BuildLook(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -6857,6 +7064,7 @@
             h4Gfx06dUpdateLod();
             h4Gfx11cUpdateIndustryDetail();
             h4Gfx11c4UpdateQuality();
+            h4Gfx11c5UpdateQuality();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
