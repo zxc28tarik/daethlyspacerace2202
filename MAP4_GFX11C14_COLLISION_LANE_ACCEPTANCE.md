@@ -73,3 +73,14 @@ Bu **kesintisiz pilot uçuşu veya zorunlu çarpışma sayısı değildir**; pil
 - Görünürlük anlık/LOD odaklı: bir kamerada 33 collider sahibi gizliyse bu **genel phantom-wall iddiası değildir**; sınırdaki uzak bölgeler normal görünürlük filtrelerine tabidir. İki fabrika ilgili kamerada görünür, fiziksel yerleşim/AI/rota kararı kullanıcı onayı bekliyor.
 - `6d32a2e` ile bu bulgu test sözleşmesine yazıldı: **236/236 owner resolution** ve 08 fast fabrikalarının **görünür** olması artık zorunlu regresyon kapısı. [Bu son kod testi hızlı CI](https://github.com/zxc28tarik/daethlyspacerace2202/actions/workflows/map4-next11c14-collider-lane-audit.yml) sonucu ayrıca doğrulanacak. Güncel [Map1/Map4 full](https://github.com/zxc28tarik/daethlyspacerace2202/actions/workflows/map-browser-smoke.yml) sonucu açık.
 - Halen **YAPILMADI:** kullanıcı onaysız fiziksel fabrika taşıma, AI kaçınma güncellemesi, oyun hat/bariyer değişikliği, native GPU ve kesintisiz 300s uçuş, yayıncı üç oynanabilir harita onayı, 7–8/10 görsel kalite ve PR merge.
+
+
+## 18 Kasım — C14 CI kapanış doğrulaması
+
+- [x] [Son kod HEAD hızlı Chromium/WebGL #44093556723](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44093556723): **completed/success; 9/9 PASS**.
+- [x] [Son kod HEAD Map1/Map4 tam browser regresyonu #44093556645](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44093556645): **completed/success**, browser-smoke job'un bütün adımları başarılı.
+- [x] 236/236 fiziksel collider sahne sahibi ve 08'de görünür iki gerçek fabrika engeli, koruyucu WebGL testiyle doğrulandı.
+- Son PR HEAD `01d50c0` yalnızca dokümantasyon commitidir (`[skip ci]`); yukarıdaki CI son oyun/test kodu `6d32a2e` için doğrulanmıştır.
+- [ ] **Kullanıcı açık kararı**: 08'de fiziki fabrika taşıma mı, bilinçli riskli alt hat mı; rakip W01 avoidance dahil oynanış ve denge uygulamaları.
+- [ ] Native GPU 720/1080 fps/p95/VRAM, gerçek kesintisiz 300s pilot seansı, 7–8/10 estetik ve yayıncı 3/6 playable kapıları.
+- [ ] PR merge. **DRAFT/NO MERGE** kuralı sürüyor.
