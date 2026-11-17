@@ -53,6 +53,12 @@ const {pathToFileURL}=require('node:url');
       if(typeof h4Gfx11c10SetLook==='function')
         h4Gfx11c10SetLook(false);
     });
+    // C11 is a separately tested late visual pass; isolate this
+    // older A/B suite from its two batches and physics-shell materials.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c11SetLook==='function')
+        h4Gfx11c11SetLook(false);
+    });
     const construction=await page.evaluate(()=>{
       const sky=h4Gfx11c6Root;
       const nav=h4IndustrialGroups.flatMap(st=>st.children.filter(m=>
