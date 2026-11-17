@@ -44,8 +44,14 @@ const {pathToFileURL}=require('node:url');
 
 
     const baseline=await page.evaluate(()=>{
-      const protectedShells=planetaryWorldRegions[2].children.filter(
-        m=>m.isMesh&&m.userData.h4Vis02Protected);
+      // W04/GFX04 reparents all industry visuals below the zone's
+      // gfx04IndustrialVisuals group after their construction. Descend the
+      // final scene tree rather than checking only the old direct children.
+      const protectedShells=[];
+      planetaryWorldRegions[2].traverse(m=>{
+        if(m.isMesh&&m.userData.h4Vis02Protected)
+          protectedShells.push(m);
+      });
       const root=h4Gfx11c8Root;
       const ground=planetaryWorldRegions[2].children.find(m=>
         m.isMesh&&m.userData.h4TerrainSceneryOnly);
@@ -93,7 +99,8 @@ const {pathToFileURL}=require('node:url');
     assert.deepEqual(baseline.game,{
       rivals:5,hunters:8,seconds:300,arena:60,orbit:850
     });
-    assert(baseline.protectedShells>=20,'expected original W02 physical shells');
+    assert(baseline.protectedShells>=20,
+      'expected original W02 physical shells: '+baseline.protectedShells);
     assert.equal(baseline.stats.facades,baseline.protectedShells);
     assert.equal(baseline.stats.boxFacades+baseline.stats.towerFacades,
       baseline.stats.facades);
