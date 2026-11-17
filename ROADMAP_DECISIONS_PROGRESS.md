@@ -295,3 +295,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **NEXT:** C10 görsel çıktısını kontrol et, çok uzakta veya yapay duruyorsa aynı PR içinde düzelt; gerçek kalite kapanmadan NEXT11C11'e geçme.
 
 **Günlük:** `2026-11-17 | NEXT-11C10 | ÖZGÜNLÜK KARARI ONAYLI, PR#55 KOD+TEST+CI DOSYALARI YAPILDI | HIZLI TEST EŞİK DÜZELTMESİ 4d24372, GÜNCEL QA AÇIK | 7–8/10 ONAY YOK | MERGE YOK`.
+
+
+### 17 Kasım — NEXT-11C10-B ilk ekran görüşü ve zemin bağlamı düzeltmesi
+
+- [İlk C10-A gerçek WebGL #44076017106](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076017106) **PASS**, 07/08/09 aynı-kamera screenshot. Değişen RGB ortalama piksel alanı eşik >1/255: **07 %1,76; 08 %0,60; 09 %9,42**. Sayılar **kalite puanı değil**; 07/08 üretim silüetleri uzakta, büyük açık zemin hâlâ yapay. **7–8/10 kabul yok**.
+- C10-B kod `bd016e3`: oyuna özel ve dış kaynak kullanmayan **6 açık bakım yolu/servis alanı** (07/08/09 üç bölge × iki taraf) statik mesh ile düz sanayi arazisini bağlar; materyal kendi vertex-color geometrisi, yeni texture, collider, ışık **yok**. Eski 3 sanayi aile batch + 1 statik servis zemini drawcall. Eski W05 BEACON/HIGH_MARKER, 6/36/200 collider değişmez.
+- Yeni `074625d` gerçek Chromium/WebGL testi 4 drawcall, altı nonphysical servis alanı, bütçe, High/Balanced/Low ve phase 1/2/4 izolasyonu denetler. [Son hızlı #44076681861](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076681861) **henüz sonuç bekleniyor**. [C10-A ilk QA PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076017106) güncel C10-B QA yerine geçmez.
+- Özgünlük ilkesi **devam ediyor**: CGTrader veya başka bir üçüncü taraf hazır modelin ayırt edici mimarisi, geometri/doku/yerleşimi kopyalanmadı; görsel araştırma yalnız ilham. Kullanıcı açık merge onayı olmadan main'e PR alınmaz.
+- **Kalan kabul:** güncel C10-B hızlı ve full CI, 07/08/09 gerçek ekran göz incelemesi, GPU FPS/p95/VRAM native, beş dakikalık uçuş, yayıncı 3/6 playable, kullanıcı estetik 7–8/10.
+
+**Günlük:** `NEXT11C10-B | KOD/QA GEOMETRİ EKLENDİ | bd016e3/074625d | HIZLI CI/SCREEN AÇIK | 7-8 ESTETİK ONAY YOK | PR55 DRAFT, MERGE YOK`.
