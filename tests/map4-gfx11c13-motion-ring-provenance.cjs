@@ -155,6 +155,7 @@ const {pathToFileURL}=require('node:url');
       {lane:'HUNTER_FLANK',x:900,y:310}
     ];
     const checkpoints=[],shots=[];
+    const captureScreens=process.env.C13_SKIP_SCREENSHOTS!=='1';
     for(const section of progressBySection){
       for(const progress of section.progress){
         for(const lane of lanes){
@@ -184,7 +185,7 @@ const {pathToFileURL}=require('node:url');
           assert.equal(route,lane.lane);
           const shot=(section.section==='07'&&progress===17200)||
             (section.section==='08'&&progress===23800);
-          if(shot){
+          if(shot&&captureScreens){
             const name='map4-gfx11c13-'+section.section+'-'+
               lane.lane.toLowerCase()+'.png';
             await page.screenshot({path:path.join(__dirname,name),
@@ -208,7 +209,7 @@ const {pathToFileURL}=require('node:url');
       }
     }
     assert.equal(checkpoints.length,18);
-    assert.equal(shots.length,6);
+    assert.equal(shots.length,captureScreens?6:0);
     // Dynamic camera sweep: the original sky silhouettes really move in
     // projection as the pilot advances. Not just the same static screenshot.
     for(const sec of ['07','08']){
