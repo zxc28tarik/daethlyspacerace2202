@@ -107,6 +107,17 @@ const {pathToFileURL}=require('node:url');
     assert.deepEqual(baseline.sites.map(x=>x.family),[0,1,0,1,0,1]);
     assert(baseline.sites.every(x=>Math.abs(x.side)>=1100 &&
       x.at>=15000&&x.at<30000),'C12 must stay on outer flanks');
+    // H4_INDUSTRY FAST_LOW centre=-800, width +/-310; HUNTER_FLANK
+    // centre=900, width +/-480. Conservative silhouette half width
+    // includes yaw and all authored structural vertices (0.55 factor).
+    // The visible art must not promise fake new collidable lane walls.
+    for(const site of baseline.sites){
+      const nearestToCentre=Math.abs(site.side)-
+        .65*.55*site.size;
+      assert(nearestToCentre>=(site.side<0?1140:1430),
+        'C12 false visual barrier in industrial flight route: '+
+        JSON.stringify(site)+' inner='+nearestToCentre);
+    }
     for(const key of ['newColliders','newLights','newTextures','newExternalModels',
       'physicalMeshChanged','navigationMarkerChanged'])
       assert.equal(baseline.stats[key],0);
