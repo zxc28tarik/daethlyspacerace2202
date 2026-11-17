@@ -27,6 +27,8 @@ jobs:
       # unchanged complete Map1/Map4/GFX09–GFX11 historical suite.
       - name: NEXT11C13 — 18 motion viewpoints, protected nav ring provenance
         run: node tests/map4-gfx11c13-motion-ring-provenance.cjs
+      - name: NEXT11C13 — inspect 08 fast-low visual-only camera occlusion
+        run: node tests/map4-gfx11c13-fast-low-occlusion.cjs
       - name: NEXT11C12 — original near-mid industrial depth and non-nav decor A/B
         run: node tests/map4-gfx11c12-architectural-depth.cjs
       - name: NEXT11C11 — protected physical W02 building macro facade A/B
