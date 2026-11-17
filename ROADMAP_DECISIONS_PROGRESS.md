@@ -377,3 +377,16 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Özgünlük kuralı:** atmosfer/kalite referansı serbest ama kopya/çok yakın ayırt edici tasarım yasak, CGTrader ticari model veya doku kullanılmadı.
 
 **Günlük:** `2026-11-17 | NEXT11C12-C | SON KOD 6b0c31f, HIZLI WEBGL #44082591667 PASS | 07 %5.44 08 %4.32 09 %0 | ŞERİT GÜVENLİĞİ PASS | C12 FULL AÇIK | 7-8/10 ONAY YOK | PR57 DRAFT/NO MERGE`.
+
+
+## 19) 17 Kasım 2026 — NEXT-11C13 hareketli kamera ve halka kaynak denetimi
+
+- **Önceki durum doğrulandı:** C12 [PR #57](https://github.com/zxc28tarik/daethlyspacerace2202/pull/57) DRAFT; [tam Map1/Map4 #44082591388](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44082591388) **35/35 PASS**. Son güvenli C12 07/08 gerçek görüntü farkı %5,44/%4,32, 09 %0; 7–8/10 estetik kabulü açık.
+- **Yeni C13 DRAFT PR #58:** [PR](https://github.com/zxc28tarik/daethlyspacerace2202/pull/58) stacked on C12 #57, kullanıcı onaysız merge YOK. Bu tur **sadece denetim/QA**: önceki fiziksel ve görsel nesnelerin değişimi yok.
+- **Denetim kodu `d07276f`:** `h4Gfx11c13RingProvenance()` mevcut Map4 sanayi 3D sahnesinde TorusGeometry, adı ring/energy/portal/toroid ve açık W05 marker adaylarını kaynak/ata, geometri, görünürlük, ekran NDC, dünya konumu ve korunmuş çarpışma ile sınıflandırır. **Bütün adaylar `safeToAutoHide:false`**; hiçbir materyal, geometri veya navigasyon kapatılmaz. W05 **12 BEACON + 12 HIGH_MARKER** fiziksel olmayan kritik yön işaretidir. Baked makine/C4 güç halkaları tek BufferGeometry içinde olabilir: basit torus listesi “bütün halkalar güvenli dekor” demek değildir.
+- **C13 test `25b394d`:** 07/08'de 6 ilerleme × 3 rota `FAST_LOW,CENTRAL,HUNTER_FLANK` = **18 gerçek Chromium WebGL kamera pozu**, 6 yüksek çözünürlük PNG + tüm örnekleri içeren kaynak/konum/gpu JSON. C12 altı instancenın ekran yansıması kamerayla hareket etmelidir; W05 24 exact marker geometry/material/matrix ve W02 fizik ile 6/36/200 collider test boyunca sabittir; texture/geometry sayısı büyümez. Bu gerçek **kamera pozlarının ardışık örneklemesidir**, tam 300 saniye canlı pilot seansı veya gerçek GPU FPS ölçümü değildir.
+- **Hızlı ve tam CI:** `.github/workflows/map4-next11c13-motion-ring-provenance.yml` ve full `map-browser-smoke.yml` genişletildi. Yeni [hızlı #44085621759](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44085621759) ve [full #44085621702](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44085621702) **sonuç bekleniyor**; henüz C13 PASS iddiası yok.
+- **Özgünlük kararı kalıcı:** CGTrader vb üçüncü tarafın ayırt edici 3D bina düzeni/mesh/doku/silüet kopyalanmaz; genel atmosfer/kalite/teknik ilham alınabilir. C13 harici model kullanmıyor.
+- **Kalan onaylar:** Hızlı JSON'da büyük görünen halkaların kesin kaynak ve navigasyon sınıfını bul; yalnız açıkça non-nav olduğu kanıtlananlar için estetik aday hazırla, önemli karar kullanıcıya sor; native 720/1080p GPU p95 FPS/VRAM, tam 300s pilot uçuş, 3/6 yayıncı playable, kullanıcı 7–8/10 görsel onayı ve merge izni **AÇIK**.
+
+**Günlük:** `2026-11-17 | NEXT11C13 | KOD + 18 POZ GERÇEK TEST + DRAFT PR58 | 35/35 C12 PASS | C13 HIZLI/TAM CI BEKLİYOR | YÖN HALKALARINI SAKLAMA YAPILMADI | 7-8/10 VE MERGE YOK`.
