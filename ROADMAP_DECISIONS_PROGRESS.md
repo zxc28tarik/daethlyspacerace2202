@@ -506,3 +506,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Önce-sonra 24 marker, 34 W02, 236 collider ve 5 rakip/8 avcı, 60/300/850 **PASS**. Oyun, AI, bonus, fiziksel fabrika, rota geometry veya PR birleşimi **YOK**. En son tam Map1/Map4 CI ve tam HEAD hızlı CI sonuçları ayrıca bekleniyor.
 
 **Günlük:** `2026-11-18 | C15 13 GEOMETRİ SENARYOSU FAST QA PASS | 0/80 FAST_TO_HUNTER_EARLY YALNIZ GEOMETRİK | SABİT C14 CROSSCHECK PASS | FULL REGRESYON BEKLİYOR | NO PHYSICS/AI/BONUS/MERGE`.
+
+
+### C15 tam regresyon nihai doğrulama — 18 Kasım
+
+- [Son hızlı #44182868970](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44182868970) PASS, [son tam Map1/Map4 #44182869011](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44182869011) **PASS** (39 success). Önceki full #44182747329 başarısız olmuştu; son run yeşil. Başarılı HEAD `48ec8cd` oyun ve test kodu, sonraki commitler doküman. C15 analiz aşaması **TEST KABUL**, gerçek pilot kinematiği henüz doğrulanmadı.
+- Sonraki C16 yalnızca oyun kaynak `updateGame(dt)` çağrılarının kontrollü test harness'i olacak; `index.html`/fizik/AI/bonus/mesh değiştirilmeyecek ve PR merge yapılmayacak.
