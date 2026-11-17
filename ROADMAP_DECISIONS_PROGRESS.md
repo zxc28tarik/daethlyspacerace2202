@@ -496,3 +496,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Bekleyen:** C15 gerçek hızlı ve tam CI PASS/JSON bulguları; önemli fizik/AI kararları, gerçek kesintisiz pilot ve native GPU testleri, kullanıcı kalite/estetik kabulü.
 
 **Günlük:** `2026-11-18 | NEXT11C15 | 13 TRANSITION PATH READ-ONLY QA YAZILDI | C14 GERÇEK PHYSICS CROSScHECK | FAST/FULL CI BEKLİYOR | FABRİKA/AI/BONUS DEĞİŞMEDİ | NO MERGE`.
+
+
+### NEXT-11C15 — İlk gerçek 13-senaryo matrisi PASS (18 Kasım)
+
+- [Hızlı Chromium/WebGL #44182747206](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44182747206) **completed/success**, 13 senaryo × 80 süpürülmüş kesit (22.000–25.200). İlk bulgular `MAP4_GFX11C15_TRANSITION_CLEARANCE_ACCEPTANCE.md` dosyasında. Son test kodu çalıştırıldı; oyun `index.html` değişmedi.
+- 4 sabit şerit FAST_LOW/CENTRAL/HUNTER_FLANK/SAFE_UPPER **13/5/2/5 riskli kesit**; C14 bu **dar aralıkta** birebir aynı. Çarpışma broadphase ve eksiksiz 236 hacim taraması aynı; 08 hızlı alt şerit 2 gerçek görünür fabrika; 3 karşıt nokta 0.
+- 9 dönüşüm senaryosu: hızlı→merkez erken/orta/geç **4/4/8**; hızlı→avcı erken **0**; hızlı→üst erken **4**; merkez→avcı **1**; merkez→üst **5**; merkez→hızlı 08 **14**; hızlı→merkez 08 sonrası **12**. Bu sonuçlar **pilot kinematiği** veya **gerçek 300s oynanış** kanıtı değildir. Hızlı→avcı örneği fiziksel hacimlerden geçmiyor ama x:-800→900 manevrasının uygulanabilirliği hâlâ bilinmiyor.
+- Önce-sonra 24 marker, 34 W02, 236 collider ve 5 rakip/8 avcı, 60/300/850 **PASS**. Oyun, AI, bonus, fiziksel fabrika, rota geometry veya PR birleşimi **YOK**. En son tam Map1/Map4 CI ve tam HEAD hızlı CI sonuçları ayrıca bekleniyor.
+
+**Günlük:** `2026-11-18 | C15 13 GEOMETRİ SENARYOSU FAST QA PASS | 0/80 FAST_TO_HUNTER_EARLY YALNIZ GEOMETRİK | SABİT C14 CROSSCHECK PASS | FULL REGRESYON BEKLİYOR | NO PHYSICS/AI/BONUS/MERGE`.
