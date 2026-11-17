@@ -1,0 +1,29 @@
+name: Map 4 NEXT-11C10 Visual Preview
+on:
+  push:
+    branches: [codex/map4-gfx11c10-original-districts]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c10-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium WebGL QA
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Compare original 07 / 08 / 09 industry districts
+        run: node tests/map4-gfx11c10-original-districts.cjs
+      - name: Publish real in-engine screenshot pairs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c10-07-08-09
+          path: tests/map4-gfx11c10-*.png
+          if-no-files-found: warn
