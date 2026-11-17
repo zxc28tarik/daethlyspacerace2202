@@ -522,3 +522,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **YAPILDI:** C16 analitik test + workflow + kabul sözleşmesi yazıldı. **AÇIK:** gerçek Chromium PASS ve risk gözlemleri, full CI, gerçek uzun pilot ve native GPU, önemli fizik/AI kullanıcı kararı ve merge. Bu kapsam kullanıcı onaysız fiziksel uygulamaya izin vermez.
 
 **Günlük:** `2026-11-18 | NEXT11C16 | REAL updateGame KEY-DRIVEN 3-SCENARIO TEST CODE | CI PENDING | INDEX/FACTORY/AI/BONUS NO CHANGE | DRAFT / NO MERGE`.
+
+
+### C16 dinamik scriptli gerçek oyuncu API testi — ilk PASS (18 Kasım)
+
+- [Gerçek Chromium #44191236356](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44191236356) **PASS**: mevcut oyun `updateGame(dt)` ve `KeyD/ArrowUp` ile 30Hz kontrollü hareket. 22.000–25.200 penceresinde sabit FAST_LOW **3 gerçek collider cooldown olayı** (70 isabetli swept frame), **erken 22.200 avcı geçişi 0 olay/0 isabetli frame**, **geç 23.500 avcı geçişi 0 olay/0 isabetli frame**. Her üçü 25.200'e DNF olmadan ulaştı, boundary level hep 0. Orijinal 236 collider, 24 nav, 34 fiziksel W02 ve 60/300/850 sabit kurallar değişmedi.
+- Avcı hedefi `x≈900,y≈310` erken denemede progress **22.744,39**, geç denemede **24.043,59**; erken/orta/sonuçlar C15'in yalnız geometrik hipotezlerini **gerçek oyun adımları açısından** güçlendirir. **İnsan oyuncunun, tüm bölümün, AI'nın veya 300s görevin güvenliği henüz kanıtlanmış değil.**
+- C16 full Map1/Map4 güncel CI sonucu hâlâ doğrulanacak; PR #61 Draft/no merge; fabrika/AI/bonus değişikliği YOK. Kalan işler dokümantasyon ve simülasyon/sürekli oynanış QA; önemli oyun tasarım kararları kullanıcı açık onayı bekliyor.
+
+**Günlük:** `2026-11-18 | C16 ACTUAL UPDATEGAME CHROMIUM PASS | FIXED_FAST 3 HITS | EARLY_HUNTER 0 | LATE_HUNTER 0 | 236/24/34 PROTECTED | FULL CI PENDING | NO GAMEPLAY EDITS OR MERGE`.
