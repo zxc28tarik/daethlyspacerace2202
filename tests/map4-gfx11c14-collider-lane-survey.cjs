@@ -84,7 +84,25 @@ const {pathToFileURL}=require('node:url');
         }
       };
     });
-    await page.evaluate(()=>{state.map4Phase=3;state.paused=true;});
+    await page.evaluate(()=>{
+      // Visibility audit must use a genuine phase3 industrial camera.
+      state.paused=true;state.map4Phase=3;
+      state.routeProgress=23800;state.laneX=-800;state.laneY=-100;
+      const frame=getRaceFrameAtDistance(23800);
+      state.pos.copy(frame.center).addScaledVector(frame.right,-800)
+        .addScaledVector(frame.up,-100);
+      const q=new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(
+          frame.right,frame.up,frame.tangent.clone().negate()));
+      playerRig.position.copy(state.pos);playerRig.quaternion.copy(q);
+      camera.position.copy(state.pos).add(
+        new THREE.Vector3(0,5,17).applyQuaternion(q));
+      camera.quaternion.copy(q);camera.fov=68;
+      camera.updateProjectionMatrix();
+      h4Gfx10SetProfile('HIGH');
+      updatePlanetaryWorld();
+      renderer.render(scene,camera);
+    });
     const before=await takeSnapshot();
     assert.equal(before.markers.length,24);
     assert.equal(before.markers.filter(x=>x.kind==='BEACON').length,12);
@@ -126,9 +144,13 @@ const {pathToFileURL}=require('node:url');
       'FAST_LOW','CENTRAL','HUNTER_FLANK','SAFE_UPPER'
     ]);
     assert.equal(scan.factory08.length,4);
-    assert(Array.isArray(scan.hiddenPhysicalColliders));
-    assert(scan.hiddenPhysicalColliders.every(x=>
+    assert(Array.isArray(scan.hiddenAtCurrentCamera));
+    assert(scan.hiddenAtCurrentCamera.every(x=>
       x.index>=0&&x.index<236&&!!x.hiddenBy));
+    assert.equal(scan.visibilityProbe.phase,3);
+    assert.equal(scan.visibilityProbe.routeProgress,23800);
+    assert.equal(scan.visibilityProbe.laneX,-800);
+    assert.equal(scan.visibilityProbe.activeRegionVisible,true);
 
     for(const track of scan.tracks){
       assert(track.sampledSegments>=260&&track.sampledSegments<=270);
@@ -163,6 +185,8 @@ const {pathToFileURL}=require('node:url');
     assert(fast.obstacles.some(obstacle=>
       obstacle.parentPath.includes('FACTORY')),
       '08 physics risk provenance should be factory landmark');
+    assert(fast.obstacles.every(obstacle=>
+      typeof obstacle.visiblyRendered==='boolean'));
     // The scan MUST NOT silently make the player a different class or
     // change the map into an auto-corrected flight corridor.
     assert.equal(scan.stats.modifiedPhysics,0);
