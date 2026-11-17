@@ -1,0 +1,29 @@
+name: Map 4 NEXT-11C15 Read-only Lane Transition Audit
+on:
+  push:
+    branches: [codex/map4-gfx11c15-transition-clearance-audit]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c15-transition-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and Three.js WebGL QA
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Compare 13 hypothetical swept paths with original colliders and C14
+        run: node tests/map4-gfx11c15-transition-clearance.cjs
+      - name: Keep C15 read-only path risks and physical obstacle provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c15-lane-transition-risk-matrix
+          path: tests/map4-next11c15-lane-transition-matrix.json
+          if-no-files-found: warn
