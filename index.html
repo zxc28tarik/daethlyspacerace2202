@@ -6270,6 +6270,7 @@
         const h4Gfx11c9Stats={
             roofModules:0,roofBlocks:0,roofTowers:0,roofBatches:0,
             exitManifolds:0,exitBatches:0,
+            bridgeOverlays:0,bridgeBatches:0,
             newColliders:0,newLights:0,newTextures:0,
             protectedOriginals:true,navigationOriginals:true,
             lookEnabled:true,active:false,humanAestheticApproval:false,
@@ -6355,7 +6356,7 @@
                     const t=i*Math.PI/3,x=Math.sin(t)*.86,z=Math.cos(t)*.86;
                     add(box,x,.50,z,.06,.024,.10,shadow,0,t,0);
                 }
-            }else{
+            }else if(type===2){
                 // Site 6 ring-free, asymmetrical POWER DISTRIBUTION PLANT.
                 // Real machinery: twin fractionating ducts, a heat-exchange
                 // tower, open pipe rack and overhead transformer buswork.
@@ -6392,12 +6393,40 @@
                     add(box,x,.70,.17,.12,.22,.10,copper);
                 add(box,.05,-.39,-.29,.46,.18,.20,steel);
                 add(box,.05,-.27,-.29,.36,.022,.18,shadow);
+            }else{
+                // Regrade the EXISTING W05 physical cross-beams with
+                // open lattice, maintenance ducts and exposed diagonals.
+                // Underlying 36 collision bodies and source meshes remain.
+                // Art stays against original beam's exterior skin.
+                for(const z of [-.505,.505]){
+                    for(const y of [-.41,.41])
+                        add(box,0,y,z,.965,.06,.016,y<0?shadow:steel);
+                    for(const x of [-.455,.455])
+                        add(box,x,0,z,.055,.87,.026,base);
+                    for(let k=0;k<5;k++){
+                        const x=-.33+k*.165;
+                        add(box,x,.03,z,.038,.68,.020,
+                            k%2?steel:copper,0,0,k%2?.31:-.31);
+                    }
+                    add(box,0,.06,z,.81,.048,.016,light);
+                    for(const x of [-.24,.24])
+                        add(box,x,-.24,z+.016,.14,.15,.018,shadow);
+                }
+                // Three parallel utility conduits, distinct from flight
+                // guidance rings. Colors are matte and not emissive.
+                for(const y of [-.30,-.02,.28]){
+                    add(cylinder,0,y,0,.052,.88,.052,
+                        y<0?copper:steel,0,0,Math.PI/2);
+                    for(const x of [-.30,.30])
+                        add(box,x,y,0,.045,.11,.12,shadow);
+                }
             }
             for(const g of primitives)g.dispose();
             const geometry=new THREE.BufferGeometry();
             geometry.name=['MAP4_GFX11C9_WORKING_ROOFTOP',
                 'MAP4_GFX11C9_TOWER_EXHAUST',
-                'MAP4_GFX11C9_RING_FREE_POWER_PLANT'][type];
+                'MAP4_GFX11C9_RING_FREE_POWER_PLANT',
+                'MAP4_GFX11C9_OPEN_PIPE_AND_BRIDGE_TRUSS'][type];
             geometry.setAttribute('position',
                 new THREE.Float32BufferAttribute(pos,3));
             geometry.setAttribute('normal',
@@ -6458,6 +6487,47 @@
                 else h4Gfx11c9Stats.roofTowers+=targets.length;
                 h4Gfx11c9Stats.roofBatches++;
             }
+            // Two existing protected cross-beams per station. Add only a
+            // nonphysical open machinery skin, never a new solid collision.
+            const bridges=h4IndustrialGroups.flatMap(station=>
+                station.children.filter(mesh=>mesh.isMesh&&
+                    mesh.userData.h4Collider&&
+                    (mesh.userData.w05Kind==='OVERHEAD_PIPE'||
+                     mesh.userData.w05Kind==='TRANSFER_BRIDGE')));
+            if(bridges.length!==12)
+                throw new Error('NEXT11C9 original W05 truss count changed');
+            const bridgeGeometry=h4Gfx11c9BakeMachine(3);
+            const bridgeMaterial=new THREE.MeshStandardMaterial({
+                name:'MAP4_GFX11C9_WEATHERED_TRUSS_AND_PIPING',
+                map:h4Gfx11c5WeatherMap,
+                bumpMap:h4Gfx11c5WeatherMap,bumpScale:.011,
+                vertexColors:true,color:0x9cacae,
+                metalness:.46,roughness:.84,side:THREE.DoubleSide
+            });
+            const bridgeBatch=new THREE.InstancedMesh(
+                bridgeGeometry,bridgeMaterial,bridges.length);
+            bridgeBatch.name='MAP4_GFX11C9_PHYSICAL_BEAM_VISUAL_SKIN';
+            bridgeBatch.userData.visualOnly=true;
+            bridgeBatch.userData.noCollider=true;
+            bridgeBatch.frustumCulled=false;
+            for(let i=0;i<bridges.length;i++){
+                const source=bridges[i];
+                const collider=source.userData.h4Collider;
+                if(collider.mesh!==source||
+                    !source.geometry.getAttribute('uv'))
+                    throw new Error('NEXT11C9 W05 collider pointer changed');
+                source.updateMatrix();
+                bridgeBatch.setMatrixAt(i,source.matrix);
+                bridgeBatch.setColorAt(i,new THREE.Color(
+                    [0x8c9ca1,0xa29b94,0x8799a0][i%3]));
+            }
+            bridgeBatch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+            bridgeBatch.instanceMatrix.needsUpdate=true;
+            if(bridgeBatch.instanceColor)
+                bridgeBatch.instanceColor.needsUpdate=true;
+            root.add(bridgeBatch);
+            h4Gfx11c9Stats.bridgeOverlays=bridges.length;
+            h4Gfx11c9Stats.bridgeBatches=1;
             const exitGeometry=h4Gfx11c9BakeMachine(2);
             const exitMaterial=new THREE.MeshStandardMaterial({
                 name:'MAP4_GFX11C9_FUNCTIONAL_EXIT_DISTRIBUTION_STEEL',
