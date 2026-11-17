@@ -7648,9 +7648,17 @@
                     activeRegionVisible:!!region?.visible
                 },
                 hiddenAtCurrentCamera:entries.filter(e=>
-                    !e.visiblyRendered).map(e=>({
+                    e.id!==null&&!e.visiblyRendered).map(e=>({
                     index:e.index,label:e.label,
                     parentPath:e.parentPath,hiddenBy:e.hiddenBy
+                })),
+                // A collider with no matching mesh REF is NOT proof that
+                // an existing wall is hidden. Treat broken/legacy owner
+                // references as their own traceability issue.
+                unresolvedOwnerColliders:entries.filter(e=>
+                    e.id===null).map(e=>({
+                    index:e.index,label:e.label,source:e.source,
+                    progress:e.progress,side:e.side,altitude:e.altitude
                 })),
                 constraints:{from,to,step,segments:sampleCount,
                     padding,markerCount,
