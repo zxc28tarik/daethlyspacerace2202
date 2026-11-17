@@ -145,8 +145,16 @@ const {pathToFileURL}=require('node:url');
     ]);
     assert.equal(scan.factory08.length,4);
     assert(Array.isArray(scan.hiddenAtCurrentCamera));
+    assert(Array.isArray(scan.unresolvedOwnerColliders));
     assert(scan.hiddenAtCurrentCamera.every(x=>
       x.index>=0&&x.index<236&&!!x.hiddenBy));
+    assert(scan.unresolvedOwnerColliders.every(x=>
+      x.index>=0&&x.index<236&&
+      ['W01_BUILDING_COLLIDER','W05_INDUSTRIAL_COLLIDER']
+        .includes(x.source)));
+    assert(!scan.hiddenAtCurrentCamera.some(x=>
+      scan.unresolvedOwnerColliders.some(y=>x.index===y.index)),
+      'unknown owner != invisible geometry');
     assert.equal(scan.visibilityProbe.phase,3);
     assert.equal(scan.visibilityProbe.routeProgress,23800);
     assert.equal(scan.visibilityProbe.laneX,-800);
