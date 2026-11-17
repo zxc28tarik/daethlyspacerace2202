@@ -1,0 +1,31 @@
+name: Map 4 NEXT-11C13 Moving Camera & Ring Provenance
+on:
+  push:
+    branches: [codex/map4-gfx11c13-motion-ring-provenance]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c13-motion-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install headless Chromium WebGL
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Move camera across all three Map4 industry routes
+        run: node tests/map4-gfx11c13-motion-ring-provenance.cjs
+      - name: Archive 6 real camera screenshots and ring ownership manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c13-motion-rings-audit
+          path: |
+            tests/map4-gfx11c13-*.png
+            tests/map4-next11c13-motion-provenance.json
+          if-no-files-found: warn
