@@ -108,14 +108,18 @@ const {pathToFileURL}=require('node:url');
     assert.equal(baseline.stats.roofBatches,2);
     assert.equal(baseline.stats.exitManifolds,2);
     assert.equal(baseline.stats.exitBatches,1);
+    assert.equal(baseline.stats.bridgeOverlays,12);
+    assert.equal(baseline.stats.bridgeBatches,1);
     assert.equal(baseline.stats.newColliders,0);
     assert.equal(baseline.stats.newLights,0);
     assert.equal(baseline.stats.newTextures,0);
     assert(baseline.rootVisual&&baseline.rootNoCollider);
-    assert.equal(baseline.batches.length,3);
+    assert.equal(baseline.batches.length,4);
+    assert(baseline.batches.some(b=>b.name===
+      'MAP4_GFX11C9_PHYSICAL_BEAM_VISUAL_SKIN'&&b.count===12));
     const triangleBudget=baseline.batches.reduce(
       (sum,b)=>sum+b.triangles*b.count,0);
-    assert(triangleBudget>3000&&triangleBudget<50000,
+    assert(triangleBudget>3000&&triangleBudget<90000,
       'ring-free machinery exceeds compact triangle budget');
     for(const b of baseline.batches){
       assert(b.instanced&&b.visual&&b.noCollider&&b.hasUV);
@@ -181,7 +185,7 @@ const {pathToFileURL}=require('node:url');
         __dirname,'map4-gfx11c9-'+spec.id+'-after.png')});
       assert(!before.equals(after),'no C9 screen impact '+spec.id);
       assert(!old.current&&now.current);
-      assert.equal(now.calls-old.calls,3,'3 batched C9 units expected');
+      assert.equal(now.calls-old.calls,4,'4 batched C9 units expected');
       assert.equal(now.triangles-old.triangles,triangleBudget);
       assert.equal(now.textures,old.textures);
       assert.equal(now.geometries,old.geometries);
