@@ -177,8 +177,11 @@ const {pathToFileURL}=require('node:url');
       assert.equal(next.shadowVisible,true);
       assert(next.calls>=old.calls&&next.calls<=old.calls+1,
         'one contact-shadow batch maximum: '+sample.id);
-      assert(next.triangles>=old.triangles&&next.triangles<=old.triangles+2,
-        'contact shadow has two triangles only: '+sample.id);
+      // InstancedMesh uses a 2-triangle quad 12 times, so the renderer
+      // records 24 drawn triangles (not only 2), still just ONE draw call.
+      const contactTriangles=base.shadows.triangles*base.shadows.count;
+      assert.equal(next.triangles-old.triangles,contactTriangles,
+        '12 shadow instances = 24 actual drawn triangles: '+sample.id);
       assert.equal(next.geometry,old.geometry);
       assert.equal(next.textures,old.textures);
       assert(next.exposure<old.exposure&&next.ambient<old.ambient,
