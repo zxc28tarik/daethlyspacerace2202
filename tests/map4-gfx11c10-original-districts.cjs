@@ -47,7 +47,7 @@ const {pathToFileURL}=require('node:url');
 
     const baseline=await page.evaluate(()=>{
       const root=h4Gfx11c10Root;
-      const batches=root.children.map(mesh=>({
+      const batches=root.children.filter(m=>m.isInstancedMesh).map(mesh=>({
         name:mesh.name,count:mesh.count,instanced:mesh.isInstancedMesh,
         visual:mesh.userData.visualOnly,
         noCollider:mesh.userData.noCollider,
@@ -59,6 +59,16 @@ const {pathToFileURL}=require('node:url');
         triangles:mesh.geometry.getAttribute('position').count/3,
         geometryName:mesh.geometry.name
       }));
+      const service=root.getObjectByName(
+        'MAP4_GFX11C10_FUNCTIONAL_SERVICE_YARDS');
+      const serviceInfo={
+        visual:service.userData.visualOnly,
+        noCollider:service.userData.noCollider,
+        vertices:service.geometry.getAttribute('position').count,
+        triangles:service.geometry.getAttribute('position').count/3,
+        texture:service.material.map?.name||null,
+        hasColors:!!service.geometry.getAttribute('color')
+      };
       const markers=h4IndustrialGroups.flatMap(g=>g.children.filter(m=>
         m.userData.w05Kind==='BEACON'||
         m.userData.w05Kind==='HIGH_MARKER'));
@@ -68,7 +78,7 @@ const {pathToFileURL}=require('node:url');
       return {
         stats:{...h4Gfx11c10Stats},
         rootName:root.name,rootVisual:root.userData.visualOnly,
-        noCollider:root.userData.noCollider,batches,
+        noCollider:root.userData.noCollider,batches,serviceInfo,
         locations:H4_GFX11C10_LOCATIONS.map(x=>({
           site:x.site,at:x.at,side:x.side
         })),
@@ -100,6 +110,15 @@ const {pathToFileURL}=require('node:url');
       'closedRouteMarkersAltered'])
       assert.equal(baseline.stats[k],0);
     assert.equal(baseline.batches.length,3);
+    assert.equal(baseline.stats.serviceYards,6);
+    assert.equal(baseline.stats.serviceDraws,1);
+    assert(baseline.stats.serviceTriangles>300&&
+      baseline.stats.serviceTriangles<10000);
+    assert(baseline.serviceInfo.visual&&baseline.serviceInfo.noCollider);
+    assert(baseline.serviceInfo.hasColors&&
+      baseline.serviceInfo.texture===null);
+    assert.equal(baseline.serviceInfo.triangles,
+      baseline.stats.serviceTriangles);
     assert.equal(new Set(baseline.batches.map(b=>b.geometryName)).size,3);
     assert.equal(baseline.locations.length,6);
     assert(baseline.locations.every(loc=>
@@ -171,8 +190,9 @@ const {pathToFileURL}=require('node:url');
         __dirname,'map4-gfx11c10-'+spec.id+'-after.png')});
       assert(!oldImage.equals(newImage),'C10 must appear in '+spec.id);
       assert.equal(before.visible,false);assert.equal(after.visible,true);
-      assert.equal(after.calls-before.calls,3);
-      assert.equal(after.triangles-before.triangles,triangles);
+      assert.equal(after.calls-before.calls,4);
+      assert.equal(after.triangles-before.triangles,
+        triangles+baseline.stats.serviceTriangles);
       assert.equal(after.textures,before.textures);
       assert.equal(after.geometries,before.geometries);
       assert.deepEqual(after.physics,[6,36,200]);
