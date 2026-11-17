@@ -23,6 +23,10 @@ jobs:
         run: node tools/build-gfx01-bundle.cjs
       - name: Verify offline game and cached GLBs in Chromium
         run: node tests/map4-gfx01-offline.cjs
+      # Run the newest art QA early so regressions fail fast, then run the
+      # unchanged complete Map1/Map4/GFX09–GFX11 historical suite.
+      - name: NEXT11C5 — weathered PBR, soft shadows and industrial light A/B
+        run: node tests/map4-gfx11c5-weathered-pbr-lighting.cjs
       - name: Test both maps with Chromium
         run: node tests/map4-browser-smoke.cjs
       - name: Verify GFX09 720p and 1080p camera and HUD
@@ -43,8 +47,6 @@ jobs:
         run: node tests/map4-gfx11c3-industrial-scene.cjs
       - name: NEXT11C4 — validate authored 3D hero architecture, A/B and native budgets
         run: node tests/map4-gfx11c4-authored-hero-art.cjs
-      - name: NEXT11C5 — weathered PBR, soft shadows and industrial light A/B
-        run: node tests/map4-gfx11c5-weathered-pbr-lighting.cjs
       - name: Capture fixed art baselines and renderer stats
         env:
           GFX01_HTML_PATH: dist/Uzay_Yarisi_Guncel_Oynanabilir.html
