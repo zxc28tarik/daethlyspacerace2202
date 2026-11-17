@@ -247,3 +247,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **NEXT-11C9 (öneri / YAPILMADI):** İri W02 ön plan yüzeylerinin fonksiyonel okunurluğu, 09 fabrikada aşırı tekrarlı non-nav halkaların ve dev çatının özgün endüstriyel kimliğe kavuşması; rota BEACON/HIGH_MARKER'a, fiziksel AABB'ye ve Map1'e dokunma.
 
 **Günlük:** `2026-11-17 | NEXT-11C8 | YAPILMADI -> GERÇEK KOD + İLK WEBGL PASS + C7 REGRESYON FIX | PR#53/117b7af/3477de6/b76c148/e31c9ca | hızlı C8 PASS, yeni C7/Full kontrol açık | estetik 7-8/10 AÇIK | merge YOK`.
+
+### NEXT-11C8 hızlandırılmış regresyon doğrulaması
+
+- [C8+C7 hızlı CI #44070620158](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620158) **PASS**. C8 34 VIS02 protected facades ve gerçek WebGL 07/08/09 + eski C7'nin 17 malzemelik A/B izolasyonu bir arada geçti. Düzeltme `b76c148` önceki C7 smoke hatasını giderdi.
+- [Güncel tam smoke #44070620169](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620169) **devam ediyor; PASS doğrulanmadı**. Bu teste önceki dalın tam PASS'i aktarılmaz.
+- **Sıradaki:** tam CI PASS durumunu kontrol et, gerekirse regresyon düzelt, NEXT-11C9 sanat borcuna ancak sonra geç. Native GPU ve 7–8/10 kullanıcı estetiği açık. **PR #53 DRAFT, merge YOK**.
