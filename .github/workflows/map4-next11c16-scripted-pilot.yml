@@ -1,0 +1,29 @@
+name: Map 4 NEXT-11C16 Scripted Player Controls Audit
+on:
+  push:
+    branches: [codex/map4-gfx11c16-scripted-pilot-feasibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c16-player-controls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium with Three.js
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Simulate real updateGame input controls without modifying gameplay files
+        run: node tests/map4-gfx11c16-scripted-pilot-controls.cjs
+      - name: Preserve scripted player input, collision and boundary observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c16-real-player-input-traces
+          path: tests/map4-next11c16-scripted-pilot-input-traces.json
+          if-no-files-found: warn
