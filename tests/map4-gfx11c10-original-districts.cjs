@@ -45,6 +45,12 @@ const {pathToFileURL}=require('node:url');
 
 
 
+    // C11 is a separately tested late visual pass; isolate this
+    // older A/B suite from its two batches and physics-shell materials.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c11SetLook==='function')
+        h4Gfx11c11SetLook(false);
+    });
     const baseline=await page.evaluate(()=>{
       const root=h4Gfx11c10Root;
       const batches=root.children.filter(m=>m.isInstancedMesh).map(mesh=>({
