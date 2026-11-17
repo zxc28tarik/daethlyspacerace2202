@@ -57,3 +57,12 @@ Three.js kaynak kodunda, `h4Gfx11c10DistrictGeometry(family)` üç matematiksel 
 - **Görüntü denetimi düzeltmesi:** İlk servis yolu `MeshStandardMaterial` dinamik sinematik ışıkla yüksek pozlanıp 07/08 ekran kenarlarında **aşırı açık beyaz düz üçgenler** oluşturdu. Bu görsel kusur ilk PASS'e rağmen **estetik ret** nedenidir.
 - Kod `7a37470` yerel vertex-color yollara **koyu, mat, tonemapping'e duyarsız MeshBasicMaterial** uyguladı; yeni texture, light, collider veya shape yaratmadan görüntü düzeltmesi. Yeni 07/08/09 A/B hızlı [#44077131958](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131958) ve tam eski+yeni [#44077131964](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131964) **sonuç henüz açık**. Güncel görüntü görülmeden kalite kabulü yok.
 - **Kopya yasağı:** CGTrader gibi sitelerde görülen ticari tasarımların ayırt edici silüet/yerleşim/model/doku dosyalarını oyuna aktarma veya birebir yeniden üretme yok; C10 geometrileri sıfırdan matematiksel oluşturuldu, uygulama birebir ticari model kullanmıyor.
+
+
+### NEXT-11C10-B son hızlı görsel kontrolü — 17 Kasım
+
+- **Güncel C10-B renk onarımı `7a37470`:** eski açık renkli servis şeritleri, yeni koyu tonemapping'e girmeyen matte vertex-colors malzemesiyle giderildi.
+- [Hızlı Chromium/WebGL QA #44077131958](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131958) **PASS 9/9 job adımı**, güncel oyun kodu + 07/08/09 aynı-kamera görüntü arşivi `map4-next11c10-07-08-09`. 3 özgün sanayi aile batch + 1 servis-yol Mesh drawcall; 6/36/200 collider ve 24 W05 BEACON/HIGH_MARKER değişmedi.
+- **Son gerçek ekran görsel incelemesi:** aşırı açık beyaz şeritler kalktı. Önce/sonra değişen RGB alanı (eşik ortalama 1/255, HUD dahil) 07 **%2,72**, 08 **%1,14**, 09 **%9,62**. Sayılar yeni çizimin gözlenen değişimi, **7–8/10 estetik puanı değildir**. 07/08'in büyük düz mimari ve uzak ufuk kompozisyonu hâlâ yeterli değil.
+- **Güncel full regression:** [#44077131964](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131964) sonucu **henüz tamamlanmadı**; geçtiği teyit edilmeden 'full PASS' yazılmaz.
+- **Açık:** özgünlük yaklaşımı sürdürülür; CGTrader referansını kopyalama / dış mesh alma yok. Native GPU FPS/p95/VRAM, 5dk gerçek uçuş, 3/6 yayıncı haritası ve kullanıcının 7–8/10 onayı; açık izin olmadan merge yok.
