@@ -268,3 +268,16 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **NEXT-11D veya 11C10 (henüz YAPILMADI):** 07/08 ve 09 gerçek görüntü/hareketli kamera incelemesi sonrasında kalan çevre kalitesi borcuna göre karar; görsel iyileştirmelerin oynanış sözleşmesine sızmamasını sağla.
 
 **Günlük:** `2026-11-17 | NEXT-11C9 | KOD+PR YAPILDI, İLK WEBGL PASS, İKİNCİ KİRİŞ QA AÇIK | PR#54 678da1d 096f46f 900ae30 | ilk 09 estetik belirgin iyileşti fakat 7-8/10 kullanıcı onayı yok | main merge yok`.
+
+
+### NEXT-11C9 — Son gerçek hızlı WebGL QA, 17 Kasım
+
+- **C8 üst taban:** eski GFX06M atlas ile C8 görüntü katmanı çift sözleşmesi `3490618` sonrası [tam CI #44071695510](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44071695510) **PASS, 31/31 workflow adımı**. PR #53 DRAFT/merge YOK.
+- **C9 son kod `900ae30`:** 34 W02 roof birimi, 12 orijinal W05 fiziksel kirişe bağlı **yalnızca görsel çapraz truss** birimi ve 09'daki C4 site6 iki dekoratif halkayı gizleyen iki yeni halkasız endüstriyel manifold tesisi. **4 InstancedMesh batch**, eski fizik ve rota işaretleri değişmedi.
+- **Son C9 hızlı QA [#44073322862 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44073322862)**, 07/08/09 1600×900 gerçek Chromium/WebGL aynı-kamera PNG A/B. Değişen piksel alanı (ortalama RGB >1/255): 07 **%1,21**, 08 **%1,89**, 09 **%18,74**; bunlar **sanatsal puan değildir**.
+- **Gözle inceleme:** 09 renkli dev halka yerine tanımlanabilir güç işleme ve egzoz kulesi; belirgin iyileşme. 07/08 kiriş cephelerinde gerçek detay var fakat sahne düzlemine göre hâlâ küçük kalıyor. 09 ön plan büyük düz platform ve atmosfer ışığı sorunu sürüyor; **7–8/10 estetik ONAYI VERİLMEDİ**.
+- **C9 tam CI:** [#44073322882](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44073322882) henüz tamamlanmadı, PASS yazma; son HEAD docs `[skip ci]` içerir, code SHA `900ae30`.
+- **NEXT-11C10 / YAPILMADI:** 07/08 için açık okunabilir geniş sanayi görsel kompozisyonu; 09 boş dev ön plan platformunu ve tekrarlanan non-nav dekoratif halkaları işlevsel tesis cephesine dönüştürmek; değişken/moving kamera testleri. Korunan 6/36/200 collider ve BEACON/HIGH_MARKER **değişmeyecek**.
+- **Açık QA:** gerçek GPU FPS/p95/VRAM (720p/1080p), 5 dk uçuş, yayıncı ilk pitch 3/6 playable, kullanıcı estetik ve PR merge onayı.
+
+**Günlük:** `2026-11-17 | NEXT-11C9 | C8 FULL PASS, C9 KOD+HIZLI WEBGL PASS, C9 FULL AÇIK | PR#54 / 900ae30 / 0073698 | 07-08 zayıf, 09 belirgin düzeldi | 7-8/10 onay YOK | merge YOK`.
