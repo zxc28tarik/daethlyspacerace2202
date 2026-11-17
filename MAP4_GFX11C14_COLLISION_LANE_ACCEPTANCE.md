@@ -32,3 +32,25 @@ Kullanıcının kararı: CGTrader veya diğer ticari model/sahne/doku/ayırt edi
 - [ ] PR merge açık onayı; bütün stacked PR Draft/unmerged.
 
 **Sabit:** 6 harita; Map1 yalnız yarış; Map4 dört faz, 5 rakip/8 avcı, 60s arena, 300s üst süre, 850m çıkış, endüstri 3 ana şerit; 24 navigasyon işareti, 34 W02 fiziksel kabuk, 6/36/200 collision korunur.
+
+
+## İlk gerçek rota sonuçları ve görünürlük metodolojisi — 17 Kasım
+
+**Gerçek Chromium/WebGL ilk PASS:** [#44090749918](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44090749918) **9/9 adım**. JSON: `map4-next11c14-flight-lane-collision-map.json`. 14.080–33.920'de sabit izlenmiş 265 ilerleme kesiti; gerçek oyuncu `h4SegmentBoxHit` ve `padding=12`.
+
+| Şerit | Çarpışan kesit | Tekil kesitlerin yüzdesi | Risk aralığı sayısı |
+|---|---:|---:|---:|
+| FAST_LOW (x=-800,y=-100) | 19 / 265 | %7,17 | 6 |
+| CENTRAL (0,350) | 15 / 265 | %5,66 | 6 |
+| HUNTER_FLANK (900,310) | 7 / 265 | %2,64 | 2 |
+| SAFE_UPPER (0,760) | 15 / 265 | %5,66 | 6 |
+
+Bu **kesintisiz pilot uçuşu veya zorunlu çarpışma sayısı değildir**; pilotlar şerit/yükseklik değiştirebilir. `SAFE_UPPER` adı fiziksel engel yok anlamına gelmez.
+
+**08 FAST_LOW fabrika:** yaklaşık **23.663–24.037** aralığı; tam `progress=23800` anlık kontrolünde **iki** mevcut W01 fiziksel collider: `MAP4_LEGACY_W01_FACTORY` ve `VQ02_SIGNATURE_FACTORY`. Aynı ilerleme noktasında CENTRAL/HUNTER_FLANK/SAFE_UPPER konumlarında **0** çarpışma. Başka riskler 07/08/09 sahasında devam eder.
+
+**AI kaçınma açık bulgusu:** `h4IndustrialAvoidance({routeProgress:23000},-800,-100)` çıktısı `avoiding:false`; kaynak `h4IndustrialColliders` (36 W05) tarar ama W01 200 collider taramaz. Henüz AI veya fizik değişmedi.
+
+**Visibility QA uyarısı:** İlk `6b860a0` kaynak raporu oyunun başlangıç kamerasıyla (phase1, uzaktaki sanayi görünmez) üretildiği için ***236 çarpışma hacminin tamamını görünmez*** olarak işaretledi; **bu sonuç GEÇERSİZDİR** ve "görünmez duvar" kanıtı sayılamaz. `bf93607` visibility çıkarımını yalnız mevcut kamera pozuyla etiketliyor; `9824bf9` test kamerasını `phase3,progress23800,x=-800,y=-100` konumuna getirip `updatePlanetaryWorld()` çalıştırıyor. **En son hızlı [#44091991885](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44091991885) sonucu bekleniyor.** Bu yeni rapor doğrulanmadan görünmeyen collider iddiası yapılmayacak.
+
+**Sabit kalır:** 200 W01, 36 W05, 6 kanyon çarpışması; 34 korunan W02 fiziksel mesh; 24 BEACON/HIGH_MARKER; rota bonusu ve yarış kuralları. Kullanıcı açık onayı olmadan fiziksel fabrika/rota/AI değişmez. Bütün PR'lar Draft, merge yok.
