@@ -187,7 +187,8 @@ const {pathToFileURL}=require('node:url');
           if(shot){
             const name='map4-gfx11c13-'+section.section+'-'+
               lane.lane.toLowerCase()+'.png';
-            await page.screenshot({path:path.join(__dirname,name)});
+            await page.screenshot({path:path.join(__dirname,name),
+              timeout:120000,animations:'disabled'});
             shots.push(name);
           }
           checkpoints.push({
