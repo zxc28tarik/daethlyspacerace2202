@@ -49,3 +49,11 @@ Three.js kaynak kodunda, `h4Gfx11c10DistrictGeometry(family)` üç matematiksel 
 - C10-B `bd016e3` ve test `074625d`: Bölge 07/08/09 zemininin mevcut sanayi mimarisiyle bağlantısı için altı ayrı **çarpışmasız** açık bakım yolu ve platform apronu. Aynı kumaş gibi sonsuz döşeme yerine düzensiz ve kısmi aşınmış kenarlar. 1 statik BufferGeometry, shader/dış varlık/yeni atlas yok.
 - Bu tasarım bir ticari 3D sahne referansından model çıkarmıyor veya belli bir örneğin yerleşimini yeniden üretmiyor; işlevsel sanayi altyapısını oyun rotasına **kendi geometrisiyle** bağlıyor. Özellikle CGTrader modelini/assets asla aktarılmadı.
 - Yeni sonuçlar doğrulanmadan C10-B PASS veya 7–8/10 estetik tamamlandı yazılmayacak. Kullanıcı son sözü ve bütün merge kapıları açık.
+
+
+## 17 Kasım son görsel kusur giderimi
+
+- C10-B servis yolu ilk gerçek [WebGL #44076681861 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076681861). 3 özgün tesis + 6 matematiksel bakım sahası, toplam **4 ek drawcall**, 6/36/200 collider ve 24 W05 işareti korunuyor. Önce/sonra RGB ortalama piksel farkı eşiği >1/255: **07 %2,74, 08 %1,14, 09 %9,60**. Bu oranlar kalitenin yükseldiğini ispatlamaz.
+- **Görüntü denetimi düzeltmesi:** İlk servis yolu `MeshStandardMaterial` dinamik sinematik ışıkla yüksek pozlanıp 07/08 ekran kenarlarında **aşırı açık beyaz düz üçgenler** oluşturdu. Bu görsel kusur ilk PASS'e rağmen **estetik ret** nedenidir.
+- Kod `7a37470` yerel vertex-color yollara **koyu, mat, tonemapping'e duyarsız MeshBasicMaterial** uyguladı; yeni texture, light, collider veya shape yaratmadan görüntü düzeltmesi. Yeni 07/08/09 A/B hızlı [#44077131958](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131958) ve tam eski+yeni [#44077131964](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44077131964) **sonuç henüz açık**. Güncel görüntü görülmeden kalite kabulü yok.
+- **Kopya yasağı:** CGTrader gibi sitelerde görülen ticari tasarımların ayırt edici silüet/yerleşim/model/doku dosyalarını oyuna aktarma veya birebir yeniden üretme yok; C10 geometrileri sıfırdan matematiksel oluşturuldu, uygulama birebir ticari model kullanmıyor.
