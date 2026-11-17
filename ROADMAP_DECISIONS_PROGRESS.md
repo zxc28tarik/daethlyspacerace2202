@@ -176,3 +176,28 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Birleşim:** Kullanıcı açık onayı olmadan **PR #50 dahil stacked merge yok**. Main'deki durum ile taslak PR'daki iş asla aynı statüye indirgenmez.
 
 **Günlük:** `2026-11-17 | NEXT-11C5 | GELİŞTİRME-PR/CI PASS -> GÖRSEL İNCELEME YAPILDI; ESTETİK BLOKER AÇIK | PR #50 / 316f7ca / CI #44056983930 PASS | 07-09 A/B denetlendi, native GPU YOK | kullanıcı onayı YOK | NEXT-11C6 önerisi`.
+
+
+## 10) 17 Kasım 2026 — NEXT-11C6: büyük silüet ve kadraj derinliği
+
+- **NEXT-11C5:** [PR #50](https://github.com/zxc28tarik/daethlyspacerace2202/pull/50) üzerinde teknik CI PASS, ilk gerçek A/B görsel incelemesi yapıldı; kullanıcı 7–8/10 kalite onayı ve native GPU kabulü **açık**. Merge **yapılmadı**.
+- **NEXT-11C6:** [kabul belgesi](MAP4_GFX11C6_SILHOUETTE_DEPTH_ACCEPTANCE.md) · **GELİŞTİRME-PR / CI VE GÖRSEL KABUL BEKLİYOR**. Altı tesisin çevresine eklenen **3 özgün mimari aile / 12 görsel-only instanced kompozisyon**. Yeni collider ve ışık yok. GFX11C4/C5 malzeme, işaret ve orijinal navigasyon korunur. Gerçek 07/08/09 WebGL önce/sonra QA testleri yeni workflow adımıdır.
+- **Sıradaki kapı:** CI son HEAD PASS → artifact 07/08/09 görsel denetimi → sınırlı estetik düzeltme → kullanıcı onayı. Teknik başarıyı estetik onay yerine yazma.
+- **Yayıncı kapsamı:** 6 harita, ilk sunumda 3 oynanabilir hedefi değişmedi. NEXT-12 bitmedi. Tam oyun / gerçek cihaz / 5 dk uçuş gereksinimleri açık.
+- **Merge kuralı:** NEXT-11C6, önceki NEXT-11C5 üzerine stacked PR'dır; açık kullanıcı onayı olmadan merge yok.
+
+**Günlük:** `2026-11-17 | NEXT-11C6 | YAPILMADI -> GELİŞTİRME-PR | 3 özel 3D silüet/12 instance | CI ve 07-09 görsel kanıt açık | yeni fizik yok | kullanıcı kabulü açık | NEXT-11C6 CI ve görsel inceleme`.
+
+
+## 11) 17 Kasım — NEXT-11C6 ilk estetik reddi ve onarılmış kanıt
+
+- **PR:** [#51 NEXT-11C6](https://github.com/zxc28tarik/daethlyspacerace2202/pull/51) **DRAFT**, stacked [PR #50](https://github.com/zxc28tarik/daethlyspacerace2202/pull/50) üzerine; merge yok.
+- **İlk sürüm:** Chromium 07/08/09 A/B, 3 batch/12 instance, fizik/grafik profilleri PASS; tam CI [#44063534231](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44063534231) **PASS**. Ama görüntüden 07 büyük slab, 08 açık renkli blok, 09 zayıf etki nedeniyle **ESTETİK YETERSİZ**.
+- **Kod onarımı:** `ea0342d` — dev levhalar daraltıldı, pozisyon/ölçek ayarı, açık iskelet, soğuk PBR shared metal atlas/UV (yeni texture yok). Yeni test `5cb4be2` 3 aile UV/PBR paylaşımını denetler.
+- **Son gerçek 07/08/09 A/B:** onarım HEAD `6caec39`, [hızlı CI #44065387823 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44065387823). Alanı değişen pikseller: 07 **%7,80**, 08 **%4,13**, 09 **%1,97** (ilk aşamada %17,01/%9,88/%3,60). Görselde 07/08 fazla büyük kutu etkisi azaltıldı; 09 hâlâ zayıf.
+- **Onarım HEAD tam CI:** [#44065388118](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44065388118) **BEKLEMEDE / SONUÇ DOĞRULANMADI**. Önceki PASS'i bu commit'in tam PASS'i gibi yazma.
+- **NEXT-11C6 statü:** **GELİŞTİRME-PR / DÜZELTİLMİŞ WEBGL A/B PASS / ESTETİK ONAY YOK**. Hedef 7–8/10 açık.
+- **NEXT-11C7 önerisi, henüz YAPILMADI:** 07/08/09'ta yığılan eski **görsel-only** nesnelerin yeniden biçimlendirilmesi/sadeleştirilmesi, işlevsel fabrika kimliği, derinlik ve doğal çevresel ışık. BEACON/HIGH_MARKER, 6/36/200 collider ve oynanış kuralları kesin korunacak.
+- **Diğer açık kapılar:** native GPU FPS/p95/VRAM, 5 dk gerçek uçuş, 3/6 oynanabilir yayıncı haritası ve açık kullanıcı merge/onay kararı.
+
+**Günlük:** `2026-11-17 | NEXT-11C6 | GÖRSEL PROTOTİP -> İLK ESTETİK RED -> ONARIM WEBGL PASS | PR #51, ea0342d/5cb4be2/6caec39 | hızlı CI #44065387823 PASS, tam CI #44065388118 açık | 07/08 iyileşti, 09 ve genel 7-8/10 açık | NEXT-11C7 önerisi`.
