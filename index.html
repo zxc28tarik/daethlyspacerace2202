@@ -7546,12 +7546,23 @@
             const identify=(volume,index)=>{
                 const mesh=owner.get(volume);
                 const names=[];let p=mesh;
-                while(p&&names.length<4){names.push(p.name||p.type);p=p.parent;}
+                let visiblyRendered=!!mesh;
+                let hiddenBy=null;
+                while(p){
+                    if(!p.visible || (p.isMesh && p.material &&
+                        !Array.isArray(p.material)&&!p.material.visible)){
+                        visiblyRendered=false;
+                        if(!hiddenBy)hiddenBy=p.name||p.type;
+                    }
+                    if(names.length<4)names.push(p.name||p.type);
+                    p=p.parent;
+                }
                 return {
                     index,id:mesh?mesh.id:null,
                     geometry:mesh?.geometry?.name||mesh?.geometry?.type||null,
                     label:mesh?.name||volume.kind||'UNNAMED_COLLIDER',
                     parentPath:names.join(' <- '),
+                    visiblyRendered,hiddenBy,
                     source:index<planetaryBuildingColliders.length?
                         'W01_BUILDING_COLLIDER':'W05_INDUSTRIAL_COLLIDER',
                     progress:volume.progress,side:volume.side,
@@ -7627,6 +7638,11 @@
             };
             h4Gfx11c14Stats.surveys++;
             return {
+                hiddenPhysicalColliders:entries.filter(e=>
+                    !e.visiblyRendered).map(e=>({
+                    index:e.index,label:e.label,
+                    parentPath:e.parentPath,hiddenBy:e.hiddenBy
+                })),
                 constraints:{from,to,step,segments:sampleCount,
                     padding,markerCount,
                     physics:[h4CanyonColliders.length,
