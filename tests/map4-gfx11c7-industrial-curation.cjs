@@ -49,6 +49,12 @@ const {pathToFileURL}=require('node:url');
       if(typeof h4Gfx11c8SetLook==='function')
         h4Gfx11c8SetLook(false);
     });
+    // Historical same-camera QA must isolate NEXT11C9's later art layer.
+    // C9 itself is tested independently under real Chromium/WebGL.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c9SetLook==='function')
+        h4Gfx11c9SetLook(false);
+    });
     const baseline=await page.evaluate(()=>{
       const markers=h4IndustrialGroups.flatMap(st=>st.children.filter(m=>
         m.userData.w05Kind==='BEACON'||

@@ -43,6 +43,12 @@ const {pathToFileURL}=require('node:url');
     });
 
 
+    // Historical same-camera QA must isolate NEXT11C9's later art layer.
+    // C9 itself is tested independently under real Chromium/WebGL.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c9SetLook==='function')
+        h4Gfx11c9SetLook(false);
+    });
     const baseline=await page.evaluate(()=>{
       // W04/GFX04 reparents all industry visuals below the zone's
       // gfx04IndustrialVisuals group after their construction. Descend the

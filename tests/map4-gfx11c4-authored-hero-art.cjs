@@ -32,6 +32,12 @@ const assert=require('node:assert/strict');
    const request=window.requestAnimationFrame.bind(window);
    window.requestAnimationFrame=cb=>cb&&cb.name==='animate'?0:request(cb);
   });
+    // NEXT11C9 has its own WebGL A/B. Historical test isolates this
+    // later, independently switchable visual-only industrial layer.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c9SetLook==='function')
+        h4Gfx11c9SetLook(false);
+    });
   const baseline=await page.evaluate(()=>{
    const hero=h4Gfx11c4HeroRoot;
    const stats={...h4Gfx11c4Stats};

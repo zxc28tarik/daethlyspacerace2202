@@ -6261,6 +6261,342 @@
                 h4Gfx11c8Ground.material=target;
         }
 
+
+        // NEXT11C9 / FUNCTIONAL-READABILITY: real industrial silhouettes.
+        // All pieces are NONPHYSICAL and authored/baked exactly once.
+        // 34 protected W02 shells retain identical mesh, geometry and AABB.
+        // Only two visual C4 site-6 ring instances are swapped for a distinct
+        // ring-free facility; C7 can restore the original matrices for A/B.
+        const h4Gfx11c9Stats={
+            roofModules:0,roofBlocks:0,roofTowers:0,roofBatches:0,
+            exitManifolds:0,exitBatches:0,
+            bridgeOverlays:0,bridgeBatches:0,
+            newColliders:0,newLights:0,newTextures:0,
+            protectedOriginals:true,navigationOriginals:true,
+            lookEnabled:true,active:false,humanAestheticApproval:false,
+            nativeGpuVerified:false
+        };
+        const h4Gfx11c9EnergyEntries=[];
+        let h4Gfx11c9Root=null,h4Gfx11c9LastC7Active=null;
+        function h4Gfx11c9BakeMachine(type){
+            const box=new THREE.BoxGeometry(1,1,1);
+            const cylinder=new THREE.CylinderGeometry(1,1,1,10);
+            const frustum=new THREE.CylinderGeometry(.65,1,1,12);
+            const primitives=[box,cylinder,frustum];
+            const pos=[],normal=[],color=[],uv=[];
+            const mat=new THREE.Matrix4(),nm=new THREE.Matrix3();
+            const origin=new THREE.Vector3(),size=new THREE.Vector3();
+            const rotation=new THREE.Euler(),quat=new THREE.Quaternion();
+            const p=new THREE.Vector3(),n=new THREE.Vector3();
+            const add=(g,x,y,z,w,h,d,tint,rx=0,ry=0,rz=0)=>{
+                origin.set(x,y,z);size.set(w,h,d);
+                rotation.set(rx,ry,rz);quat.setFromEuler(rotation);
+                mat.compose(origin,quat,size);nm.getNormalMatrix(mat);
+                const exp=g.index?g.toNonIndexed():g;
+                const pa=exp.getAttribute('position'),
+                    na=exp.getAttribute('normal'),
+                    ua=exp.getAttribute('uv');
+                const shade=new THREE.Color(tint);
+                for(let i=0;i<pa.count;i++){
+                    p.fromBufferAttribute(pa,i).applyMatrix4(mat);
+                    n.fromBufferAttribute(na,i).applyMatrix3(nm).normalize();
+                    pos.push(p.x,p.y,p.z);
+                    normal.push(n.x,n.y,n.z);
+                    color.push(shade.r,shade.g,shade.b);
+                    uv.push(ua?ua.getX(i)*1.3:0,ua?ua.getY(i)*1.3:0);
+                }
+                if(exp!==g)exp.dispose();
+            };
+            const base=0x253640,steel=0x667d83,light=0x96a5a3,
+                copper=0x90725d,shadow=0x1f3038;
+            if(type===0){
+                // Flat shell ROOF: no new giant slabs. An asymmetric bank
+                // of heat exchangers, open fan bays, ducting and access rails.
+                // Small volumes mostly sit within +0.5 of the source shell.
+                for(const x of [-.28,.03]){
+                    add(box,x,.496,-.19,.24,.018,.31,base);
+                    for(let i=0;i<4;i++)
+                        add(box,x-.084+i*.056,.518,-.19,
+                            .024,.05,.29,i%2?steel:shadow);
+                    for(const z of [-.34,-.04])
+                        add(box,x,.552,z,.26,.014,.019,copper);
+                    add(cylinder,x,.54,-.19,.13,.024,.13,steel);
+                    for(let j=0;j<4;j++){
+                        const t=j*Math.PI/2;
+                        add(box,x+Math.sin(t)*.042,.556,
+                            -.19+Math.cos(t)*.042,
+                            .020,.013,.066,shadow,0,-t,0);
+                    }
+                }
+                // Distinct ventilation outlet and curved-looking pipe bends
+                // from grouped straight segments; one batch geometry.
+                add(box,.32,.505,.20,.12,.10,.15,steel);
+                add(box,.32,.565,.20,.09,.025,.10,base);
+                add(cylinder,.29,.54,.05,.045,.13,.045,copper);
+                add(cylinder,.23,.572,.05,.045,.10,.045,copper);
+                for(const x of [-.47,.47])
+                    for(const z of [-.42,.42])
+                        add(box,x,.511,z,.017,.085,.017,light);
+                for(const z of [-.42,.42])
+                    add(box,0,.554,z,.96,.017,.019,shadow);
+            }else if(type===1){
+                // Seven-sided tower ROOF: central capped gas vent and three
+                // off-axis cooling ducts; no ornamental floating hoops.
+                add(frustum,0,.491,0,.32,.085,.32,steel);
+                add(cylinder,0,.555,0,.105,.12,.105,shadow);
+                add(frustum,0,.62,0,.15,.045,.15,copper);
+                for(let i=0;i<3;i++){
+                    const t=i*2*Math.PI/3,
+                        x=Math.sin(t)*.66,z=Math.cos(t)*.66;
+                    add(cylinder,x,.515,z,.10,.14,.10,base);
+                    add(box,x,.595,z,.15,.022,.15,light);
+                    add(box,x*.6,.55,z*.6,.024,.11,.024,steel,0,t,0);
+                }
+                for(let i=0;i<6;i++){
+                    const t=i*Math.PI/3,x=Math.sin(t)*.86,z=Math.cos(t)*.86;
+                    add(box,x,.50,z,.06,.024,.10,shadow,0,t,0);
+                }
+            }else if(type===2){
+                // Site 6 ring-free, asymmetrical POWER DISTRIBUTION PLANT.
+                // Real machinery: twin fractionating ducts, a heat-exchange
+                // tower, open pipe rack and overhead transformer buswork.
+                // NO torus/arc primitive, glowing decorative ring, or
+                // corridor/navigation marker.
+                for(const x of [-.40,.40]){
+                    add(box,x,-.47,0,.22,.055,.51,shadow);
+                    add(box,x,-.20,.15,.09,.49,.10,steel);
+                    add(cylinder,x,-.03,-.16,.26,.80,.26,x<0?copper:steel);
+                    add(frustum,x,.41,-.16,.32,.19,.32,shadow);
+                    add(cylinder,x,.62,-.16,.10,.33,.10,base);
+                    add(frustum,x,.82,-.16,.16,.08,.16,copper);
+                    for(const y of [-.32,.07,.39])
+                        add(box,x,y,.16,.23,.035,.13,base);
+                }
+                add(box,0,-.46,0,.90,.065,.76,base);
+                for(const x of [-.25,.25])
+                    for(const z of [-.31,.31])
+                        add(box,x,-.02,z,.07,.86,.075,shadow);
+                for(const z of [-.31,.31]){
+                    add(box,0,.39,z,.79,.065,.09,steel);
+                    add(box,0,.22,z,.77,.036,.065,copper);
+                }
+                for(let k=0;k<5;k++){
+                    const z=-.32+k*.15;
+                    add(cylinder,0,-.12,z,.065,.82,.065,base,0,0,Math.PI/2);
+                    add(box,0,.45,z,.84,.025,.023,k%2?light:copper);
+                }
+                // Tall open service gantry at one flank, no solid barrier.
+                add(box,-.10,.57,.17,.52,.034,.08,light);
+                for(const x of [-.34,.14])
+                    add(box,x,.28,.17,.045,.58,.065,steel);
+                for(const x of [-.30,.10])
+                    add(box,x,.70,.17,.12,.22,.10,copper);
+                add(box,.05,-.39,-.29,.46,.18,.20,steel);
+                add(box,.05,-.27,-.29,.36,.022,.18,shadow);
+            }else{
+                // Regrade the EXISTING W05 physical cross-beams with
+                // open lattice, maintenance ducts and exposed diagonals.
+                // Underlying 36 collision bodies and source meshes remain.
+                // Art stays against original beam's exterior skin.
+                for(const z of [-.505,.505]){
+                    for(const y of [-.41,.41])
+                        add(box,0,y,z,.965,.06,.016,y<0?shadow:steel);
+                    for(const x of [-.455,.455])
+                        add(box,x,0,z,.055,.87,.026,base);
+                    for(let k=0;k<5;k++){
+                        const x=-.33+k*.165;
+                        add(box,x,.03,z,.038,.68,.020,
+                            k%2?steel:copper,0,0,k%2?.31:-.31);
+                    }
+                    add(box,0,.06,z,.81,.048,.016,light);
+                    for(const x of [-.24,.24])
+                        add(box,x,-.24,z+.016,.14,.15,.018,shadow);
+                }
+                // Three parallel utility conduits, distinct from flight
+                // guidance rings. Colors are matte and not emissive.
+                for(const y of [-.30,-.02,.28]){
+                    add(cylinder,0,y,0,.052,.88,.052,
+                        y<0?copper:steel,0,0,Math.PI/2);
+                    for(const x of [-.30,.30])
+                        add(box,x,y,0,.045,.11,.12,shadow);
+                }
+            }
+            for(const g of primitives)g.dispose();
+            const geometry=new THREE.BufferGeometry();
+            geometry.name=['MAP4_GFX11C9_WORKING_ROOFTOP',
+                'MAP4_GFX11C9_TOWER_EXHAUST',
+                'MAP4_GFX11C9_RING_FREE_POWER_PLANT',
+                'MAP4_GFX11C9_OPEN_PIPE_AND_BRIDGE_TRUSS'][type];
+            geometry.setAttribute('position',
+                new THREE.Float32BufferAttribute(pos,3));
+            geometry.setAttribute('normal',
+                new THREE.Float32BufferAttribute(normal,3));
+            geometry.setAttribute('color',
+                new THREE.Float32BufferAttribute(color,3));
+            geometry.setAttribute('uv',
+                new THREE.Float32BufferAttribute(uv,2));
+            geometry.computeBoundingBox();geometry.computeBoundingSphere();
+            return geometry;
+        }
+        function h4Gfx11c9BuildFunctionalIndustry(zone){
+            if(h4Gfx11c9Root)return;
+            if(!h4Gfx11c8Root||!h4Gfx11c4HeroRoot ||
+                h4Gfx11c7HeroMatrices.length!==2)
+                throw new Error('NEXT11C9 requires C4/C7/C8 authored plants');
+            const originalShells=zone.children.filter(m=>m.isMesh&&
+                m.userData.h4Vis02Protected&&!!m.userData.h4Collider);
+            if(originalShells.length!==34)
+                throw new Error('NEXT11C9 expected 34 VIS02 shell records');
+            const snapshots=originalShells.map(m=>({
+                mesh:m,geometry:m.geometry,collider:m.userData.h4Collider
+            }));
+            const root=new THREE.Group();
+            root.name='MAP4_GFX11C9_FUNCTIONAL_POWER_AND_ROOFS';
+            root.userData.visualOnly=true;root.userData.noCollider=true;
+            const families=[
+                {name:'ROOFTOP_HEAT_EXCHANGERS',type:0,geo:H4_MESHES.structure},
+                {name:'TOWER_EXHAUST_MANIFOLDS',type:1,geo:H4_MESHES.tower}
+            ];
+            for(const spec of families){
+                const targets=originalShells.filter(m=>m.geometry===spec.geo);
+                if(!targets.length)continue;
+                const geometry=h4Gfx11c9BakeMachine(spec.type);
+                const material=new THREE.MeshStandardMaterial({
+                    name:'MAP4_GFX11C9_WEATHERED_MACHINE_'+spec.type,
+                    map:h4Gfx11c5WeatherMap,bumpMap:h4Gfx11c5WeatherMap,
+                    bumpScale:.010,vertexColors:true,color:0xb2bbba,
+                    metalness:.50,roughness:.81,side:THREE.DoubleSide
+                });
+                const mesh=new THREE.InstancedMesh(
+                    geometry,material,targets.length);
+                mesh.name='MAP4_GFX11C9_'+spec.name;
+                mesh.userData.visualOnly=true;mesh.userData.noCollider=true;
+                mesh.frustumCulled=false;
+                for(let i=0;i<targets.length;i++){
+                    targets[i].updateMatrix();
+                    mesh.setMatrixAt(i,targets[i].matrix);
+                    mesh.setColorAt(i,new THREE.Color(
+                        [0x91a4a9,0x9f988e,0x9daeb0][i%3]));
+                }
+                mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                mesh.instanceMatrix.needsUpdate=true;
+                if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+                root.add(mesh);
+                h4Gfx11c9Stats.roofModules+=targets.length;
+                if(spec.type===0)h4Gfx11c9Stats.roofBlocks+=targets.length;
+                else h4Gfx11c9Stats.roofTowers+=targets.length;
+                h4Gfx11c9Stats.roofBatches++;
+            }
+            // Two existing protected cross-beams per station. Add only a
+            // nonphysical open machinery skin, never a new solid collision.
+            const bridges=h4IndustrialGroups.flatMap(station=>
+                station.children.filter(mesh=>mesh.isMesh&&
+                    mesh.userData.h4Collider&&
+                    (mesh.userData.w05Kind==='OVERHEAD_PIPE'||
+                     mesh.userData.w05Kind==='TRANSFER_BRIDGE')));
+            if(bridges.length!==12)
+                throw new Error('NEXT11C9 original W05 truss count changed');
+            const bridgeGeometry=h4Gfx11c9BakeMachine(3);
+            const bridgeMaterial=new THREE.MeshStandardMaterial({
+                name:'MAP4_GFX11C9_WEATHERED_TRUSS_AND_PIPING',
+                map:h4Gfx11c5WeatherMap,
+                bumpMap:h4Gfx11c5WeatherMap,bumpScale:.011,
+                vertexColors:true,color:0x9cacae,
+                metalness:.46,roughness:.84,side:THREE.DoubleSide
+            });
+            const bridgeBatch=new THREE.InstancedMesh(
+                bridgeGeometry,bridgeMaterial,bridges.length);
+            bridgeBatch.name='MAP4_GFX11C9_PHYSICAL_BEAM_VISUAL_SKIN';
+            bridgeBatch.userData.visualOnly=true;
+            bridgeBatch.userData.noCollider=true;
+            bridgeBatch.frustumCulled=false;
+            for(let i=0;i<bridges.length;i++){
+                const source=bridges[i];
+                const collider=source.userData.h4Collider;
+                if(collider.mesh!==source||
+                    !source.geometry.getAttribute('uv'))
+                    throw new Error('NEXT11C9 W05 collider pointer changed');
+                source.updateMatrix();
+                bridgeBatch.setMatrixAt(i,source.matrix);
+                bridgeBatch.setColorAt(i,new THREE.Color(
+                    [0x8c9ca1,0xa29b94,0x8799a0][i%3]));
+            }
+            bridgeBatch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+            bridgeBatch.instanceMatrix.needsUpdate=true;
+            if(bridgeBatch.instanceColor)
+                bridgeBatch.instanceColor.needsUpdate=true;
+            root.add(bridgeBatch);
+            h4Gfx11c9Stats.bridgeOverlays=bridges.length;
+            h4Gfx11c9Stats.bridgeBatches=1;
+            const exitGeometry=h4Gfx11c9BakeMachine(2);
+            const exitMaterial=new THREE.MeshStandardMaterial({
+                name:'MAP4_GFX11C9_FUNCTIONAL_EXIT_DISTRIBUTION_STEEL',
+                map:h4Gfx11c5WeatherMap,bumpMap:h4Gfx11c5WeatherMap,
+                bumpScale:.012,vertexColors:true,color:0xb7c4c2,
+                metalness:.48,roughness:.84,side:THREE.DoubleSide
+            });
+            const replacement=new THREE.InstancedMesh(
+                exitGeometry,exitMaterial,2);
+            replacement.name='MAP4_GFX11C9_NO_RING_EXIT_MANIFOLDS';
+            replacement.frustumCulled=false;
+            replacement.userData.visualOnly=true;
+            replacement.userData.noCollider=true;
+            for(let i=0;i<2;i++){
+                const legacy=h4Gfx11c7HeroMatrices[i];
+                if(legacy.index!==2+i||!legacy.mesh.userData.noCollider)
+                    throw new Error('NEXT11C9 must only replace C4 site6 art');
+                replacement.setMatrixAt(i,legacy.styled);
+                replacement.setColorAt(i,new THREE.Color(
+                    i===0?0x90a3a9:0xaaa09a));
+                const pos=new THREE.Vector3(),rot=new THREE.Quaternion(),
+                    size=new THREE.Vector3();
+                legacy.styled.decompose(pos,rot,size);
+                const hidden=new THREE.Matrix4().compose(
+                    pos,rot,size.multiplyScalar(.00001));
+                h4Gfx11c9EnergyEntries.push({
+                    legacy,hidden,c9Active:false,c7Active:legacy.active
+                });
+            }
+            replacement.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+            replacement.instanceMatrix.needsUpdate=true;
+            if(replacement.instanceColor)
+                replacement.instanceColor.needsUpdate=true;
+            root.add(replacement);
+            h4Gfx11c9Stats.exitManifolds=2;
+            h4Gfx11c9Stats.exitBatches=1;
+            for(const item of snapshots)
+                if(item.mesh.geometry!==item.geometry||
+                    item.mesh.userData.h4Collider!==item.collider)
+                    throw new Error('NEXT11C9 cannot change physical W02 body');
+            zone.add(root);h4Gfx11c9Root=root;
+            h4Gfx11c9UpdateQuality();
+        }
+        function h4Gfx11c9SetLook(enabled){
+            h4Gfx11c9Stats.lookEnabled=!!enabled;
+            h4Gfx11c9UpdateQuality();
+        }
+        function h4Gfx11c9UpdateQuality(){
+            if(!h4Gfx11c9Root)return;
+            const active=h4Gfx11c9Stats.lookEnabled &&
+                h4Gfx11c7Stats.lookEnabled &&
+                state.activeMap===MAP_MODES.MAP4 &&
+                state.map4Phase===3 && h4Gfx10ProfileName!=='LOW';
+            h4Gfx11c9Root.visible=active;
+            for(const entry of h4Gfx11c9EnergyEntries){
+                if(entry.c9Active!==active||
+                    entry.c7Active!==entry.legacy.active){
+                    entry.legacy.mesh.setMatrixAt(entry.legacy.index,
+                        active?entry.hidden:
+                            (entry.legacy.active?
+                                entry.legacy.styled:entry.legacy.original));
+                    entry.legacy.mesh.instanceMatrix.needsUpdate=true;
+                    entry.c9Active=active;
+                    entry.c7Active=entry.legacy.active;
+                }
+            }
+            h4Gfx11c9Stats.active=active;
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -7575,6 +7911,7 @@
                     h4Gfx11c6BuildSkyline(zone);
                     h4Gfx11c7BuildCuration(zone);
                     h4Gfx11c8BuildFacades(zone);
+                    h4Gfx11c9BuildFunctionalIndustry(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -7684,6 +8021,7 @@
             h4Gfx11c6UpdateQuality();
             h4Gfx11c7UpdateQuality();
             h4Gfx11c8UpdateQuality();
+            h4Gfx11c9UpdateQuality();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){

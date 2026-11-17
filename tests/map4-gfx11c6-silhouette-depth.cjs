@@ -41,6 +41,12 @@ const {pathToFileURL}=require('node:url');
       const raf=window.requestAnimationFrame.bind(window);
       window.requestAnimationFrame=cb=>cb&&cb.name==='animate'?0:raf(cb);
     });
+    // Historical same-camera QA must isolate NEXT11C9's later art layer.
+    // C9 itself is tested independently under real Chromium/WebGL.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c9SetLook==='function')
+        h4Gfx11c9SetLook(false);
+    });
     const construction=await page.evaluate(()=>{
       const sky=h4Gfx11c6Root;
       const nav=h4IndustrialGroups.flatMap(st=>st.children.filter(m=>
