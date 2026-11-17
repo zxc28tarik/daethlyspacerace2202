@@ -281,3 +281,17 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Açık QA:** gerçek GPU FPS/p95/VRAM (720p/1080p), 5 dk uçuş, yayıncı ilk pitch 3/6 playable, kullanıcı estetik ve PR merge onayı.
 
 **Günlük:** `2026-11-17 | NEXT-11C9 | C8 FULL PASS, C9 KOD+HIZLI WEBGL PASS, C9 FULL AÇIK | PR#54 / 900ae30 / 0073698 | 07-08 zayıf, 09 belirgin düzeldi | 7-8/10 onay YOK | merge YOK`.
+
+
+## 16) 17 Kasım 2026 — Özgünlük koruması + NEXT-11C10
+
+**Yeni ve geçerli kullanıcı tasarım kararı:** Örnek oyunlardan ve 3D varlık galerilerinden atmosfer, üretim tekniği ve hedef kalite düzeyine göre **ilham alınabilir**. Ancak tasarım **birebir veya aşırı yakın kopya** olamaz; ürün, harita yerleşimi, özgün ayırt edici model/doku/silüetleri çalınmaz. CGTrader gibi ticari kaynaklardan kaynak asset indirilmez, kod/mesh/doku kopyalanmaz. Kaynakların yalnız **genel görsel kalite kıyasına** izin var. Özgünlük ve 7–8/10 estetik kalite ayrı kabullerdir. [C10 özgünlük sözleşmesi](MAP4_GFX11C10_ORIGINAL_DISTRICTS_ACCEPTANCE.md).
+
+- **Önceki sabit:** NEXT-11C9 [PR #54](https://github.com/zxc28tarik/daethlyspacerace2202/pull/54) DRAFT, tam [CI #44073322882](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44073322882) **32/32 PASS**. Önceki kullanıcı görsel 7–8/10 onayı **yok**. C9 code 09'da hakiki halkasız enerji silüeti, 07/08'de fonksiyonel çatı/kiriş art; görsel fark 07 %1,21/08 %1,89/09 %18,74; kalite puanı değil.
+- **Aktif kod / PR:** [NEXT-11C10 PR #55](https://github.com/zxc28tarik/daethlyspacerace2202/pull/55), DRAFT/STACKED #54 üzerinde, merge yok. Kod `cc75b42` oyun özelinde **3 farklı özgün model geometrisi**: açık ısı geri kazanımı, askılı malzeme transfer gantry'si, basamaklı geri dönüşüm/ayırma. Önceki bir modele benzemek için dış varlık kullanılmadı. 6 konumda 3 batched InstancedMesh, paylaşılmış NEXT11C5 PBR atlas; **0 yeni collider, light, external asset**. Yalnız Map4 sanayi phase3 High/Balanced, Low ve diğer fazlar kapalı.
+- **Yönlendirme/fizik:** W05 24 BEACON/HIGH_MARKER kimlik, materyal ve matris değiştirilmedi; 6 kanyon/36 sanayi/200 bina collider korunur. Map1 yarış-only; 5 rakip/8 avcı, arena 60s, yarış 300s, orbit 850m, 6 harita ve ilk pitch ≥3 playable kararı aynen.
+- **QA:** `tests/map4-gfx11c10-original-districts.cjs`, 07/08/09 gerçek 1600×900 Chromium/WebGL A/B, 3 drawcalls ve üçgen bütçesi, Low + 1/2/4 phase, gameplay ve korunan fizik. C4–C9 tarihselleri bağımsız A/B için C10 katmanını kapatır. Hızlı CI ve full smoke eklendi. İlk hızlı [#44075783370](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44075783370) **test eşiği FAIL**: gerçek 3.800 görsel üçgene rağmen gereksiz minimum 5.000. `4d24372` test gereksiz eşiği 3.000'e düzeltti; yeni [hızlı #44076017106](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44076017106) **sonuç henüz doğrulanmadı**. Geometri değiştirilmedi.
+- **Açık kabul:** C10 güncel hızlı CI, 07/08/09 screenshot görsel incelemesi, güncel full CI, native GPU 720/1080p FPS/p95/VRAM, gerçek 5 dk uçuş, kullanıcı 7–8/10 estetik ve yayıncı ilk pitch 3/6 playable onayı. Main veya herhangi stacked PR merge için kullanıcı açık izni şart.
+- **NEXT:** C10 görsel çıktısını kontrol et, çok uzakta veya yapay duruyorsa aynı PR içinde düzelt; gerçek kalite kapanmadan NEXT11C11'e geçme.
+
+**Günlük:** `2026-11-17 | NEXT-11C10 | ÖZGÜNLÜK KARARI ONAYLI, PR#55 KOD+TEST+CI DOSYALARI YAPILDI | HIZLI TEST EŞİK DÜZELTMESİ 4d24372, GÜNCEL QA AÇIK | 7–8/10 ONAY YOK | MERGE YOK`.
