@@ -354,3 +354,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **NEXT-11C13 ÖNERİ / YAPILMADI:** aynı 07/08 canlı hareketli kamerada yeni altı tesisin uçuş hattı çevresindeki algısal güvenliği ve ölçek kalitesini denetle; gökyüzündeki büyük halkaların tam kaynak/işlevini keşfet; yalnız kesin dekor olduğu kanıtlananları kompozisyona göre kürate et. Önemli navigasyon/görsel/fizik entegrasyon kararları kullanıcının onayına sunulur.
 
 **Günlük:** `2026-11-17 | NEXT11C12 | 07/08 ÖZGÜN MİMARİ KOD+TEST HIZLI PASS | PR57 / 8544b95 / #44081480486 | C11 FULL 34/34 PASS | C12 FULL AÇIK | HALKA DEKOR 0 YAPILMADI | 7-8/10 KABUL YOK | MERGE YOK`.
+
+
+### NEXT-11C12-B — Görsel uçuş şeridi güvenliği (17 Kasım)
+
+- İlk C12-A [gerçek WebGL #44081480486 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44081480486), 07 %9,53 ve 08 %11,84 ekran etkisi. **Ancak** bazı geniş ve fiziksel olmayan sanayi iskeletleri H4_INDUSTRY şeritlerinin x aralığına yaklaşabildi. **Collider sayısı sabit diye görünürdeki sahte engel riskini kabul etme.**
+- **Kod `9f910c6`:** Yanal sanayi profilleri `size*.92` yerine **`size*.65`** ölçeklenerek daha ince ve gerçek zemine oturur; altı yan konum ±1550–1900'e güvenli biçimde dışarı çekilir. Dikey mimari derinlik ve ölçek çeşitliliği korunur. İlk C12-A görüntüsü güncel sürüm için yeterli kalite kanıtı değildir.
+- **Test `55fad1d`:** Konservatif iç silüet sınırı `abs(side)-.65*.55*size` için fast-low şeritte **≥1140**, hunter-flank şeritte **≥1430** zorunlu. Aktif 3 uçuş çizgisinin fiziksel kolliderları ve W05 rehberleri hâlâ değişmez, görsel çakışma da önlenir.
+- **C12-B gerçek Chromium hızlı QA:** [#44082222325](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44082222325) sonuç ve yeni PNG karşılaştırması **AÇIK**. C12 tam browser suite güncel HEAD sonucu **AÇIK**. C11 [full #44079786517](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44079786517) **34/34 PASS**.
+- **YAPILMADI:** Görünür büyük gökyüzü halkalarının kökeni kesin değil; C5 nonnav dekor listesi gerçek motorda 0. Kullanıcı uçuş/estetik 7–8/10 onayı, yerel GPU FPS/p95/VRAM, 5dk uçuş, yayıncı 3/6 playable, merge açık.
+
+**Günlük:** `2026-11-17 | NEXT11C12-B | GÖRSEL-KORİDOR GÜVENLİĞİ KOD/TEST YAPILDI | 9f910c6/55fad1d | YENİ WEBGL PNG ve FULL CI AÇIK | HALKA KURATÖRLÜĞÜ YAPILMADI | PR57 DRAFT, MERGE YOK`.
