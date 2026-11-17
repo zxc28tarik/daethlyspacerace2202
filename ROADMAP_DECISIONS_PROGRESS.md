@@ -435,3 +435,7 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Özgünlük:** CGTrader veya benzeri kaynaktan ayırt edici tasarım, geometri, doku kopyalama YOK; sadece genel atmosfer/kalite ilhamı.
 
 **Günlük:** `2026-11-17 | C13 BAĞLANTI KURTARMA | 18-POZ RAPOR 93 ADAY KAYDEDİLDİ | 08 FAST_LOW KAMERA VE FİZİK BLOCKER TESPİT EDİLDİ | SON CI AÇIK | ROTA/FİZİK KARARI ONAY BEKLİYOR | PR58 DRAFT MERGE YOK`.
+
+### Son hızlı doğrulama (PR58)
+
+- **Kopukluk sonrası C13 son hızlı CI** [#44087711363](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44087711363) **2/2 bağımsız job PASS** (18-poz motion+ring JSON ve 3 poz raycast occlusion). `2179e57` screenshot timeout düzeltmesinin test sonucu teyit edildi. [Son full Map1/Map4 #44087710943](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44087710943) **henüz çalışıyor, PASS ilan edilmedi**. Kamera köken raporu C13'ün yeni halka/görünürlük sınıflandırmasını doğruladı; 08 FAST_LOW fabrika konum problemi oyun/çarpışma değişmeden açık kaldı.
