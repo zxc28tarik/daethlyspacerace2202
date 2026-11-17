@@ -49,6 +49,12 @@ const {pathToFileURL}=require('node:url');
       if(typeof h4Gfx11c9SetLook==='function')
         h4Gfx11c9SetLook(false);
     });
+    // NEXT11C10 is an independent later visual-only layer.
+    // Keep earlier A/B drawcall & pixel comparisons isolated.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c10SetLook==='function')
+        h4Gfx11c10SetLook(false);
+    });
     const baseline=await page.evaluate(()=>{
       // W04/GFX04 reparents all industry visuals below the zone's
       // gfx04IndustrialVisuals group after their construction. Descend the
