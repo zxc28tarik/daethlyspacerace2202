@@ -5425,6 +5425,14 @@
         function h4Gfx11c4SetHeroVisible(enabled){
             if(h4Gfx11c4HeroRoot)h4Gfx11c4HeroRoot.visible=enabled;
         }
+        function h4Gfx11c4UpdateQuality(){
+            if(!h4Gfx11c4HeroRoot)return;
+            // High/Balanced: actual sculpted industrial silhouettes.
+            // Low: preserve previous GFX11C six-site forms and save the
+            // dense new hero triangles. These are art-only, not obstacles.
+            h4Gfx11c4HeroRoot.visible=state.map4Phase===3 &&
+                h4Gfx10ProfileName!=='LOW';
+        }
 
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
@@ -6840,6 +6848,7 @@
             }
             h4Gfx06dUpdateLod();
             h4Gfx11cUpdateIndustryDetail();
+            h4Gfx11c4UpdateQuality();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
