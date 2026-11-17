@@ -27,3 +27,19 @@
 - [ ] Kesintisiz 300s insan/pilot gameplay testi, native GPU, 7–8/10 görsel kabul, 3/6 yayıncı haritası, PR merge izni bekliyor.
 
 **DRAFT / MERGE YOK.**
+
+
+## Gerçek C16 Chromium sonuçları — 18 Kasım 2026
+
+- [Hızlı gerçek browser/WebGL #44191236356](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44191236356) **completed/success; 9/9 job steps PASS**. Bu run `48f8c82` test+workflow kodunu çalıştırdı; sonraki docs-only commitleri için yeni test koşusu varmış gibi gösterme.
+- Üç senaryo `progress=22000`'den gerçek `updateGame(1/30)` oyuncu key girdileriyle `progress≈25200`'e ulaştı; **hepsi DNF olmadan bitti**:
+
+| Gerçek oyun state'inde scriptli girdiler | 30Hz simülasyon süresi | Motorun gerçek temas/cooldown olayı | Geometrik isabet veren frame | İlk FAST dışına çıkış | Avcı hedefine erişim |
+|---|---:|---:|---:|---:|---:|
+| `FIXED_FAST_LOW` | 11,67 saniye | **3** | **70** | Yok | Yok |
+| `EARLY_HUNTER_KEYS` (22.200 başlangıç) | 12,77 saniye | **0** | **0** | **22.305,25** | **22.744,39** |
+| `LATE_HUNTER_KEYS` (23.500 başlangıç) | 12,20 saniye | **0** | **0** | **23.604,45** | **24.043,59** |
+
+- Her üç çalışmada boundary `level=0` (350/383/366 tick). Avcıya kaçışların bitiş `x=906,67,y=314`; düz hızlı uçuş `x=-800,y=-100`. 236 collider, 24 marker ve 34 W02 korunmuş mesh/oyun kuralı **before-after identical PASS**.
+- **Yorum:** İki scriptli avcı kaçışı, inceleme penceresinde hem canlı oyun collision handler'ıyla hem bağımsız swept-hit ölçümüyle **0**. Fakat bu, insanın komutlara yetişmesi, gerçek dünya zamanı, tüm sektörün güvenliği, 300s kesintisiz uçuş veya Native GPU performans testi **değildir**; araç/ekran/AI/bonusları değiştirmek için gerekçe olarak otomatik uygulanmaz.
+- **Açık:** C16 son HEAD tam Map1/Map4 regresyonu, native 720/1080 GPU testleri, 300s tam pilot, kullanıcı estetik kalite 7–8/10, yayıncı 3/6 playable, fabrika/AI/bonus önemli entegrasyon kararı ve PR merge. Fiziksel iki fabrika **yerinde** kaldı.
