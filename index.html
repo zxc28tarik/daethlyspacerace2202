@@ -5394,9 +5394,17 @@
                     const site=family*2+Math.floor(index/2);
                     const partner=index%2===1;
                     const at=H4_GFX11C_SITES[site];
-                    const progress=at+(partner?720:270);
+                    // Frame the forward view rather than clipping the
+                    // expensive art at the side of the fixed 68-degree lens.
+                    // The sixth site doubles as the visible industry EXIT
+                    // landmark; it is ahead of progress 31600, not behind it.
+                    const finalStation=site===5;
+                    const progress=at+(finalStation?
+                        (partner?2150:1450):(partner?1230:720));
                     const flank=site%2===0?-1:1;
-                    const side=partner?-flank*1740:flank*1590;
+                    const side=partner?
+                        -flank*(finalStation?1450:1640):
+                        flank*(finalStation?1250:1490);
                     const f=getRaceFrameAtDistance(progress);
                     dummy.position.copy(h4WorldPosition(
                         progress,side,partner?110:150));
