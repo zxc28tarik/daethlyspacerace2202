@@ -7502,6 +7502,148 @@
             };
         }
 
+
+        // NEXT11C14: definitive, READ-ONLY collision corridor survey.
+        // Uses h4SegmentBoxHit + the SAME active collider arrays and
+        // coarse lookahead as the real player impact code above. This is
+        // diagnostic only: no relocation, invisible collision, lane rules,
+        // route markers, or AI avoidance changes without user approval.
+        const h4Gfx11c14Stats={
+            surveys:0,realCollisionChecks:0,modifiedPhysics:0,
+            modifiedRoutes:0,modifiedModels:0,approvalRequired:true
+        };
+        const H4_GFX11C14_TRACKS=Object.freeze([
+            Object.freeze({id:'FAST_LOW',x:-800,y:-100}),
+            Object.freeze({id:'CENTRAL',x:0,y:350}),
+            Object.freeze({id:'HUNTER_FLANK',x:900,y:310}),
+            Object.freeze({id:'SAFE_UPPER',x:0,y:760})
+        ]);
+        function h4Gfx11c14ScanCorridors(options={}){
+            const from=Math.max(H4_INDUSTRY.from+5,
+                Math.min(H4_INDUSTRY.to-500,
+                Number.isFinite(options.from)?options.from:14080));
+            const to=Math.max(from+100,Math.min(H4_INDUSTRY.to-5,
+                Number.isFinite(options.to)?options.to:33940));
+            const step=Math.max(20,Math.min(220,
+                Number.isFinite(options.step)?options.step:60));
+            const padding=12; // player impact padding, not AI/pilot approximation
+            const sampleCount=Math.ceil((to-from)/step);
+            if(sampleCount>1100)throw new Error('C14 bounded collision audit');
+            const colliders=planetaryBuildingColliders.concat(h4IndustrialColliders);
+            const owner=new Map();
+            const region=planetaryWorldRegions[2];
+            if(region)region.traverse(mesh=>{
+                if(mesh.isMesh&&mesh.userData.h4Collider)
+                    owner.set(mesh.userData.h4Collider,mesh);
+            });
+            const markerCount=h4IndustrialGroups.flatMap(g=>
+                g.children.filter(mesh=>
+                    mesh.userData.w05Kind==='BEACON'||
+                    mesh.userData.w05Kind==='HIGH_MARKER')).length;
+            if(markerCount!==24||h4IndustrialColliders.length!==36||
+                planetaryBuildingColliders.length!==200)
+                throw new Error('C14 requires original protected physics');
+            const identify=(volume,index)=>{
+                const mesh=owner.get(volume);
+                const names=[];let p=mesh;
+                while(p&&names.length<4){names.push(p.name||p.type);p=p.parent;}
+                return {
+                    index,id:mesh?mesh.id:null,
+                    geometry:mesh?.geometry?.name||mesh?.geometry?.type||null,
+                    label:mesh?.name||volume.kind||'UNNAMED_COLLIDER',
+                    parentPath:names.join(' <- '),
+                    source:index<planetaryBuildingColliders.length?
+                        'W01_BUILDING_COLLIDER':'W05_INDUSTRIAL_COLLIDER',
+                    progress:volume.progress,side:volume.side,
+                    altitude:volume.altitude,
+                    halfDepth:volume.halfDepth,
+                    halfSide:volume.halfSide,halfUp:volume.halfUp
+                };
+            };
+            const entries=colliders.map(identify);
+            const sample=(current,previous)=>{
+                const lower=Math.min(previous.routeProgress,
+                    current.routeProgress)-25;
+                const upper=Math.max(previous.routeProgress,
+                    current.routeProgress)+25;
+                const collisions=[];
+                for(let index=0;index<colliders.length;index++){
+                    const c=colliders[index];
+                    if(c.progress+c.halfDepth<lower||
+                        c.progress-c.halfDepth>upper)continue;
+                    h4Gfx11c14Stats.realCollisionChecks++;
+                    if(h4SegmentBoxHit(previous,current,c,padding))
+                        collisions.push(index);
+                }
+                return collisions;
+            };
+            const profiles=[];
+            for(const track of H4_GFX11C14_TRACKS){
+                const intervals=[],obstacleTally=new Map();
+                let open=null,hitSegments=0;
+                for(let i=0;i<sampleCount;i++){
+                    const a=from+i*(to-from)/sampleCount;
+                    const b=from+(i+1)*(to-from)/sampleCount;
+                    const previous={routeProgress:a,
+                        laneX:track.x,laneY:track.y};
+                    const current={routeProgress:b,
+                        laneX:track.x,laneY:track.y};
+                    const hits=sample(current,previous);
+                    if(hits.length){
+                        hitSegments++;
+                        for(const id of hits)
+                            obstacleTally.set(id,(obstacleTally.get(id)||0)+1);
+                        if(!open)open={from:a,to:b,hits:new Set(hits)};
+                        else{open.to=b;for(const id of hits)open.hits.add(id);}
+                    }else if(open){
+                        intervals.push(open);open=null;
+                    }
+                }
+                if(open)intervals.push(open);
+                const riskSpans=intervals.map(v=>({
+                    from:Math.round(v.from*10)/10,
+                    to:Math.round(v.to*10)/10,
+                    length:Math.round((v.to-v.from)*10)/10,
+                    colliderIds:[...v.hits],
+                    colliderNames:[...v.hits].map(id=>entries[id].label)
+                }));
+                const ranked=[...obstacleTally].sort((a,b)=>b[1]-a[1]);
+                profiles.push({
+                    ...track,
+                    actualRoute:h4IndustrialRoute(
+                        (from+to)/2,track.x,track.y),
+                    sampledSegments:sampleCount,
+                    collidingSegments:hitSegments,
+                    blockedFraction:hitSegments/sampleCount,
+                    riskSpans,
+                    primaryObstacles:ranked.slice(0,20).map(([id,count])=>
+                        ({...entries[id],collidingSegments:count}))
+                });
+            }
+            const pointHits=(progress,track)=>{
+                const point={routeProgress:progress,
+                    laneX:track.x,laneY:track.y};
+                return sample(point,point).map(id=>entries[id]);
+            };
+            h4Gfx11c14Stats.surveys++;
+            return {
+                constraints:{from,to,step,segments:sampleCount,
+                    padding,markerCount,
+                    physics:[h4CanyonColliders.length,
+                        h4IndustrialColliders.length,
+                        planetaryBuildingColliders.length],
+                    collisionMethod:'h4SegmentBoxHit swept route AABB',
+                    readOnly:true,approvalRequired:true},
+                tracks:profiles,
+                factory08:H4_GFX11C14_TRACKS.map(track=>({
+                    track:track.id,
+                    progress:23800,
+                    obstacles:pointHits(23800,track)
+                })),
+                stats:{...h4Gfx11c14Stats}
+            };
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
