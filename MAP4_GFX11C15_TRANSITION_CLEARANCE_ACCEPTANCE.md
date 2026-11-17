@@ -37,3 +37,31 @@ C14 gerçek 236 fiziksel collider üzerinde 4 **sabit** şerit taradı. C15 sabi
 - [ ] PR merge onayı. **DRAFT, MERGE YOK.**
 
 Çıktı: `tests/map4-next11c15-lane-transition-matrix.json` GitHub Actions artifact olarak korunur; hipotez ve sınırlamalar dahil edilir.
+
+
+## İlk C15 gerçek WebGL bulguları — 18 Kasım
+
+- [Hızlı C15 Chromium/WebGL #44182747206](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44182747206): **completed/success**, `NEXT11C15 TRANSITION CLEARANCE PASS`. Test commit `ecf5026` (C15 oyun/test kodunu içeren HEAD); sonraki `48ec8cd` değişikliği **yalnız kabul belgesidir**, oyun/test kodunu değiştirmez. Son full Map1/Map4 QA henüz ayrıca kontrol edilecek.
+- Matris `22.000–25.200` içinde her senaryoda **80 kesit**. 13 senaryodaki görülen **riskli kesit** sayıları şöyledir (gerçek pilotun çarpışma sayısı değil):
+
+| Geometrik hipotez | Riskli 40 birim kesit / 80 |
+|---|---:|
+| `FIXED_FAST_LOW` | 13 |
+| `FIXED_CENTRAL` | 5 |
+| `FIXED_HUNTER_FLANK` | 2 |
+| `FIXED_SAFE_UPPER` | 5 |
+| `FAST_TO_CENTER_EARLY` | 4 |
+| `FAST_TO_CENTER_MID` | 4 |
+| `FAST_TO_CENTER_LATE` | 8 |
+| `FAST_TO_HUNTER_EARLY` | 0 |
+| `FAST_TO_UPPER_EARLY` | 4 |
+| `CENTER_TO_HUNTER` | 1 |
+| `CENTER_TO_UPPER` | 5 |
+| `CENTER_TO_FAST_AT_08` | 14 |
+| `FAST_TO_CENTER_AFTER_08` | 12 |
+
+- 4 sabit C14 profili bu **aynı dar kapsamda** sırasıyla **13/5/2/5**, C15 sonuçlarına **birebir eşittir**. Bunları 14.080–33.920 C14 genel profillerinin 19/15/7/15 kesit sayılarıyla karşılaştırırken aralıkların ve örnekleme adımlarının farklı olduğunu unutma.
+- `FAST_TO_HUNTER_EARLY` (22.200–23.500 ilerlemede x:-800→900, y:-100→310) taramada **0/80** çarpışma verdi. **Bu yalnız geometrik, örneklenmiş bir hipotezdir**: gerekli manevra için maksimum oran `|Δx/Δprogress|=1700/1300≈1,308` ve `|Δy/Δprogress|=410/1300≈0,315`. Geminin gerçek lateral/vertical hız, dönüş, kamera, pilot ve bonus kinematiği doğrulanmadığından güvenli/oynanabilir rota olarak **onaylanamaz**.
+- `FAST_TO_CENTER_EARLY` ve `MID` her biri **4/80**, ilk risk 24.960–25.120 bölgesinde. Geç giriş `FAST_TO_CENTER_LATE` **8/80**; 23.680–23.840'da risk başlıyor. 08 sonrası merkez geçişi **12/80**, gerçek fabrika riskinden kaçınmak için geç kalıyor.
+- 23.800 noktasında orijinal FAST_LOW **2** W01/VQ02 fabrika collider'ı; merkez/avcı/üst sabit örnekte **0**. Broadphase ile tüm collider brute-force taraması her segmentte aynı; 236/236 owner ve fiziksel/oynanış before-after koruması **PASS**.
+- **Açık:** gerçek dinamik manevra ve kesintisiz 300s uçuş testi, tam Map1/Map4 CI, kullanıcı fizik/AI/rota kararı; bütün PR'lar Draft ve merge yok.
