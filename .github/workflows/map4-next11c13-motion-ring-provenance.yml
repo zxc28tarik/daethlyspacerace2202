@@ -20,6 +20,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Move camera across all three Map4 industry routes
         run: node tests/map4-gfx11c13-motion-ring-provenance.cjs
+      - name: Diagnose 08 fast-low blue occlusion without editing flight obstacles
+        run: node tests/map4-gfx11c13-fast-low-occlusion.cjs
       - name: Archive 6 real camera screenshots and ring ownership manifest
         if: always()
         uses: actions/upload-artifact@v4
@@ -28,4 +30,5 @@ jobs:
           path: |
             tests/map4-gfx11c13-*.png
             tests/map4-next11c13-motion-provenance.json
+            tests/map4-next11c13-08-fast-low-occlusion.json
           if-no-files-found: warn
