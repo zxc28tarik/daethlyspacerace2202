@@ -222,3 +222,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Sabit 09'daki yakın halka yapıları için NEXT11C4 ENERGY ailesindeki yalnız **index 2 ve 3** visual-only instance **%22 küçültüldü**, cached original matrices ile geri alınabilir (`838a630`). 10 diğer C4 instance, W05 navigasyon ve bütün collider korunuyor.
 - `3c60510` test başına 2 hero instance geri dönüşünü ekledi. [Hızlı #44068083063](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063) ve [tam #44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **güncel HEAD sonucu açık**.
 - **NEXT:** Ekranları gözle karşılaştır; 7–8/10 kullanıcı onayı olmadan estetiki kapatma, PR merge yok.
+
+
+### NEXT-11C7 gerçek 09 görsel incelemesi — 17 Kasım sonuç
+
+- `838a630` / `3c60510`: yalnız iki C4 ENERGY visual-only site6 instance %22 küçültüldü; original matrix A/B geri yüklenebiliyor.
+- **Tekrarlanabilir Chromium/WebGL art QA:** [hızlı #44068083063 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063). Gerçek 1600×900 07/08/09 görüntüleri 3 A/B çift; 15+2 = 17 curated material slotu ve 2 nonphysical C4 matrix geri dönüşü PASS.
+- **Fark ölçüsü:** 07 %35,37; 08 %27,13; 09 %32,80 önce/sonra changed pixels. 09'un önceki C7 son görseline kıyasla **%18,38** ek görüntü değişimi oldu. Bunlar **estetik kalite puanı değildir**.
+- **Sanat kararı:** 09 ön plan halkaları fiziksel oyun yönlendirmesi olmadıkları için küçültüldü; görüş açıldı. Fakat görüntü hâlâ yaklaşık hedef 7–8/10 seviyesine **onaylı değil**, geniş kutu/zemin/orta mesafe makine detayları çözülmedi.
+- **Güncel kod tam CI** [#44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **SONUCU BEKLENİYOR**; hızlı CI ile karıştırma.
+- **NEXT-11C8** **ÖNERİ / YAPILMADI:** Büyük fiziksel W02 kütlelerin collider kimliği değişmeden daha inandırıcı sanayi cephesi/işlevi, bölgesel tekrar/ışık/zemin çözümleri, gerçek 07/08/09 + hareketli kamera görsel QA. Bütün eski karar, harita ve fizik testleri devam eder.
+- **Hiçbir merge yok:** PR #50/#51/#52 DRAFT, main birleştirmesi kullanıcı açık onayına bağlı.
