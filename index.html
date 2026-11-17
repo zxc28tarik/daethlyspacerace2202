@@ -5870,13 +5870,15 @@
         // texture allocations, collider changes or navigation ring changes.
         const h4Gfx11c7Stats={
             oldDecksCurated:0,decorativeBatchesCurated:0,
-            reactorRingsCurated:0,groundCurated:0,
+            reactorRingsCurated:0,exitHeroInstancesCurated:0,
+            groundCurated:0,
             protectedMarkersUnchanged:true,newColliders:0,newLights:0,
             newTextures:0,lookEnabled:true,
             nativeGpuVerified:false,humanAestheticApproval:false
         };
         const H4_GFX11C7_FOG=new THREE.Color(0x4b5865);
         const h4Gfx11c7Styled=[];
+        const h4Gfx11c7HeroMatrices=[];
         function h4Gfx11c7BuildCuration(zone){
             if(h4Gfx11c7Styled.length)return;
             if(!h4Gfx11c5WeatherMap)
@@ -5951,6 +5953,27 @@
                 entry.styledScale=mesh.scale.clone().multiplyScalar(.76);
                 h4Gfx11c7Stats.reactorRingsCurated++;
             }
+            // The huge rings inside the 09 frame belong to the pre-existing
+            // C4 ENERGY hero InstancedMesh, not the distant IN06 toroids.
+            // Recompose ONLY site-6's two visual-only instances; preserve
+            // the other ten C4 instances and every gameplay volume.
+            const energy=h4Gfx11c4HeroRoot.children[2];
+            if(!energy||!energy.isInstancedMesh||
+                !energy.userData.noCollider||energy.count!==4)
+                throw new Error('NEXT11C7 energy hero must be nonphysical');
+            for(const index of [2,3]){
+                const original=new THREE.Matrix4();
+                energy.getMatrixAt(index,original);
+                const pos=new THREE.Vector3(),rot=new THREE.Quaternion(),
+                    scale=new THREE.Vector3();
+                original.decompose(pos,rot,scale);
+                const styled=new THREE.Matrix4().compose(
+                    pos,rot,scale.multiplyScalar(.78));
+                h4Gfx11c7HeroMatrices.push({
+                    mesh:energy,index,original,styled,active:false
+                });
+                h4Gfx11c7Stats.exitHeroInstancesCurated++;
+            }
             // Geometry and terrain height untouched, only its visual normal
             // ripple is muted. Physically traversable world remains identical.
             const ground=zone.children.find(x=>
@@ -5973,6 +5996,14 @@
             const active=h4Gfx11c7Stats.lookEnabled &&
                 state.activeMap===MAP_MODES.MAP4 &&
                 state.map4Phase===3 && h4Gfx10ProfileName!=='LOW';
+            for(const entry of h4Gfx11c7HeroMatrices){
+                if(entry.active!==active){
+                    entry.mesh.setMatrixAt(entry.index,
+                        active?entry.styled:entry.original);
+                    entry.mesh.instanceMatrix.needsUpdate=true;
+                    entry.active=active;
+                }
+            }
             for(const item of h4Gfx11c7Styled){
                 const target=active?item.styled:item.original;
                 if(item.mesh.material!==target)item.mesh.material=target;
