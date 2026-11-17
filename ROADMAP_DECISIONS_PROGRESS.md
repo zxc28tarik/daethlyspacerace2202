@@ -214,3 +214,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Sıradaki karar:** Yeni gerçek görüntüleri denetle. Sorun sürüyorsa görsel-only mimariyi ve 09 çıkış kadrajını yeniden ele al, korunan fizik/navigasyona dokunma. Birleşim için kullanıcı açık onayı şart.
 
 **Günlük:** `2026-11-17 | NEXT-11C7 | YAPILMADI→GELİŞTİRME-PR | PR#52 / 5efc90a / c4a1944 / 4eb8643 | İlk A/B CI PASS, onarım QA açık | görsel puan açık | NEXT11C7 HEAD kalite kapıları`.
+
+
+### NEXT-11C7 devam — 09 ekranındaki baskın gerçek geometri
+
+- IN06 nonphysical power toroid düzenlemesi `c4a1944` hızlı WebGL `4eb8643` [#44067601417 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44067601417); **09 sabit kadrajda etkisi %0** olduğu görüldü. Yanlış etki varsayımı bırakılmadı.
+- Sabit 09'daki yakın halka yapıları için NEXT11C4 ENERGY ailesindeki yalnız **index 2 ve 3** visual-only instance **%22 küçültüldü**, cached original matrices ile geri alınabilir (`838a630`). 10 diğer C4 instance, W05 navigasyon ve bütün collider korunuyor.
+- `3c60510` test başına 2 hero instance geri dönüşünü ekledi. [Hızlı #44068083063](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083063) ve [tam #44068083006](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44068083006) **güncel HEAD sonucu açık**.
+- **NEXT:** Ekranları gözle karşılaştır; 7–8/10 kullanıcı onayı olmadan estetiki kapatma, PR merge yok.
