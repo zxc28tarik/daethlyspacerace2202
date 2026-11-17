@@ -7149,12 +7149,15 @@
         // 07/08 gain asymmetric near/mid/far industrial silhouettes built
         // from purposeful ductwork, separators and lifted machine frames.
         const H4_GFX11C12_SITES=Object.freeze([
-            {at:18850,side:-1190,size:1220,turn:.17,family:0},
-            {at:20350,side:1420,size:1030,turn:-.19,family:1},
+            // Shift open mechanical volumes beyond the two lateral racing
+            // routes: FAST_LOW centre -800, HUNTER_FLANK centre +900.
+            // Narrow silhouettes retain tall vertical scale and depth cues.
+            {at:18850,side:-1600,size:1220,turn:.17,family:0},
+            {at:20350,side:1840,size:1030,turn:-.19,family:1},
             {at:21650,side:-1660,size:810,turn:.11,family:0},
-            {at:25350,side:1170,size:1250,turn:-.15,family:1},
-            {at:27050,side:-1410,size:1040,turn:.21,family:0},
-            {at:28650,side:1660,size:820,turn:-.10,family:1}
+            {at:25850,side:1900,size:1250,turn:-.15,family:1},
+            {at:27050,side:-1550,size:1040,turn:.21,family:0},
+            {at:28650,side:1740,size:820,turn:-.10,family:1}
         ]);
         const h4Gfx11c12Stats={
             originalFamilies:0,sites:0,batches:0,
@@ -7331,7 +7334,9 @@
                         at,def.side,def.size*.5-433));
                     dummy.quaternion.setFromUnitVectors(H4_UP,frame.up);
                     dummy.rotateY(def.turn);
-                    dummy.scale.set(def.size*.92,def.size,def.size*.67);
+                    // Horizontal slimness protects the low FAST and
+                    // HUNTER flight lanes while keeping skyline height.
+                    dummy.scale.set(def.size*.65,def.size,def.size*.67);
                     dummy.updateMatrix();
                     batch.setMatrixAt(i,dummy.matrix);
                     batch.setColorAt(i,new THREE.Color(
