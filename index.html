@@ -5869,7 +5869,8 @@
         // NEXT11C7: visual-only industrial curation; no gameplay, new lights,
         // texture allocations, collider changes or navigation ring changes.
         const h4Gfx11c7Stats={
-            oldDecksCurated:0,decorativeBatchesCurated:0,groundCurated:0,
+            oldDecksCurated:0,decorativeBatchesCurated:0,
+            reactorRingsCurated:0,groundCurated:0,
             protectedMarkersUnchanged:true,newColliders:0,newLights:0,
             newTextures:0,lookEnabled:true,
             nativeGpuVerified:false,humanAestheticApproval:false
@@ -5924,6 +5925,32 @@
                 add(mesh,material,name);
                 h4Gfx11c7Stats.decorativeBatchesCurated++;
             }
+            // IN06 visual-only power toroids, NOT race guide hoops.
+            // Massive paired rings currently dominate 09 exit; recess them
+            // as compact industrial turbine collars. Collider AABBs unchanged.
+            const reactor=h4IndustrialGroups[5].getObjectByName(
+                'MAP4_GFX06C_IN06_REACTOR_SECURITY_POWER');
+            if(!reactor)throw new Error('NEXT11C7 IN06 plant missing');
+            for(let i=0;i<2;i++){
+                const mesh=reactor.getObjectByName(
+                    'IN06_CENTRAL_POWER_TOROID_'+i);
+                if(!mesh||!mesh.userData.visualOnly||
+                    !mesh.geometry.getAttribute('uv'))
+                    throw new Error('NEXT11C7 physical reactor ring blocked');
+                const mat=mesh.material.clone();
+                mat.name='MAP4_GFX11C7_RECESSED_REACTOR_'+i;
+                mat.map=h4Gfx11c5WeatherMap;
+                mat.bumpMap=h4Gfx11c5WeatherMap;
+                mat.bumpScale=.012;
+                mat.color.setHex(i?0x657f83:0x847468);
+                mat.roughness=.85;mat.metalness=.43;
+                mat.needsUpdate=true;
+                add(mesh,mat,'REACTOR_TOROID');
+                const entry=h4Gfx11c7Styled[h4Gfx11c7Styled.length-1];
+                entry.originalScale=mesh.scale.clone();
+                entry.styledScale=mesh.scale.clone().multiplyScalar(.76);
+                h4Gfx11c7Stats.reactorRingsCurated++;
+            }
             // Geometry and terrain height untouched, only its visual normal
             // ripple is muted. Physically traversable world remains identical.
             const ground=zone.children.find(x=>
@@ -5949,6 +5976,10 @@
             for(const item of h4Gfx11c7Styled){
                 const target=active?item.styled:item.original;
                 if(item.mesh.material!==target)item.mesh.material=target;
+                if(item.originalScale){
+                    const scale=active?item.styledScale:item.originalScale;
+                    if(!item.mesh.scale.equals(scale))item.mesh.scale.copy(scale);
+                }
             }
         }
 
