@@ -25,9 +25,9 @@ Altı harita; ilk yayıncı sunumuna üç oynanabilir harita; Harita1 yarış g�
 - [x] `index.html` gerçek oyun kodu eklendi ve JS sözdizimi kontrolü PASS.
 - [x] `tests/map4-gfx11c8-authored-facades-ground.cjs` gerçek 1600×900 Chromium/WebGL 07/08/09 A/B ve eski harita/fizik/profil şartlarıyla yazıldı.
 - [x] Hızlı görsel artifact workflow + tam regresyon workflow eklendi.
-- [x] Gerçek C8 A/B hızlı CI [#44069920712 PASS](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44069920712), 34 kabuk/20.760 ek üçgen/2 draw-call; yeni C7 izolasyonunu da kapsayan hızlı QA henüz ayrı açık.
+- [x] **C8 + C7 ortak hızlı QA PASS:** [#44070620158](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620158) (kod/CI `e31c9ca`). 34 kabuk/20.760 üçgen/2 draw-call, tüm bağımsız C7 A/B eski testleri başarılı.
 - [x] 07/08/09 aynı kamera gerçek render artifact'ı **gözle incelendi**; 7–8/10 onayı verilmedi.
-- [ ] **Güncel C8 HEAD** full browser-smoke, 11C3/4/5/6/7 regresyonları PASS.
+- [ ] **Güncel C8 HEAD** full browser-smoke, 11C3/4/5/6/7 regresyonları PASS — [full #44070620169](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620169) devam ediyor.
 - [ ] Yerel GPU 720/1080p FPS/p95/VRAM, 5dk gerçek uçuş ve oynanabilir 3/6 harita kabulü.
 - [ ] Kullanıcının 7–8/10 görsel kabulü ve merge onayı.
 
@@ -44,3 +44,8 @@ Altı harita; ilk yayıncı sunumuna üç oynanabilir harita; Harita1 yarış g�
 - **NEXT-11C9 adayı / YAPILMADI:** Fiziksel kabuklara dokunmadan 07/08'de büyük düz çatılar, 09'da tekrar eden havada asılı dekoratif (non-nav) halkalar, sanayi ön plan kompozisyonu; arazi doku frekansının ve mimari ölçek algısının dengelenmesi. Görsel karar gerçek ileri-yön kamera ve 5 dakika uçuşta ayrıca incelenmeli. Low ve Map1 korunmalı.
 
 **Yayıncı/merge:** 6 harita, ilk pitch 3 playable hedefi; bu C8 teknik görselleştirme hepsi hazır veya 7–8/10 onaylı anlamına gelmez. PR #53 stacked draft, PR #50–52 dahil kullanıcı açık onayı olmadan merge yok.
+
+### Hızlı regresyon onarımı sonucu
+
+- **C8 ve tarihsel C7 birlikte PASS:** [hızlı CI #44070620158](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620158), toplam 10 başarılı job adımı, hata yok. Eski C7'nin `b76c148` görsel-izolasyon değişikliği kabul edildi. Bu sonuç **tam GFX00–GFX11 suite PASS değildir**.
+- **Full suite:** [#44070620169](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44070620169) devam ediyor; sonraki kontrolde sonucuna göre kapı işaretlenecek. Kullanıcı görsel 7–8/10, native GPU, 5 dakikalık oynanış, 3/6 playable onayları açık.
