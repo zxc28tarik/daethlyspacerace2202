@@ -6612,6 +6612,7 @@
         ]);
         const h4Gfx11c10Stats={
             originalFamilies:0,originalDistricts:0,drawBatches:0,
+            serviceYards:0,serviceDraws:0,serviceTriangles:0,
             newColliders:0,newLights:0,newExternalAssets:0,
             closedRouteMarkersAltered:0,lookEnabled:true,
             artReviewApproved:false,nativeGpuVerified:false
@@ -6744,6 +6745,101 @@
             result.computeBoundingBox();result.computeBoundingSphere();
             return result;
         }
+
+        // NEXT11C10 service/access roads. Their role is grounding the
+        // factory site silhouettes and adding nonrepeated industrial context.
+        // Flat visual-only surface ribbons: NO walls or collision promises.
+        // Originate from our own route geometry; no source asset or texture.
+        function h4Gfx11c10ServiceYards(){
+            const vertices=[],colors=[];
+            const tint={
+                asphalt:new THREE.Color(0x485057),
+                edge:new THREE.Color(0x687279),
+                worn:new THREE.Color(0x67655f),
+                oil:new THREE.Color(0x343d43)
+            };
+            const point=(progress,side)=>h4WorldPosition(
+                progress,side,-433);
+            const face=(points,color,factor)=>{
+                const c=tint[color];
+                for(const p of points){
+                    vertices.push(p.x,p.y,p.z);
+                    colors.push(
+                        c.r*factor,c.g*factor,c.b*factor);
+                }
+            };
+            const quad=(from,to,left,right,color,factor)=>{
+                const a=point(from,left),b=point(from,right),
+                    c=point(to,left),d=point(to,right);
+                face([a,b,d],color,factor);
+                face([a,d,c],color,factor*.989);
+            };
+            const regions=[
+                [16800,21000], // 07 open recovery approach
+                [23400,28400], // 08 transfer and production yards
+                [30500,33700]  // 09 power distribution support
+            ];
+            for(let region=0;region<regions.length;region++){
+                const [from,to]=regions[region];
+                for(const side of [-1,1]){
+                    const sideBase=side*(region===2?1260:1370);
+                    const segments=Math.ceil((to-from)/190);
+                    for(let k=0;k<segments;k++){
+                        const at=from+(to-from)*k/segments,
+                            bt=from+(to-from)*(k+1)/segments;
+                        const bend=Math.sin(k*.33+region*2.3)*
+                            (region===1?48:31);
+                        const center=sideBase+side*bend;
+                        const stripe=1+Math.sin(k*1.71+region*2.4)*.055;
+                        // Dark asphalt. Four irregular narrow edge lines
+                        // give utility roads visible manufactured identity.
+                        quad(at,bt,center-115,center+115,
+                            'asphalt',stripe);
+                        quad(at,bt,center-117,center-107,
+                            'edge',.94);
+                        quad(at,bt,center+107,center+117,
+                            'edge',.94);
+                        if(k%3===1){
+                            const end=Math.min(bt,at+15);
+                            quad(at,end,center-105,center+105,
+                                'oil',.91);
+                        }
+                        if(k%5===0){
+                            // Irregular short loading apron, not endless
+                            // prefabricated tiled runway segments.
+                            const apron=side>0?1:-1;
+                            const y=center+apron*169;
+                            quad(at,Math.min(to,at+125),
+                                y-68,y+68,'worn',.86);
+                        }
+                    }
+                    h4Gfx11c10Stats.serviceYards++;
+                }
+            }
+            const geometry=new THREE.BufferGeometry();
+            geometry.name='MAP4_GFX11C10_ORIGINAL_SERVICE_ACCESS_BEDS';
+            geometry.setAttribute('position',
+                new THREE.Float32BufferAttribute(vertices,3));
+            geometry.setAttribute('color',
+                new THREE.Float32BufferAttribute(colors,3));
+            geometry.computeVertexNormals();
+            const material=new THREE.MeshStandardMaterial({
+                name:'MAP4_GFX11C10_DIRT_STAINED_SERVICE_ROADS',
+                vertexColors:true,metalness:0,roughness:.99,
+                side:THREE.DoubleSide,
+                polygonOffset:true,polygonOffsetFactor:-1
+            });
+            const surface=new THREE.Mesh(geometry,material);
+            surface.name='MAP4_GFX11C10_FUNCTIONAL_SERVICE_YARDS';
+            surface.userData.visualOnly=true;
+            surface.userData.noCollider=true;
+            surface.frustumCulled=false;
+            h4Gfx11c10Stats.serviceDraws=1;
+            h4Gfx11c10Stats.serviceTriangles=
+                geometry.getAttribute('position').count/3;
+            return surface;
+        }
+
         function h4Gfx11c10BuildDistricts(zone){
             if(h4Gfx11c10Root)return;
             if(!h4Gfx11c9Root||!h4Gfx11c5WeatherMap)
@@ -6798,6 +6894,7 @@
                 h4Gfx11c10Stats.originalFamilies++;
                 h4Gfx11c10Stats.drawBatches++;
             }
+            root.add(h4Gfx11c10ServiceYards());
             if(markers.length!==24||
                 physics[0]!==h4CanyonColliders.length||
                 physics[1]!==h4IndustrialColliders.length||
