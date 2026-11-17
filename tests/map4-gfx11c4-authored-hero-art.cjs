@@ -38,6 +38,12 @@ const assert=require('node:assert/strict');
       if(typeof h4Gfx11c9SetLook==='function')
         h4Gfx11c9SetLook(false);
     });
+    // NEXT11C10 is an independent later visual-only layer.
+    // Keep earlier A/B drawcall & pixel comparisons isolated.
+    await page.evaluate(()=>{
+      if(typeof h4Gfx11c10SetLook==='function')
+        h4Gfx11c10SetLook(false);
+    });
   const baseline=await page.evaluate(()=>{
    const hero=h4Gfx11c4HeroRoot;
    const stats={...h4Gfx11c4Stats};
