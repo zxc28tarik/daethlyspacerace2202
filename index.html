@@ -5648,6 +5648,201 @@
                 h4Gfx10ProfileName!=='LOW';
         }
 
+
+        // NEXT11C6: authored, nonphysical industrial skylines. All structures
+        // are baked once into three family-specific BufferGeometries; no rings,
+        // physics bodies, navigation edits, network textures or runtime churn.
+        const h4Gfx11c6Stats={
+            skylineFamilies:0,skylineBatches:0,skylineInstances:0,
+            newColliders:0,newLights:0,navigationUnchanged:true,
+            lookEnabled:true,hasHumanAestheticApproval:false
+        };
+        let h4Gfx11c6Root=null;
+        function h4Gfx11c6SkylineGeometry(family){
+            const box=new THREE.BoxGeometry(1,1,1);
+            const tower=new THREE.CylinderGeometry(.35,.49,1,12);
+            const pipe=new THREE.CylinderGeometry(.13,.13,1,8);
+            const exhaust=new THREE.CylinderGeometry(.14,.27,1,10);
+            const shapes=[box,tower,pipe,exhaust];
+            const points=[],normals=[],colors=[];
+            const mat=new THREE.Matrix4(),normalMat=new THREE.Matrix3();
+            const pos=new THREE.Vector3(),scale=new THREE.Vector3();
+            const rotation=new THREE.Euler(),q=new THREE.Quaternion();
+            const vertex=new THREE.Vector3(),normal=new THREE.Vector3();
+            const add=(g,x,y,z,w,h,d,tint,rx=0,ry=0,rz=0)=>{
+                pos.set(x,y,z);scale.set(w,h,d);
+                rotation.set(rx,ry,rz);q.setFromEuler(rotation);
+                mat.compose(pos,q,scale);normalMat.getNormalMatrix(mat);
+                const expanded=g.index?g.toNonIndexed():g;
+                const p=expanded.getAttribute('position'),
+                    n=expanded.getAttribute('normal');
+                const c=new THREE.Color(tint);
+                for(let i=0;i<p.count;i++){
+                    vertex.fromBufferAttribute(p,i).applyMatrix4(mat);
+                    normal.fromBufferAttribute(n,i).applyMatrix3(normalMat).normalize();
+                    points.push(vertex.x,vertex.y,vertex.z);
+                    normals.push(normal.x,normal.y,normal.z);
+                    colors.push(c.r,c.g,c.b);
+                }
+                if(expanded!==g)expanded.dispose();
+            };
+            const ink=0x25323b,iron=0x4a6370,slate=0x71838a,
+                rust=0x9e765d,edge=0xb7a593,steel=0x8ca6ab;
+            if(family===0){
+                // Petrochemical towers: one tall left stack, offset fractionator,
+                // open pipe walkway, horizontal boilers and exposed scaffold.
+                add(box,-.12,-.42,0,1.22,.12,.78,ink);
+                add(tower,-.37,.01,.0,.30,1.23,.30,iron);
+                add(tower,.02,-.17,-.10,.39,.87,.39,rust);
+                add(exhaust,-.37,.69,0,.18,.26,.18,ink);
+                add(tower,.02,.32,-.10,.18,.10,.18,edge);
+                add(box,.41,-.26,.14,.55,.27,.41,slate);
+                add(box,.30,.28,-.23,.72,.065,.18,iron);
+                add(box,.30,.34,-.25,.72,.025,.07,edge);
+                add(pipe,.58,.09,-.25,.052,.53,.052,rust);
+                for(let i=0;i<6;i++){
+                    const yy=-.35+i*.13;
+                    add(box,-.37,yy,.205,.32,.018,.025,i%2?iron:edge);
+                }
+                for(const x of [-.01,.27,.54]){
+                    add(pipe,x,-.06,-.27,.042,.63,.042,ink);
+                    add(box,x,-.08,-.27,.16,.02,.07,steel);
+                }
+                for(let i=0;i<3;i++){
+                    add(pipe,.34,-.22+i*.10,.36,.025,.70,.025,rust,0,0,Math.PI/2);
+                }
+                add(box,.59,-.38,-.17,.18,.16,.31,ink);
+                add(pipe,.67,.02,-.17,.10,.65,.10,iron);
+            }else if(family===1){
+                // Assembly skyline: deliberately open gantry span, off-centre
+                // crane head and a dense service block, not another silo.
+                add(box,0,-.46,0,1.30,.10,.79,ink);
+                add(box,-.47,-.01,-.12,.16,.98,.20,iron);
+                add(box,.39,-.12,-.09,.19,.76,.22,slate);
+                add(box,-.05,.42,-.14,1.26,.11,.29,iron);
+                add(box,.09,.50,-.14,1.03,.035,.13,edge);
+                add(box,.19,.21,-.15,.08,.45,.08,rust);
+                add(box,.20,.01,-.13,.26,.09,.25,ink);
+                for(const side of [-1,1]){
+                    add(box,side*.46,-.22,.17,.05,.61,.07,steel,0,0,side*.12);
+                    add(box,side*.44,-.09,-.19,.05,.58,.07,iron,0,0,-side*.17);
+                    add(box,side*.20,-.24,.15,.045,.55,.06,slate,0,0,side*.46);
+                }
+                add(box,-.55,-.21,.21,.32,.37,.36,slate);
+                add(exhaust,-.55,.09,.22,.17,.27,.17,ink);
+                add(box,.57,-.31,.24,.22,.27,.29,iron);
+                for(let i=0;i<4;i++){
+                    const x=-.34+i*.22;
+                    add(box,x,.34,-.30,.028,.13,.04,rust);
+                }
+                add(pipe,.05,.57,-.13,.031,.37,.031,edge,0,0,Math.PI/2);
+            }else{
+                // Power skyline: stepped transformer pylons, suspended
+                // service bridge and tall asymmetric cooling/exhaust profile.
+                // Intentional clear negative space; no neon torus decoration.
+                add(box,0,-.46,0,1.24,.10,.82,ink);
+                add(box,-.37,-.05,-.04,.22,.93,.28,iron);
+                add(tower,.34,-.12,-.07,.34,.84,.34,slate);
+                add(exhaust,.34,.43,-.07,.24,.17,.24,ink);
+                add(box,-.37,.49,-.04,.38,.12,.38,rust);
+                add(box,-.34,.61,-.04,.17,.24,.17,iron);
+                add(box,-.05,.13,-.27,.77,.055,.14,steel);
+                add(box,.08,.23,-.29,.48,.035,.09,edge);
+                for(const side of [-1,1]){
+                    add(box,side*.57,-.20,-.25,.085,.58,.11,iron,0,0,side*.20);
+                    add(box,side*.57,.10,-.25,.18,.045,.22,edge);
+                }
+                for(let i=0;i<5;i++){
+                    add(box,-.06+i*.105,-.15,.36,.046,.42+i*.045,.085,
+                        i%2?rust:slate,0,0,(i-2)*.065);
+                }
+                add(box,.49,-.39,.30,.29,.18,.28,ink);
+                add(pipe,.56,-.12,.31,.092,.40,.092,rust);
+                add(box,.56,.11,.31,.20,.04,.20,steel);
+            }
+            shapes.forEach(g=>g.dispose());
+            const geometry=new THREE.BufferGeometry();
+            geometry.name=['MAP4_GFX11C6_REFINERY_SKYLINE',
+                'MAP4_GFX11C6_ASSEMBLY_GANTRY',
+                'MAP4_GFX11C6_POWER_TRANSFORMER'][family];
+            geometry.setAttribute('position',
+                new THREE.Float32BufferAttribute(points,3));
+            geometry.setAttribute('normal',
+                new THREE.Float32BufferAttribute(normals,3));
+            geometry.setAttribute('color',
+                new THREE.Float32BufferAttribute(colors,3));
+            geometry.computeBoundingBox();geometry.computeBoundingSphere();
+            return geometry;
+        }
+        function h4Gfx11c6BuildSkyline(zone){
+            if(h4Gfx11c6Root)return;
+            const root=new THREE.Group();
+            root.name='MAP4_GFX11C6_SILHOUETTE_DEPTH';
+            root.userData.visualOnly=true;
+            root.userData.noCollider=true;
+            const dummy=new THREE.Object3D();
+            for(let family=0;family<3;family++){
+                const geometry=h4Gfx11c6SkylineGeometry(family);
+                const material=new THREE.MeshStandardMaterial({
+                    name:'MAP4_GFX11C6_MUTED_STRUCTURE_'+family,
+                    vertexColors:true,color:0xd0c4b6,
+                    metalness:.48,roughness:.80,
+                    side:THREE.DoubleSide
+                });
+                const batch=new THREE.InstancedMesh(geometry,material,4);
+                batch.name=['MAP4_GFX11C6_REFINERY_FRAMING',
+                    'MAP4_GFX11C6_ASSEMBLY_FRAMING',
+                    'MAP4_GFX11C6_POWER_FRAMING'][family];
+                batch.frustumCulled=false;
+                batch.userData.visualOnly=true;
+                batch.userData.noCollider=true;
+                batch.userData.h4Gfx11c6Skyline=true;
+                for(let i=0;i<4;i++){
+                    const site=family*2+Math.floor(i/2);
+                    const partner=i%2===1;
+                    const flank=site%2===0?-1:1;
+                    // Offset in both depth and width to frame, not obstruct,
+                    // the 3 flight lanes. Never passed to collision arrays.
+                    const progress=H4_GFX11C_SITES[site]+
+                        (partner?3220:2200);
+                    const side=flank*(partner?-1550:1420);
+                    const frame=getRaceFrameAtDistance(progress);
+                    dummy.position.copy(h4WorldPosition(
+                        progress,side,partner?100:120));
+                    dummy.quaternion.setFromUnitVectors(H4_UP,frame.up);
+                    dummy.rotateY((partner?-.11:.14)*(site%2?-1:1));
+                    const size=partner?.76:1;
+                    dummy.scale.set(1090*size,(1150+family*100)*size,
+                        850*size);
+                    dummy.updateMatrix();
+                    batch.setMatrixAt(i,dummy.matrix);
+                    const tint=new THREE.Color(
+                        [0xc6a48b,0xa3b9bb,0xafa9c6][family]);
+                    tint.multiplyScalar(partner?.81:1);
+                    batch.setColorAt(i,tint);
+                    h4Gfx11c6Stats.skylineInstances++;
+                }
+                batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                batch.instanceMatrix.needsUpdate=true;
+                if(batch.instanceColor)batch.instanceColor.needsUpdate=true;
+                root.add(batch);
+                h4Gfx11c6Stats.skylineFamilies++;
+                h4Gfx11c6Stats.skylineBatches++;
+            }
+            zone.add(root);
+            h4Gfx11c6Root=root;
+        }
+        function h4Gfx11c6SetLook(enabled){
+            h4Gfx11c6Stats.lookEnabled=!!enabled;
+            h4Gfx11c6UpdateQuality();
+        }
+        function h4Gfx11c6UpdateQuality(){
+            if(!h4Gfx11c6Root)return;
+            h4Gfx11c6Root.visible=h4Gfx11c6Stats.lookEnabled &&
+                state.activeMap===MAP_MODES.MAP4 &&
+                state.map4Phase===3 && h4Gfx10ProfileName!=='LOW';
+        }
+
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
             if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
             const check=(ship,previous,isPlayer)=>{
@@ -6959,6 +7154,7 @@
                     h4Gfx11c3BuildComposition(zone);
                     h4Gfx11c4BuildHeroArchitecture(zone);
                     h4Gfx11c5BuildLook(zone);
+                    h4Gfx11c6BuildSkyline(zone);
                     // GFX04: visually gate next-stage factories, not the
                     // continuous terrain. Otherwise the arena revealed a
                     // literal hole in the planet behind the three warfronts.
@@ -7065,6 +7261,7 @@
             h4Gfx11cUpdateIndustryDetail();
             h4Gfx11c4UpdateQuality();
             h4Gfx11c5UpdateQuality();
+            h4Gfx11c6UpdateQuality();
             h4Gfx11bUpdateCameraMask();
             const routeName=document.getElementById('planetary-route-name');
             if(routeName){
