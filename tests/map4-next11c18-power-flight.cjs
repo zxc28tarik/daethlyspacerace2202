@@ -179,7 +179,7 @@ const {chromium}=require('playwright');
   const result={status:'PASS',initial:{...initial,originals:undefined},
     engine,weapons,shots,shield,drift,hud,reset,
     map1:{...map1,physics:undefined},nativeGpuVerified:false,
-    300sHumanFlight:false};
+    human300sFlight:false};
   fs.writeFileSync(path.join(__dirname,
     'map4-next11c18-power-flight-qa.json'),JSON.stringify(result,null,2));
   console.log('NEXT11C18 POWER AND FLIGHT PASS',JSON.stringify({
