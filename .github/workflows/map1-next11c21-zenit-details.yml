@@ -1,0 +1,31 @@
+name: Map1 NEXT11C21 SB07 Detail Quality WebGL
+on:
+  push:
+    branches: [codex/map1-next11c21-zenit-surface-engine-polish]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  zenit-details:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned 3D and browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Validate detailed SB-07 real game and unchanged Map4
+        run: node tests/map1-next11c21-zenit-details.cjs
+      - name: Upload normal/boost/3D actual screenshots and telemetry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c21-zenit-detail-webgl-review
+          path: |
+            tests/map1-next11c21-zenit-*.png
+            tests/map1-next11c21-zenit-qa.json
+          if-no-files-found: warn
