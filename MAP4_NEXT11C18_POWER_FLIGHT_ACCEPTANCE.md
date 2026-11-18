@@ -46,3 +46,8 @@ Kullanıcı Star Wars: Squadrons araştırmasının **2. Uçuş Sistemi** ve **3
 - 236 bina/sanayi collider, 6 kanyon collider, 24 navigasyon objesi, 5 rakip/8 avcı, 60s/300s/850m ve %18/%12 bonuslar testte korundu.
 - Önceki C18 test koşuları, **üretim oyun kodu değil test dosyası** kaynaklı iki hatadan (JavaScript alan adı sözdizimi ve yanlış test snapshot değişkeni) dolayı FAIL idi. Test kodu düzeltildi; [son hızlı #44217012072](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217012072) tüm testleri geçti. İlk başarısız koşuları yok sayma.
 - [Güncel tam Map1/Map4 #44217011963](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217011963) kontrol anında **in_progress**; PASS diye yazma. İnsan dengelemesi, native GPU ve 300s pilot ayrı açık.
+
+### C18 final HUD fix, tekrar PASS
+
+- `05fd631` üretim kodu lazer HUD'unun önceki **HAZIR** okunabilirlik kuralını korurken yeni **-5 silah enerjisi** maliyetini gösterir.
+- [Son hızlı C18 Chromium/WebGL #44217575698](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575698) **completed/success, 9/9 PASS**. Bu run son HUD kodunu ve tüm güç/ateş/drift/onarım/Map1 izolasyon testlerini doğruladı. [Son HEAD tam Map1/Map4 #44217575808](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575808) sonucu ayrıca kontrol edilecek.
