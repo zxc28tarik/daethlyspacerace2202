@@ -619,3 +619,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 
 - [C20 gerçek Chromium/WebGL hızlı run #44303505125](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44303505125) **9/9 PASS**. Kullanıcının **onayladığı “SB-07 Zenit”** kaynak görselini Harita1'e oyun içinde uyarladık: **143 gerçek 3D parça, 6.584 üçgen, 7 batch**, iki büyük dikey kanat ucu ve iki katmanlı plazma motoru; **R-01 artık hiç oluşturulmuyor**. Kamera mesafesi normal **18,9568→boost 13,2517**, FOV **72,694→82,916**. [3 gerçek oyun görüntüsü + JSON](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44303505125/artifacts/14427041853). Harita4 B-04 **249 parça** aynı, collider **6/36/200**, 5 rakip/8 avcı, 60/300/850 ve +18/+12 aynı.
 - Sinematik referans panosuyla ilk prosedürel 3D uyarlama **birebir materyal/ince işçilik eşdeğerliği değildir**; kullanıcı gerçek render kalite onayı, 300s insan sürüşü ve native GPU açık. [C20 tam Map1/4 regresyon #44303505052](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44303505052) sonucu ayrıca kabul edilir. PR #65 **DRAFT/NO MERGE**.
+
+
+## 27) 18 Kasım 2026 — NEXT11C20B: onaylı SB-07 Zenit görsel işçilik geliştirmesi
+
+- **Kullanıcı isteği:** "GEMİ GÖRSELİ İYİLEŞTİMELERİNE DEVQM". Onaylanan SB-07 Zenit formu ve Harita 1'e entegre edilmiş gerçek 3D gemi **korunur**; yeni alternatif gemi, eski kıvrımlı kanatlar veya R-01 geri getirilmez.
+- **GELİŞTİRME-PR (yeni stacked dal):** `codex/map1-sb07-zenit-visual-polish`, C20/PR #65 üzerine. **UYGULANDI:** kanatlara 8 ince custom extruded panel, uzatılmış küre yerine 7-istasyonlu fasetli mavi cam kokpit ve metal çerçevesi, 2 geriye açılan içi açık motor nozulu, 2 yeni plazma halka, 12 dış soğutma kaburgası, 16 kapak/taç, tek 128x128 kendi ürettiğimiz paylaşılan roughness/bump PBR mikro yüzeyi. Önceki beyaz-gümüş/kırmızı silüet korunur.
+- **PERFORMANS / FİZİK SINIRI:** SB-07 hâlâ **7 batch** ve B-04 **6 batch**, yeni gameplay collider **0**, yeni silah **0**; kamera normal Cinematic #1/boost Tight #2, C18, Map1 yarış ve B-04 gameplay/AI/60/300/850/6+36+200 korunur. Gerçek FPS/VRAM henüz ölçülmedi.
+- **DOĞRULAMA KAPILARI:** Yeni WebGL geometri ve metal/engine testleri + hızlı Chromium workflow eklendi; tam Map1+Map4 CI tetiklemesi eklendi. **CI PASS, ekran görüntülerinin insan incelemesi, estetik onay, native GPU ve pilot testi henüz iddia edilmez.**
+- **Belge:** [NEXT11C20B teknik ve estetik kabul](MAP1_NEXT11C20B_SB07_ZENIT_POLISH_ACCEPTANCE.md). **DRAFT / NO MERGE**, önceki stacked PR'lar otomatik birleştirilmez.
+- **NEXT11C20C (öneri):** yeni 3 gerçek oynanış screenshotunun estetik incelemesi; gerekirse sadece malzeme/parlama ve kadraj rötuşu, kullanıcı kabulü beklenir.
+
+**Günlük:** `2026-11-18 | NEXT11C20B | C20 ilk model -> geometrik/PBR detay dalı | kod+webgl test+workflow | CI BEKLİYOR | kullanıcı onayı AÇIK | native GPU AÇIK | NO MERGE | NEXT11C20C`.
