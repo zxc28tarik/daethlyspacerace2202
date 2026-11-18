@@ -1,0 +1,29 @@
+name: Map4 NEXT11C18 Power Flight Integration
+on:
+  push:
+    branches: [codex/map4-next11c18-power-flight-controls]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  power-flight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Verify 4 power modes, physical gameplay isolation and HUD in WebGL
+        run: node tests/map4-next11c18-power-flight.cjs
+      - name: Upload scripted QA telemetry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c18-power-flight-qa
+          path: tests/map4-next11c18-power-flight-qa.json
+          if-no-files-found: warn
