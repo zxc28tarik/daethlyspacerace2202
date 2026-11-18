@@ -30,3 +30,13 @@
 - [ ] PR Draft olarak kalmalı; **açık kullanıcı izni olmadan merge yok**.
 
 Sadece model sayısı ve test PASS, estetik 7–8/10 veya yeterli performans garantisi **değildir**.
+
+## NEXT11C19B — Kullanıcı referans tarzını **oyunun modellerine uyarlama**
+
+- Yeni doğrudan talep: **"TARZ OLARAK OYUNA ADAPTE ET"**. Son gösterilen iki referans birer birebir model, görsel dosyası veya telifli asset olarak alınmıyor; mevcut R-01 ve B-04 özgün oyuncu gemilerinin **oyun-içi render edilen** malzeme/kanat/motor/kaplama tasarımları buna göre genişletiliyor.
+- **R-01 Vektör — yarışçı:** açık beyazımsı çelik üst gövde, daha belirgin turkuaz/petrol mavisi gövde altı, cam kabin, keskin uzun burun, 3D kanat üst plakaları, çift iyon iticide yeni iç/dış halka, art arda gerçek aerodinamik havalandırmalar, küçük kabin işaretleri, gövde üzerinde tekrar eden ince üretim detayları. Tek bir modelde ayrıntılar 6 GPU materyal grubuna bake edilir.
+- **B-04 Bastion — zırhlı savaşçı:** daha koyu kömür/çelik ana renk, sıcak turuncu/amber trim + motorlar, iç ve dış kanatları ayıran yükseltilmiş zırh plakaları, çift namlunun uçlarında halka/ısı detayları, iki büyük motorun dış metal halkaları, radyatör kanalları, kanat bolt/servis teçhizatı, dikey zırhlı gövde ve ayırt edici üst tabaka. Silah görselleri mekanik, gerçek hasar/atış/aim değişmiyor.
+- Teknik: `THREE.ExtrudeGeometry` ve özgün tapered fuselage devam eder; yeni `BoxGeometry` (segmentli), `IcosahedronGeometry`, `TorusGeometry`, `SphereGeometry` ek parçaları yeni dış kaynak olmadan aynı mevcut 6 GPU batch'e dahil edilir. Yeni collider / fizik / bonus / AI / silah / enerji değişikliği **sıfır**. Paylaşılan animasyon taşıyıcıları korunur.
+- İki haritanın normal #1 kamera, boostta #2'ye yaklaşması, tuşla C kamera değiştirme kararı **aynen**.
+- **Kabul ölçümü:** gerçek Chromium ekranından R-01/B-04 net ayrışması, normal ve boost açıları, görünürlük, geometri/VRAM-draw bütçesi, mevcut 6/36/200 fizik ve 5/8 görev korunması, eski testler. Kullanıcı estetik onayı ve native GPU ölçümü hâlâ açık; test PASS öznel görsel kaliteyi garanti etmez.
+- **Merge/onay:** PR #64 Draft kalır; kullanıcı açıkça izin vermeden hiçbir stacked PR birleştirilmez.
