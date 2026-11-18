@@ -572,3 +572,8 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 
 - [C18 hızlı Chromium/WebGL #44217012072](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217012072) **SUCCESS**. Gerçek klavye 1–4 güç modları, ayrı motor/silah/kalkan kapasitör, enerji harcayan avcı lazeri, kalkan gecikme/onarımı, son boost sonrası X drift, Map1 motor/lazer izolasyonu ve 236/6 collider koruması test edildi. İlk iki test FAIL yalnız test dosyası sözdizimi/snapshot adlandırma hataları nedeniyle; düzeltildi.
 - **AÇIK:** [tam C18 Map1/Map4 #44217011963](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217011963) sonuç bekleniyor; gerçek insan 300s uçuş/AI dengesi, native GPU, kullanıcı güç oranı ve manevra onayı, kullanıcı merge izni. Gemi sınıfları ertelendi.
+
+### C18 son hızlı test ve kalıcı oyun kararının korunması
+
+- Son C18 HUD iyileştirmesi `05fd631`: lazerin **HAZIR** göstergesi ve `-5 silah gücü` maliyeti birlikte okunur. [Son hızlı Chromium/WebGL #44217575698](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575698) **9/9 PASS**. Son [tam Map1/Map4 #44217575808](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575808) sonucu açık; önceki hızlı sonucu tam PASS sanma.
+- PR **#63 DRAFT / STACKED / NO MERGE**, kullanıcı güç/oynanış onayı gerek; yeni gemiler ve gemi sınıfları hâlâ ertelendi.
