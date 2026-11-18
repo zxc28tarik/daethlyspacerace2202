@@ -531,3 +531,21 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - C16 full Map1/Map4 güncel CI sonucu hâlâ doğrulanacak; PR #61 Draft/no merge; fabrika/AI/bonus değişikliği YOK. Kalan işler dokümantasyon ve simülasyon/sürekli oynanış QA; önemli oyun tasarım kararları kullanıcı açık onayı bekliyor.
 
 **Günlük:** `2026-11-18 | C16 ACTUAL UPDATEGAME CHROMIUM PASS | FIXED_FAST 3 HITS | EARLY_HUNTER 0 | LATE_HUNTER 0 | 236/24/34 PROTECTED | FULL CI PENDING | NO GAMEPLAY EDITS OR MERGE`.
+
+
+## 23) 18 Kasım — NEXT-11C17 Harita 4 yüksek yoğunluk / yüksek detay sanat turu
+
+- **Kullanıcı yeni önceliği:** Harita 4'e daha çok eşya, bina, yüksek detaylı ve daha kaliteli büyük yapı. **Zor ve tehlikeli oyun** olarak kalacak; çarpışma normal, kaza azaltma otomatik hedef değil.
+- **C16 tam CI artık doğrulandı:** [C16 hızlı #44191236356](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44191236356) PASS ve [tam Map1/Map4 #44191236376](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44191236376) **40/40 PASS**. Kod vs estetik karar ayrıdır.
+- **C17 yeni dal:** `codex/map4-gfx11c17-dense-industrial-machinery` C16 Draft üzerine stacked. Gerçek `index.html` içine **6 sanayi tesisi çevresinde 24 büyük özgün 3D makine/bina grubu +72 küçük servis/kargo/panel/basınç ünitesi =96 yeni yerleşim** eklendi. Dört büyük ve üç küçük farklı çok-parçalı mimari aile/7 `InstancedMesh` draw batch. Shared aşınmış metal PBR atlası; 0 yeni ışık/doku/collider/dış model. LOW'da yüksek detay kapalı, büyük silüetler korunuyor.
+- Uçuş koridorlarından dışta yan fabrika servis sahalarında. **236 mevcut collider, 24 W05 marker, 34 fiziksel W02 mesh, 5 rakip/8 avcı, 60/300/850 ve +18/+12 bonus değişmez.** Riskli yollar, fabrikalar ve gerçek kaza ihtimali korunur.
+- **YAPILDI:** C17 üretim kodu, 4 kamera eski/yeni WebGL screenshot QA testi, hızlı workflow + full regresyon bağı. **AÇIK:** yeni test run PASS, gerçek görüntülerin kullanıcı estetiği, son çevre/üst faz görsel kalitesi, native GPU ve 5 dakika, en az 3 playable publisher. **DRAFT/NO MERGE**.
+- Kabul: [C17 detay belgesi](MAP4_GFX11C17_DENSE_INDUSTRIAL_MACHINERY_ACCEPTANCE.md). Sonraki yüksek yoğunluk turu, ilk kamera/üçgen/performance sonuçlarına göre hazırlanır; estetik puan test sonucundan türetilmez.
+
+**Günlük:** `2026-11-18 | NEXT11C17 | 96 NEW VISUAL-ONLY INDUSTRIAL UNITS / 7 BATCH CODED | REAL WEBGL CI PENDING | COLLISION/AI/BONUS UNCHANGED | DRAFT/NO MERGE`.
+
+
+### NEXT-11C17 — ilk gerçek yüksek yoğunluk sanat QA kaydı
+
+- [C17 WebGL #44206367310](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206367310) **9/9 PASS** ve [hızlı tekrar #44206497301](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497301) **success**. 24 büyük + 72 küçük **96 yeni original industrial unit**, yalnız 7 drawcall, ek **49.320 tris**, 4 gerçek 1600×900 önce/sonra görüntü çifti: hepsi kare farkı üretti. HIGH/BALANCED tüm detay; LOW yalnız büyük model. **Fizik 6/36/200, 24 rota işareti, 34 W02, 5/8, 60/300/850, +18/+12 aynı**.
+- **KALAN:** [C17 full #44206497307](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497307) CI hâlen in_progress; kullanıcı 7–8/10 onayı, gerçek native GPU 720/1080 FPS/VRAM, gerçek kesintisiz 300s oynanış ve yayıncı 3/6 playable, PR Draft/merge izni. Bu görsel yoğunluk turu **kaza zorluğunu azaltmadı**.
