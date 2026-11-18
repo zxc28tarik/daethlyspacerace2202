@@ -592,3 +592,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Kullanıcı isteği:** "TARZ OLARAK OYUNA ADAPTE ET". İki temsili referansın tasarım dili, Harita1 R-01 açık beyaz/turkuaz ince yarış gemisine ve Harita4 B-04 koyu çelik/turuncu zırhlı savaş gemisine uygulandı. Yalnız renk düzeni değil; kamera yakınında görülecek ilave 3D panel, kanat, motor halkası, radyatör, bolt ve namlu yüzeyleri de üretim `index.html` geometrilerine bake edildi. **Dış model/kopya yok; gemi kimliği orijinal.**
 - Normal #1 takip kamera/boost #2 yakın takip değişmiyor. Yeni görsel detaylar önceki 6 materyal batch/gemi sisteminde kalır; tüm fizik/AI/bonus, Harita 1 yarışı, C18 güç yönetimi ve Map4 60/300/850 korunur.
 - **AÇIK:** Son C19B gerçek WebGL görünüm ve eski regresyon PASS, kullanıcı görsel onayı, native GPU. PR #64 Draft; merge için açık onay şart.
+
+
+### C19B — İlk oyun içi gerçek görsel ve kamera QA PASS
+
+- [Güncel C19B hızlı WebGL run #44226228254](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228254) **9/9 PASS**. Beyaz/turkuaz R-01 (**181** detaylı alt parça) + koyu çelik/turuncu B-04 (**249** detaylı alt parça), 12 draw batch toplam. Başlangıçta normal 3. şahıs takip, boostta yumuşak zoom: Map1 kamera mesafesi **18,957→13,267**, Map4 **19,3707→13,3943**, iki model de gerçek 3D sahnede görünür. 4 gerçek normal/boost PNG ve JSON QA [artifact #14393625147](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228254/artifacts/14393625147) üzerinden incelenebilir.
+- C19 ilk test FAIL'leri sonunda **fabrika/collider hatası değil**, test yükleme sırası ve kamera dünya uzayı gecikmesi olarak düzeltildi. Fizik/AI/enerji/bonuslar dokunulmadı: **6/36/200 collider** korundu. [Son tam Map1/4 CI #44226228256](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228256) sonucu ayrıca kabul edilecek. Native GPU, insan 300s ve kullanıcı 7–8/10 görsel onayı hâlâ açık. PR #64 DRAFT/NO MERGE.
