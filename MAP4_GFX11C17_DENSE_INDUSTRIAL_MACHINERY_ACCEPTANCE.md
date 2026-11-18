@@ -33,3 +33,12 @@
 Test artefaktı: `map4-next11c17-96-detailed-objects-review`, gerçek 4 eski/yeni kare çifti ve üçgen/drawcall/koruma raporu.
 
 **Üretilen nesne sayısı, kalite puanı değildir.** İnsanın görmesi, performans ölçümü ve devamlı oynanış hâlâ gereklidir.
+
+
+## İlk gerçek Chromium/WebGL kabul sonucu — 18 Kasım 2026
+
+- [C17 hızlı WebGL #44206367310](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206367310) **completed/success, 9/9 job step PASS**. Aynı C17 oyun/test koduyla [sonraki hızlı #44206497301](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497301) **completed/success**. Son iki commit yalnız dokümandır, `index.html` ve test kodu değişmemiştir.
+- Tam **24 büyük + 72 servis = 96 yerleşim; 7 drawcall**, gerçek Chromium/Three.js ile üçgen hesabı **49.320**. High ve Balanced'da büyük/küçük tüm üniteler görünür, Low'da yalnız büyük üniteler.
+- Aynı oyuncu/kamera sabitlenerek dört görünüm **eski/yeni JPEG değil gerçek PNG** olarak arşivlendi: `07-approach`, `07-machinery`, `08-plant`, `09-exit`; dört kadrajda da **piksel değişimi true**. Bu yalnız etki kanıtıdır; güzel görünme veya 7–8/10 puan otomatik kanıtlanmaz.
+- **236/236 fiziksel collider (6 kanyon + 36 sanayi + 200 yapı), 24 W05 rota işareti, 34 korunmuş W02 fiziksel mesh**, 5 rakip/8 avcı, 60/300/850, %18/%12 güzergah avantajı ve bütün eski hasar/AI fonksiyonları korunur. C17 yalnız yeni sanat ünitelerinin yanal sahasını kullanır.
+- **Açık:** [Tam Map1/Map4 test #44206497307](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497307) son kontrol anında **in_progress**; başarısını ayrıca kontrol etmeden PASS ilan etme. Gerçek 300s kesintisiz pilot, native 720/1080 GPU performansı, kullanıcının özgün görsel kalite onayı ve mevcut tüm Draft PR merge onayı açık.
