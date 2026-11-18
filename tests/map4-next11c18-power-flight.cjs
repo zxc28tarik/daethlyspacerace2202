@@ -173,7 +173,7 @@ const {chromium}=require('playwright');
   assert.equal(map1.statePower,'BALANCED');
   assert.equal(map1.laserAllowed,false);
   assert(map1.delta>0,'Map1 boost must still cost original energy');
-  assert.deepEqual(map1.physics,initial.original,
+  assert.deepEqual(map1.physics,initial.originals,
     'no geometry edits during flight/energy tests');
   assert.deepEqual(errors,[],errors.join('\n'));
   const result={status:'PASS',initial:{...initial,originals:undefined},
