@@ -40,3 +40,13 @@ Sadece model sayısı ve test PASS, estetik 7–8/10 veya yeterli performans gar
 - İki haritanın normal #1 kamera, boostta #2'ye yaklaşması, tuşla C kamera değiştirme kararı **aynen**.
 - **Kabul ölçümü:** gerçek Chromium ekranından R-01/B-04 net ayrışması, normal ve boost açıları, görünürlük, geometri/VRAM-draw bütçesi, mevcut 6/36/200 fizik ve 5/8 görev korunması, eski testler. Kullanıcı estetik onayı ve native GPU ölçümü hâlâ açık; test PASS öznel görsel kaliteyi garanti etmez.
 - **Merge/onay:** PR #64 Draft kalır; kullanıcı açıkça izin vermeden hiçbir stacked PR birleştirilmez.
+
+
+## İlk C19B gerçek WebGL kabulü — başarılı (18 Kasım 2026)
+
+- Güncel üretim kodunda [NEXT11C19 hızlı #44226228254](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228254) **9/9 PASS**: **R-01 181 alt parça, B-04 249 alt parça** tek seferlik 3D üretildi, iki gemi toplam **12 materyal/draw batch**. Modellerin renk ve ayrıntıları *oyun içi 3D geometriye* entegredir; dış GLB/sahneden aktarım yok.
+- Gerçek oyun kamerasında **Harita 1 normal 18,957 → boost 13,267** ve **Harita 4 normal 19,3707 → boost 13,3943**. Kamera doğrudan oyuncu dünya konumunun yerel ekseninde izliyor, boostta yakınlaşıyor. Mevcut kamera occlusion / duvar koruması korunur.
+- Gerçek **1600×900 Chromium/Three.js** screenshotları: `map1-normal`, `map1-boost`, `map4-normal`, `map4-boost`. [QA görsel paketi ve JSON raporu](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228254/artifacts/14393625147). Kullanıcı estetik/nihai kalite onayı yerine geçmez.
+- **Mevcut fizik 6 kanyon + 36 sanayi + 200 yapı collider**; 24 navigasyon işareti, 34 fiziksel W02 mesh, 5 rakip/8 avcı, 60s/300s/850m, +18/+12 ve kamera C geçişi doğrulandı.
+- Önceki test run'ları: ilk sürümde harita yüklenmeden collider assertion, ardından eksik ayrıntı üçgen eşiği, sonra yüksek hızda dünya uzayı kamera gecikmesi FAIL çıktı. Bunlar gerçek model geometri geliştirmesi ve yerel kamera takip hesabı düzeltmesiyle giderildi. **Sadece #44226228254 başarılı son sürüm kabulüdür.**
+- **Güncel tam Map1/Map4 regresyon** [#44226228256](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228256) ayrıca doğrulanacak; bu belge hızlı PASS'i tam PASS diye göstermiyor.
