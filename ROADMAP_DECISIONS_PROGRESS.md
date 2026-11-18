@@ -543,3 +543,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Kabul: [C17 detay belgesi](MAP4_GFX11C17_DENSE_INDUSTRIAL_MACHINERY_ACCEPTANCE.md). Sonraki yüksek yoğunluk turu, ilk kamera/üçgen/performance sonuçlarına göre hazırlanır; estetik puan test sonucundan türetilmez.
 
 **Günlük:** `2026-11-18 | NEXT11C17 | 96 NEW VISUAL-ONLY INDUSTRIAL UNITS / 7 BATCH CODED | REAL WEBGL CI PENDING | COLLISION/AI/BONUS UNCHANGED | DRAFT/NO MERGE`.
+
+
+### NEXT-11C17 — ilk gerçek yüksek yoğunluk sanat QA kaydı
+
+- [C17 WebGL #44206367310](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206367310) **9/9 PASS** ve [hızlı tekrar #44206497301](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497301) **success**. 24 büyük + 72 küçük **96 yeni original industrial unit**, yalnız 7 drawcall, ek **49.320 tris**, 4 gerçek 1600×900 önce/sonra görüntü çifti: hepsi kare farkı üretti. HIGH/BALANCED tüm detay; LOW yalnız büyük model. **Fizik 6/36/200, 24 rota işareti, 34 W02, 5/8, 60/300/850, +18/+12 aynı**.
+- **KALAN:** [C17 full #44206497307](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497307) CI hâlen in_progress; kullanıcı 7–8/10 onayı, gerçek native GPU 720/1080 FPS/VRAM, gerçek kesintisiz 300s oynanış ve yayıncı 3/6 playable, PR Draft/merge izni. Bu görsel yoğunluk turu **kaza zorluğunu azaltmadı**.
