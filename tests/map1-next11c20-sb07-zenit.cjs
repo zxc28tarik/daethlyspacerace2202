@@ -205,10 +205,37 @@ const {chromium}=require('playwright');
       'map1-next11c20-'+filename+'.png')});
     return stateData;
   };
+  // Identical cockpit/rear-engine camera composition for genuinely
+  // comparable normal/boost materials. Not a substitute for chase frames.
+  const fixedEngineFrame=async tag=>{
+    const evidence=await page.evaluate(()=>{
+      const ship=h4Ship19Race;
+      const pos=ship.getWorldPosition(new THREE.Vector3());
+      const frame=playerRig.quaternion.clone();
+      camera.position.copy(pos).add(
+        new THREE.Vector3(9,8,16).applyQuaternion(frame));
+      camera.lookAt(pos);
+      camera.fov=55;camera.updateProjectionMatrix();
+      renderer.render(scene,camera);
+      const projected=pos.clone().project(camera);
+      return {
+        ship:ship.userData.authoredShipId,
+        glow:+ship.userData.thrustGlow.toFixed(3),
+        centerVisible:Math.abs(projected.x)<1&&
+          Math.abs(projected.y)<1&&projected.z>-1&&projected.z<1
+      };
+    });
+    assert(evidence.centerVisible,tag+' fixed view must show SB-07');
+    await page.screenshot({path:path.join(__dirname,
+      'map1-next11c20-zenit-fixed-engine-'+tag+'.png')});
+    return evidence;
+  };
   await fly(false);
   const normal=await read('zenit-chase-normal');
+  const fixedNormal=await fixedEngineFrame('normal');
   await fly(true);
   const boost=await read('zenit-chase-boost');
+  const fixedBoost=await fixedEngineFrame('boost');
   assert(normal.visible&&boost.visible);
   assert(normal.onScreen&&boost.onScreen);
   assert(normal.mode==='CHASE'&&boost.mode==='CHASE');
@@ -280,7 +307,7 @@ const {chromium}=require('playwright');
   const report={
     status:'PASS',id:'NEXT11C20C',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
-    geometry,normal,boost,oblique,map4Preserved:after,
+    geometry,normal,boost,fixedNormal,fixedBoost,oblique,map4Preserved:after,
     actualNativeGPU:false,actualHumanRace:false,
     aestheticApprovedByUserForModel:false
   };
