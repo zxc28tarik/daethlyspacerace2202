@@ -37,6 +37,9 @@ const {pathToFileURL}=require('node:url');
           visualOnly:m.userData.visualOnly,
           noCollider:m.userData.noCollider,
           material:m.material.type,map:!!m.material.map,
+          emissiveStrength:m.material.emissiveIntensity||0,
+          emissiveColor:m.material.emissive?.getHex()||0,
+          toneMapped:m.material.toneMapped,
           size:m.geometry.boundingSphere.radius,
           triangles:m.geometry.getAttribute('position').count/3
         }))
@@ -72,7 +75,19 @@ const {pathToFileURL}=require('node:url');
       assert(ship.batches.every(b=>b.vertices===b.normals&&
         b.vertices===b.uvs&&b.visualOnly&&b.noCollider));
       assert(ship.batches.every(b=>b.size>0));
-      assert(ship.batches.filter(b=>b.map).length>=2);
+      if(ship.id==='R-01'){
+        // Map1 has little diffuse lighting: its original glossy white/cyan
+        // design uses a restrained self-lit fill, NOT the dark factory map.
+        assert.equal(ship.batches.filter(b=>b.map).length,0);
+        assert(ship.batches.some(b=>b.emissiveStrength>.6),
+          'white racing silhouette must remain visible in dark sky');
+        assert(ship.batches.some(b=>b.emissiveColor!==0));
+      }else{
+        assert(ship.batches.filter(b=>b.map).length>=2,
+          'battle craft retains weathered PBR steel textures');
+        assert(ship.batches.some(b=>b.toneMapped===false),
+          'amber engines should remain visibly orange in bright desert');
+      }
     }
     const capture=async id=>{
       await page.evaluate(()=>{
