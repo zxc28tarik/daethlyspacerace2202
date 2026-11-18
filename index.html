@@ -11742,6 +11742,52 @@
                 g.translate(side*(highlight?7.71:7.60),.11,0);
                 return g;
             };
+            // NEXT11C20B: real raised deck panels within the approved wings.
+            const wingDeckPlate=(key,side,outline)=>{
+                const shape=new THREE.Shape();
+                outline.forEach(([x,z],i)=>i?
+                    shape.lineTo(side*x,z):shape.moveTo(side*x,z));
+                shape.closePath();
+                const g=new THREE.ExtrudeGeometry(shape,{
+                    depth:.027,steps:1,bevelEnabled:false
+                });
+                g.rotateX(Math.PI/2);
+                g.translate(0,-.078,0);
+                emit(g,key);
+                g.dispose();
+            };
+            // Faceted longitudinal canopy replaces the stretched sphere.
+            const canopyGlass=()=>{
+                const rows=[
+                    [-4.53,.08,.46],[-4.14,.42,.73],
+                    [-3.46,.68,1.07],[-2.64,.80,1.20],
+                    [-1.84,.72,1.10],[-1.00,.48,.79],
+                    [-.53,.17,.48]
+                ];
+                const span=[-1,-.72,-.36,0,.36,.72,1],
+                    arch=[0,.63,.90,1,.90,.63,0],
+                    xyz=[],uv=[],idx=[],n=span.length;
+                rows.forEach(([z,width,top],j)=>{
+                    for(let i=0;i<n;i++){
+                        xyz.push(span[i]*width,
+                            .39+(top-.39)*arch[i],z);
+                        uv.push(i/(n-1),j/(rows.length-1));
+                    }
+                });
+                for(let j=0;j<rows.length-1;j++)
+                    for(let i=0;i<n-1;i++){
+                        const a=j*n+i,b=a+1,
+                            d=(j+1)*n+i,e=d+1;
+                        idx.push(a,d,b,b,d,e);
+                    }
+                const g=new THREE.BufferGeometry();
+                g.setAttribute('position',
+                    new THREE.Float32BufferAttribute(xyz,3));
+                g.setAttribute('uv',
+                    new THREE.Float32BufferAttribute(uv,2));
+                g.setIndex(idx);g.computeVertexNormals();
+                return g;
+            };
             const body=customHull();
             emit(body,'HULL');
             body.dispose();
@@ -11755,14 +11801,50 @@
                 const racingFin=verticalFin(side,true);
                 emit(racingFin,'RED',side*.028,.035,0);
                 racingFin.dispose();
+                wingDeckPlate('HULL',side,[
+                    [1.60,-2.65],[3.22,-2.83],[4.70,-2.06],
+                    [3.15,-1.44],[1.53,-1.55]
+                ]);
+                wingDeckPlate('SECOND',side,[
+                    [5.10,-1.28],[6.90,-.72],[7.05,.19],
+                    [5.62,.52],[4.85,-.14]
+                ]);
+                wingDeckPlate('HULL',side,[
+                    [3.19,.53],[4.79,.21],[6.43,1.34],
+                    [5.31,1.94],[3.55,2.55]
+                ]);
+                wingDeckPlate('RED',side,[
+                    [2.16,-2.96],[2.31,-3.13],
+                    [6.73,-.84],[6.57,-.67]
+                ]);
             }
             // Long pointed wedge, blue-black glass canopy, red racing
             // center stripe and lightweight raised fuselage armor.
             box('RED',0,.13,-7.85,.18,.095,2.07);
             box('RED',0,.29,-5.74,.30,.09,2.12);
             box('RED',0,.46,-3.67,.43,.08,1.44);
-            emit(dome,'GLASS',0,.71,-2.52,
-                1.72,.96,4.48);
+            const cockpitShell=canopyGlass();
+            emit(cockpitShell,'GLASS');cockpitShell.dispose();
+            const glassRails=[
+                [-4.14,.34,.61],[-3.46,.54,.88],
+                [-2.64,.65,1.01],[-1.84,.59,.92],
+                [-1.00,.38,.66]
+            ];
+            for(const side of [-1,1]){
+                for(let j=0;j<glassRails.length-1;j++){
+                    const [z1,x1,y1]=glassRails[j],
+                        [z2,x2,y2]=glassRails[j+1];
+                    line('SECOND',[side*x1,y1,z1],
+                        [side*x2,y2,z2],.048);
+                }
+                for(const [z,w,top] of [
+                    [-3.46,.68,1.07],[-2.64,.80,1.20],
+                    [-1.84,.72,1.10]
+                ]){
+                    line('SECOND',[side*w*.72,.39+(top-.39)*.90,z],
+                        [0,top+.013,z],.042);
+                }
+            }
             box('DARK',0,.18,-6.18,.16,.08,3.66);
             for(let j=0;j<5;j++){
                 box(j%2?'SECOND':'HULL',0,.74,1.18+j*.48,
@@ -11811,6 +11893,27 @@
                 hoop('HULL',side*1.80,-.25,6.05,1.28);
                 cyl('PLASMA',side*1.80,-.25,6.11,.64,.11);
                 hoop('PLASMA',side*1.80,-.25,6.19,.79);
+                // Hollow flared nozzle, exposed longitudinal ribs and
+                // machined segmented collar (not gun barrels).
+                const nozzle=new THREE.CylinderGeometry(
+                    .96,.73,.50,18,1,true);
+                emit(nozzle,'SECOND',side*1.80,-.25,6.22,
+                    1,1,1,Math.PI/2);
+                nozzle.dispose();
+                hoop('PLASMA',side*1.80,-.25,6.45,.73);
+                for(let j=0;j<6;j++){
+                    const a=j*Math.PI/3,
+                        cx=side*1.80+Math.cos(a)*1.115,
+                        cy=-.25+Math.sin(a)*1.115;
+                    line('SECOND',[cx,cy,2.55],[cx,cy,4.65],.078);
+                }
+                for(let j=0;j<8;j++){
+                    const a=j*Math.PI/4,
+                        cx=side*1.80+Math.cos(a)*1.10,
+                        cy=-.25+Math.sin(a)*1.10;
+                    box(j%2?'HULL':'ORANGE',cx,cy,6.02,
+                        .13,.14,.38,0,0,a);
+                }
                 for(let j=0;j<12;j++){
                     const t=j*Math.PI/6;
                     const x=side*1.80+Math.cos(t)*.97,
@@ -11839,20 +11942,48 @@
                 box('ORANGE',-.49+j*.245,-.48,3.85,
                     .11,.06,.48);
             }
+            // Deterministic shared 128px brushed surface/roughness atlas,
+            // entirely generated inside the existing offline HTML.
+            const finish=document.createElement('canvas');
+            finish.width=finish.height=128;
+            const context=finish.getContext('2d'),
+                pixels=context.createImageData(128,128);
+            let seed=0x07a11ce;
+            for(let y=0;y<128;y++)
+                for(let x=0;x<128;x++){
+                    seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+                    const grit=(seed>>>27)-16,
+                        seam=(x%32<2||y%32<2)?-17:0,
+                        brushed=(y%7===0)?5:0,
+                        lum=Math.max(115,Math.min(245,
+                            216+grit+seam+brushed)),
+                        at=(y*128+x)*4;
+                    pixels.data[at]=lum;
+                    pixels.data[at+1]=lum;
+                    pixels.data[at+2]=lum;
+                    pixels.data[at+3]=255;
+                }
+            context.putImageData(pixels,0,0);
+            const fineFinish=new THREE.CanvasTexture(finish);
+            fineFinish.wrapS=fineFinish.wrapT=THREE.RepeatWrapping;
+            fineFinish.anisotropy=2;
             const mats={
                 HULL:new THREE.MeshStandardMaterial({
                     name:'SB07_SILVER_CERAMIC',
                     color:0xdbe4ea,metalness:.58,roughness:.40,
+                    roughnessMap:fineFinish,bumpMap:fineFinish,bumpScale:.012,
                     emissive:0x97a7ba,emissiveIntensity:.38,
                     side:THREE.DoubleSide}),
                 SECOND:new THREE.MeshStandardMaterial({
                     name:'SB07_GUNMETAL_SUBFRAME',
                     color:0x566675,metalness:.70,roughness:.51,
+                    roughnessMap:fineFinish,bumpMap:fineFinish,bumpScale:.016,
                     emissive:0x1d2a35,emissiveIntensity:.18,
                     side:THREE.DoubleSide}),
                 RED:new THREE.MeshStandardMaterial({
                     name:'SB07_RACING_RED',
                     color:0xc43838,metalness:.43,roughness:.47,
+                    roughnessMap:fineFinish,
                     emissive:0x631717,emissiveIntensity:.29,
                     side:THREE.DoubleSide}),
                 DARK:new THREE.MeshStandardMaterial({
@@ -11909,6 +12040,12 @@
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
+            root.userData.detailPass='NEXT11C20B';
+            root.userData.facetedCanopy=true;
+            root.userData.wingDeckPanels=8;
+            root.userData.nozzleCrowns=2;
+            root.userData.nozzlePetals=16;
+            root.userData.sharedMicrofinish=true;
             root.userData.visualSpan=15.6;
             root.userData.maxTailFinY=2.9;
             h4Ship19Stats.raceParts=partCount;
