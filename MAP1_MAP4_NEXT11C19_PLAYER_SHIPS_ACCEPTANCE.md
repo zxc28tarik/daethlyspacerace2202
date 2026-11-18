@@ -50,3 +50,12 @@ Sadece model sayısı ve test PASS, estetik 7–8/10 veya yeterli performans gar
 - **Mevcut fizik 6 kanyon + 36 sanayi + 200 yapı collider**; 24 navigasyon işareti, 34 fiziksel W02 mesh, 5 rakip/8 avcı, 60s/300s/850m, +18/+12 ve kamera C geçişi doğrulandı.
 - Önceki test run'ları: ilk sürümde harita yüklenmeden collider assertion, ardından eksik ayrıntı üçgen eşiği, sonra yüksek hızda dünya uzayı kamera gecikmesi FAIL çıktı. Bunlar gerçek model geometri geliştirmesi ve yerel kamera takip hesabı düzeltmesiyle giderildi. **Sadece #44226228254 başarılı son sürüm kabulüdür.**
 - **Güncel tam Map1/Map4 regresyon** [#44226228256](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228256) ayrıca doğrulanacak; bu belge hızlı PASS'i tam PASS diye göstermiyor.
+
+
+### C19B oyun görüntüsü kalite kontrolü — düşük aydınlatma düzeltmesi
+
+- İlk dört gerçek screenshot incelendi; **R-01'in beyaz/turkuaz tasarımı Harita1'in düşük ışıklı uzay ortamında siyaha yakın çıkıyordu**, bu yüzden sırf renk paleti yazmak yeterli değildi. Koyu görünüş ve B-04 motorlarının solgun çıkması tespit edilerek **render materyali** ayrıca düzeltildi (`212f1b15`).
+- R-01: `MeshStandardMaterial` gövde/map ayrımı ve ayarlanabilir yumuşak `emissive` doldurma ile açık renkli aerodinamik kaplama karanlık fonda görünür. Canlı PBR ve kanat yönü korunur. 
+- B-04: mevcut GFX05 player's unique palette koyu çelik/turuncu yapıldı (`6eaaeb18`); yeni B-04 zırh modelinin kaplaması koyulaştırıldı, enerji/motor detaylarında daha belirgin amber emissive ve glow kullanıldı. **Racer/hunter AI palette 1..7 değişmez**.
+- Yeni ışık, dünya pozisyonu, fizik gövdesi, silah veya doku/GLB eklenmedi; 6 ayrı materyal draw batch/gemi sınırı aynı.
+- [Final materyal sonrası hızlı WebGL run #44226729705](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226729705) ve [tam regresyon #44226729821](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226729821) sonuçları esas alınmalı. Önceki #44226228254 **9/9 PASS** ancak daha eski materyal sürümüne aittir.
