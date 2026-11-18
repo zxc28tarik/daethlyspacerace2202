@@ -48,11 +48,19 @@ const {chromium}=require('playwright');
       model:race.name,parts:race.userData.parts,
       tris:race.userData.triangles,
       batches:meshes.length,
+      detailPass:race.userData.detailPass,
+      facetedCanopy:race.userData.facetedCanopy,
+      wingDeckPanels:race.userData.wingDeckPanels,
+      nozzleCrowns:race.userData.nozzleCrowns,
+      nozzlePetals:race.userData.nozzlePetals,
+      sharedMicrofinish:race.userData.sharedMicrofinish,
       batchNames:meshes.map(m=>m.name),
       colors:meshes.map(m=>({
         name:m.material.name,
         hex:m.material.color?.getHex(),
         emissiveIntensity:m.material.emissiveIntensity||0,
+        roughnessMap:!!m.material.roughnessMap,
+        bumpMap:!!m.material.bumpMap,
         visualOnly:m.userData.visualOnly,
         noCollider:m.userData.noCollider,
         vertices:m.geometry.getAttribute('position').count,
@@ -63,6 +71,9 @@ const {chromium}=require('playwright');
       finLeft:samples(hull,(x,y)=>x<-6.9&&y>1.9),
       finRight:samples(hull,(x,y)=>x>6.9&&y>1.9),
       needle:samples(hull,(x,y,z)=>Math.abs(x)<.6&&z<-7.5),
+      glassVertices:meshes.find(m=>m.name==='NEXT11C20_SB07_GLASS')
+        .geometry.getAttribute('position').count,
+      plasmaRearLip:samples(plasma,(x,y,z)=>z>6.37),
       engineLeft:samples(plasma,(x,y,z)=>x<-1&&z>5.7),
       engineRight:samples(plasma,(x,y,z)=>x>1&&z>5.7),
       oldR01Instances:old,
@@ -84,6 +95,14 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
+  assert.equal(geometry.detailPass,'NEXT11C20B');
+  assert.equal(geometry.facetedCanopy,true);
+  assert.equal(geometry.wingDeckPanels,8);
+  assert.equal(geometry.nozzleCrowns,2);
+  assert.equal(geometry.nozzlePetals,16);
+  assert.equal(geometry.sharedMicrofinish,true);
+  assert(geometry.glassVertices>=200,'must have faceted canopy, not flat glass');
+  assert(geometry.plasmaRearLip>24,'new rear engine corona must be present');
   assert.equal(geometry.stats.batches,13);
   assert.equal(geometry.stats.players,2);
   assert.equal(geometry.stats.externalModels,0);
@@ -113,6 +132,15 @@ const {chromium}=require('playwright');
     x.hex===0xfaa15d));
   assert(geometry.colors.some(x=>x.name==='SB07_BLUE_PLASMA'&&
     x.hex===0x6dd9ff));
+  for(const material of ['SB07_SILVER_CERAMIC',
+    'SB07_GUNMETAL_SUBFRAME','SB07_RACING_RED']){
+    assert(geometry.colors.some(x=>x.name===material&&x.roughnessMap),
+      material+' must use shared weathered roughness microtexture');
+  }
+  assert(geometry.colors.find(x=>x.name==='SB07_SILVER_CERAMIC')
+    .bumpMap,'silver must retain fine normal surface variation');
+  assert(!geometry.colors.some(x=>x.name==='SB07_BLUE_PLASMA'&&x.roughnessMap),
+    'plasma must remain fullbright rather than PBR');
   // Actual game launch and real player physics, not isolated art.
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.raceTime>.03,
@@ -220,7 +248,7 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20',
+    status:'PASS',id:'NEXT11C20B',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
     geometry,normal,boost,oblique,map4Preserved:after,
     actualNativeGPU:false,actualHumanRace:false,
@@ -229,7 +257,10 @@ const {chromium}=require('playwright');
   fs.writeFileSync(path.join(__dirname,
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
-    id:geometry.id,parts:geometry.parts,tris:geometry.tris,
+    id:geometry.id,detail:geometry.detailPass,
+    wingDeck:geometry.wingDeckPanels,glass:geometry.glassVertices,
+    plasmaRearLip:geometry.plasmaRearLip,
+    parts:geometry.parts,tris:geometry.tris,
     silhouette:geometry.dimensions,
     fins:[geometry.finLeft,geometry.finRight],
     engines:[geometry.engineLeft,geometry.engineRight],
