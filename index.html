@@ -11575,6 +11575,10 @@
             else h4Ship19Stats.raceParts=parts;
             return root;
         }
+        // Local-space spring keeps zoom meaningful when travel speed is
+        // hundreds of units/sec. The camera does not steer/shift the ship.
+        const h4Ship19CameraGoal=new THREE.Vector3();
+        const h4Ship19CameraOffset=new THREE.Vector3(-1.45,5.1,18.2);
         const h4Ship19Race=h4Ship19Build('RACE');
         const h4Ship19Combat=h4Ship19Build('COMBAT');
         h4Ship19Stats.stylePass='WHITE_CYAN_RACER__DARK_AMBER_STRIKER';
@@ -13450,29 +13454,39 @@
 
             // Kamera: FPS sabit ve temiz, CHASE ise geminin arkasından yumuşak takip eder.
             if (state.cameraMode === 'CHASE') {
-                const speedExtra = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.NORMAL) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.NORMAL), 0, 1);
                 const h4Chase=state.activeMap===MAP_MODES.MAP4;
-                // Map1's original camera path is deliberately untouched.
-                // Map4 uses fixed scratch vectors rather than 2 heap allocations/frame.
-                const desiredCamPos=h4Chase?
-                    h4Gfx10bChaseTarget.copy(state.pos).add(
-                        h4Gfx10bChaseOffset.set(-1.65-state.roll*1.1,
-                            5.5-speedExtra*.82,
-                            18.5-speedExtra*6.1)
-                            .applyQuaternion(playerRig.quaternion)):
-                    state.pos.clone().add(
-                        new THREE.Vector3(-1.45-state.roll*1.0,
-                            5.1-speedExtra*.72,
-                            18.2-speedExtra*5.8)
-                            .applyQuaternion(playerRig.quaternion));
+                // Camera zoom should be relative to the craft, not lag
+                // behind kilometers/sec world travel. Smooth the LOCAL
+                // chase offset then carry it with the actual ship position.
+                // Race and armored craft retain distinct original offsets.
+                const speedExtra=THREE.MathUtils.clamp(
+                    (state.currentSpeed-RACE_SPEEDS.NORMAL)/
+                    (RACE_SPEEDS.BOOST-RACE_SPEEDS.NORMAL),0,1);
+                const holdingBoost=!!(
+                    keys['ShiftLeft']||keys['ShiftRight']||keys['KeyW'])
+                    &&state.energy>4;
+                const blend=Math.max(speedExtra,holdingBoost?.48:0);
+                h4Ship19CameraGoal.set(
+                    (h4Chase?-1.65:-1.45)-state.roll*1.1,
+                    (h4Chase?5.5:5.1)-blend*(h4Chase?.82:.72),
+                    (h4Chase?18.5:18.2)-blend*(h4Chase?6.1:5.8)
+                );
+                h4Ship19CameraOffset.lerp(h4Ship19CameraGoal,
+                    Math.min(1,(holdingBoost?8:5)*dt));
+                const desiredCamPos=h4Gfx10bChaseTarget.copy(state.pos)
+                    .add(h4Gfx10bChaseOffset.copy(
+                        h4Ship19CameraOffset)
+                        .applyQuaternion(playerRig.quaternion));
                 const safeCameraPos=h4Chase?
                     h4Gfx09SafeChase(desiredCamPos,routeFrame):desiredCamPos;
-                camera.position.lerp(safeCameraPos, Math.min(1, (h4Chase?9:7) * dt));
-                camera.quaternion.slerp(playerRig.quaternion, Math.min(1, 9 * dt));
+                camera.position.copy(safeCameraPos);
+                camera.quaternion.slerp(playerRig.quaternion,
+                    Math.min(1,9*dt));
             } else {
                 camera.position.copy(state.pos);
                 camera.quaternion.copy(playerRig.quaternion);
-                if(state.activeMap===MAP_MODES.MAP4)h4Gfx09CameraInfo.occluded=false;
+                if(state.activeMap===MAP_MODES.MAP4)
+                    h4Gfx09CameraInfo.occluded=false;
             }
             if(h4Looking&&!state.finished){
                 // ALT rotates the camera but NOT the ship or the route
@@ -15367,6 +15381,10 @@
             applyPlanetaryEnvironment();
             // User chose camera #1 by default; boost eases toward #2.
             state.cameraMode='CHASE';
+            h4Ship19CameraOffset.set(
+                state.activeMap===MAP_MODES.MAP4?-1.65:-1.45,
+                state.activeMap===MAP_MODES.MAP4?5.5:5.1,
+                state.activeMap===MAP_MODES.MAP4?18.5:18.2);
             turretGroup.visible=false;
             geoSwordMesh.visible=true;
             h4Ship19Select();
