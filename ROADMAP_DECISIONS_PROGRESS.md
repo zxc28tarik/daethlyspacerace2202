@@ -558,3 +558,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Özgünlük sınırı:** Yalnız **projenin kendi ürettiği** varlıkların kontrollü yeniden kullanımı için izin verildi. Dış ticari 3D modellerin veya başkalarının özgün bina silüetlerinin kopyalanmasına izin değildir.
 - **Oynanış:** Bu görsel izin fiziksel collider, AI, rota bonusu, riskli geçit, hasar, zorluk veya PR birleştirme izni **değildir**. Mevcut binalar ve tehlikeler korunur; yeni gerçek fiziksel yapı eklemek ayrı bir karar gerektirir.
 - **Sonraki görsel işler:** Sanayiye ek olarak 36.200 karakol, 42.600 askerî liman, 48.300 yörünge tesisi. Her alanda yeni özgün ana silüetlerin yanında sınırlı sayıda mevcut yardımcı mimari tekrar kullanılabilir; tekrarlanan nesneler kalite testinde ayrıca sayılır.
+
+
+## 24) 18 Kasım — NEXT-11C18 / Squadrons 2–3. bölüm adaptasyonu: pilot kontrolleri ve enerji
+
+- **Kullanıcı yeni açık karar:** Star Wars: Squadrons'ın **uçuş sistemini (2)** ve **enerji yönetimini (3)** projeye uygula; özellikle enerji önemli. **Gemi modelleri/sınıfları/özelleştirme ileride**, şimdi gemilere dokunma.
+- **Güvenli uygulama:** Harita 4'e özgü 4 güç önceliği (1–4), motor/silah/kalkan **ayrı rezervleri ve dolum oranları**, yeni üçlü HUD. Motor önceliğinde boost hedefi ×1,05; silah odağı lazer rezervini hızla yeniler; kalkan odağı hasardan 6s sonra, yavaş ve enerji tüketerek onarım yapar. Harita 4 lazeri artık her çift atışta 5 silah gücü harcar. Yeni **X boost-drift**, **Alt free look**; eski Q/E barrel roll ve C kamera korunur.
+- **Kesin koruma:** Harita 1 yarış, eski ortak enerji/lazer bedeli ve kontrol mekanikleri değişmez. Harita 4 mevcut 4 evre, 60s arena / 300s bitiş / 850 çıkış, 5 rakip/8 avcı, +18/+12 bonus, 6/36/200 collider, 24 marker, 34 W02, GFX11C17 96 obje. Gemi sınıfı/modeli eklenmez. Riskli kaza parkurları kolaylaştırılmaz.
+- **İlk denge parametreleri test değeridir**, otomatik kesin ürün kararı sayılmaz. Gerçek pilot deneyi, AI karşılaştırması, 300s + native FPS ve kullanıcı onayı ayrı kapı.
+- **GELİŞTİRME-PR (Draft/no merge):** `codex/map4-next11c18-power-flight-controls`, [NEXT11C18 sözleşmesi](MAP4_NEXT11C18_POWER_FLIGHT_ACCEPTANCE.md); bağımsız Chromium + tam regression test kodu. İlk hızlı testte test dosyasındaki geçersiz sayısal anahtar düzeltildi; son HEAD sonuçları kontrol edilmeli.
