@@ -9515,6 +9515,7 @@
             geoSwordMesh.children.forEach(child=>{
                 if(child!==h4GeoSwordArt)child.visible=!active;
             });
+            h4Ship19Select();
             h4SkyDome.visible=active;
             h4SunHalo.visible=active;
             renderer.toneMapping=active?THREE.ACESFilmicToneMapping:THREE.NoToneMapping;
@@ -10550,7 +10551,7 @@
         thrusterGlow.position.set(0, 0, 4.8);
 
         geoSwordMesh.add(noseCone, cockpit, mainWings, wingTipL, wingTipR, thrusterGlow);
-        geoSwordMesh.position.set(0, -1.8, -14);
+        geoSwordMesh.position.set(0, -1.8, -9.2);
         geoSwordMesh.visible = false;
         playerRig.add(geoSwordMesh);
 
@@ -11149,6 +11150,269 @@
         const h4PlayerGfx05=h4Gfx05CreateCraft('PLAYER',0);
         h4GeoSwordArt.userData.h4Gfx05Craft=h4PlayerGfx05;
         h4GeoSwordArt.add(h4PlayerGfx05);
+
+        // NEXT11C19: one original authored visual aircraft per playable map.
+        // R-01 (racing) and B-04 (combat) preserve all existing player hit
+        // geometry, weapon coordinates, AI and four-phase gameplay rules.
+        const H4_SHIP19_MODELS=Object.freeze({
+            RACE:{id:'R-01',title:'R-01 VEKTÖR',
+                hull:0xd9edf2,secondary:0x4f7182,trim:0xe6b779,
+                dark:0x26394c,glass:0x2686a2,glow:0x65eff4},
+            COMBAT:{id:'B-04',title:'B-04 BASTİON',
+                hull:0x7f98a9,secondary:0x354a5a,trim:0xc98757,
+                dark:0x182c36,glass:0x185674,glow:0x8bceef}
+        });
+        const h4Ship19Stats={players:2,externalModels:0,
+            newColliders:0,newWeapons:0,newAircraftClasses:0,
+            batches:0,raceParts:0,combatParts:0,
+            visualOnly:true,nativeGpuVerified:false,userApproved:false};
+        function h4Ship19Hull(combat){
+            // Variable-width 12-sided aircraft fuselage: original topology.
+            const stations=combat?[
+                [-8.6,.09,.11],[-6.7,.48,.29],[-3.9,1.45,.51],
+                [-1.0,2.15,.69],[2.0,2.37,.70],[4.2,1.67,.56],
+                [6.0,.56,.25]
+            ]:[
+                [-9.8,.08,.10],[-7.1,.45,.24],[-3.9,.91,.35],
+                [-1.0,1.52,.48],[2.2,1.64,.45],[4.9,1.10,.32],
+                [6.1,.18,.14]
+            ];
+            const v=[],uv=[],index=[],seg=12;
+            stations.forEach(([z,rx,ry],j)=>{
+                for(let k=0;k<seg;k++){
+                    const t=k*Math.PI*2/seg;
+                    v.push(Math.cos(t)*rx,Math.sin(t)*ry,z);
+                    uv.push(k/seg,j/(stations.length-1));
+                }
+            });
+            for(let j=0;j<stations.length-1;j++)
+                for(let k=0;k<seg;k++){
+                    const a=j*seg+k,b=j*seg+(k+1)%seg,
+                        c=(j+1)*seg+k,d=(j+1)*seg+(k+1)%seg;
+                    index.push(a,c,b,b,c,d);
+                }
+            for(let k=1;k<seg-1;k++){
+                index.push(0,k,k+1);
+                const n=(stations.length-1)*seg;
+                index.push(n,n+k+1,n+k);
+            }
+            const geo=new THREE.BufferGeometry();
+            geo.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+            geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+            geo.setIndex(index);geo.computeVertexNormals();
+            return geo;
+        }
+        function h4Ship19Wing(side,combat){
+            // Two distinct sculpted airfoils, not reusing any third-party mesh.
+            const vertices=combat?[
+                [1.3,-3.8],[3.1,-5.0],[6.1,-4.5],
+                [8.7,-2.7],[8.5,-.75],[5.5,1.25],
+                [3.1,3.5],[1.6,2.2]
+            ]:[
+                [1.0,-4.1],[3.6,-3.9],[8.3,-.70],
+                [8.6,.25],[6.3,.86],[4.4,3.5],
+                [2.1,3.8],[1.15,.95]
+            ];
+            const sh=new THREE.Shape();
+            vertices.forEach(([x,z],i)=>i?
+                sh.lineTo(side*x,z):sh.moveTo(side*x,z));
+            sh.closePath();
+            const g=new THREE.ExtrudeGeometry(sh,{
+                depth:combat?.27:.17,steps:1,bevelEnabled:true,
+                bevelSize:.065,bevelThickness:.06,bevelSegments:1
+            });
+            g.rotateX(Math.PI/2);
+            g.computeVertexNormals();
+            return g;
+        }
+        function h4Ship19Build(role){
+            const combat=role==='COMBAT',c=H4_SHIP19_MODELS[role],
+                root=new THREE.Group();
+            root.name='NEXT11C19_'+c.id+'_PLAYER_SHIP';
+            root.userData.visualOnly=true;
+            root.userData.noCollider=true;
+            root.userData.authoredShipId=c.id;
+            const groups={HULL:[],SECOND:[],TRIM:[],
+                DARK:[],GLASS:[],GLOW:[]};
+            const cube=new THREE.BoxGeometry(1,1,1),
+                round=new THREE.CylinderGeometry(.5,.5,1,12),
+                torus=new THREE.TorusGeometry(.5,.085,7,20),
+                dome=new THREE.SphereGeometry(.5,12,9);
+            let parts=0;
+            const matrix=new THREE.Matrix4(),loc=new THREE.Vector3(),
+                quat=new THREE.Quaternion(),sca=new THREE.Vector3(),
+                euler=new THREE.Euler();
+            const add=(geo,mat,x,y,z,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>{
+                matrix.compose(loc.set(x,y,z),
+                    quat.setFromEuler(euler.set(rx,ry,rz)),
+                    sca.set(sx,sy,sz));
+                const obj=geo.clone().applyMatrix4(matrix);
+                const merged=obj.index?obj.toNonIndexed():obj;
+                if(obj!==merged)obj.dispose();
+                groups[mat].push(merged);parts++;
+            };
+            const block=(mat,x,y,z,w,h,d,rx=0,ry=0,rz=0)=>
+                add(cube,mat,x,y,z,w,h,d,rx,ry,rz);
+            const cyl=(mat,x,y,z,w,h,d,rx=0,ry=0,rz=0)=>
+                add(round,mat,x,y,z,w,h,d,rx,ry,rz);
+            const hoop=(mat,x,y,z,w,h,d)=>
+                add(torus,mat,x,y,z,w,h,d);
+            // Own hull+wing polygons are baked into the common PBR batch.
+            const body=h4Ship19Hull(combat);
+            add(body,'HULL',0,0,0);
+            body.dispose();
+            for(const side of [-1,1]){
+                const wing=h4Ship19Wing(side,combat);
+                add(wing,'HULL',0,-.16,0);
+                wing.dispose();
+            }
+            add(dome,'GLASS',0,.67,combat?-1.85:-2.55,
+                combat?2.3:1.8,combat?1.18:.97,combat?5.1:4.6);
+            block('DARK',0,.12,-5.5,.28,.18,4.0);
+            block('TRIM',0,.68,1.25,.16,.12,2.8);
+            for(const side of [-1,1]){
+                if(combat){
+                    // B-04: thick armor, recessed cannon pods, radiators,
+                    // forward canards, defensive vanes and heavy engines.
+                    block('SECOND',side*2.6,.13,-.36,
+                        1.45,.69,5.4,0,side*.16,side*.08);
+                    block('DARK',side*5.25,-.19,-1.25,
+                        2.6,.49,3.65,0,side*.20,0);
+                    block('HULL',side*6.5,.13,-1.5,
+                        2.55,.26,1.35,0,side*.25,0);
+                    block('TRIM',side*7.5,.36,-1.85,
+                        .15,.10,2.40,0,side*.25,0);
+                    for(const off of [-.25,.25]){
+                        cyl('DARK',side*5.27+off,-.09,-4.9,
+                            .25,3.15,.25,Math.PI/2);
+                        hoop('TRIM',side*5.27+off,-.09,-6.42,
+                            .27,.27,.26);
+                    }
+                    block('HULL',side*2.2,.74,1.4,
+                        .38,1.10,2.7,0,0,side*.16);
+                    for(let k=0;k<12;k++){
+                        block(k%4===0?'TRIM':'SECOND',
+                            side*(2.5+(k%4)*.86),
+                            .25+Math.floor(k/4)*.035,
+                            -1.5+Math.floor(k/4)*1.05,
+                            .33,.075,.73,0,side*.18,0);
+                    }
+                    for(let k=0;k<6;k++)
+                        block('DARK',side*(1.55+k*.39),
+                            -.42,1.15,.12,.19,1.25,0,side*.08);
+                    cyl('DARK',side*1.85,-.34,4.65,
+                        1.80,2.2,1.80,Math.PI/2);
+                    cyl('GLOW',side*1.85,-.34,5.87,
+                        1.10,.13,1.10,Math.PI/2);
+                    hoop('TRIM',side*1.85,-.34,5.93,
+                        1.15,1.15,1);
+                    block('GLOW',side*8.3,.22,-1.85,.15,.12,.52);
+                }else{
+                    // R-01: needle profile, delta fins, exposed dual thrust,
+                    // vent slots and high-contrast racing instrumentation.
+                    block('SECOND',side*2.48,.06,2.35,
+                        .83,.29,4.0,0,side*.12);
+                    block('TRIM',side*5.85,.11,1.24,
+                        .13,.10,4.6,0,side*.25);
+                    block('HULL',side*1.75,.50,2.0,
+                        .26,.83,2.65,0,0,side*.24);
+                    block('HULL',side*6.85,.12,1.15,
+                        .43,.37,1.6,0,side*.22);
+                    for(let k=0;k<9;k++){
+                        block('DARK',side*(2.7+k*.55),.17,1.30+k*.10,
+                            .18,.05,.82,0,side*.13);
+                    }
+                    for(let k=0;k<6;k++)
+                        block('TRIM',side*(3.1+k*.79),.14,
+                            -2.10+k*.44,.10,.052,.48,0,side*.26);
+                    cyl('DARK',side*1.72,-.27,4.67,
+                        1.31,1.9,1.31,Math.PI/2);
+                    cyl('GLOW',side*1.72,-.27,5.78,
+                        .96,.13,.96,Math.PI/2);
+                    hoop('TRIM',side*1.72,-.27,5.87,
+                        1.00,1.00,1);
+                    block('GLOW',side*8.17,.12,-.4,
+                        .16,.13,.76);
+                }
+            }
+            for(let k=0;k<6;k++)
+                block(k%2?'TRIM':'SECOND',
+                    -.58+k*.23,.37,2.2,
+                    .12,.12,1.22);
+            if(combat){
+                block('TRIM',0,-.55,1.1,2.6,.14,4.25);
+                cyl('DARK',0,-.52,5.00,.93,1.6,.93,Math.PI/2);
+                cyl('GLOW',0,-.52,5.92,.55,.10,.55,Math.PI/2);
+            }
+            const mats={
+                HULL:new THREE.MeshStandardMaterial({
+                    map:h4SurfaceMaps.steel,color:c.hull,
+                    metalness:.64,roughness:combat?.47:.34}),
+                SECOND:new THREE.MeshStandardMaterial({
+                    map:h4SurfaceMaps.darkSteel,color:c.secondary,
+                    metalness:.66,roughness:.56}),
+                TRIM:new THREE.MeshStandardMaterial({
+                    color:c.trim,metalness:.59,roughness:.39}),
+                DARK:new THREE.MeshStandardMaterial({
+                    color:c.dark,metalness:.64,roughness:.52}),
+                GLASS:new THREE.MeshStandardMaterial({
+                    color:c.glass,metalness:.64,roughness:.15,
+                    emissive:c.glass,emissiveIntensity:.15}),
+                GLOW:new THREE.MeshBasicMaterial({color:c.glow})
+            };
+            let tris=0;
+            for(const [id,list] of Object.entries(groups)){
+                const count=list.reduce((n,g)=>
+                    n+g.getAttribute('position').count,0);
+                if(!count)continue;
+                const pos=new Float32Array(count*3),
+                    norm=new Float32Array(count*3),
+                    uv=new Float32Array(count*2);
+                let p=0,t=0;
+                for(const g of list){
+                    const a=g.getAttribute('position').array,
+                        b=g.getAttribute('normal').array,
+                        c=g.getAttribute('uv').array;
+                    pos.set(a,p);norm.set(b,p);uv.set(c,t);
+                    p+=a.length;t+=c.length;g.dispose();
+                }
+                const geometry=new THREE.BufferGeometry();
+                geometry.setAttribute('position',
+                    new THREE.BufferAttribute(pos,3));
+                geometry.setAttribute('normal',
+                    new THREE.BufferAttribute(norm,3));
+                geometry.setAttribute('uv',
+                    new THREE.BufferAttribute(uv,2));
+                geometry.computeBoundingSphere();
+                const mesh=new THREE.Mesh(geometry,mats[id]);
+                mesh.name='NEXT11C19_'+H4_SHIP19_MODELS[role].id+'_'+id;
+                mesh.userData.visualOnly=true;
+                mesh.userData.noCollider=true;
+                root.add(mesh);
+                h4Ship19Stats.batches++;
+                tris+=count/3;
+            }
+            cube.dispose();round.dispose();torus.dispose();dome.dispose();
+            root.userData.parts=parts;
+            root.userData.triangles=tris;
+            if(combat)h4Ship19Stats.combatParts=parts;
+            else h4Ship19Stats.raceParts=parts;
+            return root;
+        }
+        const h4Ship19Race=h4Ship19Build('RACE');
+        const h4Ship19Combat=h4Ship19Build('COMBAT');
+        geoSwordMesh.add(h4Ship19Race);
+        h4GeoSwordArt.add(h4Ship19Combat);
+        function h4Ship19Select(){
+            const map4=state.activeMap===MAP_MODES.MAP4;
+            h4Ship19Race.visible=!map4;
+            h4Ship19Combat.visible=map4;
+            // Preserve old geometries for backward tests but never draw
+            // the bare prototype craft on top of our R-01 design.
+            for(const old of [noseCone,cockpit,mainWings,
+                wingTipL,wingTipR,thrusterGlow])old.visible=false;
+        }
+
         function h4EnrichFighter(group,isElite,isRacer,liveryIndex=0){
             const shell=new THREE.MeshStandardMaterial({
                 map:h4SurfaceMaps.darkSteel,color:isRacer?0xc9dceb:0x9f9da0,
@@ -13014,14 +13278,14 @@
                 // Map4 uses fixed scratch vectors rather than 2 heap allocations/frame.
                 const desiredCamPos=h4Chase?
                     h4Gfx10bChaseTarget.copy(state.pos).add(
-                        h4Gfx10bChaseOffset.set(-state.roll * 1.2,
-                            5.5 + speedExtra * 1.5,
-                            19 + speedExtra * 6)
+                        h4Gfx10bChaseOffset.set(-1.65-state.roll*1.1,
+                            5.5-speedExtra*.82,
+                            18.5-speedExtra*6.1)
                             .applyQuaternion(playerRig.quaternion)):
                     state.pos.clone().add(
-                        new THREE.Vector3(-state.roll * 1.2,
-                            4 + speedExtra * 1.5,
-                            14 + speedExtra * 7)
+                        new THREE.Vector3(-1.45-state.roll*1.0,
+                            5.1-speedExtra*.72,
+                            18.2-speedExtra*5.8)
                             .applyQuaternion(playerRig.quaternion));
                 const safeCameraPos=h4Chase?
                     h4Gfx09SafeChase(desiredCamPos,routeFrame):desiredCamPos;
@@ -14750,7 +15014,7 @@
                 state.cameraMode = 'CHASE';
                 turretGroup.visible = false;
                 geoSwordMesh.visible = true;
-                document.getElementById('cam-mode-text').textContent = '3RD PERSON GEOSWORD';
+                document.getElementById('cam-mode-text').textContent = state.activeMap===MAP_MODES.MAP4 ? 'B-04 3RD PERSON' : 'R-01 3RD PERSON';
             } else {
                 state.cameraMode = 'TURRET';
                 turretGroup.visible = true;
@@ -14923,6 +15187,14 @@
             updateCourseVisibility(state.routeProgress);
             spawnRacerFleet();
             applyPlanetaryEnvironment();
+            // User chose camera #1 by default; boost eases toward #2.
+            state.cameraMode='CHASE';
+            turretGroup.visible=false;
+            geoSwordMesh.visible=true;
+            h4Ship19Select();
+            document.getElementById('cam-mode-text').textContent=
+                state.activeMap===MAP_MODES.MAP4?
+                'B-04 3RD PERSON':'R-01 3RD PERSON';
             if (state.activeMap === MAP_MODES.MAP4) initializeHunterTargets();
             if (state.combatEnabled) {
                 spawnEnemyWave(7);
