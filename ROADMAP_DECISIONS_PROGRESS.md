@@ -619,3 +619,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 
 - [C20 gerçek Chromium/WebGL hızlı run #44303505125](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44303505125) **9/9 PASS**. Kullanıcının **onayladığı “SB-07 Zenit”** kaynak görselini Harita1'e oyun içinde uyarladık: **143 gerçek 3D parça, 6.584 üçgen, 7 batch**, iki büyük dikey kanat ucu ve iki katmanlı plazma motoru; **R-01 artık hiç oluşturulmuyor**. Kamera mesafesi normal **18,9568→boost 13,2517**, FOV **72,694→82,916**. [3 gerçek oyun görüntüsü + JSON](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44303505125/artifacts/14427041853). Harita4 B-04 **249 parça** aynı, collider **6/36/200**, 5 rakip/8 avcı, 60/300/850 ve +18/+12 aynı.
 - Sinematik referans panosuyla ilk prosedürel 3D uyarlama **birebir materyal/ince işçilik eşdeğerliği değildir**; kullanıcı gerçek render kalite onayı, 300s insan sürüşü ve native GPU açık. [C20 tam Map1/4 regresyon #44303505052](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44303505052) sonucu ayrıca kabul edilir. PR #65 **DRAFT/NO MERGE**.
+
+
+## 27) NEXT11C21 — SB-07 oyun içi kanat/motor/kaplama işçilik aşaması
+
+- **Önceki kilitli seçim:** Kullanıcının onayladığı **SB-07 Zenit**; yeni gemi değil, C20'nin gerçek oyun içi modelini iyileştirme. İlk gerçek ekran görüntülerinde kanat şeridi/kaplama çok düz, iki büyük motor düz mavi disk gibi ve kokpit çerçevesi okunurluğu zayıftı.
+- **Üretim `index.html` C21:** kırmızı yarış kanat poligonları ve daha belirgin beyaz/koyu servis panelleri, ilave kiriş/cooling vent ve motor nozzle petalleri, koyu iç motor diski+küçük mavi çekirdek ve ekstra turuncu ısı halkaları, kokpit çerçeve paneli, burun ince yarış şeridi. **2 dikey kanat ucu, 2 motor, eski 7 materyal batch ve kamera davranışı korunur**.
+- **YAPILMADI:** Harita4 B-04 yeniden tasarım, AI/physics/bonus/rota, Harita1 silah ekleme, varlık dışarıdan kopyalama, merge. [Teknik kalite/görsel kabul sözleşmesi](MAP1_NEXT11C21_ZENIT_SURFACE_ACCEPTANCE.md).
+- **AÇIK:** Son gerçek Chromium 3 screenshot QA, tam Map1/4 regressions, kullanıcı 3D görsel beğenisi, native GPU ve 300s insan pilot. C20 hızlı test PASS tek başına C21 kalite kabulü değildir. Yeni PR Draft/no merge.

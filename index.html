@@ -11839,6 +11839,151 @@
                 box('ORANGE',-.49+j*.245,-.48,3.85,
                     .11,.06,.48);
             }
+
+            // NEXT11C21: SB-07 visual fidelity pass derived from the approved
+            // ZENIT concept and first in-game screenshot review. All added
+            // shapes live in the existing SEVEN draw batches. Cosmetic only:
+            // neither player physics nor obstacle colliders know they exist.
+            const wingPlate=(side,key,coords,y,depth=.045)=>{
+                const sh=new THREE.Shape();
+                coords.forEach(([x,z],i)=>
+                    i?sh.lineTo(side*x,z):sh.moveTo(side*x,z));
+                sh.closePath();
+                const g=new THREE.ExtrudeGeometry(sh,{
+                    depth,steps:1,bevelEnabled:false
+                });
+                g.rotateX(Math.PI/2);
+                emit(g,key,0,y,0);
+                g.dispose();
+            };
+            for(const side of [-1,1]){
+                // A bold RED diagonal sweep is crucial: the original C20
+                // paint looked like dozens of random tiny surface bars,
+                // instead of the concept's coherent aero-racing livery.
+                wingPlate(side,'RED',[
+                    [2.12,-3.20],[3.33,-3.42],
+                    [6.35,-1.17],[7.08,-.64],
+                    [6.30,-.40],[3.29,-2.64]
+                ],.22);
+                wingPlate(side,'SECOND',[
+                    [2.20,.10],[3.24,.75],[5.90,.95],
+                    [6.88,1.74],[6.92,2.06],
+                    [5.34,1.85],[3.21,1.48]
+                ],.245);
+                wingPlate(side,'HULL',[
+                    [3.38,-1.88],[4.18,-2.03],
+                    [5.43,-1.12],[4.76,-.96]
+                ],.29);
+                wingPlate(side,'DARK',[
+                    [2.85,.59],[3.06,.89],
+                    [4.45,1.02],[4.36,.77]
+                ],.31);
+                // Not flat arcade cardboard: the approved reference shows
+                // beveled structural spars running under each wing.
+                line('HULL',[side*1.45,-.32,-2.52],
+                    [side*6.99,-.32,-.90],.23);
+                line('SECOND',[side*1.60,-.36,2.55],
+                    [side*6.95,-.38,2.12],.15);
+                line('RED',[side*6.55,.33,-.83],
+                    [side*7.32,.30,-.28],.11);
+                // The two TALL vertical outer endplates remain flat and
+                // sharply edged: add separate raised graphic panels instead
+                // of bending their shape or changing the user's reference.
+                line('RED',[side*7.78,.37,-1.30],
+                    [side*7.78,2.43,.20],.10);
+                line('DARK',[side*7.78,.41,1.79],
+                    [side*7.78,2.55,.32],.13);
+                line('SECOND',[side*7.68,1.05,-1.01],
+                    [side*7.68,1.52,-.65],.16);
+                box('ORANGE',side*7.69,2.57,.35,
+                    .11,.16,.34);
+                // Recessed cooling grilles, matching each side's main
+                // nacelle, and alternating silver cross-bars.
+                for(let j=0;j<12;j++){
+                    const z=-.20+j*.22;
+                    box(j%4===0?'ORANGE':'DARK',
+                        side*2.47,.51,z,.13,.085,.12,
+                        0,side*.08);
+                    if(j%3===0)
+                        box('HULL',side*2.47,.58,z,
+                            .32,.035,.045);
+                }
+                // Triangular mechanical plates cover the leading shoulder
+                // near the long, original tapered nose.
+                wingPlate(side,'SECOND',[
+                    [.87,-4.75],[1.51,-4.05],
+                    [2.27,-3.65],[1.44,-2.83]
+                ],.31,.06);
+                line('RED',[side*1.12,.41,-4.67],
+                    [side*1.85,.48,-3.36],.12);
+                // Three stacked heat shielding collars surround the twin
+                // blue plasma exhausts. Their inner dark disks create the
+                // perception of depth missing in the first browser render.
+                for(let j=0;j<4;j++)
+                    hoop(j%2?'ORANGE':'SECOND',
+                        side*1.80,-.25,5.81+j*.135,
+                        1.30-j*.055);
+                cyl('DARK',side*1.80,-.25,6.22,.62,.09);
+                cyl('PLASMA',side*1.80,-.25,6.285,.40,.045);
+                cyl('DARK',side*1.80,-.25,6.322,.16,.025);
+                cyl('PLASMA',side*1.80,-.25,6.347,.094,.018);
+                hoop('ORANGE',side*1.80,-.25,6.298,.72);
+                hoop('PLASMA',side*1.80,-.25,6.34,.48);
+                // Radially symmetric mechanical petals on the thruster
+                // nozzle, visible from the actual 3rd person chase camera.
+                for(let j=0;j<12;j++){
+                    const a=j*Math.PI/6;
+                    box(j%3===0?'ORANGE':'SECOND',
+                        side*1.80+Math.cos(a)*.78,
+                        -.25+Math.sin(a)*.78,6.13,
+                        .17,.11,.56,0,0,a);
+                }
+                // Fixed service panels and fasteners make the craft
+                // credible up close without creating new draw calls.
+                for(let j=0;j<11;j++){
+                    const t=j/10;
+                    box(j%5===0?'RED':'SECOND',
+                        side*(3.34+t*3.65),.34,
+                        -.58+t*.28,
+                        .12,.04,.14,
+                        0,side*.11);
+                    if(j%2===0)
+                        box('DARK',side*(3.5+t*3.45),
+                            .345,1.40+t*.08,
+                            .10,.034,.11);
+                }
+                // Amber warning lights keep both wingtips readable
+                // against nebulae during the requested boost closeup.
+                for(let j=0;j<3;j++)
+                    box('ORANGE',side*7.67,.68+j*.34,
+                        -1.12+j*.21,.06,.11,.21);
+            }
+            // Distinct blue-black canopy framing; original first pass
+            // lacked an identifiable windshield subdivision.
+            for(const side of [-1,1]){
+                line('DARK',[side*.79,.48,-4.13],
+                    [side*.92,.86,-2.75],.10);
+                line('SECOND',[side*.89,.90,-2.77],
+                    [side*.53,1.06,-1.56],.085);
+                line('ORANGE',[side*.74,.63,-3.44],
+                    [side*.64,.82,-2.75],.045);
+                for(let j=0;j<5;j++)
+                    box('DARK',side*(.98+j*.075),
+                        .39+j*.045,-3.65+j*.45,
+                        .15,.048,.13);
+            }
+            // Upper fuselage longitudinal ridges and race identifier
+            // stitching, following the existing pointed SB-07 nose.
+            line('RED',[0,.205,-8.20],[0,.49,-4.46],.09);
+            for(let j=0;j<13;j++){
+                const zz=.65+j*.325;
+                box(j%4===0?'ORANGE':'SECOND',
+                    -.37+(j%3)*.36,.79,zz,
+                    .13,.055,.18);
+            }
+            root.userData.surfacePass='NEXT11C21_ART_DIRECTED';
+            root.userData.referenceStyle=
+                'SB07_WIDE_SWEEP_FLAT_TALL_TIPS_TWIN_PLASMA';
             const mats={
                 HULL:new THREE.MeshStandardMaterial({
                     name:'SB07_SILVER_CERAMIC',
