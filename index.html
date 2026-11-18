@@ -14553,7 +14553,7 @@
                 if (state.activeMap === MAP_MODES.MAP4) {
                     const ready=state.h4Power.weapons>=H4_WEAPON_SHOT_COST;
                     laserStatus.textContent=ready?
-                        'AVCI LAZERİ · F / SOL TIK · -5 SİLAH GÜCÜ':
+                        'AVCI LAZERİ HAZIR · F / SOL TIK · -5 SİLAH GÜCÜ':
                         'LAZER ENERJİSİ BİTTİ · 3 SİLAH ODAĞI';
                     laserStatus.className=ready?
                         "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold":
@@ -14883,7 +14883,7 @@
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
                 laserStatus.textContent=state.activeMap===MAP_MODES.MAP4 ?
-                    'AVCI LAZERİ · F / SOL TIK · -5 SİLAH GÜCÜ' : 'LAZER KİLİTLİ — MOR KUTU TOPLA';
+                    'AVCI LAZERİ HAZIR · F / SOL TIK · -5 SİLAH GÜCÜ' : 'LAZER KİLİTLİ — MOR KUTU TOPLA';
                 laserStatus.className=state.activeMap===MAP_MODES.MAP4 ?
                     "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold" :
                     "block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
