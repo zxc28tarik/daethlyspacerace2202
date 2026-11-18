@@ -39,3 +39,10 @@ Kullanıcı Star Wars: Squadrons araştırmasının **2. Uçuş Sistemi** ve **3
 - [ ] Açık kullanıcı onayı olmadan mevcut stacked PR'lar veya bu PR birleşmez.
 
 **Özgünlük:** Squadrons'ın telifli görsellerini, arayüzünü, varlıklarını veya yazılımını kopyalamak yok; sadece genel güç dağıtımı ve uçuş kontrolü konseptlerinden ilham alındı.
+
+## İlk gerçek Chromium/WebGL doğrulaması — 18 Kasım
+
+- **C18 güncel oyun/test kodunda [hızlı #44217012072](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217012072) SUCCESS.** Dört klavye güç modu, 3 sistem farklı oranlar, 3 başarılı lazer/1 enerjisiz ret, kalkan hasar gecikmesi +1,5, +8 motor enerjisi maliyetli drift ve Map1 enerji/ HUD izolasyonu bağımsız Chromium'da test edildi.
+- 236 bina/sanayi collider, 6 kanyon collider, 24 navigasyon objesi, 5 rakip/8 avcı, 60s/300s/850m ve %18/%12 bonuslar testte korundu.
+- Önceki C18 test koşuları, **üretim oyun kodu değil test dosyası** kaynaklı iki hatadan (JavaScript alan adı sözdizimi ve yanlış test snapshot değişkeni) dolayı FAIL idi. Test kodu düzeltildi; [son hızlı #44217012072](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217012072) tüm testleri geçti. İlk başarısız koşuları yok sayma.
+- [Güncel tam Map1/Map4 #44217011963](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217011963) kontrol anında **in_progress**; PASS diye yazma. İnsan dengelemesi, native GPU ve 300s pilot ayrı açık.
