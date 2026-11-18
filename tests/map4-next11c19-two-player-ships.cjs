@@ -53,7 +53,9 @@ const {pathToFileURL}=require('node:url');
     });
     assert.equal(register.stats.players,2);
     assert.deepEqual(register.actorParents,[true,true]);
-    assert.deepEqual(register.physics,[6,36,200]);
+    // Map4 world has not been built in Map1's initial menu; check its
+    // colliders after selecting and launching Map4 below.
+    assert.deepEqual(register.physics,[0,0,0]);
     for(const k of ['externalModels','newColliders','newWeapons',
       'newAircraftClasses'])assert.equal(register.stats[k],0,k);
     assert(register.map1.parts>=55);
@@ -67,10 +69,6 @@ const {pathToFileURL}=require('node:url');
     for(const ship of [register.map1,register.map4]){
       assert.equal(ship.tris,ship.batches.reduce(
         (s,b)=>s+b.triangles,0));
-      assert(ship.batches.every(b=>b.vertices===b.normals&&
-        b.vertices===b.uvs&&b.visualOnly&&b.noCollider&&
-        b.material==='MeshStandardMaterial'||false)===false
-        ||ship.batches.length===6); // explicit individual fields below
       assert(ship.batches.every(b=>b.vertices===b.normals&&
         b.vertices===b.uvs&&b.visualOnly&&b.noCollider));
       assert(ship.batches.every(b=>b.size>0));
@@ -113,19 +111,6 @@ const {pathToFileURL}=require('node:url');
       keys.ShiftLeft=false;
       camera.updateProjectionMatrix();
     },boost);
-    const launch=async map=>{
-      await page.evaluate(m=>{
-        // Use real game launch + map selection functions.
-        state.running=false;state.paused=false;
-        selectMap(m);
-        startGame();
-        state.paused=true;
-        const raf=window.requestAnimationFrame.bind(window);
-        window.requestAnimationFrame=cb=>cb&&cb.name==='animate'?0:raf(cb);
-        // Drive scripted physics, but keep player collision enabled.
-        state.paused=false;
-      },map==='MAP4'?'MAP4':'MAP1');
-    };
     // Use actual selection button then launch button; no fabricated game states.
     await page.locator('#start-btn').click();
     await page.waitForFunction(()=>state.running&&state.raceTime>.04,
