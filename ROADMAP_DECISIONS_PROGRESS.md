@@ -567,3 +567,8 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Kesin koruma:** Harita 1 yarış, eski ortak enerji/lazer bedeli ve kontrol mekanikleri değişmez. Harita 4 mevcut 4 evre, 60s arena / 300s bitiş / 850 çıkış, 5 rakip/8 avcı, +18/+12 bonus, 6/36/200 collider, 24 marker, 34 W02, GFX11C17 96 obje. Gemi sınıfı/modeli eklenmez. Riskli kaza parkurları kolaylaştırılmaz.
 - **İlk denge parametreleri test değeridir**, otomatik kesin ürün kararı sayılmaz. Gerçek pilot deneyi, AI karşılaştırması, 300s + native FPS ve kullanıcı onayı ayrı kapı.
 - **GELİŞTİRME-PR (Draft/no merge):** `codex/map4-next11c18-power-flight-controls`, [NEXT11C18 sözleşmesi](MAP4_NEXT11C18_POWER_FLIGHT_ACCEPTANCE.md); bağımsız Chromium + tam regression test kodu. İlk hızlı testte test dosyasındaki geçersiz sayısal anahtar düzeltildi; son HEAD sonuçları kontrol edilmeli.
+
+### C18 gerçek test kabul kaydı
+
+- [C18 hızlı Chromium/WebGL #44217012072](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217012072) **SUCCESS**. Gerçek klavye 1–4 güç modları, ayrı motor/silah/kalkan kapasitör, enerji harcayan avcı lazeri, kalkan gecikme/onarımı, son boost sonrası X drift, Map1 motor/lazer izolasyonu ve 236/6 collider koruması test edildi. İlk iki test FAIL yalnız test dosyası sözdizimi/snapshot adlandırma hataları nedeniyle; düzeltildi.
+- **AÇIK:** [tam C18 Map1/Map4 #44217011963](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217011963) sonuç bekleniyor; gerçek insan 300s uçuş/AI dengesi, native GPU, kullanıcı güç oranı ve manevra onayı, kullanıcı merge izni. Gemi sınıfları ertelendi.
