@@ -577,3 +577,31 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 
 - Son C18 HUD iyileştirmesi `05fd631`: lazerin **HAZIR** göstergesi ve `-5 silah gücü` maliyeti birlikte okunur. [Son hızlı Chromium/WebGL #44217575698](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575698) **9/9 PASS**. Son [tam Map1/Map4 #44217575808](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575808) sonucu açık; önceki hızlı sonucu tam PASS sanma.
 - PR **#63 DRAFT / STACKED / NO MERGE**, kullanıcı güç/oynanış onayı gerek; yeni gemiler ve gemi sınıfları hâlâ ertelendi.
+
+
+## 25) 18 Kasım — NEXT-11C19: Harita 1/4 için birer özgün oyuncu gemisi + onaylanmış kamera
+
+- **Kullanıcı açık kararı:** Şimdilik oynanabilir **iki haritaya birer farklı oyuncu gemisi**. Önceki kamera seçim kararı: normal **#1 Cinematic Chase**, boost anında **#2 Tight Chase'e yumuşak yaklaşma**, boost bitince normale dönme. Gemi sınıfları/özelleştirme ve diğer gemiler yine sonraya.
+- **YAPILDI:** Harita1 özgün ince yarışçı **R-01 VEKTÖR**, Harita4 özgün zırhlı savaş uçağı **B-04 BASTİON**. Baştan üretilmiş 3D değişken kesitli gövde, farklı kanat extrude şekilleri, zırh/servis panelleri ve motor/kanat/namlu/ışık detayları. Map4 mevcut GFX05 iç animasyon gövdesiyle aynı oyuncu gemisi olarak birleşir; eski basit Map1 meshleri arşiv amaçlı tutulur ama görünmez. Her gemi 6 bake GPU materyal grubu, 3. parti asset yok.
+- Oyun iki haritada da Cinematic Chase kamera ile başlar, C ile kokpit/taret alternatifine dönülebilir. Normal kamera hafif çapraz arkadan ve yukarıdan; boostta arka mesafe **azalır**, FOV artar, fren/bırakmada yumuşak dönüş. Map4 kamera collider güvenlik sistemi korunur, oyuncu pozisyonuna müdahale yok.
+- **DEĞİŞMEDİ:** 6/36/200 collider, AI ve savaş/bonus, 5 rakip/8 avcı, 60/300/850, +18/+12, Map1 yarış ve C18 enerji sistemi. Zorlu çarpışmalı güzergâhlar aynen.
+- Yeni testler: `tests/map4-next11c19-two-player-ships.cjs` gerçek Chromium/WebGL dört normal/boost kare, model görünürlüğü, kamera mesafesi, Map1/4 seçim ve fizik bütünlüğü. [Teknik kabul](MAP1_MAP4_NEXT11C19_PLAYER_SHIPS_ACCEPTANCE.md). **AÇIK:** yeni test run PASS, tam regresyon, görsel insan onayı ve native GPU. **DRAFT / NO MERGE**.
+
+### C19B — Önceki örnek görsel tarzı iki gerçek oyuncu gemisine entegre edildi (18 Kasım)
+
+- **Kullanıcı isteği:** "TARZ OLARAK OYUNA ADAPTE ET". İki temsili referansın tasarım dili, Harita1 R-01 açık beyaz/turkuaz ince yarış gemisine ve Harita4 B-04 koyu çelik/turuncu zırhlı savaş gemisine uygulandı. Yalnız renk düzeni değil; kamera yakınında görülecek ilave 3D panel, kanat, motor halkası, radyatör, bolt ve namlu yüzeyleri de üretim `index.html` geometrilerine bake edildi. **Dış model/kopya yok; gemi kimliği orijinal.**
+- Normal #1 takip kamera/boost #2 yakın takip değişmiyor. Yeni görsel detaylar önceki 6 materyal batch/gemi sisteminde kalır; tüm fizik/AI/bonus, Harita 1 yarışı, C18 güç yönetimi ve Map4 60/300/850 korunur.
+- **AÇIK:** Son C19B gerçek WebGL görünüm ve eski regresyon PASS, kullanıcı görsel onayı, native GPU. PR #64 Draft; merge için açık onay şart.
+
+
+### C19B — İlk oyun içi gerçek görsel ve kamera QA PASS
+
+- [Güncel C19B hızlı WebGL run #44226228254](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228254) **9/9 PASS**. Beyaz/turkuaz R-01 (**181** detaylı alt parça) + koyu çelik/turuncu B-04 (**249** detaylı alt parça), 12 draw batch toplam. Başlangıçta normal 3. şahıs takip, boostta yumuşak zoom: Map1 kamera mesafesi **18,957→13,267**, Map4 **19,3707→13,3943**, iki model de gerçek 3D sahnede görünür. 4 gerçek normal/boost PNG ve JSON QA [artifact #14393625147](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228254/artifacts/14393625147) üzerinden incelenebilir.
+- C19 ilk test FAIL'leri sonunda **fabrika/collider hatası değil**, test yükleme sırası ve kamera dünya uzayı gecikmesi olarak düzeltildi. Fizik/AI/enerji/bonuslar dokunulmadı: **6/36/200 collider** korundu. [Son tam Map1/4 CI #44226228256](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226228256) sonucu ayrıca kabul edilecek. Native GPU, insan 300s ve kullanıcı 7–8/10 görsel onayı hâlâ açık. PR #64 DRAFT/NO MERGE.
+
+
+### C19B — Son görsel düzeltme gerçekten test edildi
+
+- Harita1'de R-01'in beyaz/turkuaz tasarımı ilk gerçek screenshotta çok karanlık görüldüğünden `212f1b15` ile yarış gövdesine kontrollü emissive görünürlük ve atlas ayrımı eklendi; Harita4 B-04'te koyu çelik kaplama ile turuncu motor/trim kontrastı güçlendirildi. Yalnız renk değil yeni gerçek 3D parça (R-01 **181**, B-04 **249**) vardır.
+- **Son üretim materyali + test koduyla** [C19B hızlı Chromium/WebGL #44227015001](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44227015001) **9/9 PASS**. Dört gerçek normal/boost PNG ve QA JSON [artifact #14392084668](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44227015001/artifacts/14392084668). Kamera yakınlaşma örnekleri R-01 **15,42→13,23**, B-04 **19,37→13,39**. 12 draw batch, 6/36/200 collider, 24 marker, 34 W02, 5/8 AI, 60/300/850 +18/+12 korunur. Kullanıcı estetik 7–8/10 onayı ve native GPU/300s insan pilot **AÇIK**.
+- [Son tam Map1/Map4 #44227014835](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44227014835) henüz bitmedi. PR #64 **DRAFT / NO MERGE**; C18 güç sistemi ve önceki Harita4 görsellerinin üzerine konumlandı.

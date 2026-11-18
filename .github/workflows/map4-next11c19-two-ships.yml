@@ -1,0 +1,31 @@
+name: Map1 Map4 NEXT11C19 Two Player Ships WebGL
+on:
+  push:
+    branches: [codex/two-map-player-ships-cinematic-chase]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two-player-ships:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned browser and Three.js
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Check 2 original spacecraft, cinematic boost camera, Map isolation and gameplay integrity
+        run: node tests/map4-next11c19-two-player-ships.cjs
+      - name: Archive two-ship normal and boost views
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-map4-next11c19-ships-cinematic-qa
+          path: |
+            tests/map4-next11c19-*.png
+            tests/map4-next11c19-two-ships-qa.json
+          if-no-files-found: warn
