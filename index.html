@@ -316,11 +316,34 @@
                 </div>
 
                 <div class="flex justify-between items-center text-xs font-bold tracking-wider text-cyan-300 mb-1">
-                    <span>ENERGY (BOOST / LAZER) <span id="energy-text" class="text-white">100 / 100</span></span>
+                    <span><span id="energy-caption">ENERGY (BOOST / LAZER)</span> <span id="energy-text" class="text-white">100 / 100</span></span>
                     <span class="text-[10px] text-cyan-200/80">SHIFT / W BOOST · S FREN</span>
                 </div>
                 <div class="w-full h-2.5 bg-slate-900/90 border border-cyan-400/50 p-0.5">
                     <div id="energy-bar" class="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-white transition-all duration-100" style="width: 100%;"></div>
+                </div>
+
+                <div id="h4-power-panel" class="hidden mt-2 border-t border-amber-400/30 pt-2 text-[10px] font-['Share_Tech_Mono']" aria-live="off">
+                    <div class="flex items-center justify-between text-amber-200 font-bold mb-1">
+                        <span>GÜÇ DAĞITIMI · <span id="h4-power-mode">DENGELİ</span></span>
+                        <span>1 DENGE / 2 MOTOR / 3 SİLAH / 4 KALKAN</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-14 text-blue-200 text-left">MOTOR</span>
+                        <div class="flex-1 h-1.5 bg-slate-950 rounded overflow-hidden"><div id="h4-engine-bar" class="h-full bg-sky-400" style="width:100%"></div></div>
+                        <span id="h4-engine-pct" class="w-6 text-right">100</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-14 text-rose-200 text-left">SİLAH</span>
+                        <div class="flex-1 h-1.5 bg-slate-950 rounded overflow-hidden"><div id="h4-weapon-bar" class="h-full bg-rose-400" style="width:100%"></div></div>
+                        <span id="h4-weapon-pct" class="w-6 text-right">100</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-14 text-emerald-200 text-left">KALKAN</span>
+                        <div class="flex-1 h-1.5 bg-slate-950 rounded overflow-hidden"><div id="h4-shield-power-bar" class="h-full bg-emerald-400" style="width:100%"></div></div>
+                        <span id="h4-shield-power-pct" class="w-6 text-right">100</span>
+                    </div>
+                    <div id="h4-maneuver-hud" class="text-cyan-200/85 text-left mt-1">X: BOOST SONRASI DRIFT · ALT: SERBEST BAKIŞ</div>
                 </div>
             </div>
 
@@ -431,7 +454,7 @@
                 </div>
                 <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
                     <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
-                    <p class="text-slate-300">Fareyle nişan al; sol tık / F ile avcılara ateş et. Avcı lazeri baştan açıktır, sürpriz kutu gerekmez. SHIFT/W boost, S fren, Q/E tonoz, C kamera, P/H duraklat.</p>
+                    <p class="text-slate-300">Fareyle nişan al; F / sol tık ile avcı lazeri (silah enerjisi harcar). 1 denge, 2 motor, 3 silah, 4 kalkan gücü. SHIFT/W boost, S fren, X boost sonrası drift, ALT bakış, Q/E tonoz, C kamera, P/H duraklat.</p>
                 </div>
             </div>
             <button id="start-btn" class="cyber-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">
@@ -501,6 +524,7 @@
                 <div><strong class="text-cyan-300">Q / E</strong> — barrel roll</div>
                 <div><strong class="text-cyan-300">C</strong> — kamerayı değiştir</div>
                 <div><strong class="text-cyan-300">P / H / ESC</strong> — devam et</div>
+                <div id="h4-power-help" class="hidden sm:col-span-2 text-amber-200"><strong>HARİTA 4:</strong> 1 dengeli · 2 motor · 3 silah · 4 kalkan. X boost sonrası kısa drift, ALT bakış. Lazer silah kapasitöründen enerji harcar; kalkan sadece kalkan odağında, hasarsız süre sonunda yavaş yenilenir.</div>
             </div>
             <p class="text-xs text-amber-200 mb-4">Mor kutu lazeri 12 saniyeliğine açar. Kenara sürtünme kalkan ve hız kaybettirir.</p>
             <button id="resume-btn" class="cyber-btn px-6 py-3 font-bold uppercase">YARIŞA DEVAM ET</button>
@@ -825,6 +849,7 @@
             stage: 1,
             shield: 100,
             energy: 100,
+            h4Power:{mode:"BALANCED",weapons:100,shields:100,lastDamageAt:-1e9,lastBoostAt:-1e9,driftTimer:0,driftCount:0,modeSwitches:0,shotsDenied:0},
             combo: 1.0,
             comboTimer: 0,
             rank: 1,
@@ -909,6 +934,103 @@
             bossActive: false,
             boss: null
         };
+
+
+        // NEXT-11C18: independently balanced three-system power distribution.
+        // Scope: Map4 exclusively; Map1 shared energy and every AI unchanged.
+        // This route-based game retains 3D sidestep/altitude, not full 6DOF.
+        const H4_POWER_PROFILES=Object.freeze({
+            BALANCED:Object.freeze({engine:10,weapons:10,shields:9,boost:1,repair:0}),
+            ENGINES:Object.freeze({engine:18,weapons:3,shields:3,boost:1.05,repair:0}),
+            WEAPONS:Object.freeze({engine:4,weapons:24,shields:3,boost:1,repair:0}),
+            SHIELDS:Object.freeze({engine:4,weapons:4,shields:24,boost:1,repair:1.5})
+        });
+        const H4_WEAPON_SHOT_COST=5;
+        const H4_DRIFT_COST=8;
+        const H4_DRIFT_LENGTH=.72;
+        const H4_POWER_NAMES=Object.freeze({
+            BALANCED:"DENGELİ",ENGINES:"MOTOR",WEAPONS:"SİLAH",SHIELDS:"KALKAN"
+        });
+        function h4PowerReset(){
+            state.h4Power={mode:"BALANCED",weapons:100,shields:100,
+                lastDamageAt:-1e9,lastBoostAt:-1e9,
+                driftTimer:0,driftCount:0,modeSwitches:0,shotsDenied:0};
+        }
+        function h4PowerChange(mode){
+            if(state.activeMap!==MAP_MODES.MAP4||
+                !state.running||state.finished||state.playerDNF||
+                !H4_POWER_PROFILES[mode])return false;
+            if(state.h4Power.mode===mode)return false;
+            state.h4Power.mode=mode;
+            state.h4Power.modeSwitches++;
+            return true;
+        }
+        function h4PowerTick(dt,boosting,braking,itemTurbo){
+            if(state.activeMap!==MAP_MODES.MAP4)return;
+            const p=state.h4Power,profile=H4_POWER_PROFILES[p.mode];
+            // Legacy engine meter state.energy stays unchanged outside Map4.
+            // While boosting, energy only drains; switching priority changes
+            // post-boost regeneration and boost performance.
+            if(!boosting || braking || itemTurbo)
+                state.energy=Math.min(100,state.energy+
+                    dt*(profile.engine+(braking?4:0)));
+            p.weapons=Math.min(100,p.weapons+dt*profile.weapons);
+            p.shields=Math.min(100,p.shields+dt*profile.shields);
+            // Repairs are deliberately slow, shield-focused ONLY, and
+            // forbidden while suffering real physical/boundary damage.
+            if(profile.repair && state.shield>0 && state.shield<100 &&
+                state.boundaryDamageRate<=0 &&
+                state.raceTime-p.lastDamageAt>=6){
+                const repair=Math.min(100-state.shield,
+                    profile.repair*dt,p.shields/2);
+                state.shield+=repair;
+                p.shields-=repair*2;
+            }
+            p.driftTimer=Math.max(0,p.driftTimer-dt);
+        }
+        function h4PowerTryDrift(){
+            if(state.activeMap!==MAP_MODES.MAP4||
+                !state.running||state.paused||state.finished||state.playerDNF)return false;
+            const p=state.h4Power;
+            if(p.driftTimer>0 || state.energy<H4_DRIFT_COST ||
+                state.raceTime-p.lastBoostAt>1.25)return false;
+            state.energy-=H4_DRIFT_COST;
+            p.driftTimer=H4_DRIFT_LENGTH;
+            p.driftCount++;
+            return true;
+        }
+        function h4PowerHud(){
+            const active=state.activeMap===MAP_MODES.MAP4;
+            const panel=document.getElementById('h4-power-panel');
+            panel.classList.toggle('hidden',!active);
+            document.getElementById('energy-caption').textContent=active?
+                'MOTOR KAPASİTÖRÜ':'ENERGY (BOOST / LAZER)';
+            if(!active)return;
+            const p=state.h4Power;
+            document.getElementById('h4-power-mode').textContent=
+                H4_POWER_NAMES[p.mode];
+            for(const [id,value] of [
+                ['engine',state.energy],['weapon',p.weapons],
+                ['shield-power',p.shields]]){
+                const v=Math.max(0,Math.min(100,value));
+                document.getElementById('h4-'+id+'-bar').style.width=
+                    v.toFixed(1)+'%';
+                document.getElementById('h4-'+id+'-pct').textContent=
+                    String(Math.round(v));
+            }
+            document.getElementById('h4-maneuver-hud').textContent=
+                p.driftTimer>0?'DRIFT AKTİF · '+p.driftTimer.toFixed(1)+'s':
+                'X: BOOST SONRASI DRIFT · ALT: SERBEST BAKIŞ';
+            window.starbladePowerTelemetry={
+                map:'MAP4',mode:p.mode,engine:+state.energy.toFixed(2),
+                weapons:+p.weapons.toFixed(2),shieldReserve:+p.shields.toFixed(2),
+                physicalShield:+state.shield.toFixed(2),
+                lastDamageAt:p.lastDamageAt,
+                driftTimer:+p.driftTimer.toFixed(2),
+                driftCount:p.driftCount,modeSwitches:p.modeSwitches,
+                shotsDenied:p.shotsDenied
+            };
+        }
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x040310);
@@ -11822,8 +11944,15 @@
                 !isLaserDestructible(state.lockedTarget.source || state.lockedTarget)) {
                 state.lockedTarget = null; // Gone targets must never attract new shots.
             }
-            const energyCost = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 0 : OBSTACLE_LASER_ENERGY_COST;
-            if (state.energy < energyCost) {
+            const h4Fire=state.activeMap===MAP_MODES.MAP4;
+            const energyCost=h4Fire?H4_WEAPON_SHOT_COST:
+                state.combatEnabled?0:OBSTACLE_LASER_ENERGY_COST;
+            const reserve=h4Fire?state.h4Power.weapons:state.energy;
+            if (reserve < energyCost) {
+                if(h4Fire){
+                    state.h4Power.shotsDenied++;
+                    setLaserFeedback('SİLAH KAPASİTÖRÜ BOŞ · 3 İLE SİLAH ODAĞI',0.65);
+                }
                 if (!state.combatEnabled && state.lowEnergyAlertCooldown <= 0) {
                     state.laserBlockedNoEnergy++;
                     state.lowEnergyAlertCooldown = 0.8;
@@ -11832,7 +11961,9 @@
                 return false;
             }
             if (energyCost) {
-                state.energy = Math.max(0, state.energy - energyCost);
+                if(h4Fire)state.h4Power.weapons=
+                    Math.max(0,state.h4Power.weapons-energyCost);
+                else state.energy=Math.max(0,state.energy-energyCost);
                 state.laserEnergySpent += energyCost;
             }
             firePlayerLasers();
@@ -12607,6 +12738,8 @@
                 const damage = f.damagePerSecond * dt;
                 ship.shield = Math.max(0, ship.shield - damage);
                 ship.boundaryDamageTotal = (ship.boundaryDamageTotal || 0) + damage;
+                if(isPlayer&&state.activeMap===MAP_MODES.MAP4)
+                    state.h4Power.lastDamageAt=state.raceTime;
                 if (isPlayer && ship.shield <= 0) {
                     state.playerDNF = true;
                     state.currentSpeed = 0;
@@ -12649,6 +12782,8 @@
                 return;
             }
             state.shield = Math.max(0, state.shield - amount);
+            if(state.activeMap===MAP_MODES.MAP4)
+                state.h4Power.lastDamageAt=state.raceTime;
             state.shake = 1.4;
             state.combo = 1.0;
 
@@ -12732,23 +12867,28 @@
                 const boosting = (keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyW']) && state.energy > 4;
                 const braking = keys['KeyS'];
                 const itemTurbo = state.itemTurboTimer > 0;
+                const h4PowerActive=state.activeMap===MAP_MODES.MAP4;
 
                 let targetSpeed = state.baseSpeed;
                 if (braking) {
                     targetSpeed = RACE_SPEEDS.BRAKE;
-                    state.energy = Math.min(100, state.energy + dt * 14);
+                    if(!h4PowerActive) state.energy = Math.min(100, state.energy + dt * 14);
                 } else if (itemTurbo) {
-                    // Hyper Turbo: hem oyuncu hem AI için 5500 KM/S özel üst sınırı.
+                    // Hyper Turbo: both players and AI retain the same item speed.
                     targetSpeed = RACE_SPEEDS.HYPER;
-                    state.energy = Math.min(100, state.energy + dt * 10);
+                    if(!h4PowerActive) state.energy = Math.min(100, state.energy + dt * 10);
                 } else if (boosting) {
-                    targetSpeed = RACE_SPEEDS.BOOST;
+                    targetSpeed = RACE_SPEEDS.BOOST *
+                        (h4PowerActive?H4_POWER_PROFILES[state.h4Power.mode].boost:1);
                     const beforeBoostEnergy = state.energy;
                     state.energy = Math.max(0, state.energy - dt * 16);
                     state.boostEnergySpent += beforeBoostEnergy - state.energy;
-                } else {
+                    if(h4PowerActive) state.h4Power.lastBoostAt=state.raceTime;
+                } else if(!h4PowerActive) {
                     state.energy = Math.min(100, state.energy + dt * 10);
                 }
+                if(h4PowerActive)
+                    h4PowerTick(dt,boosting&&!braking&&!itemTurbo,braking,itemTurbo);
                 // Oyuncu da rakiplerle aynı takip enerjisi avantajını kazanır.
                 applySlipstreamEnergy(state, dt, true);
                 // Gerçek hız takibi applyBoundaryFriction içinde tek kez yapılır.
@@ -12762,13 +12902,19 @@
                 camera.updateProjectionMatrix();
 
                 // 2. Serbest yanal ve dikey uçuş (Harita 4 ikinci aşamada ileri hareket kilitli)
-                moveX = normMouseX * 850;
-                moveY = -normMouseY * 750;
+                const h4FreeLook=state.activeMap===MAP_MODES.MAP4 &&
+                    (keys['AltLeft']||keys['AltRight']);
+                moveX = h4FreeLook?0:normMouseX * 850;
+                moveY = h4FreeLook?0:-normMouseY * 750;
                 if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 800;
                 if (keys['KeyD'] || keys['ArrowRight']) moveX += 800;
                 if (keys['ArrowUp']) moveY += 690;
                 if (keys['ArrowDown']) moveY -= 690;
-
+                // A paid, short post-boost vectoring window: more steering,
+                // never collision immunity, teleportation or reverse flight.
+                if(state.activeMap===MAP_MODES.MAP4&&state.h4Power.driftTimer>0){
+                    moveX*=1.36;moveY*=1.24;
+                }
                 state.laneX += moveX * dt;
                 state.laneY += moveY * dt;
 
@@ -12821,13 +12967,18 @@
             finishGateGroup.rotation.z += dt * 0.8;
 
             // Geminin ve Kameranın Boru İçindeki Hafif Eğimi (Pitch / Yaw / Roll)
-            const targetYaw = state.finished ? 0 : -normMouseX * 0.32;
-            const targetPitch = state.finished ? 0 : -normMouseY * 0.28;
+            const h4Looking=state.activeMap===MAP_MODES.MAP4 &&
+                (keys['AltLeft']||keys['AltRight']);
+            const targetYaw = state.finished || h4Looking ? 0 : -normMouseX * 0.32;
+            const targetPitch = state.finished || h4Looking ? 0 : -normMouseY * 0.28;
             state.yaw += (targetYaw - state.yaw) * 8 * dt;
             state.pitch += (targetPitch - state.pitch) * 8 * dt;
 
             // Yana yatış (Bank angle) ve Barrel Roll
             let targetRoll = state.finished ? 0 : -(moveX / 180) * 0.48;
+            if(state.activeMap===MAP_MODES.MAP4 &&
+                state.h4Power.driftTimer>0)
+                targetRoll*=1.24;
             if (!state.finished && state.barrelRollTimer > 0) {
                 state.barrelRollTimer -= dt;
                 targetRoll += state.barrelRollDir * (1 - state.barrelRollTimer / 0.55) * Math.PI * 2;
@@ -12880,6 +13031,14 @@
                 camera.position.copy(state.pos);
                 camera.quaternion.copy(playerRig.quaternion);
                 if(state.activeMap===MAP_MODES.MAP4)h4Gfx09CameraInfo.occluded=false;
+            }
+            if(h4Looking&&!state.finished){
+                // ALT rotates the camera but NOT the ship or the route
+                // frame; returning to normal view restores exact steering.
+                const freeLook=new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler(-normMouseY*.58,
+                        -normMouseX*.82,0,'YXZ'));
+                camera.quaternion.multiply(freeLook);
             }
             if (state.shake > 0) {
                 camera.position.addScaledVector(routeFrame.right, (Math.random() - 0.5) * state.shake * 2.2);
@@ -14329,6 +14488,7 @@
             document.getElementById('speed-text').textContent = Math.round(
                 state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress)*
                 h4IndustrialAdvanceMultiplier(state.routeProgress,state));
+            h4PowerHud();
             const energyText = document.getElementById('energy-text');
             energyText.textContent = `${Math.round(state.energy)} / 100`;
             energyText.className = state.energy < 20 ? 'text-amber-300 font-bold' : 'text-white';
@@ -14391,8 +14551,13 @@
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
                 if (state.activeMap === MAP_MODES.MAP4) {
-                    laserStatus.textContent='AVCI LAZERİ HAZIR · F / SOL TIK · ÜCRETSİZ';
-                    laserStatus.className="block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold";
+                    const ready=state.h4Power.weapons>=H4_WEAPON_SHOT_COST;
+                    laserStatus.textContent=ready?
+                        'AVCI LAZERİ · F / SOL TIK · -5 SİLAH GÜCÜ':
+                        'LAZER ENERJİSİ BİTTİ · 3 SİLAH ODAĞI';
+                    laserStatus.className=ready?
+                        "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold":
+                        "block text-[11px] text-amber-300 font-['Share_Tech_Mono'] font-bold";
                 } else if (state.obstacleLaserTimer > 0) {
                     const ready = state.energy >= OBSTACLE_LASER_ENERGY_COST;
                     const expiring = state.obstacleLaserTimer < 3;
@@ -14652,6 +14817,8 @@
             state.stage = 1;
             state.shield = 100;
             state.energy = 100;
+            h4PowerReset();
+            window.starbladePowerTelemetry=null;
             state.combo = 1.0;
             state.bossActive = false;
             state.routeProgress = 0;
@@ -14716,7 +14883,7 @@
             const laserStatus = document.getElementById('laser-status');
             if (laserStatus) {
                 laserStatus.textContent=state.activeMap===MAP_MODES.MAP4 ?
-                    'AVCI LAZERİ HAZIR · F / SOL TIK · ÜCRETSİZ' : 'LAZER KİLİTLİ — MOR KUTU TOPLA';
+                    'AVCI LAZERİ · F / SOL TIK · -5 SİLAH GÜCÜ' : 'LAZER KİLİTLİ — MOR KUTU TOPLA';
                 laserStatus.className=state.activeMap===MAP_MODES.MAP4 ?
                     "block text-[11px] text-emerald-300 font-['Share_Tech_Mono'] font-bold" :
                     "block text-[11px] text-rose-300 font-['Share_Tech_Mono'] font-bold";
@@ -14914,6 +15081,16 @@
             if (!state.running || state.paused) return;
             keys[e.code] = true;
             if (e.repeat) return;
+            if (state.activeMap===MAP_MODES.MAP4){
+                const powerKeys={
+                    Digit1:'BALANCED',Digit2:'ENGINES',
+                    Digit3:'WEAPONS',Digit4:'SHIELDS',
+                    Numpad1:'BALANCED',Numpad2:'ENGINES',
+                    Numpad3:'WEAPONS',Numpad4:'SHIELDS'
+                };
+                if(powerKeys[e.code]) h4PowerChange(powerKeys[e.code]);
+                if(e.code==='KeyX')h4PowerTryDrift();
+            }
             if (e.code === 'Space') triggerEMPShield();
             if (e.code === 'KeyQ') triggerBarrelRoll(-1);
             if (e.code === 'KeyE') triggerBarrelRoll(1);
@@ -14947,10 +15124,12 @@
             const isMap4=mapId===MAP_MODES.MAP4;
             document.getElementById('map1-instructions').classList.toggle('hidden',isMap4);
             document.getElementById('map4-instructions').classList.toggle('hidden',!isMap4);
+            document.getElementById('h4-power-help').classList.toggle('hidden',!isMap4);
             document.getElementById('h4-quality-picker').classList.toggle('hidden',!isMap4);
             h4Gfx10SetProfile(h4Gfx10ProfileName);
             launch.textContent = ready ? (isMap4?'HARİTA 4 · AVCI YARIŞINI BAŞLAT':'HARİTA 1 · YARIŞI BAŞLAT') :
                 'HARİTA 4 · GELİŞTİRİLİYOR';
+            document.getElementById('h4-power-panel').classList.toggle('hidden',!isMap4);
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
                 : isMap4 ? 'Harita 4: dört aşama, 60 sn avcı arenası, uzaya yükseliş ve 4–5 dk hedef.'
