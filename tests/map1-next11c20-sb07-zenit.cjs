@@ -49,6 +49,9 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      aeroIntakes:race.userData.aeroIntakes,
+      finStructuralPass:race.userData.finStructuralPass,
+      cockpitClearcoat:race.userData.cockpitClearcoat,
       facetedCanopy:race.userData.facetedCanopy,
       wingDeckPanels:race.userData.wingDeckPanels,
       nozzleCrowns:race.userData.nozzleCrowns,
@@ -59,6 +62,8 @@ const {chromium}=require('playwright');
         name:m.material.name,
         hex:m.material.color?.getHex(),
         emissiveIntensity:m.material.emissiveIntensity||0,
+        materialType:m.material.type,
+        clearcoat:m.material.clearcoat||0,
         roughnessMap:!!m.material.roughnessMap,
         bumpMap:!!m.material.bumpMap,
         visualOnly:m.userData.visualOnly,
@@ -95,7 +100,14 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20B');
+  assert.equal(geometry.detailPass,'NEXT11C20C');
+  assert.equal(geometry.aeroIntakes,2);
+  assert.equal(geometry.finStructuralPass,true);
+  assert.equal(geometry.cockpitClearcoat,.75);
+  const glassMat=geometry.colors.find(
+    x=>x.name==='SB07_SMOKED_BLUE_COCKPIT');
+  assert.equal(glassMat.materialType,'MeshPhysicalMaterial');
+  assert.equal(glassMat.clearcoat,.75);
   assert.equal(geometry.facetedCanopy,true);
   assert.equal(geometry.wingDeckPanels,8);
   assert.equal(geometry.nozzleCrowns,2);
@@ -176,17 +188,54 @@ const {chromium}=require('playwright');
         fov:+camera.fov.toFixed(3),
         combatEnabled:state.combatEnabled,
         progress:state.routeProgress,
-        renderCalls:renderer.info.render.calls
+        renderCalls:renderer.info.render.calls,
+        thrustGlow:+root.userData.thrustGlow.toFixed(4),
+        plasmaColor:root.children.find(
+          m=>m.material.name==='SB07_BLUE_PLASMA')
+          .material.color.getHex(),
+        amberColor:root.children.find(
+          m=>m.material.name==='SB07_ENGINE_AMBER')
+          .material.color.getHex(),
+        cockpitGlow:root.children.find(
+          m=>m.material.name==='SB07_SMOKED_BLUE_COCKPIT')
+          .material.emissiveIntensity
       };
     });
     await page.screenshot({path:path.join(__dirname,
       'map1-next11c20-'+filename+'.png')});
     return stateData;
   };
+  // Identical cockpit/rear-engine camera composition for genuinely
+  // comparable normal/boost materials. Not a substitute for chase frames.
+  const fixedEngineFrame=async tag=>{
+    const evidence=await page.evaluate(()=>{
+      const ship=h4Ship19Race;
+      const pos=ship.getWorldPosition(new THREE.Vector3());
+      const frame=playerRig.quaternion.clone();
+      camera.position.copy(pos).add(
+        new THREE.Vector3(9,8,16).applyQuaternion(frame));
+      camera.lookAt(pos);
+      camera.fov=55;camera.updateProjectionMatrix();
+      renderer.render(scene,camera);
+      const projected=pos.clone().project(camera);
+      return {
+        ship:ship.userData.authoredShipId,
+        glow:+ship.userData.thrustGlow.toFixed(3),
+        centerVisible:Math.abs(projected.x)<1&&
+          Math.abs(projected.y)<1&&projected.z>-1&&projected.z<1
+      };
+    });
+    assert(evidence.centerVisible,tag+' fixed view must show SB-07');
+    await page.screenshot({path:path.join(__dirname,
+      'map1-next11c20-zenit-fixed-engine-'+tag+'.png')});
+    return evidence;
+  };
   await fly(false);
   const normal=await read('zenit-chase-normal');
+  const fixedNormal=await fixedEngineFrame('normal');
   await fly(true);
   const boost=await read('zenit-chase-boost');
+  const fixedBoost=await fixedEngineFrame('boost');
   assert(normal.visible&&boost.visible);
   assert(normal.onScreen&&boost.onScreen);
   assert(normal.mode==='CHASE'&&boost.mode==='CHASE');
@@ -195,6 +244,14 @@ const {chromium}=require('playwright');
   assert(boost.cameraDistance<normal.cameraDistance-1.0,
     'boost should close chase camera like user-selected #1->#2');
   assert(boost.fov>normal.fov,'boost should increase speed FOV');
+  assert(boost.thrustGlow>normal.thrustGlow+.20,
+    'real boost must brighten actual twin motor plasma');
+  assert.notEqual(boost.plasmaColor,normal.plasmaColor,
+    'engine blue must respond to player speed rather than static rendering');
+  assert.notEqual(boost.amberColor,normal.amberColor,
+    'heat shield orange must respond to racing throttle');
+  assert(boost.cockpitGlow>normal.cockpitGlow,
+    'cockpit highlight must respond subtly to speed');
   // Evidence image from oblique above; this is NOT the playable camera.
   const oblique=await page.evaluate(()=>{
     const ship=h4Ship19Race;
@@ -248,9 +305,9 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20B',
+    status:'PASS',id:'NEXT11C20C',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
-    geometry,normal,boost,oblique,map4Preserved:after,
+    geometry,normal,boost,fixedNormal,fixedBoost,oblique,map4Preserved:after,
     actualNativeGPU:false,actualHumanRace:false,
     aestheticApprovedByUserForModel:false
   };
@@ -258,6 +315,7 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    boostLighting:[normal.thrustGlow,boost.thrustGlow],
     wingDeck:geometry.wingDeckPanels,glass:geometry.glassVertices,
     plasmaRearLip:geometry.plasmaRearLip,
     parts:geometry.parts,tris:geometry.tris,

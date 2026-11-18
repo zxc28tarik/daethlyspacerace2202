@@ -11845,7 +11845,23 @@
                         [0,top+.013,z],.042);
                 }
             }
+            // NEXT11C20C: central nose shear lines and paired recessed
+            // intake cheeks make the ship read as a designed racer,
+            // without turning any aperture into a weapon hardpoint.
             box('DARK',0,.18,-6.18,.16,.08,3.66);
+            for(const side of [-1,1]){
+                line('SECOND',[side*.27,.30,-6.18],
+                    [side*.90,.36,-3.73],.075);
+                line('HULL',[side*.47,.47,-4.10],
+                    [side*1.14,.48,-2.66],.085);
+                box('DARK',side*1.12,.23,-2.06,.30,.19,1.13,
+                    0,side*.10);
+                box('SECOND',side*1.30,.30,-1.79,.06,.075,.77,
+                    0,side*.10);
+                for(let k=0;k<3;k++)
+                    box('SECOND',side*(1.08+k*.12),.41,-1.70,
+                        .065,.065,.40,0,side*.12);
+            }
             for(let j=0;j<5;j++){
                 box(j%2?'SECOND':'HULL',0,.74,1.18+j*.48,
                     1.10-j*.13,.11,.28);
@@ -11863,6 +11879,18 @@
                     .28,.06,1.24,0,side*.18);
                 box('DARK',side*6.70,-.13,1.61,
                     1.08,.13,.39,0,side*.06);
+                // Tall wings have a machined inner spar and layered
+                // aerodynamic vents. Neither the wing nor its upright
+                // silhouette moves or curls.
+                line('SECOND',[side*7.71,.40,-.78],
+                    [side*7.71,2.60,.21],.071);
+                line('HULL',[side*7.77,.75,.69],
+                    [side*7.77,2.42,.39],.060);
+                for(let k=0;k<4;k++){
+                    box(k===3?'RED':'DARK',side*7.80,
+                        .70+k*.37,.72-k*.12,.055,.20,.24,
+                        0,side*.04);
+                }
                 // Strong, bright upper fin edge helps the approved
                 // silhouette read against a distant starfield.
                 line('ORANGE',[side*7.72,2.87,.38],
@@ -11928,6 +11956,12 @@
                         1.12+j*.19,
                         .37,.08,.41,0,side*.13);
                 }
+                // Blue navigation line + inset unlit trailing groove:
+                // readable from the #1 cinematic chase and closer #2.
+                line('PLASMA',[side*6.45,-.11,1.94],
+                    [side*7.27,-.09,2.13],.049);
+                line('DARK',[side*5.52,.045,2.01],
+                    [side*6.96,.045,2.18],.082);
                 box('PLASMA',side*7.31,.22,-.19,
                     .18,.13,.73);
             }
@@ -11990,9 +12024,10 @@
                     name:'SB07_RECESSED_MECHANICS',
                     color:0x15202c,metalness:.66,roughness:.58,
                     side:THREE.DoubleSide}),
-                GLASS:new THREE.MeshStandardMaterial({
+                GLASS:new THREE.MeshPhysicalMaterial({
                     name:'SB07_SMOKED_BLUE_COCKPIT',
-                    color:0x18394f,metalness:.66,roughness:.13,
+                    color:0x18394f,metalness:.64,roughness:.13,
+                    clearcoat:.75,clearcoatRoughness:.12,
                     emissive:0x0b435d,emissiveIntensity:.38,
                     side:THREE.DoubleSide}),
                 ORANGE:new THREE.MeshBasicMaterial({
@@ -12040,7 +12075,11 @@
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
-            root.userData.detailPass='NEXT11C20B';
+            root.userData.detailPass='NEXT11C20C';
+            root.userData.aeroIntakes=2;
+            root.userData.finStructuralPass=true;
+            root.userData.cockpitClearcoat=.75;
+            root.userData.thrustGlow=0;
             root.userData.facetedCanopy=true;
             root.userData.wingDeckPanels=8;
             root.userData.nozzleCrowns=2;
@@ -12059,6 +12098,44 @@
         const h4Ship19CameraOffset=new THREE.Vector3(-1.45,5.1,18.2);
         const h4Ship19Race=h4Ship20ZenitBuild();
         const h4Ship19Combat=h4Ship19Build('COMBAT');
+        // NEXT11C20C: lighting-only exhaust response uses the real
+        // player speed / boost state. No new particles, point lights or
+        // draw calls, and no influence over physics, enemy AI or Map4.
+        const h4Ship20ZenitPlasma=h4Ship19Race.children.find(
+            mesh=>mesh.material.name==='SB07_BLUE_PLASMA');
+        const h4Ship20ZenitAmber=h4Ship19Race.children.find(
+            mesh=>mesh.material.name==='SB07_ENGINE_AMBER');
+        const h4Ship20ZenitGlass=h4Ship19Race.children.find(
+            mesh=>mesh.material.name==='SB07_SMOKED_BLUE_COCKPIT');
+        const h4Ship20BasePlasma=new THREE.Color(0x6dd9ff);
+        const h4Ship20BoostPlasma=new THREE.Color(0xd8faff);
+        const h4Ship20BaseAmber=new THREE.Color(0xfaa15d);
+        const h4Ship20BoostAmber=new THREE.Color(0xffd19a);
+        let h4Ship20GlowBlend=0;
+        function h4Ship20ZenitVisualTick(dt){
+            if(state.activeMap!==MAP_MODES.MAP1 ||
+                !state.running||state.paused||state.finished) return;
+            const boostHeld=!!(keys['ShiftLeft']||
+                keys['ShiftRight']||keys['KeyW'])&&state.energy>4;
+            const turbo=state.itemTurboTimer>0;
+            const speedRatio=THREE.MathUtils.clamp(
+                (state.currentSpeed-RACE_SPEEDS.NORMAL)/
+                (RACE_SPEEDS.BOOST-RACE_SPEEDS.NORMAL),0,1);
+            const target=Math.max(speedRatio,
+                (boostHeld||turbo)?.88:0);
+            h4Ship20GlowBlend+=
+                (target-h4Ship20GlowBlend)*Math.min(1,dt*8);
+            h4Ship20ZenitPlasma.material.color.copy(
+                h4Ship20BasePlasma).lerp(
+                    h4Ship20BoostPlasma,h4Ship20GlowBlend);
+            h4Ship20ZenitAmber.material.color.copy(
+                h4Ship20BaseAmber).lerp(
+                    h4Ship20BoostAmber,h4Ship20GlowBlend*.70);
+            h4Ship20ZenitGlass.material.emissiveIntensity=
+                .38+.08*h4Ship20GlowBlend;
+            h4Ship19Race.userData.thrustGlow=h4Ship20GlowBlend;
+        }
+
         h4Ship19Stats.stylePass='SB07_ZENIT_RACER__DARK_AMBER_B04';
         h4Ship19Stats.referenceStyleOnly=true;
         geoSwordMesh.add(h4Ship19Race);
@@ -13979,6 +14056,9 @@
                 camera.position.addScaledVector(routeFrame.up, (Math.random() - 0.5) * state.shake * 2.2);
                 state.shake = Math.max(0, state.shake - dt * 4.5);
             }
+
+            // Appearance only; game controls/camera/physics unchanged.
+            h4Ship20ZenitVisualTick(dt);
 
             // Köşe Taretlerin Geri Tepme Düzelmesi
             leftTurret.position.z += (-6.2 - leftTurret.position.z) * 12 * dt;

@@ -631,3 +631,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **NEXT11C20C (öneri):** yeni 3 gerçek oynanış screenshotunun estetik incelemesi; gerekirse sadece malzeme/parlama ve kadraj rötuşu, kullanıcı kabulü beklenir.
 
 **Günlük:** `2026-11-18 | NEXT11C20B | C20 ilk model -> geometrik/PBR detay dalı | kod+webgl test+workflow | CI BEKLİYOR | kullanıcı onayı AÇIK | native GPU AÇIK | NO MERGE | NEXT11C20C`.
+
+
+## 28) 18 Kasım 2026 — NEXT11C20C: SB-07 gerçek boost ışığı, canopy clearcoat ve art okunabilirliği
+
+- **YAPILDI / GELİŞTİRME DALINDA:** `codex/map1-sb07-zenit-visual-glow-pass`, önceki NEXT11C20B PR #67 üzerine. İki burun intake çukuru ve burun dikişleri, iki dış dikey kanat ucunda spar/vent detayı, kanat ucunda mavi konum ışıkları, `MeshPhysicalMaterial` cam clearcoat, tek büyük yeri değiştirmeden 7 materyal SB-07 batch içinde.
+- **BOOST'A DUYARLI GERÇEK KOD:** `h4Ship20ZenitVisualTick(dt)` yalnız Map1 race active olduğunda gerçek hız/boost durumuna göre plazma/amber/gölgeli cam rengini yumuşak değiştirir. Sadece görseldir, ekstra ışık, collider, silah ve oyuncu statı yok; B-04 249 parça / 6 batch korunuyor.
+- **KOD TESTİ:** C20 WebGL testine çift hava girişi, kokpit gerçek clearcoat, gerçek normal/boost engine color kontrolü ve birebir göreli kadraj ile iki ek screenshot eklendi. CI workflow yeni branch için ayrı; tam Map1/4 smoke yeni branch'te çalışacak.
+- **AÇIK QA:** hızlı/tam CI sonuçlarını görmeden PASS denmeyecek. Yeni 2 aynı açılı motor görüntüsünü incelemek, olası fazla parlama/renk uyuşmazlığı düzeltmek, gerçek GPU 60 FPS ve kullanıcı estetik kabulü açık. Onaylanmış SB-07 siluetini bozma, reddedilen kıvrımları geri getirme.
+- **NO MERGE:** Önceki #65 ve #67 stacked PR'larının hiçbirisi kullanıcının açık izni olmadan main'e geçirilmez.
+- **Kabul:** [NEXT11C20C](MAP1_NEXT11C20C_SB07_ZENIT_BOOST_VISUAL_QA.md). **NEXT11C20D:** önce gerçek QA görüntü incelemesi, ardından gerekiyorsa hedefli art rötuşu.
+
+**Günlük:** `2026-11-18 | NEXT11C20C | NEW | yeni original geo+cam PBR+state-driven neon | CI BEKLİYOR | görüntü/kullanıcı onayı YOK | native GPU YOK | DRAFT/NO MERGE | NEXT11C20D`.
