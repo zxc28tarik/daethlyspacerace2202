@@ -586,3 +586,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Oyun iki haritada da Cinematic Chase kamera ile başlar, C ile kokpit/taret alternatifine dönülebilir. Normal kamera hafif çapraz arkadan ve yukarıdan; boostta arka mesafe **azalır**, FOV artar, fren/bırakmada yumuşak dönüş. Map4 kamera collider güvenlik sistemi korunur, oyuncu pozisyonuna müdahale yok.
 - **DEĞİŞMEDİ:** 6/36/200 collider, AI ve savaş/bonus, 5 rakip/8 avcı, 60/300/850, +18/+12, Map1 yarış ve C18 enerji sistemi. Zorlu çarpışmalı güzergâhlar aynen.
 - Yeni testler: `tests/map4-next11c19-two-player-ships.cjs` gerçek Chromium/WebGL dört normal/boost kare, model görünürlüğü, kamera mesafesi, Map1/4 seçim ve fizik bütünlüğü. [Teknik kabul](MAP1_MAP4_NEXT11C19_PLAYER_SHIPS_ACCEPTANCE.md). **AÇIK:** yeni test run PASS, tam regresyon, görsel insan onayı ve native GPU. **DRAFT / NO MERGE**.
+
+### C19B — Önceki örnek görsel tarzı iki gerçek oyuncu gemisine entegre edildi (18 Kasım)
+
+- **Kullanıcı isteği:** "TARZ OLARAK OYUNA ADAPTE ET". İki temsili referansın tasarım dili, Harita1 R-01 açık beyaz/turkuaz ince yarış gemisine ve Harita4 B-04 koyu çelik/turuncu zırhlı savaş gemisine uygulandı. Yalnız renk düzeni değil; kamera yakınında görülecek ilave 3D panel, kanat, motor halkası, radyatör, bolt ve namlu yüzeyleri de üretim `index.html` geometrilerine bake edildi. **Dış model/kopya yok; gemi kimliği orijinal.**
+- Normal #1 takip kamera/boost #2 yakın takip değişmiyor. Yeni görsel detaylar önceki 6 materyal batch/gemi sisteminde kalır; tüm fizik/AI/bonus, Harita 1 yarışı, C18 güç yönetimi ve Map4 60/300/850 korunur.
+- **AÇIK:** Son C19B gerçek WebGL görünüm ve eski regresyon PASS, kullanıcı görsel onayı, native GPU. PR #64 Draft; merge için açık onay şart.
