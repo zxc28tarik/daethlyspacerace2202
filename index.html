@@ -11156,11 +11156,11 @@
         // geometry, weapon coordinates, AI and four-phase gameplay rules.
         const H4_SHIP19_MODELS=Object.freeze({
             RACE:{id:'R-01',title:'R-01 VEKTÖR',
-                hull:0xd9edf2,secondary:0x4f7182,trim:0xe6b779,
-                dark:0x26394c,glass:0x2686a2,glow:0x65eff4},
+                hull:0xe5f2f5,secondary:0x297d94,trim:0x25c4d3,
+                dark:0x152c3a,glass:0x137f9c,glow:0x74e8f8},
             COMBAT:{id:'B-04',title:'B-04 BASTİON',
-                hull:0x7f98a9,secondary:0x354a5a,trim:0xc98757,
-                dark:0x182c36,glass:0x185674,glow:0x8bceef}
+                hull:0x556b7c,secondary:0x223542,trim:0xe69a60,
+                dark:0x14222c,glass:0x175472,glow:0xffaa67}
         });
         const h4Ship19Stats={players:2,externalModels:0,
             newColliders:0,newWeapons:0,newAircraftClasses:0,
@@ -11344,6 +11344,182 @@
                 cyl('DARK',0,-.52,5.00,.93,1.6,.93,Math.PI/2);
                 cyl('GLOW',0,-.52,5.92,.55,.10,.55,Math.PI/2);
             }
+
+            // NEXT11C19B — adapt both user-selected spacecraft reference
+            // STYLES to the in-game original silhouettes: R-01 glossy
+            // white + cyan aerodynamic racing; B-04 dark forged steel +
+            // amber armored combat. Original geometry, not copied assets.
+            // All of these sub-parts share the SIX baked material families.
+            const styleArmor=new THREE.BoxGeometry(1,1,1,3,1,4);
+            const styleVent=new THREE.BoxGeometry(1,1,1,2,1,3);
+            const styleBolt=new THREE.IcosahedronGeometry(1,1);
+            const styleRing=new THREE.TorusGeometry(.5,.09,10,32);
+            const styleSphere=new THREE.SphereGeometry(.5,14,10);
+            const sheet=(mat,x,y,z,w,h,d,rx=0,ry=0,rz=0)=>
+                add(styleArmor,mat,x,y,z,w,h,d,rx,ry,rz);
+            const exhaustRing=(mat,x,y,z,r)=>add(
+                styleRing,mat,x,y,z,r,r,.9);
+            const bolt=(mat,x,y,z,r)=>add(
+                styleBolt,mat,x,y,z,r,r*.55,r);
+            if(!combat){
+                // R-01: floating needle prow and tinted racing lane stripes.
+                // These panels form a crisp FAST silhouette at normal zoom.
+                for(const side of [-1,1]){
+                    sheet('HULL',side*1.45,.22,-3.9,
+                        1.02,.24,3.2,0,side*.15);
+                    sheet('TRIM',side*3.25,.22,-2.1,
+                        .16,.055,3.2,0,side*.52);
+                    sheet('SECOND',side*4.7,.24,-.48,
+                        1.35,.13,2.0,0,side*.41);
+                    sheet('HULL',side*5.85,.27,.66,
+                        1.05,.14,1.35,0,side*.30);
+                    sheet('TRIM',side*6.2,.33,.60,
+                        .13,.045,1.65,0,side*.27);
+                    sheet('SECOND',side*7.50,.22,-.20,
+                        .53,.25,1.2,0,side*.27);
+                    // Rotated tetrahedral winglet makes an actual blade,
+                    // not a rectangular end cap.
+                    add(styleVent,'HULL',side*8.34,.36,-.35,
+                        .28,.66,1.14,0,side*.10,side*.50);
+                    // Jet pod five concentric contrast bands.
+                    for(let k=0;k<5;k++)
+                        exhaustRing(k%2?'HULL':'TRIM',
+                            side*1.72,-.27,5.24+k*.21,
+                            1.14-k*.045);
+                    for(let k=0;k<5;k++)
+                        cyl('DARK',side*1.72,-.27,
+                            3.0+k*.41,.10,.18,.10,Math.PI/2);
+                    // Real geometry around exposed vent slots.
+                    for(let k=0;k<14;k++){
+                        const t=k/13;
+                        sheet(k%3===0?'TRIM':'SECOND',
+                            side*(2.65+t*4.55),
+                            .267+t*.025,
+                            1.72+t*.14,
+                            .34,.04,.13,0,side*.38);
+                    }
+                    for(let k=0;k<15;k++){
+                        const t=k/14;
+                        bolt('DARK',
+                            side*(1.8+t*5.3),.28,
+                            -1.85+t*2.55,.072);
+                    }
+                    // Lightbars flank the canopy for visual identity.
+                    for(let k=0;k<7;k++)
+                        sheet('TRIM',side*1.22,.67-k*.06,
+                            -3.45+k*.55,
+                            .045,.042,.33,0,side*.03);
+                    // Small ground-reflecting guide/position lights.
+                    add(styleSphere,'GLOW',
+                        side*7.86,.24,-.02,.25,.19,.38);
+                    bolt('TRIM',side*5.46,.38,2.15,.16);
+                }
+                sheet('HULL',0,.58,-5.65,.50,.31,2.5);
+                sheet('TRIM',0,.80,-5.63,.14,.06,1.95);
+                for(let k=0;k<9;k++){
+                    const z=1.1+k*.39;
+                    sheet(k%2?'DARK':'SECOND',
+                        0,.82,z,.84-k*.027,.07,.20);
+                }
+                // The fin-mounted upper panel reflects light with a
+                // separate glancing angle from the wing base.
+                for(const side of [-1,1]){
+                    sheet('SECOND',side*1.70,1.05,2.4,
+                        .38,.24,1.65,0,0,side*.14);
+                }
+            }else{
+                // B-04: asymmetrical-looking layered plates despite a
+                // centered chassis, external hardpoints and orange cores.
+                // No extra actual weapons; only visual architecture.
+                for(const side of [-1,1]){
+                    // Forearmored wing root, separated inner/outboard layers.
+                    for(let level=0;level<3;level++){
+                        sheet(level===1?'SECOND':'HULL',
+                            side*(2.2+level*1.62),
+                            .45+level*.035,
+                            -2.75+level*.76,
+                            1.42,.23,2.90-level*.22,
+                            0,side*(.08+level*.14));
+                    }
+                    sheet('DARK',side*6.40,.19,-1.34,
+                        2.30,.13,2.0,0,side*.30);
+                    sheet('TRIM',side*7.00,.37,-1.71,
+                        .22,.085,2.36,0,side*.34);
+                    sheet('HULL',side*8.0,.27,-2.14,
+                        .43,.24,1.15,0,side*.30);
+                    sheet('TRIM',side*8.30,.44,-2.4,
+                        .12,.055,.65,0,side*.32);
+                    // Deep-mounted double gun casings with four orange
+                    // heat rings; barrels use original hit/aim behavior.
+                    for(const off of [-.25,.25]){
+                        sheet('HULL',side*5.27+off,-.11,-4.18,
+                            .42,.40,2.7,0,side*.11);
+                        for(let k=0;k<3;k++)
+                            exhaustRing('TRIM',
+                                side*5.27+off,-.09,
+                                -5.15-k*.41,.27);
+                        add(styleSphere,'DARK',
+                            side*5.27+off,-.09,-6.54,
+                            .14,.14,.20);
+                    }
+                    // Twin exhaust stacks: deep mesh of chrome rings,
+                    // amber coils, and radial afterburner stabilizers.
+                    for(let k=0;k<6;k++){
+                        exhaustRing(k%2?'HULL':'TRIM',
+                            side*1.85,-.34,
+                            4.91+k*.22,1.72-k*.045);
+                    }
+                    for(let k=0;k<8;k++){
+                        const t=k*Math.PI/4;
+                        const x=side*1.85+Math.cos(t)*.82;
+                        const y=-.34+Math.sin(t)*.82;
+                        sheet(k%2?'TRIM':'SECOND',
+                            x,y,5.30,.21,.12,1.35,0,t);
+                    }
+                    // Dense wing radiator array: actual raised black slots.
+                    for(let k=0;k<14;k++){
+                        sheet(k%5===0?'TRIM':'DARK',
+                            side*(2.75+(k%7)*.59),
+                            .47+Math.floor(k/7)*.08,
+                            -.58+Math.floor(k/7)*1.13,
+                            .33,.09,.47,0,side*.13);
+                    }
+                    for(let k=0;k<20;k++){
+                        const t=k/19;
+                        bolt(k%4===0?'TRIM':'SECOND',
+                            side*(2.22+t*5.8),
+                            .54,
+                            -3.02+t*2.05,
+                            .085);
+                    }
+                    for(let k=0;k<5;k++){
+                        cyl('DARK',side*(2.55+k*.60),.54,1.68,
+                            .18,.14,.18);
+                    }
+                    sheet('TRIM',side*2.63,.92,1.45,
+                        .13,.11,2.55,0,side*.10);
+                    // Distinctive amber vent at the rear quarter.
+                    for(let k=0;k<7;k++)
+                        sheet('TRIM',side*2.95,.57,
+                            1.83+k*.37,.42,.07,.12,0,side*.10);
+                }
+                sheet('DARK',0,.49,-3.40,1.75,.12,3.1);
+                sheet('HULL',0,.67,-4.57,.90,.21,2.1);
+                sheet('TRIM',0,.82,-4.67,.16,.05,1.55);
+                for(let k=0;k<10;k++){
+                    sheet(k%3===0?'TRIM':'SECOND',
+                        -.65+k*.145,.75,2.1,
+                        .10,.08,2.36);
+                }
+                // On the rear center engine a short luminous core is
+                // visible from our cinematic chase without weapon change.
+                for(let k=0;k<3;k++)
+                    exhaustRing('TRIM',0,-.52,5.53+k*.19,
+                        .86-k*.06);
+            }
+            styleArmor.dispose();styleVent.dispose();
+            styleBolt.dispose();styleRing.dispose();styleSphere.dispose();
+
             const mats={
                 HULL:new THREE.MeshStandardMaterial({
                     map:h4SurfaceMaps.steel,color:c.hull,
@@ -11401,6 +11577,8 @@
         }
         const h4Ship19Race=h4Ship19Build('RACE');
         const h4Ship19Combat=h4Ship19Build('COMBAT');
+        h4Ship19Stats.stylePass='WHITE_CYAN_RACER__DARK_AMBER_STRIKER';
+        h4Ship19Stats.referenceStyleOnly=true;
         geoSwordMesh.add(h4Ship19Race);
         h4GeoSwordArt.add(h4Ship19Combat);
         function h4Ship19Select(){
