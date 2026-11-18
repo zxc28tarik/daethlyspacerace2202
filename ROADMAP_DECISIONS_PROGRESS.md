@@ -577,3 +577,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 
 - Son C18 HUD iyileştirmesi `05fd631`: lazerin **HAZIR** göstergesi ve `-5 silah gücü` maliyeti birlikte okunur. [Son hızlı Chromium/WebGL #44217575698](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575698) **9/9 PASS**. Son [tam Map1/Map4 #44217575808](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44217575808) sonucu açık; önceki hızlı sonucu tam PASS sanma.
 - PR **#63 DRAFT / STACKED / NO MERGE**, kullanıcı güç/oynanış onayı gerek; yeni gemiler ve gemi sınıfları hâlâ ertelendi.
+
+
+## 25) 18 Kasım — NEXT-11C19: Harita 1/4 için birer özgün oyuncu gemisi + onaylanmış kamera
+
+- **Kullanıcı açık kararı:** Şimdilik oynanabilir **iki haritaya birer farklı oyuncu gemisi**. Önceki kamera seçim kararı: normal **#1 Cinematic Chase**, boost anında **#2 Tight Chase'e yumuşak yaklaşma**, boost bitince normale dönme. Gemi sınıfları/özelleştirme ve diğer gemiler yine sonraya.
+- **YAPILDI:** Harita1 özgün ince yarışçı **R-01 VEKTÖR**, Harita4 özgün zırhlı savaş uçağı **B-04 BASTİON**. Baştan üretilmiş 3D değişken kesitli gövde, farklı kanat extrude şekilleri, zırh/servis panelleri ve motor/kanat/namlu/ışık detayları. Map4 mevcut GFX05 iç animasyon gövdesiyle aynı oyuncu gemisi olarak birleşir; eski basit Map1 meshleri arşiv amaçlı tutulur ama görünmez. Her gemi 6 bake GPU materyal grubu, 3. parti asset yok.
+- Oyun iki haritada da Cinematic Chase kamera ile başlar, C ile kokpit/taret alternatifine dönülebilir. Normal kamera hafif çapraz arkadan ve yukarıdan; boostta arka mesafe **azalır**, FOV artar, fren/bırakmada yumuşak dönüş. Map4 kamera collider güvenlik sistemi korunur, oyuncu pozisyonuna müdahale yok.
+- **DEĞİŞMEDİ:** 6/36/200 collider, AI ve savaş/bonus, 5 rakip/8 avcı, 60/300/850, +18/+12, Map1 yarış ve C18 enerji sistemi. Zorlu çarpışmalı güzergâhlar aynen.
+- Yeni testler: `tests/map4-next11c19-two-player-ships.cjs` gerçek Chromium/WebGL dört normal/boost kare, model görünürlüğü, kamera mesafesi, Map1/4 seçim ve fizik bütünlüğü. [Teknik kabul](MAP1_MAP4_NEXT11C19_PLAYER_SHIPS_ACCEPTANCE.md). **AÇIK:** yeni test run PASS, tam regresyon, görsel insan onayı ve native GPU. **DRAFT / NO MERGE**.
