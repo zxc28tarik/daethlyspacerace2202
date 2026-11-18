@@ -59,3 +59,12 @@ Sadece model sayısı ve test PASS, estetik 7–8/10 veya yeterli performans gar
 - B-04: mevcut GFX05 player's unique palette koyu çelik/turuncu yapıldı (`6eaaeb18`); yeni B-04 zırh modelinin kaplaması koyulaştırıldı, enerji/motor detaylarında daha belirgin amber emissive ve glow kullanıldı. **Racer/hunter AI palette 1..7 değişmez**.
 - Yeni ışık, dünya pozisyonu, fizik gövdesi, silah veya doku/GLB eklenmedi; 6 ayrı materyal draw batch/gemi sınırı aynı.
 - [Final materyal sonrası hızlı WebGL run #44226729705](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226729705) ve [tam regresyon #44226729821](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44226729821) sonuçları esas alınmalı. Önceki #44226228254 **9/9 PASS** ancak daha eski materyal sürümüne aittir.
+
+
+### Final C19B style WebGL 9/9 PASS — 18 Kasım 2026
+
+- Son görsel materyal ve güncel test kodu ile [C19B gerçek Chromium/WebGL #44227015001](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44227015001) **tamamlandı/SUCCESS, 9/9 PASS**. **R-01 181** alt parça, **B-04 249** alt parça, **12 GPU materyal partisi**. Her iki oyuncu gemisi kendi haritasında gerçek oyunda görünüyor.
+- İki oyuncu gemisinde normal #1 / boost yakın #2 kamera örnekleri aynı fiziksel rota ve render fonksiyonuyla çekildi. Son örnek kamera mesafesi: **R-01 15,4199→13,2306** ve **B-04 19,3707→13,3943** (örnek fiziksel konuma/duruma bağlı). Gelişmiş kamera kollizyondan kaçma, C ile TURRET↔CHASE ve motor/silah/kalkan C18 sistemleri değişmedi.
+- [Son dört gerçek oyun içi PNG + JSON test raporu: artifact #14392084668](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44227015001/artifacts/14392084668). İlk modelin çok koyu görünümü tespit edilip daha aydınlık R-01 ve amber motorlu zırhlı B-04 için materyal düzeltmesi **212f1b15** ile yapıldı; son test bu düzeltmeyi de içerir.
+- **Mevcut fiziksel oyun koruması:** 6 kanyon +36 sanayi +200 fabrika collider, 24 fiziksel rota işareti, 34 W02 kabuk, 5 rakip+8 avcı, 60/300/850 ve %18/%12. Yeni silah, AI, güç, bonus, rota, fizik veya dış model eklenmedi.
+- [Güncel tam regresyon #44227014835](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44227014835) son kontrol anında **in_progress**, hızlı PASS ile karıştırılmasın. Native GPU ve gerçek 300s insan pilot, kullanıcının nihai estetik onayı açık.
