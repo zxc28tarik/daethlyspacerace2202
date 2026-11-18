@@ -30,8 +30,8 @@ const {chromium}=require('playwright');
     const meshes=race.children;
     const box=new THREE.Box3().setFromObject(race)
       .getSize(new THREE.Vector3());
-    const hull=meshes.find(m=>m.name==='NEXT11C21_SB07_HULL');
-    const plasma=meshes.find(m=>m.name==='NEXT11C21_SB07_PLASMA');
+    const hull=meshes.find(m=>m.name.endsWith('_SB07_HULL'));
+    const plasma=meshes.find(m=>m.name.endsWith('_SB07_PLASMA'));
     const samples=(mesh,fn)=>{
       const attr=mesh.geometry.getAttribute('position');
       let sum=0;
