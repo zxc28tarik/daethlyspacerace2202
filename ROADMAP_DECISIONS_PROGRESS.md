@@ -549,3 +549,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 
 - [C17 WebGL #44206367310](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206367310) **9/9 PASS** ve [hızlı tekrar #44206497301](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497301) **success**. 24 büyük + 72 küçük **96 yeni original industrial unit**, yalnız 7 drawcall, ek **49.320 tris**, 4 gerçek 1600×900 önce/sonra görüntü çifti: hepsi kare farkı üretti. HIGH/BALANCED tüm detay; LOW yalnız büyük model. **Fizik 6/36/200, 24 rota işareti, 34 W02, 5/8, 60/300/850, +18/+12 aynı**.
 - **KALAN:** [C17 full #44206497307](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497307) CI hâlen in_progress; kullanıcı 7–8/10 onayı, gerçek native GPU 720/1080 FPS/VRAM, gerçek kesintisiz 300s oynanış ve yayıncı 3/6 playable, PR Draft/merge izni. Bu görsel yoğunluk turu **kaza zorluğunu azaltmadı**.
+
+
+### C17 — Kullanıcı onaylı sınırlı iç varlık tekrar kullanımı (18 Kasım)
+
+- **Yeni tasarım kararı:** Harita 4'e daha fazla yapı ve obje eklerken, daha önce **bu oyun için özgün olarak ürettiğimiz** binalar/modeller **sınırlı sayıda yeniden kullanılabilir**. Tamamen yeni, tek kullanımlık varlık zorunluluğu yoktur; fakat tekrarlı hazır-kutu kent hissi oluşturmak yasak.
+- **Uygulama ilkesi:** Ayırt edici büyük/hero yapılar ağırlıklı olarak özgün ve bölgeye özel kalır. Tekrarlar ağırlıklı olarak yardımcı depo, teknik servis, kule/boru alt birimi gibi ikincil öğelerde; yön, ebat, kısmi renk/malzeme, çevre modülleri, detay seti ve konum varyasyonuyla yapılır. Aynı çok belirgin bina silüetinin arka arkaya sıra halinde çoğaltılması önlenir.
+- **Özgünlük sınırı:** Yalnız **projenin kendi ürettiği** varlıkların kontrollü yeniden kullanımı için izin verildi. Dış ticari 3D modellerin veya başkalarının özgün bina silüetlerinin kopyalanmasına izin değildir.
+- **Oynanış:** Bu görsel izin fiziksel collider, AI, rota bonusu, riskli geçit, hasar, zorluk veya PR birleştirme izni **değildir**. Mevcut binalar ve tehlikeler korunur; yeni gerçek fiziksel yapı eklemek ayrı bir karar gerektirir.
+- **Sonraki görsel işler:** Sanayiye ek olarak 36.200 karakol, 42.600 askerî liman, 48.300 yörünge tesisi. Her alanda yeni özgün ana silüetlerin yanında sınırlı sayıda mevcut yardımcı mimari tekrar kullanılabilir; tekrarlanan nesneler kalite testinde ayrıca sayılır.
