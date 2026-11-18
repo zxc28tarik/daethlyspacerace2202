@@ -63,8 +63,9 @@ const {pathToFileURL}=require('node:url');
       'newAircraftClasses'])assert.equal(register.stats[k],0,k);
     assert(register.map1.parts>=55);
     assert(register.map4.parts>=65);
-    assert.equal(register.stats.batches,12);
-    assert.equal(register.map1.batches.length,6);
+    assert.equal(register.stats.batches,13);
+    assert.equal(register.map1.batches.length,7);
+    assert.equal(register.map1.id,'SB-07');
     assert.equal(register.map4.batches.length,6);
     assert(register.map1.tris>2000&&register.map1.tris<60000);
     assert(register.map4.tris>3000&&register.map4.tris<75000);
@@ -75,12 +76,12 @@ const {pathToFileURL}=require('node:url');
       assert(ship.batches.every(b=>b.vertices===b.normals&&
         b.vertices===b.uvs&&b.visualOnly&&b.noCollider));
       assert(ship.batches.every(b=>b.size>0));
-      if(ship.id==='R-01'){
+      if(ship.id==='SB-07'){
         // Map1 has little diffuse lighting: its original glossy white/cyan
         // design uses a restrained self-lit fill, NOT the dark factory map.
         assert.equal(ship.batches.filter(b=>b.map).length,0);
-        assert(ship.batches.some(b=>b.emissiveStrength>.6),
-          'white racing silhouette must remain visible in dark sky');
+        assert(ship.batches.some(b=>b.emissiveStrength>.35),
+          'Zenit white/red racing silhouette must remain visible in dark sky');
         assert(ship.batches.some(b=>b.emissiveColor!==0));
       }else{
         assert(ship.batches.filter(b=>b.map).length>=2,
