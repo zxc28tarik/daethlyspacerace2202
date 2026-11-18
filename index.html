@@ -11162,8 +11162,8 @@
                 hull:0xe5f2f5,secondary:0x297d94,trim:0x25c4d3,
                 dark:0x152c3a,glass:0x137f9c,glow:0x74e8f8},
             COMBAT:{id:'B-04',title:'B-04 BASTİON',
-                hull:0x556b7c,secondary:0x223542,trim:0xe69a60,
-                dark:0x14222c,glass:0x175472,glow:0xffaa67}
+                hull:0x405465,secondary:0x1b3040,trim:0xe69a60,
+                dark:0x14222c,glass:0x175472,glow:0xff914b}
         });
         const h4Ship19Stats={players:2,externalModels:0,
             newColliders:0,newWeapons:0,newAircraftClasses:0,
@@ -11523,21 +11523,38 @@
             styleArmor.dispose();styleVent.dispose();
             styleBolt.dispose();styleRing.dispose();styleSphere.dispose();
 
+            // Style must survive the actual game lighting, not just look
+            // white/cyan or steel/amber in palette constants. Map1's empty
+            // starfield has weak diffuse lighting: retain PBR shape normals
+            // but use restrained non-physical emissive visibility fill.
+            // No additional world lights, draw calls, textures or collisions.
             const mats={
                 HULL:new THREE.MeshStandardMaterial({
-                    map:h4SurfaceMaps.steel,color:c.hull,
-                    metalness:.64,roughness:combat?.47:.34}),
+                    map:combat?h4SurfaceMaps.steel:null,
+                    color:c.hull,
+                    emissive:combat?0x122230:0xd9e8ed,
+                    emissiveIntensity:combat?.12:.72,
+                    metalness:combat?.65:.48,
+                    roughness:combat?.56:.34}),
                 SECOND:new THREE.MeshStandardMaterial({
-                    map:h4SurfaceMaps.darkSteel,color:c.secondary,
-                    metalness:.66,roughness:.56}),
+                    map:combat?h4SurfaceMaps.darkSteel:null,
+                    color:c.secondary,
+                    emissive:combat?0x092338:0x0b8aa2,
+                    emissiveIntensity:combat?.12:.32,
+                    metalness:.61,roughness:combat?.58:.42}),
                 TRIM:new THREE.MeshStandardMaterial({
-                    color:c.trim,metalness:.59,roughness:.39}),
+                    color:c.trim,metalness:.54,roughness:.35,
+                    emissive:c.trim,
+                    emissiveIntensity:combat?.47:.65}),
                 DARK:new THREE.MeshStandardMaterial({
-                    color:c.dark,metalness:.64,roughness:.52}),
+                    color:c.dark,metalness:.64,roughness:.57,
+                    emissive:combat?0x06151e:0x0a222d,
+                    emissiveIntensity:.10}),
                 GLASS:new THREE.MeshStandardMaterial({
-                    color:c.glass,metalness:.64,roughness:.15,
-                    emissive:c.glass,emissiveIntensity:.15}),
-                GLOW:new THREE.MeshBasicMaterial({color:c.glow})
+                    color:c.glass,metalness:.55,roughness:.16,
+                    emissive:c.glass,emissiveIntensity:combat?.28:.48}),
+                GLOW:new THREE.MeshBasicMaterial({
+                    color:c.glow,toneMapped:false})
             };
             let tris=0;
             for(const [id,list] of Object.entries(groups)){
