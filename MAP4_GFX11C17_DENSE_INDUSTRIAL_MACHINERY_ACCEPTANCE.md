@@ -42,3 +42,12 @@ Test artefaktı: `map4-next11c17-96-detailed-objects-review`, gerçek 4 eski/yen
 - Aynı oyuncu/kamera sabitlenerek dört görünüm **eski/yeni JPEG değil gerçek PNG** olarak arşivlendi: `07-approach`, `07-machinery`, `08-plant`, `09-exit`; dört kadrajda da **piksel değişimi true**. Bu yalnız etki kanıtıdır; güzel görünme veya 7–8/10 puan otomatik kanıtlanmaz.
 - **236/236 fiziksel collider (6 kanyon + 36 sanayi + 200 yapı), 24 W05 rota işareti, 34 korunmuş W02 fiziksel mesh**, 5 rakip/8 avcı, 60/300/850, %18/%12 güzergah avantajı ve bütün eski hasar/AI fonksiyonları korunur. C17 yalnız yeni sanat ünitelerinin yanal sahasını kullanır.
 - **Açık:** [Tam Map1/Map4 test #44206497307](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44206497307) son kontrol anında **in_progress**; başarısını ayrıca kontrol etmeden PASS ilan etme. Gerçek 300s kesintisiz pilot, native 720/1080 GPU performansı, kullanıcının özgün görsel kalite onayı ve mevcut tüm Draft PR merge onayı açık.
+
+
+## Kullanıcı kararı — sınırlı kendi bina/model tekrar kullanımı
+
+Harita 4'te kalabalık ve yüksek detaylı çevre üretiminde **daha önce projenin kendisi için üretilmiş binaları sınırlı sayıda yeniden yerleştirmek serbest**. Bu, her binanın benzersiz olmak zorunda olmadığı anlamına gelir; ancak karmaşık hero fabrika/liman/karakol silüetlerinde görünür seri kopya oluşturmak amaç dışıdır.
+
+Tekrar kullanılacak ikincil yapıların ölçek, rotasyon, malzeme, servis donanımı, çevre yerleşimi ve gerekli durumda kısmi geometri varyasyonları farklılaştırılır. Yeniden kullanılan varlığın kaynak ailesi ve sayısı test/raporda izlenir. Ticari veya harici modelin kopyalanması bu iznin kapsamına girmez. Kullanıcı hâlâ sert/zor oyun, gerçek kaza riski, AI/rota/fizik koruması ve **merge için açık onay** şartını koruyor.
+
+**Not:** Bu kayıt yeni bir fiziksel bina veya varlık yaratıldığı iddiası değildir; sonraki içerik üretimini yönlendiren kabul edilmiş tasarım kuralıdır.
