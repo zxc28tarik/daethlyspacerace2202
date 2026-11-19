@@ -1,0 +1,44 @@
+name: Map1 NEXT11C20W Conformal Paint and Flap Seam WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-conformal-paint-w]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-wing-paint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Verify test JavaScript syntax
+        run: node --check tests/map1-next11c20w-paint-and-inlays.cjs
+      - name: Original approved SB-07 flying model, boost and Map4
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: C20U original geometric twin engine spine and material clearances
+        run: node tests/map1-next11c20u-contoured-spines.cjs
+      - name: C20V integrated double wing-root loft and four views
+        run: node tests/map1-next11c20v-wing-root-fillet.cjs
+      - name: C20W validate 102 painted wing samples, 52 inlaid flap samples, four native-MSAA images
+        run: node tests/map1-next11c20w-paint-and-inlays.cjs
+      - name: Preserve all 304 race corridor rail joins and original Map4 physics
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Save real 1600x900 Chromium WebGL image/art reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20w-conformal-paint-real-webgl
+          path: |
+            tests/next11c20w-evidence/
+            tests/next11c20v-evidence/
+            tests/next11c20u-evidence/
+            tests/map1-next11c20-zenit-studio*.png
+            tests/next11c20r-evidence/
+          if-no-files-found: warn
