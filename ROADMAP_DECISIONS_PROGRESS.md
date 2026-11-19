@@ -834,3 +834,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KABUL:** [C20R rail seam](MAP1_NEXT11C20R_RAIL_SEAM_ACCEPTANCE.md). **SIRADA NEXT11C20S:** çıkan gerçek sorun varsa hedefli düzelt; yoksa çizgi altyapısını sabitleyerek AA/kalite değerlendirmesine geç. Kullanıcı izni olmadan merge yok.
 
 **Günlük:** 2026-11-19 | NEXT11C20R | 304 seam continuity and 8 GL frames testing | 189/249 ships protected | CI pending | DRAFT no merge.
+
+
+### NEXT11C20R gerçek Chromium/WebGL sonucu — 19 Kasım 2026
+
+- **İLK TEST FAIL YALNIZ QA VARSAYIMI:** Başlangıçta 12.500m civarı sahnede çok az mesh triangle vardı; buna rağmen test `triangles>1000` bekliyordu. Gerçek 720p PNG koridor ışıklarının göründüğünü doğruladı; Three.js `renderer.info.render.lines` ve gerçek renkli piksel sayısına dayalı kontrolle onarıldı. Oyun `index.html` hiç değişmedi.
+- **SON GERÇEK HEAD TESTİ:** `e22d3a441e04828f08c033967153c40db418bc56` için [özel GitHub Actions #44532401783](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44532401783) **completed / success**. Gerçek stdout: `NEXT11C20R WEBGL SEAM PASS`: **304/304** uç birleşimi, **maxPositionError=0**, **maxDistanceError=0**, **6960** özgün segment, **8** gerçek framebuffer PNG, **SB-07 189 / B-04 249 parça**, Map4 collider **[6,36,200]**. C20O, C20P ve C20Q adımları aynı run içinde de PASS.
+- **ARTIFACT:** [#14534677118 gerçek WebGL ekran görüntüleri ve JSON](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44532401783/artifacts/14534677118). 4 geçişin 15m öncesi/sonrası kamera kanıtı. Bu görüntüler oyun motorundan alınır ama normal yarış HUD/oyuncu pilot kurgusu değildir: hedefli teşhis kamera açılarıdır; oyuncunun GPU FPS veya 5dk dinamik test sonucu değildir.
+- **GÖZLEM:** 2500,12500,27500,47500 mesafe sınırında iki komşu rail batch de kameranın görüş hacmiyle kesişiyor. 8 frame'de GL error=0; çizgilerin birleşimi sayısal olarak **mükemmel**. Bazı sahnelerde yalnız koridor çizgileri çizildiği için triangle sayısının düşük olması oyun hatası sayılmaz.
+- **GÜNCEL TAM SMOKE:** [#44532401810](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44532401810) final sonucu ayrıca denetlenmeli; henüz tamamen geçmeden PASS denmez. Native GPU/FPS/5dk oyun estetik kabulü açık.
+- **NEXT11C20S:** Koridor ring/rail görünürlük kalite stabilitesinden sonra WebGL çizgi aliasing/titreme 720/1080 ve uçuş kadrajında seçici AA değerlendirmesi; yeni dekor/silah/parça ekleme YOK; PR hala DRAFT / NO MERGE.
+
+**Günlük:** 2026-11-19 | NEXT11C20R | 304/304 rail sector joins exactly equal; 8 GL 720p frames; O/P/Q/R special PASS | full smoke+native FPS open | draft no merge.
