@@ -11627,7 +11627,7 @@
             const m=new THREE.Matrix4(),
                 p=new THREE.Vector3(),s=new THREE.Vector3(),
                 q=new THREE.Quaternion(),e=new THREE.Euler();
-            let partCount=0;
+            let partCount=0,roundLineCount=0;
             const emit=(geom,key,x=0,y=0,z=0,w=1,h=1,d=1,
                 rx=0,ry=0,rz=0)=>{
                 m.compose(p.set(x,y,z),
@@ -11663,7 +11663,7 @@
                     new THREE.Vector3(thick,vec.length(),thick)));
                 const g=temp.index?temp.toNonIndexed():temp;
                 if(g!==temp)temp.dispose();
-                parts[key].push(g);partCount++;
+                parts[key].push(g);partCount++;roundLineCount++;
             };
             const customHull=()=>{
                 // The tapered polygon section is purpose-made for this ship;
@@ -12239,6 +12239,7 @@
             root.userData.materialBatches=root.children.length;
             root.userData.detailPass='NEXT11C20G';
             root.userData.lineRadialSegments=12;
+            root.userData.roundLineCount=roundLineCount;
             root.userData.engineBarrelSegments=24;
             root.userData.engineRimRadialSegments=32;
             root.userData.engineRimTubularSegments=10;
