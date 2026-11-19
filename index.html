@@ -11787,6 +11787,50 @@
                 [2.5,1.39,.54],[4.8,1.07,.38],
                 [6.15,.38,.23]
             ];
+            // NEXT11C20Z: roof-only tangent normals for the ORIGINAL
+            // 14-edge nose and the two existing 11-point engine spines.
+            // Capped ends / chamfer seams must not contribute to the
+            // long roof sheen. This only edits a normal attribute:
+            // no extra geometry, materials, meshes or raster settings.
+            const sb07RoofNormalCounts={nose:0,engine:0};
+            const smoothStationRoof=(geo,rows,cols,roofColumns)=>{
+                const position=geo.getAttribute('position'),
+                    normals=geo.getAttribute('normal'),
+                    along=new THREE.Vector3(),
+                    across=new THREE.Vector3(),
+                    p0=new THREE.Vector3(),p1=new THREE.Vector3(),
+                    n=new THREE.Vector3();
+                const read=(r,c,v)=>v.set(
+                    position.getX(r*cols+c),
+                    position.getY(r*cols+c),
+                    position.getZ(r*cols+c));
+                let count=0;
+                for(let r=0;r<rows;r++){
+                    const prev=Math.max(0,r-1),
+                        next=Math.min(rows-1,r+1);
+                    for(const c of roofColumns){
+                        read(next,c,p1);
+                        read(prev,c,p0);
+                        along.copy(p1).sub(p0);
+                        read(r,c+1,p1);
+                        read(r,c-1,p0);
+                        across.copy(p1).sub(p0);
+                        n.crossVectors(along,across);
+                        if(n.y<0)n.negate();
+                        n.normalize();
+                        if(!Number.isFinite(n.x)||
+                           !Number.isFinite(n.y)||
+                           !Number.isFinite(n.z)||
+                           n.y<.16)
+                            throw new Error(
+                              'NEXT11C20Z invalid roof normal '+r+','+c);
+                        normals.setXYZ(r*cols+c,n.x,n.y,n.z);
+                        count++;
+                    }
+                }
+                normals.needsUpdate=true;
+                return count;
+            };
             const customHull=()=>{
                 // Original approved hull dimensions and topology.
                 const rows=hullRows;
@@ -11802,7 +11846,11 @@
                     for(let i=0;i<n;i++){
                         const a=j*n+i,b=j*n+(i+1)%n,
                             c=(j+1)*n+i,d=(j+1)*n+(i+1)%n;
-                        indices.push(a,c,b,b,c,d);
+                        // FIX: original side triangle order pointed
+                        // INWARD. Outward winding on the original
+                        // 14-gon restores correct face illumination;
+                        // end-cap fans remain unchanged.
+                        indices.push(a,b,c,b,d,c);
                     }
                 for(let i=1;i<n-1;i++){
                     indices.push(0,i+1,i);
@@ -11815,6 +11863,8 @@
                 g.setAttribute('uv',
                     new THREE.Float32BufferAttribute(uv,2));
                 g.setIndex(indices);g.computeVertexNormals();
+                sb07RoofNormalCounts.nose+=smoothStationRoof(
+                    g,rows.length,n,[1,2,3,4,5,6]);
                 return g;
             };
             const shapeWing=side=>{
@@ -12347,6 +12397,8 @@
                     new THREE.Float32BufferAttribute(verts,3));
                 shape.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
                 shape.setIndex(indices);shape.computeVertexNormals();
+                sb07RoofNormalCounts.engine+=smoothStationRoof(
+                    shape,engineSpineStations.length,n,[2,3,4,5,6,7,8]);
                 emit(shape,'HULL');shape.dispose();
 
                 // Continuous paint skin, 0.014 local-space units above
@@ -12858,6 +12910,14 @@
             root.userData.noseStripeWidthSamples=3;
             root.userData.noseStripeSkinClearance=.018;
             root.userData.flushedWingShrouds=2;
+            root.userData.polishedNoseAndEngineRoofs=true;
+            root.userData.noseRoofNormalCount=sb07RoofNormalCounts.nose;
+            root.userData.engineRoofNormalCount=sb07RoofNormalCounts.engine;
+            root.userData.noseHullSideWindingOutward=true;
+            root.userData.hullEndCapsUnchanged=true;
+            root.userData.noseAndEnginePositionsUnchanged=true;
+            root.userData.noseAndEngineNativeMSAA=true;
+            root.userData.noseAndEngineOnlyNormalsAndWinding=true;
             root.userData.polishedLoftRoofNormals=true;
             root.userData.polishedLoftNormalCounts=[
                 sb07PolishedRoofNormalCounts.wingRoot,
