@@ -113,8 +113,8 @@ const errors=[];
    assert.equal(first.ringSectorCount,5);
    assert.equal(first.ringEdgeSegments,48);
    assert.equal(first.lineMeshes,10);
-   assert.equal(first.guideChildren,42,
-     '32 original long guidance lines + 10 grouped ring lines');
+   assert.equal(first.guideChildren,46,
+     '16 original boundary lines + 20 regrouped rail batches + 10 ring batches');
    assert.equal(first.consolidated,true);
    assert.equal(first.sectors.reduce((a,s)=>a+s.majorCount,0),39);
    assert.equal(first.sectors.reduce((a,s)=>a+s.minorCount,0),153);
