@@ -11619,11 +11619,9 @@
             // 12-sided round seam strips (was 4-sided box),
             // 24-sided barrels and 10x32 circular exhaust rims.
             const cube=new THREE.BoxGeometry(1,1,1),
-                lineTube=new THREE.CylinderGeometry(.5,.5,1,12,1,false),
-                tube=new THREE.CylinderGeometry(.5,.5,1,24),
-                ring=new THREE.TorusGeometry(.5,.085,10,32),
-                dome=new THREE.SphereGeometry(.5,14,10),
-                rect=new THREE.BoxGeometry(1,1,1,2,1,3);
+                lineTube=new THREE.CylinderGeometry(.5,.5,1,16,1,false),
+                tube=new THREE.CylinderGeometry(.5,.5,1,32),
+                ring=new THREE.TorusGeometry(.5,.085,10,40);
             const m=new THREE.Matrix4(),
                 p=new THREE.Vector3(),s=new THREE.Vector3(),
                 q=new THREE.Quaternion(),e=new THREE.Euler();
@@ -11721,7 +11719,7 @@
                 sh.closePath();
                 const geo=new THREE.ExtrudeGeometry(sh,{
                     depth:.21,steps:1,bevelEnabled:true,
-                    bevelThickness:.07,bevelSize:.07,bevelSegments:3
+                    bevelThickness:.07,bevelSize:.07,bevelSegments:4
                 });
                 geo.rotateX(Math.PI/2);
                 return geo;
@@ -11747,7 +11745,7 @@
                 const g=new THREE.ExtrudeGeometry(sh,{
                     depth:highlight?.055:.23,steps:1,
                     bevelEnabled:true,bevelThickness:.035,
-                    bevelSize:.035,bevelSegments:3
+                    bevelSize:.035,bevelSegments:4
                 });
                 g.rotateY(-Math.PI/2);
                 g.translate(side*(highlight?7.71:7.60),.11,0);
@@ -11781,8 +11779,8 @@
                 // Preserve approved windshield outline; nine sections
                 // soften its specular rim while the seven long stations
                 // keep the same identifying cockpit profile.
-                const span=[-1,-.81,-.59,-.31,0,.31,.59,.81,1],
-                    arch=[0,.48,.76,.93,1,.93,.76,.48,0],
+                const span=[-1,-.88,-.70,-.5,-.25,0,.25,.5,.70,.88,1],
+                    arch=[0,.41,.66,.85,.96,1,.96,.85,.66,.41,0],
                     xyz=[],uv=[],idx=[],n=span.length;
                 rows.forEach(([z,width,top],j)=>{
                     for(let i=0;i<n;i++){
@@ -11834,42 +11832,27 @@
                     [2.16,-2.96],[2.31,-3.13],
                     [6.73,-.84],[6.57,-.67]
                 ]);
-                // NEXT11C20D: inset swept control surfaces with hinges.
-                // Each plate follows the old flat wing edge, not a new
-                // appendage; four panels total across both wings.
+                // NEXT11C20I: one coherent inboard flap per wing.
+                // Real continuous 3D surface with a single hinge seam,
+                // replacing many tiny detached red bolts/panel chips.
                 wingDeckPlate('SECOND',side,[
-                    [3.32,2.43],[4.08,2.18],
-                    [4.91,2.15],[4.05,3.02]
+                    [3.32,2.43],[5.16,1.69],
+                    [6.73,1.82],[4.05,3.02]
+                ]);
+                line('DARK',[side*3.34,-.095,2.43],
+                    [side*5.95,-.095,1.70],.056);
+                // One integrated inset root channel + continuous lip
+                // replaces 8 isolated boxes and 3 stubby seam marks.
+                wingDeckPlate('DARK',side,[
+                    [2.52,-.90],[2.98,-.70],
+                    [3.23,.32],[2.89,.43]
                 ]);
                 wingDeckPlate('SECOND',side,[
-                    [5.15,1.50],[5.72,1.44],
-                    [6.73,1.81],[5.55,2.09]
+                    [2.73,-.70],[2.93,-.55],
+                    [3.08,.18],[2.94,.24]
                 ]);
-                for(const [x1,z1,x2,z2] of [
-                    [3.35,2.42,4.07,3.03],
-                    [5.16,1.50,5.58,2.09]
-                ]){
-                    line('DARK',[side*x1,-.095,z1],
-                        [side*x2,-.095,z2],.055);
-                    box('RED',side*x1,-.074,z1,.13,.038,.12);
-                }
-                // Four recessed wing-root flow channels per side.
-                for(let k=0;k<4;k++){
-                    const z=-.74+k*.34;
-                    box('DARK',side*(2.65+k*.11),-.077,z,
-                        .33,.055,.16,0,side*.13);
-                    box('SECOND',side*(2.65+k*.11),-.042,z+.09,
-                        .27,.042,.045,0,side*.13);
-                }
                 line('SECOND',[side*2.0,-.095,-2.14],
                     [side*3.64,-.093,-1.47],.058);
-                // NEXT11C20F: three purposeful wing-root seal seams,
-                // not free-floating decoration or silhouette changes.
-                for(let k=0;k<3;k++){
-                    const z=-2.21+k*.32;
-                    line('DARK',[side*(1.77+k*.06),-.094,z],
-                        [side*(2.39+k*.17),-.094,z+.16],.042);
-                }
                 // Two tapered service spars on the belly, drawn within
                 // the same visual-only hull and excluded from collision.
                 line('SECOND',[side*1.72,-.51,-1.44],
@@ -11879,9 +11862,31 @@
             }
             // Long pointed wedge, blue-black glass canopy, red racing
             // center stripe and lightweight raised fuselage armor.
-            box('RED',0,.13,-7.85,.18,.095,2.07);
-            box('RED',0,.29,-5.74,.30,.09,2.12);
-            box('RED',0,.46,-3.67,.43,.08,1.44);
+            // The original three disconnected nose patches become
+            // one conformal 3D ribbon that follows the upper hull
+            // stations, ending just before the smoked canopy.
+            const noseStripeStations=[
+                [-8.76,.126,.060],[-7.85,.208,.105],
+                [-6.40,.290,.155],[-4.95,.370,.198],
+                [-4.58,.412,.206]
+            ];
+            const nosePos=[],noseUV=[],noseIdx=[];
+            noseStripeStations.forEach(([z,y,w],j)=>{
+                nosePos.push(-w,y,z,w,y,z);
+                noseUV.push(0,j/4,1,j/4);
+                if(j<4){
+                    const i=j*2;
+                    noseIdx.push(i,i+2,i+1,i+1,i+2,i+3);
+                }
+            });
+            const unifiedNose=new THREE.BufferGeometry();
+            unifiedNose.setAttribute('position',
+                new THREE.Float32BufferAttribute(nosePos,3));
+            unifiedNose.setAttribute('uv',
+                new THREE.Float32BufferAttribute(noseUV,2));
+            unifiedNose.setIndex(noseIdx);
+            unifiedNose.computeVertexNormals();
+            emit(unifiedNose,'RED');unifiedNose.dispose();
             const cockpitShell=canopyGlass();
             emit(cockpitShell,'GLASS');cockpitShell.dispose();
             // Narrow front/rear sealing seams on the custom glass.
@@ -11894,12 +11899,15 @@
                 [-1.00,.38,.66]
             ];
             for(const side of [-1,1]){
-                for(let j=0;j<glassRails.length-1;j++){
-                    const [z1,x1,y1]=glassRails[j],
-                        [z2,x2,y2]=glassRails[j+1];
-                    line('SECOND',[side*x1,y1,z1],
-                        [side*x2,y2,z2],.048);
-                }
+                // One smooth tube follows all original canopy rail
+                // guide points. No more four detached straight rods.
+                const railCurve=new THREE.CatmullRomCurve3(
+                    glassRails.map(([z,x,y])=>
+                        new THREE.Vector3(side*x,y,z)));
+                const canopyRail=new THREE.TubeGeometry(
+                    railCurve,32,.027,10,false);
+                emit(canopyRail,'SECOND');
+                canopyRail.dispose();
                 for(const [z,w,top] of [
                     [-3.46,.68,1.07],[-2.64,.80,1.20],
                     [-1.84,.72,1.10]
@@ -11925,17 +11933,16 @@
                     box('SECOND',side*(1.08+k*.12),.41,-1.70,
                         .065,.065,.40,0,side*.12);
             }
-            for(let j=0;j<5;j++){
-                box(j%2?'SECOND':'HULL',0,.74,1.18+j*.48,
-                    1.10-j*.13,.11,.28);
-            }
+            // Unified dorsal fairing replaces alternating loose
+            // surface rectangles with a single long body cap.
+            box('HULL',0,.70,2.16,.90,.13,2.32);
+            line('SECOND',[0,.79,1.08],[0,.79,3.19],.057);
             for(const side of [-1,1]){
+                // Angular horizontal red lane markings            for(const side of [-1,1]){
                 // Angular horizontal red lane markings follow the wing's
                 // sweep; white top surfaces remain the dominant material.
-                line('RED',[side*1.8,-.087,-3.42],
-                    [side*6.82,-.087,-1.07],.16);
-                line('RED',[side*5.95,-.084,-1.06],
-                    [side*7.26,-.084,.25],.12);
+                // Red race stripe is already a single extruded
+                // wingDeckPlate; duplicate floating line overlays gone.
                 box('SECOND',side*4.63,-.02,-.42,
                     1.85,.12,1.46,0,side*.19);
                 box('RED',side*5.56,.066,-.33,
@@ -11960,26 +11967,20 @@
                     [side*7.72,2.05,-.67],.092);
                 line('SECOND',[side*7.73,.26,-1.29],
                     [side*7.73,1.32,-.90],.10);
-                for(let k=0;k<8;k++){
-                    const x=side*(2.3+k*.55);
-                    box(k%3===0?'ORANGE':'DARK',
-                        x,.36,1.38+k*.045,.20,.085,.69);
-                    box('SECOND',x,.10,2.08+k*.048,
-                        .21,.063,.23);
-                }
-                // Service-access seams and five staggered louvers above
-                // the nacelle. Macro silhouette, height and wing ends
-                // remain identical to the accepted SB-07 reference.
-                for(let j=0;j<5;j++){
-                    const z=.62+j*.43;
-                    box('DARK',side*2.34,.49,z,.12,.045,.31,
-                        0,side*.11);
-                    box('SECOND',side*2.53,.42,z+.07,.075,.055,.31,
-                        0,side*.11);
-                }
+                // A pair of full-length engineered wing rails replaces
+                // sixteen detached decorative box fragments per wing.
+                line('DARK',[side*2.30,-.052,1.38],
+                    [side*6.15,-.052,1.72],.135);
+                line('SECOND',[side*2.32,-.064,2.08],
+                    [side*6.15,-.064,2.44],.067);
+                // One contiguous inset nacelle service groove.
+                box('DARK',side*2.34,.49,1.48,
+                    .12,.045,2.10,0,side*.11);
+                line('SECOND',[side*2.53,.42,.67],
+                    [side*2.53,.42,2.47],.072);
                 line('SECOND',[side*1.52,.94,.13],
                     [side*1.54,1.02,2.80],.065);
-                // Lightweight, narrow aero-spine over each engine.
+                // Lightweight, narrow aero-spine over each engine.                // Lightweight, narrow aero-spine over each engine.
                 box('HULL',side*1.77,.70,1.93,
                     .57,.33,3.14,0,side*.02);
                 box('RED',side*1.76,.89,1.05,
@@ -11999,7 +12000,7 @@
                 // Hollow flared nozzle, exposed longitudinal ribs and
                 // machined segmented collar (not gun barrels).
                 const nozzle=new THREE.CylinderGeometry(
-                    .96,.73,.50,18,1,true);
+                    .96,.73,.50,32,1,true);
                 emit(nozzle,'SECOND',side*1.80,-.25,6.22,
                     1,1,1,Math.PI/2);
                 nozzle.dispose();
@@ -12018,16 +12019,10 @@
                     ],.075);
                 }
                 cyl('SECOND',side*1.80,-.25,6.48,.17,.12);
-                // Deep two-tone nozzle cavity: six slim painted recess
-                // notches, all behind the existing large exhaust collar.
-                for(let j=0;j<6;j++){
-                    const a=j*Math.PI/3,
-                        x=side*1.80+Math.cos(a)*.83,
-                        y=-.25+Math.sin(a)*.83;
-                    box('DARK',x,y,6.31,.07,.07,.19,
-                        0,0,a);
-                }
-                // Outer socket collar just ahead of the engine throat.
+                // The old six isolated recess blocks are one seamless
+                // circular machine groove around the actual engine.
+                hoop('DARK',side*1.80,-.25,6.31,.84);
+                // Outer socket collar just ahead of the engine throat.                // Outer socket collar just ahead of the engine throat.
                 hoop('DARK',side*1.80,-.25,5.72,.91);
                 // Inset concentric throat layers add actual nozzle depth.
                 hoop('SECOND',side*1.80,-.25,6.33,.95);
@@ -12039,35 +12034,19 @@
                         cy=-.25+Math.sin(a)*1.115;
                     line('SECOND',[cx,cy,2.55],[cx,cy,4.65],.078);
                 }
-                for(let j=0;j<8;j++){
-                    const a=j*Math.PI/4,
-                        cx=side*1.80+Math.cos(a)*1.10,
-                        cy=-.25+Math.sin(a)*1.10;
-                    box(j%2?'HULL':'ORANGE',cx,cy,6.02,
-                        .13,.14,.38,0,0,a);
-                }
-                for(let j=0;j<12;j++){
-                    const t=j*Math.PI/6;
-                    const x=side*1.80+Math.cos(t)*.97,
-                        y=-.25+Math.sin(t)*.97;
-                    box(j%3===0?'ORANGE':'DARK',
-                        x,y,5.52,.12,.10,.62,0,0,-t);
-                }
-                for(let j=0;j<6;j++){
-                    const a=j*Math.PI/3,
-                        x=side*1.80+Math.cos(a)*1.15,
-                        y=-.25+Math.sin(a)*1.15;
-                    box(j%3===0?'ORANGE':'SECOND',
-                        x,y,5.85,.12,.10,.17,0,0,a);
-                }
-                // Two embossed polygonal exhaust housings.
-                for(let j=0;j<7;j++){
-                    box(j%3===0?'ORANGE':'SECOND',
-                        side*(2.36+j*.47),.13,
-                        1.12+j*.19,
-                        .37,.08,.41,0,side*.13);
-                }
-                // Blue navigation line + inset unlit trailing groove:
+                // The old 8 petals + 12 thermal blocks + 6 chips
+                // per motor become three continuous annular machined
+                // bands, leaving the 10 real load-bearing stators.
+                hoop('SECOND',side*1.80,-.25,5.82,1.12);
+                hoop('DARK',side*1.80,-.25,5.53,.97);
+                hoop('ORANGE',side*1.80,-.25,6.02,1.07);
+                // Connected engine-to-wing aerodynamic shroud
+                // replaces seven floating exhaust cover chips.
+                box('SECOND',side*3.75,-.083,1.71,
+                    2.90,.055,.42,0,side*.11);
+                line('ORANGE',[side*2.50,-.050,1.28],
+                    [side*5.0,-.050,2.22],.056);
+                // Blue navigation line + inset unlit trailing groove:                // Blue navigation line + inset unlit trailing groove:
                 // readable from the #1 cinematic chase and closer #2.
                 line('PLASMA',[side*6.45,-.11,1.94],
                     [side*7.27,-.09,2.13],.049);
@@ -12079,25 +12058,29 @@
             // Two arched coolant ducts join the paired engine stations.
             // These are purely visual thermal manifolds, not weapons.
             for(const side of [-1,1]){
-                line('SECOND',[side*.71,.54,3.32],
-                    [side*1.34,.73,3.56],.11);
-                line('SECOND',[side*1.34,.73,3.56],
-                    [side*1.49,.67,4.21],.11);
+                // One physically continuous curved coolant tube in
+                // place of two disconnected crossing rods.
+                const coolantCurve=new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(side*.71,.54,3.32),
+                    new THREE.Vector3(side*1.12,.68,3.47),
+                    new THREE.Vector3(side*1.36,.73,3.65),
+                    new THREE.Vector3(side*1.49,.67,4.21)
+                ]);
+                const coolant=new THREE.TubeGeometry(
+                    coolantCurve,18,.065,10,false);
+                emit(coolant,'SECOND');coolant.dispose();
                 box('DARK',side*.75,.52,3.32,.26,.16,.44);
                 box('ORANGE',side*.77,.62,3.36,.12,.045,.33);
             }
             // Narrow rear central heat exchanger, no gun muzzles or
             // offensive hardpoints on this race-only ship.
-            for(let j=0;j<8;j++)
-                box(j%3===0?'ORANGE':'DARK',
-                    -.53+j*.15,.32,4.0,
-                    .12,.18,.85);
+            // Consolidated rear heat exchanger: one dark core,
+            // one machined cover and one amber interior heat strip.
+            box('DARK',0,.32,4.0,1.08,.18,.85);
+            box('SECOND',0,.44,4.02,.92,.065,.77);
             box('SECOND',0,-.34,3.18,1.44,.25,2.38);
-            for(let j=0;j<5;j++){
-                box('ORANGE',-.49+j*.245,-.48,3.85,
-                    .11,.06,.48);
-            }
-            // Deterministic shared 128px brushed surface/roughness atlas,
+            box('ORANGE',0,-.48,3.85,1.02,.055,.38);
+            // Deterministic shared 128px brushed surface/roughness atlas,            // Deterministic shared 128px brushed surface/roughness atlas,
             // entirely generated inside the existing offline HTML.
             const finish=document.createElement('canvas');
             finish.width=finish.height=128;
@@ -12237,46 +12220,56 @@
                 halo.scale.set(1.68,1.68,1);
                 plasmaMesh.add(halo);
             }
-            for(const g of [cube,lineTube,tube,ring,dome,rect])g.dispose();
+            // Retained only used reusable source primitives.
+            for(const g of [cube,lineTube,tube,ring])g.dispose();
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
-            root.userData.detailPass='NEXT11C20H';
+            root.userData.detailPass='NEXT11C20I';
+            root.userData.unifiedNoseStripe=true;
+            root.userData.integratedWingRootPanels=4;
+            root.userData.integratedWingRootChannels=2;
+            root.userData.continuousCanopyRails=2;
+            root.userData.integratedWingRearRails=4;
+            root.userData.integratedNacelleGrooves=2;
+            root.userData.integratedAnnularBands=8;
+            root.userData.connectedCoolantConduits=2;
+            root.userData.consolidationPass=true;
             root.userData.minMachiningLineDiameter=.056;
             root.userData.boundedHaloOpacity=[.14,.38];
             root.userData.boundedHaloSize=[1.68,2.06];
             root.userData.reviewStudioCapture=true;
-            root.userData.lineRadialSegments=12;
+            root.userData.lineRadialSegments=16;
             root.userData.roundLineCount=roundLineCount;
-            root.userData.engineBarrelSegments=24;
-            root.userData.engineRimRadialSegments=32;
+            root.userData.engineBarrelSegments=32;
+            root.userData.engineRimRadialSegments=40;
             root.userData.engineRimTubularSegments=10;
-            root.userData.wingBevelSegments=3;
-            root.userData.finBevelSegments=3;
+            root.userData.wingBevelSegments=4;
+            root.userData.finBevelSegments=4;
             root.userData.deckBevelSegments=2;
-            root.userData.canopyCrossSections=9;
+            root.userData.canopyCrossSections=11;
             root.userData.haloMipmapped=true;
             root.userData.engineHaloCount=2;
             root.userData.engineHaloTextureSize=128;
-            root.userData.nozzleRecesses=12;
-            root.userData.sealedWingRootLines=6;
+            root.userData.nozzleRecesses=0;
+            root.userData.sealedWingRootLines=2;
             root.userData.flushWingTopcoats=true;
-            root.userData.recessedWingLouverPairs=8;
+            root.userData.recessedWingLouverPairs=2;
             root.userData.engineThroatRings=6;
-            root.userData.thermalShieldSegments=12;
-            root.userData.controlSurfacePanels=4;
+            root.userData.thermalShieldSegments=0;
+            root.userData.controlSurfacePanels=2;
             root.userData.engineStatorVanes=20;
             root.userData.bellySpars=4;
-            root.userData.nacelleLouverPairs=10;
+            root.userData.nacelleLouverPairs=2;
             root.userData.coolantManifolds=2;
             root.userData.aeroIntakes=2;
             root.userData.finStructuralPass=true;
             root.userData.cockpitClearcoat=.75;
             root.userData.thrustGlow=0;
             root.userData.facetedCanopy=true;
-            root.userData.wingDeckPanels=8;
+            root.userData.wingDeckPanels=14;
             root.userData.nozzleCrowns=2;
-            root.userData.nozzlePetals=16;
+            root.userData.nozzlePetals=0;
             root.userData.sharedMicrofinish=true;
             root.userData.visualSpan=15.6;
             root.userData.maxTailFinY=2.9;

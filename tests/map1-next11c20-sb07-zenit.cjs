@@ -49,6 +49,15 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      unifiedNoseStripe:race.userData.unifiedNoseStripe,
+      integratedWingRootPanels:race.userData.integratedWingRootPanels,
+      integratedWingRootChannels:race.userData.integratedWingRootChannels,
+      continuousCanopyRails:race.userData.continuousCanopyRails,
+      integratedWingRearRails:race.userData.integratedWingRearRails,
+      integratedNacelleGrooves:race.userData.integratedNacelleGrooves,
+      integratedAnnularBands:race.userData.integratedAnnularBands,
+      connectedCoolantConduits:race.userData.connectedCoolantConduits,
+      consolidationPass:race.userData.consolidationPass,
       minMachiningLineDiameter:race.userData.minMachiningLineDiameter,
       boundedHaloOpacity:race.userData.boundedHaloOpacity,
       boundedHaloSize:race.userData.boundedHaloSize,
@@ -150,26 +159,35 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20H');
+  assert.equal(geometry.detailPass,'NEXT11C20I');
+  assert.equal(geometry.unifiedNoseStripe,true);
+  assert.equal(geometry.integratedWingRootPanels,4);
+  assert.equal(geometry.integratedWingRootChannels,2);
+  assert.equal(geometry.continuousCanopyRails,2);
+  assert.equal(geometry.integratedWingRearRails,4);
+  assert.equal(geometry.integratedNacelleGrooves,2);
+  assert.equal(geometry.integratedAnnularBands,8);
+  assert.equal(geometry.connectedCoolantConduits,2);
+  assert.equal(geometry.consolidationPass,true);
   assert.equal(geometry.minMachiningLineDiameter,.056);
   assert.deepEqual(geometry.boundedHaloOpacity,[.14,.38]);
   assert.deepEqual(geometry.boundedHaloSize,[1.68,2.06]);
   assert.equal(geometry.reviewStudioCapture,true);
-  assert.equal(geometry.lineRadialSegments,12);
-  assert(geometry.roundLineCount>40,
+  assert.equal(geometry.lineRadialSegments,16);
+  assert(geometry.roundLineCount>65,
     'rounded line geometry must be actually emitted >40 times');
-  assert.equal(geometry.engineBarrelSegments,24);
-  assert.equal(geometry.engineRimRadialSegments,32);
+  assert.equal(geometry.engineBarrelSegments,32);
+  assert.equal(geometry.engineRimRadialSegments,40);
   assert.equal(geometry.engineRimTubularSegments,10);
-  assert.equal(geometry.wingBevelSegments,3);
-  assert.equal(geometry.finBevelSegments,3);
+  assert.equal(geometry.wingBevelSegments,4);
+  assert.equal(geometry.finBevelSegments,4);
   assert.equal(geometry.deckBevelSegments,2);
-  assert.equal(geometry.canopyCrossSections,9);
+  assert.equal(geometry.canopyCrossSections,11);
   assert.equal(geometry.haloMipmapped,true);
   assert.equal(geometry.engineHaloCount,2);
   assert.equal(geometry.engineHaloTextureSize,128);
-  assert.equal(geometry.nozzleRecesses,12);
-  assert.equal(geometry.sealedWingRootLines,6);
+  assert.equal(geometry.nozzleRecesses,0);
+  assert.equal(geometry.sealedWingRootLines,2);
   assert.equal(geometry.haloSprites.length,2,
     'two live soft blue engine halos must exist');
   assert(geometry.haloSprites.every(s=>
@@ -182,16 +200,16 @@ const {chromium}=require('playwright');
     'both engine sprites must reuse a single in-browser texture');
   assert.deepEqual(geometry.haloSprites.map(s=>s.x),[-1.8,1.8]);
   assert.equal(geometry.flushWingTopcoats,true);
-  assert.equal(geometry.recessedWingLouverPairs,8);
+  assert.equal(geometry.recessedWingLouverPairs,2);
   assert.equal(geometry.engineThroatRings,6);
-  assert.equal(geometry.thermalShieldSegments,12);
+  assert.equal(geometry.thermalShieldSegments,0);
   assert(geometry.insetRearPlasmaLeft>24&&
     geometry.insetRearPlasmaRight>24,
     'new inner plasma throat must exist in both engines');
-  assert.equal(geometry.controlSurfacePanels,4);
+  assert.equal(geometry.controlSurfacePanels,2);
   assert.equal(geometry.engineStatorVanes,20);
   assert.equal(geometry.bellySpars,4);
-  assert.equal(geometry.nacelleLouverPairs,10);
+  assert.equal(geometry.nacelleLouverPairs,2);
   assert.equal(geometry.coolantManifolds,2);
   assert(geometry.statorLeft>=36&&geometry.statorRight>=36,
     'Both engines must have new rear nozzle stator geometry');
@@ -203,12 +221,12 @@ const {chromium}=require('playwright');
   assert.equal(glassMat.materialType,'MeshPhysicalMaterial');
   assert.equal(glassMat.clearcoat,.75);
   assert.equal(geometry.facetedCanopy,true);
-  assert.equal(geometry.wingDeckPanels,8);
+  assert.equal(geometry.wingDeckPanels,14);
   assert.equal(geometry.nozzleCrowns,2);
-  assert.equal(geometry.nozzlePetals,16);
+  assert.equal(geometry.nozzlePetals,0);
   assert.equal(geometry.sharedMicrofinish,true);
-  assert(geometry.glassVertices>=288,
-    '9-cross-section smooth canopy must keep designed longitudinal form');
+  assert(geometry.glassVertices>=350,
+    '11-cross-section true continuous canopy must retain designed form');
   assert(geometry.plasmaRearLip>24,'new rear engine corona must be present');
   assert.equal(geometry.stats.batches,13);
   assert.equal(geometry.stats.players,2);
@@ -216,7 +234,13 @@ const {chromium}=require('playwright');
   assert.equal(geometry.stats.newColliders,0);
   assert.equal(geometry.stats.newWeapons,0);
   assert.equal(geometry.stats.newAircraftClasses,0);
-  assert(geometry.parts>190&&geometry.parts<500);
+  // The identical model build counter was measured via deterministic
+  // source-level geometry builder: C20H=354, new unified C20I=191.
+  // Assert absolute limit and 40%+ reduction; no mock 3D screenshot.
+  assert.equal(geometry.parts,191,
+    'real emitted SB-07 objects must drop from 354 to 191');
+  assert((354-geometry.parts)/354>.45,
+    'must reduce disconnected primitives by more than 45 percent');
   assert(geometry.tris>4000&&geometry.tris<65000);
   assert(geometry.dimensions[0]>14&&geometry.dimensions[0]<19);
   assert(geometry.dimensions[1]>2.7&&geometry.dimensions[1]<6);
@@ -532,7 +556,7 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20H',
+    status:'PASS',id:'NEXT11C20I',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
     geometry,normal,boost,fixedNormal,fixedBoost,oblique,
     studioNormal,studioFront,studioBoost,map4Preserved:after,
@@ -543,6 +567,10 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    independentBuilderPieces:[354,geometry.parts],
+    pieceCountReductionPct:+((354-geometry.parts)*100/354).toFixed(2),
+    integratedCanopy:geometry.continuousCanopyRails,
+    integratedEngineBands:geometry.integratedAnnularBands,
     studioMetrics:[studioNormal,studioBoost],
     haloSprites:geometry.haloSprites.length,
     edgeQuality:[geometry.lineRadialSegments,
