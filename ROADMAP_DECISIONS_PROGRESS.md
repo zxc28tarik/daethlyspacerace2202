@@ -857,3 +857,10 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KABUL:** [NEXT11C20S AA kalite kriterleri](MAP1_NEXT11C20S_MSAA_SHIMMER_ACCEPTANCE.md). **SIRADAKİ NEXT11C20T:** sonuç üzerinden dar kapsamlı çizgi AA kararı; native GPU ve 5dk oyuncu onayı ayrıca açık. Taslak PR, merge yok.
 
 **Günlük:** 2026-11-19 | NEXT11C20S | real 720/1080 native AA vs 2x diagnostic shimmer benchmark | production game unchanged | QA running | DRAFT NO MERGE.
+
+
+### NEXT11C20S — gerçek son HEAD WebGL kalite ölçümü / özel test SUCCESS (19 Kasım 2026)
+- [C20S gerçek Chromium özel QA #44534431908](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44534431908) **completed/success** (HEAD d4e491a659...), C20R 304/304 çizgi birleşimi PASS; 192 ring/10 batch, 6960 ray segmenti/20 grup; SB-07 189 / B-04 249 ve Map4 [6,36,200] collider değişmedi.
+- [S test artifact #14535222369](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44534431908/artifacts/14535222369) dört gerçek aynı-kamera native MSAA / 2x supersampling testi: 12.500m / 720p parlaklık hareket delta **16.58097→11.24476 (%32,2 azalma)**; 27.500m /720p **18.46970→11.99977 (%35,0)**; 12.500m /1080p **19.19861→12.82315 (%33,2)**; 27.500m /1080p **19.47194→12.72693 (%34,6)**.
+- **ÖLÇÜM SINIRI:** Hareket proxy'si iki 6m kamera farkındaki renk değişimini ölçer; yalnız shimmering'i izole etmez. 2x referans dört kat piksel içerir, browser SwiftShader CPU süreleri fiziksel kullanıcı GPU FPS değil. Real native GPU maliyet eşiği olmadan **kalıcı kalite profili / FXAA / blur etkinleştirilmedi**; `index.html` hiç değiştirilmedi.
+- **AÇIK:** [son HEAD full smoke #44534431933](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44534431933) sonucu ayrıca kontrol edilecek; kullanıcı oynanış/görsel onayı ve native GPU FPS/p95 açık. DRAFT / NO MERGE.
