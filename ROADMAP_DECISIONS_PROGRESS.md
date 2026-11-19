@@ -995,3 +995,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SONRAKİ NEXT11C21A:** küçük normal/facet hatalarını tekrarlamak yerine orijinal native AA ile **daha belirgin, ancak silueti değiştirmeyen** gerçek surface shading/material tutarlılığına odaklan. Yeni mikro parça veya performans odaklı filtre yok; önce gerçek WebGL A/B.
 
 **Karar günlüğü:** 2026-11-19 | NEXT11C20Z | 138/138 normal +4/4 genuine winding PASS | 189 parts / 1x MSAA unchanged | full smoke pending | no merge.
+
+
+## 52) 19 Kasım 2026 — NEXT11C21A SB-07 seramik / metal malzeme ayrımını gerçek PBR'da iyileştirme
+
+- **ÖNCELİK:** Kullanıcının istediği **görsel kalite**. Orijinal 1.0× MSAA, geminin dış konturu, yeni parça eklememe ve FPS'yi tek başına artırmaya odaklanmama kararı değişmedi.
+- **GERÇEK `index.html` GÖRÜNÜM UYGULAMASI:** SB-07 HULL beyaz-seramik ve SECOND koyu metal daha önce **aynı 128px roughness+bump checker** dokuya ve genel `MeshStandardMaterial` parametresine sahipti. HULL aynı onaylı renk 0xdbe4ea ile yumuşak/ızgarasız **saten-seramik fiziksel clearcoat .30**, roughness .34, bump .006; SECOND aynı renk 0x566675 ile ayrı **yönlü fırçalanmış koyu metal fiziksel clearcoat .12**, roughness .44, bump .010. Her biri ayrı yerel 128×128 CanvasTexture/mipmap; boya RED ve cam GLASS unchanged. 7 malzeme batch, 189 SB07 authored parts, 2 glow, fizik/AI/kamera/hud, B04 Map4 249, 192 ring, 304 corridor joins korunur. Yeni mesh veya global shader/AA yok.
+- **QA:** `tests/map1-next11c21a-native-pbr-finishes.cjs` gerçek Chromium/Three modelde metal ve seramiğin farklı CanvasTexture pikseli/ortalama varyansı, materyal tipi, roughness/metalness, onaylı tint ve red/cam değişmezliği, 4 gerçek 1600×900 WebGL açı, U/W/X/Y/Z/R eski denetimler, Map4 [6,36,200]. Dedicated + full smoke branch için test eklendi; **son HEAD CI geçmeden PASS yazılmaz.** İki ek 128px dokunun maliyeti fiziksel GPU'da ölçülmediğinden FPS iddiası yok.
+- **BELGE:** [C21A estetik/QA kabulü](MAP1_NEXT11C21A_NATIVE_PBR_MATERIAL_ACCEPTANCE.md). **SIRADAKİ C21B:** Yalnız görünüm A/B sonucuna göre malzeme parametrelerini yerel iyileştir, yeni dekor/süpersampling yok. PR stacked DRAFT, merge kullanıcı onayı gerektirir.
+
+**Günlük:** 2026-11-19 | C21A | 2 new tiny satin/brush procedural finish maps, HULL/SECOND physical PBR distinction, original 1x AA/189 pieces | CI pending | no merge.
