@@ -11847,6 +11847,13 @@
                 }
                 line('SECOND',[side*2.0,-.095,-2.14],
                     [side*3.64,-.093,-1.47],.058);
+                // NEXT11C20F: three purposeful wing-root seal seams,
+                // not free-floating decoration or silhouette changes.
+                for(let k=0;k<3;k++){
+                    const z=-2.21+k*.32;
+                    line('DARK',[side*(1.77+k*.06),-.094,z],
+                        [side*(2.39+k*.17),-.094,z+.16],.042);
+                }
                 // Two tapered service spars on the belly, drawn within
                 // the same visual-only hull and excluded from collision.
                 line('SECOND',[side*1.72,-.51,-1.44],
@@ -11995,6 +12002,15 @@
                     ],.075);
                 }
                 cyl('SECOND',side*1.80,-.25,6.48,.17,.12);
+                // Deep two-tone nozzle cavity: six slim painted recess
+                // notches, all behind the existing large exhaust collar.
+                for(let j=0;j<6;j++){
+                    const a=j*Math.PI/3,
+                        x=side*1.80+Math.cos(a)*.83,
+                        y=-.25+Math.sin(a)*.83;
+                    box('DARK',x,y,6.31,.07,.07,.19,
+                        0,0,a);
+                }
                 // Outer socket collar just ahead of the engine throat.
                 hoop('DARK',side*1.80,-.25,5.72,.91);
                 // Inset concentric throat layers add actual nozzle depth.
@@ -12160,11 +12176,50 @@
                 root.add(mesh);
                 triangleCount+=count/3;
             }
+            // Soft, fully original procedural plasma halo; the existing
+            // seven merged physical material batches stay untouched.
+            // Two nested sprites add just two transparent draw calls
+            // when Map1 SB-07 is visible, with no point light/particle.
+            const glowCanvas=document.createElement('canvas');
+            glowCanvas.width=glowCanvas.height=64;
+            const g2d=glowCanvas.getContext('2d');
+            const radial=g2d.createRadialGradient(
+                32,32,1,32,32,31);
+            radial.addColorStop(0,'rgba(220,249,255,.9)');
+            radial.addColorStop(.22,'rgba(125,220,255,.7)');
+            radial.addColorStop(.54,'rgba(48,145,255,.28)');
+            radial.addColorStop(1,'rgba(0,60,130,0)');
+            g2d.fillStyle=radial;
+            g2d.fillRect(0,0,64,64);
+            const glowTexture=new THREE.CanvasTexture(glowCanvas);
+            glowTexture.minFilter=THREE.LinearFilter;
+            glowTexture.magFilter=THREE.LinearFilter;
+            const plasmaMesh=root.children.find(
+                child=>child.name==='NEXT11C20_SB07_PLASMA');
+            for(const side of [-1,1]){
+                const halo=new THREE.Sprite(new THREE.SpriteMaterial({
+                    map:glowTexture,color:0xa4e9ff,
+                    transparent:true,opacity:.18,
+                    blending:THREE.AdditiveBlending,
+                    depthWrite:false,depthTest:true,
+                    toneMapped:false
+                }));
+                halo.name='SB07_ENGINE_HALO_'+(side<0?'L':'R');
+                halo.userData.visualOnly=true;
+                halo.userData.noCollider=true;
+                halo.position.set(side*1.80,-.25,6.69);
+                halo.scale.set(1.85,1.85,1);
+                plasmaMesh.add(halo);
+            }
             for(const g of [cube,tube,ring,dome,rect])g.dispose();
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
-            root.userData.detailPass='NEXT11C20E';
+            root.userData.detailPass='NEXT11C20F';
+            root.userData.engineHaloCount=2;
+            root.userData.engineHaloTextureSize=64;
+            root.userData.nozzleRecesses=12;
+            root.userData.sealedWingRootLines=6;
             root.userData.flushWingTopcoats=true;
             root.userData.recessedWingLouverPairs=8;
             root.userData.engineThroatRings=6;
@@ -12205,6 +12260,8 @@
             mesh=>mesh.material.name==='SB07_ENGINE_AMBER');
         const h4Ship20ZenitGlass=h4Ship19Race.children.find(
             mesh=>mesh.material.name==='SB07_SMOKED_BLUE_COCKPIT');
+        const h4Ship20ZenitHalos=h4Ship20ZenitPlasma.children.filter(
+            object=>object.isSprite);
         const h4Ship20BasePlasma=new THREE.Color(0x6dd9ff);
         const h4Ship20BoostPlasma=new THREE.Color(0xd8faff);
         const h4Ship20BaseAmber=new THREE.Color(0xfaa15d);
@@ -12231,6 +12288,13 @@
                     h4Ship20BoostAmber,h4Ship20GlowBlend*.70);
             h4Ship20ZenitGlass.material.emissiveIntensity=
                 .38+.08*h4Ship20GlowBlend;
+            // Small additive halos blend smoothly without ever
+            // modifying scene lighting, actual speed or ship controls.
+            for(const halo of h4Ship20ZenitHalos){
+                halo.material.opacity=.18+.30*h4Ship20GlowBlend;
+                const size=1.85+.42*h4Ship20GlowBlend;
+                halo.scale.set(size,size,1);
+            }
             h4Ship19Race.userData.thrustGlow=h4Ship20GlowBlend;
         }
 
