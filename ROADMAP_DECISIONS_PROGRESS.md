@@ -909,3 +909,25 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **DOSYA:** [NEXT11C20U kabul kriterleri](MAP1_NEXT11C20U_CONTOURED_ENGINE_FAIRING_ACCEPTANCE.md). **SIRADA NEXT11C20V:** geminin gövde–kanat junction yüzeyi ve kırmızı panel sürekliliğini iyileştir, süs parçaları ekleme. Ana dala kullanıcı izni olmadan merge yok.
 
 **Günlük:** 2026-11-19 | NEXT11C20U | real geometric nacelle roof and conformal stripe | original AA preserved | CI pending | stacked DRAFT.
+
+
+## 47) 19 Kasım 2026 — NEXT11C20V SB-07 gövde–kanat birleşiminin yüzeye dönüştürülmesi
+
+- **ÖNCELİK:** FPS artırma değil, orijinal 1× MSAA içindeki **gerçek görsel/gövde geometri kalitesi**. Yeni süs parçası yok.
+- **GERÇEK HTML DEĞİŞİKLİĞİ:** `codex/map1-sb07-zenit-wing-root-v` dalında SB-07'nin iki ince SECOND wing-root seam parçası, 5 istasyon ×6 enine kolonlu, gerçek 14 yönlü gövde çatı formundan mevcut kanat yüzeyine kesintisiz loftlanan HULL renkli **kapalı geometrik bağlantı köprüsü** ile değiştirilmiştir. 189 emit / 7 batch +2 glow korunur; onaylı kanat dikmeleri, çift motor C20U kaportaları, burun, kırmızı boya ve cam siluet korunur.
+- **QA:** 60 gerçek birleştirilmiş HULL roof vertex doğrulaması, 4 ayrı 1600×900 gerçek WebGL görüntüsü, özgün SB-07 normal/boost ve C20U 30 motor boya ölçüsü, C20R 304 rail seam/Map4 regresyonları; özel CI ve full smoke eklendi. CI bitmeden sonuç PASS ilan edilmiyor.
+- **KARAR:** 1× orijinal AA korunur; 1,25/1,5/2× açılamaz. Yalnız görsel kalite geliştirmesi ve gerekli fizik/çizim koruma kontrolleri. [V kabul](MAP1_NEXT11C20V_WING_ROOT_CONTOUR_ACCEPTANCE.md).
+- **SONRAKİ NEXT11C20W:** yeni fillet gerçek görüntülerini incele, üst boya yüzeylerinin kesintisizliği ve çizgi temizliğine odaklan. PR stacked DRAFT / kullanıcı izni olmadan merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20V | replace 2 detached wing-root lines with contoured 3D hull bridges | 60 true vertex checks and 4 GL images | CI pending | no merge.
+
+
+### NEXT11C20V — Gerçek son oyun kodu Chromium/WebGL kabul sonucu (19 Kasım 2026)
+
+- **Özel QA:** `f34c9fc66fbfd1330007161127badcae5bbd781f` (V geometri + test + belgeler) üzerinde [GitHub Actions #44542946932](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44542946932) **completed / success**. Bağımsız SB-07 gerçek uçuş normal/boost, U önceki kaporta ve V yeni 3B bridge, R koridor 304/304 testleri aynı workflow içinde PASS.
+- **Gerçek model kanıtı:** Yeni iki gövde–kanat bridge eski iki SECOND seam parçasının yerini alır. 5×6×2 = **60/60** actual displayed HULL-buffer roof vertex matching, maksimum hata **1.09064145708e-7** ve iki tarafta örneklenen rise **.356488** birim; **189 SB-07**, **7 malzeme batch**; C20U 30 motor boya ölçümü **.01261685 – .014** arası. Harita4 B-04 **249**, collider [6,36,200]; gerçek dört farklı 1600×900 WebGL gemi ekranı + C20R 304/304 ray ve 6960 segment.
+- **ARTIFACT:** [#14538704104 gerçek WebGL görüntüleri / JSON](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44542946932/artifacts/14538704104). Aynı kamera 1× MSAA orijinal U/V 'öncesi–sonrası' görselleri görsel değerlendirmeye açıktır. Bu gerçek geometri denetimi otomatik kullanıcı estetik onayı değildir.
+- **KAPSAMLI TEST:** [V full Map1/Map4 smoke #44542946686](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44542946686) ayrıca tamamlanmadan full PASS iddia edilmez. Native GPU FPS/p95 ve uzun oynanış kullanıcı kontrolü açık; amaç FPS yükseltmek değil, düzgün birleşmiş gemi modelidir.
+- **SONRAKİ NEXT11C20W:** Üst kanat boyalarının cisimle bütünleşmesi ve kopuk kontur çizgileri; yeni mikro parça yaratma yok. Draft PR izinsiz birleştirilmez.
+
+**Karar günlüğü:** 2026-11-19 | NEXT11C20V | 60/60 genuine wing-root GPU vertices PASS | 4 same-renderer screenshots | 189 parts unchanged | full smoke pending | original 1× MSAA | no merge.
