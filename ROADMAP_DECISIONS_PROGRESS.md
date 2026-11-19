@@ -1005,3 +1005,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **BELGE:** [C21A estetik/QA kabulü](MAP1_NEXT11C21A_NATIVE_PBR_MATERIAL_ACCEPTANCE.md). **SIRADAKİ C21B:** Yalnız görünüm A/B sonucuna göre malzeme parametrelerini yerel iyileştir, yeni dekor/süpersampling yok. PR stacked DRAFT, merge kullanıcı onayı gerektirir.
 
 **Günlük:** 2026-11-19 | C21A | 2 new tiny satin/brush procedural finish maps, HULL/SECOND physical PBR distinction, original 1x AA/189 pieces | CI pending | no merge.
+
+
+### NEXT11C21A — Gerçek native WebGL kabul sonucu (19 Kasım 2026)
+
+- **SON OYUN KODU VE GÖRSEL KABUL BELGESİ `4f74bb06a01a169a6251008d05b7c091d66e694e`:** [GitHub Actions özel C21A #44554230159](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44554230159) **COMPLETED / SUCCESS, 16/16**. Orijinal kullanıcı-onaylı HULL `emissiveIntensity=.20` değeri eski SB-07 regresyon testinin ilk fail'inden sonra tekrar aynen korundu. Kod testi/estetik eşik bypass edilmedi.
+- **AYRI GERÇEK PBR CANVAS VERİSİ:** HULL seramik `MeshPhysicalMaterial`, 128×128 no-grid satin atlas piksel ortalaması **226.007 / std 2.199**; SECOND gunmetal `MeshPhysicalMaterial`, ayrı brushed atlas ortalama **203.070 / std 6.035**, original 0xdbe4ea/0x566675 tint aynen. Eski RED paint `0xc43838`, eski GLASS `0x18394f` unchanged, native 1× AA, 7 material batch +2 glow, SB07 189/B04 249 untouched.
+- **GERÇEK GÖRÜNTÜ:** [C21A son HEAD gerçek WebGL kanıtı artifact #14543329593](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44554230159/artifacts/14543329593). Önceki [Z gerçek WebGL artifact #14543802411](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44551656762/artifacts/14543802411) ile 1600×900 aynı kamera ve ışık. RGB kanal fark eşik>12: arka-çapraz **44935 piksel (%3.12)**, üst **47367 (%3.29)**; gerçek PBR shader/farklı mikrofinish farkı artık görünür, ancak sayısal fark **estetik kalite onayı** değildir.
+- **GÜVENLİK:** SB07 normal/boost, U/W/X/Y/Z tüm geometri ve roof normal kanıtı, R **304/304** ray seam/6960 segment, Map4 **249 ve [6,36,200]**, orijinal 1× MSAA PASS. Fiziksel GPU gerçek FPS test edilmedi; 2 yeni 128px atlasın kaynak maliyeti değerlendirmeye açık.
+- **TAM OYUN REGRESYONU:** [Son HEAD Map1/4 smoke #44554230249](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44554230249) ayrı tamamlanmadan tam oyun PASS yazılmaz. **SIRADAKİ NEXT11C21B:** bu belirgin gerçek PBR farkı görsel olarak değerlendirilip kullanıcıya fazla parlak/karanlık geliyorsa yalnız HULL/SECOND malzeme parametrelerini düzelt; yeni parça, ekstra MSAA/supersampling veya kör FPS optimizasyonu yok.
+
+**Karar günlüğü:** 2026-11-19 | NEXT11C21A | PBR ceramic+brushed metal code and native 1× actual WebGL 16/16 PASS | 44.9k/47.4k differing RGB pixels in 2 views | full smoke pending | DRAFT no merge.
