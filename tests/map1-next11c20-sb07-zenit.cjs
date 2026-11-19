@@ -390,7 +390,7 @@ const {chromium}=require('playwright');
   // deterministic neutral studio. Screenshots have no HUD or race debris.
   // Normal and boost get the SAME camera, lighting and pixel coordinates.
   const captureStudio=async(angle,tag)=>{
-    const metrics=await page.evaluate(angle=>{
+    const frame=await page.evaluate(angle=>{
       if(!window.__SB07_STUDIO_H){
         const studio=new THREE.Scene();
         studio.background=new THREE.Color(0x0b1423);
@@ -441,7 +441,23 @@ const {chromium}=require('playwright');
           blueTintRatio:+(cyan/(N*N)).toFixed(4)
         };
       };
-      return {
+      // WebGL preserveDrawingBuffer is normally false. Capture pixels
+      // synchronously after render so studio evidence never becomes
+      // a blank/black screenshot during the next compositor tick.
+      const rgba=new Uint8Array(width*height*4);
+      gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,rgba);
+      const flipped=new Uint8ClampedArray(rgba.length);
+      for(let row=0;row<height;row++){
+        const stride=width*4;
+        flipped.set(rgba.subarray(row*stride,(row+1)*stride),
+          (height-1-row)*stride);
+      }
+      const output=document.createElement('canvas');
+      output.width=width;output.height=height;
+      const ctx=output.getContext('2d');
+      ctx.putImageData(new ImageData(flipped,width,height),0,0);
+      const png=output.toDataURL('image/png').split(',')[1];
+      return {png,metrics:{
         angle,ship:studio.ship.userData.authoredShipId,
         renderCalls:renderer.info.render.calls,
         pixelSize:[width,height],
@@ -452,8 +468,12 @@ const {chromium}=require('playwright');
           sample(1.8,-.25,6.65)
         ]:[],
         normalViewAligned:studio.ship.children.length===7
-      };
+      }};
     },angle);
+    const metrics=frame.metrics;
+    fs.writeFileSync(path.join(__dirname,
+      'map1-next11c20-zenit-studio-h-'+tag+'.png'),
+      Buffer.from(frame.png,'base64'));
     assert.equal(metrics.ship,'SB-07');
     assert.equal(metrics.normalViewAligned,true,
       'studio screenshots must use real seven-batch ship, not a mock');
@@ -464,8 +484,6 @@ const {chromium}=require('playwright');
     assert(metrics.engines.every(e=>
       Number.isFinite(e.meanBrightness)&&
       e.whiteClipRatio>=0&&e.whiteClipRatio<=1));
-    await page.locator('#game-canvas').screenshot({path:path.join(
-      __dirname,'map1-next11c20-zenit-studio-h-'+tag+'.png')});
     return metrics;
   };
   await fly(false);
