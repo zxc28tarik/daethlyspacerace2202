@@ -754,3 +754,16 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KORUMA:** Kullanıcı açık onayı olmadan PR merge yok.
 
 **Günlük:** `2026-11-19 | NEXT11C20L | FOUND REAL CI FAIL NODE THREE | FIXED TEST REAL BROWSER FILTER | EXTRACTED DIRECT OFFLINE GAME HTML | CI RE-RUN IN PROGRESS/UNVERIFIED | DRAFT NO MERGE | NEXT11C20M`.
+
+
+## 38) 19 Kasım 2026 — NEXT11C20M gerçek WebGL QA PASS bulgusu ve zaman zaman çıkan stüdyo boost tutarsızlığının onarımı
+
+- **TETİK:** Kullanıcının "." komutu = sonraki NEXT11C20M. "Yeni küçük dekor parçası ekleme; mevcut parçaları birleştir, daha temiz çizgi" kararı değişmez.
+- **GERÇEK KANIT:** Başarılı GitHub Actions run [#44516951852](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44516951852) **WebGL PASS**. Gerçek 1600×900 studio 3 açı + playable chase PNG artifact #14526193120 indirildi; ön/arka normal/boost ekran görüntüleri incelendi. 189 gerçek model parçası, 7 ana +2 Sprite draw calls, 36.156 gerçek WebGL triangle, 8× sağ/sol panel açıklığı .012–.016, 15 burun vertex ve Map4 B-04 249/6, collider [6,36,200] doğrulandı.
+- **SONRAKİ FAIL'İN GERÇEK SEBEBİ:** C20L farklı GitHub run #44517397511 / full smoke #44517397400 `AssertionError: review images must show an actual game-state boost difference`. İlk playable chase normal/boost testi geçti; ikinci `fly(false/true)` full `updateGame` tekrarları bazen fizik/engel/bitiş durumu nedeniyle gerçek model ışık tick'ini durduruyordu. Bu game rendering bug kanıtı değil, **stüdyo sanat QA senaryosunun oyun fiziğine bağlanması**.
+- **FIX:** `codex/map1-sb07-zenit-boost-qa-determinism-m` branşında ikinci stüdyo testini gerçek `h4Ship20ZenitVisualTick(1/30)` + gerçek ShiftLeft / RACE_SPEEDS.NORMAL girdisiyle, geçici state save-restore ve `finally` cleanup yaparak izole ettik. Oyun ana `index.html` ve gerçek playable `updateGame` chase kanıtı değişmedi; görsel assert devre dışı bırakılmadı. Normal/boost `studioDiagnostics` JSON da artifakta alındı. Test JS parse PASS. Yeni dal özel Chromium WebGL ve full Map1/4 workflow'a eklendi.
+- **KORUMA:** 189 parça, 7 ana batch +2 share texture halo, orijinal geniş düz kanatlar/dikey wingtip, Map1 saf yarış, Map4 B04 249/6 korunur. Hiçbir PR izin olmadan merge edilmedi.
+- **KABUL:** [C20M](MAP1_NEXT11C20M_SB07_DETERMINISTIC_BOOST_QA.md).
+- **AÇIK:** Yeni run gerçek final PASS, native 720/1080 GPU FPS/p95, 5dk kullanıcı oynayarak kontrol ve açık merge kararı. **NEXT11C20N:** CI final loglarını/PNG kanıtını tekrar oku; gerekirse net hata fix, yeni parça ekleme.
+
+**Günlük:** `2026-11-19 | NEXT11C20M | ACTUAL C20L SINGLE WEBGL PASS AND SUBSEQUENT STUDIO FLAKE FOUND | REAL VISUAL TICK ISOLATED; CHASE STILL GAMEPLAY-REAL | 189/7+2 | NEW CI PENDING | DRAFT NO MERGE`.

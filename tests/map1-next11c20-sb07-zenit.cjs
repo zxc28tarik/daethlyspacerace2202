@@ -636,13 +636,73 @@ const {chromium}=require('playwright');
       e.whiteClipRatio>=0&&e.whiteClipRatio<=1));
     return metrics;
   };
-  await fly(false);
+  // NEXT11C20M: The playable chase normal/boost tests above use
+  // updateGame() and remain untouched. The independent A/B ART studio
+  // must not advance random obstacle collisions or accidentally cross
+  // an end-of-race gate. Drive the ACTUAL ship visual tick with its
+  // REAL keyboard/speed inputs while temporarily isolating race state.
+  // Never set halo opacity/material colors directly and never fake
+  // the recorded thrustGlow value.
+  const driveStudioVisualTick=async active=>page.evaluate(boost=>{
+    if(typeof h4Ship20ZenitVisualTick!=='function')
+      throw new Error('Real SB-07 gameplay visual tick is missing');
+    if(state.activeMap!==MAP_MODES.MAP1)
+      throw new Error('Art QA must use the real Map1 SB-07');
+    const prior={
+      running:state.running,finished:state.finished,
+      paused:state.paused,speed:state.currentSpeed,
+      energy:state.energy,turbo:state.itemTurboTimer,
+      keyShiftLeft:keys.ShiftLeft,keyShiftRight:keys.ShiftRight,
+      keyW:keys.KeyW
+    };
+    try{
+      state.running=true;
+      state.finished=false;
+      state.paused=false;
+      state.currentSpeed=RACE_SPEEDS.NORMAL;
+      state.itemTurboTimer=0;
+      state.energy=100;
+      keys.ShiftLeft=boost;
+      keys.ShiftRight=false;
+      keys.KeyW=false;
+      for(let i=0;i<35;i++)h4Ship20ZenitVisualTick(1/30);
+      return {
+        mode:'real-visual-tick-without-race-physics',
+        requestedBoost:boost,
+        measuredThrust:+h4Ship19Race.userData.thrustGlow.toFixed(4)
+      };
+    }finally{
+      state.running=prior.running;
+      state.finished=prior.finished;
+      state.paused=prior.paused;
+      state.currentSpeed=prior.speed;
+      state.energy=prior.energy;
+      state.itemTurboTimer=prior.turbo;
+      keys.ShiftLeft=prior.keyShiftLeft;
+      keys.ShiftRight=prior.keyShiftRight;
+      keys.KeyW=prior.keyW;
+    }
+  },active);
+  const studioNormalDrive=await driveStudioVisualTick(false);
   const studioNormal=await captureStudio('rear','rear-normal');
   const studioFront=await captureStudio('front','front');
-  await fly(true);
+  const studioBoostDrive=await driveStudioVisualTick(true);
   const studioBoost=await captureStudio('rear','rear-boost');
+  const studioDifference=+(studioBoost.thrust-studioNormal.thrust).toFixed(4);
+  const studioDiagnostics={
+    normal:studioNormalDrive,boost:studioBoostDrive,
+    normalThrust:studioNormal.thrust,
+    boostThrust:studioBoost.thrust,
+    difference:studioDifference
+  };
+  fs.writeFileSync(path.join(__dirname,
+    'map1-next11c20-zenit-studio-drive-diagnostics.json'),
+    JSON.stringify(studioDiagnostics,null,2));
+  assert(studioBoostDrive.measuredThrust>studioNormalDrive.measuredThrust+.15,
+    'real SB-07 visual tick must respond to live keyboard boost');
   assert(studioBoost.thrust>studioNormal.thrust+.15,
-    'review images must show an actual game-state boost difference');
+    'actual model A/B studio images must differ: '+
+    JSON.stringify(studioDiagnostics));
   assert.deepEqual(studioNormal.pixelSize,studioBoost.pixelSize,
     'A/B image dimensions must be identical');
   // Pixel stats are diagnostic, not an invented human aesthetic PASS.
@@ -682,9 +742,10 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20L',
+    status:'PASS',id:'NEXT11C20M',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
     geometry,normal,boost,fixedNormal,fixedBoost,oblique,
+    studioNormalDrive,studioBoostDrive,studioDiagnostics,
     studioNormal,studioFront,studioBoost,map4Preserved:after,
     actualNativeGPU:false,actualHumanRace:false,
     aestheticApprovedByUserForModel:false
