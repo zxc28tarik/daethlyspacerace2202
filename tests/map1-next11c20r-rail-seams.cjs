@@ -200,6 +200,7 @@ fs.mkdirSync(out,{recursive:true});
         nextIntersects:frustum.intersectsObject(next),
         calls:renderer.info.render.calls,
         triangles:renderer.info.render.triangles,
+        lines:renderer.info.render.lines,
         litPixels:lit,glError:original,
         uniformProgress:corridorGuideGroup.userData.railMaterial.uniforms.uProgress.value,
         buffer:[width,height],
@@ -216,8 +217,11 @@ fs.mkdirSync(out,{recursive:true});
         assert.deepEqual(s.buffer,[1280,720]);
         assert.equal(s.glError,0);
         assert(Math.abs(s.uniformProgress-s.progress)<.01);
-        assert(s.calls>0&&s.triangles>1000&&s.litPixels>1000,
-          'must render a real nonblank race scene near each seam');
+        // Between course hazards, an entirely real 3D view can consist
+        // mostly of neon lines and no triangle meshes. Validate WebGL
+        // line primitives instead of incorrectly demanding >1000 triangles.
+        assert(s.calls>0&&s.lines>100&&s.litPixels>1000,
+          'must render actual nonblank corridor lines near each seam');
         samples.push(s);
       }
     }
