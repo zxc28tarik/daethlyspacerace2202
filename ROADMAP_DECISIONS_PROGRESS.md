@@ -767,3 +767,18 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **AÇIK:** Yeni run gerçek final PASS, native 720/1080 GPU FPS/p95, 5dk kullanıcı oynayarak kontrol ve açık merge kararı. **NEXT11C20N:** CI final loglarını/PNG kanıtını tekrar oku; gerekirse net hata fix, yeni parça ekleme.
 
 **Günlük:** `2026-11-19 | NEXT11C20M | ACTUAL C20L SINGLE WEBGL PASS AND SUBSEQUENT STUDIO FLAKE FOUND | REAL VISUAL TICK ISOLATED; CHASE STILL GAMEPLAY-REAL | 189/7+2 | NEW CI PENDING | DRAFT NO MERGE`.
+
+
+## 39) 19 Kasım 2026 — NEXT11C20N ölçülmüş 720p / 1080p WebGL bütçesi; runner APT 503 sorununa çözüm
+
+- **KULLANICI TETİĞİ:** "." = NEXT11C20N aşaması. Kullanıcının kesin kararı: **fazla parça ekleme; SB-07 üzerinde ayrık parçaları birleştir ve çizgi kalitesini yükselt**. Bu aşamada oyun HTML kodu değiştirilmedi.
+- **CI GERÇEK BULGUSU:** C20M bazı özel WebGL QA run'ları PASS (#44520110027), en son bazı koşuların kurulumu FAIL (#44520195239). Kök `npx playwright install --with-deps chromium` sırasında Ubuntu apt/font/Mesa mirror sunucularının HTTP 503 vermesi; oyun çizimi hatası değil. C20N özel ölçüm ve tam smoke workflow'larında apt üzerinden tüm bağımlılıkları tekrar indirme kaldırıldı, pinned `npx playwright install chromium` korundu.
+- **ÖLÇÜM ARACI KAYDEDİLDİ:** `tests/map1-next11c20n-gpu-budget.cjs`, gerçek oyun Map1 + Map4 1280×720 ve 1920×1080, DPR=1, Chromium SwiftShader, 3 warmup +10 ölçüm `renderer.render(scene,camera);gl.finish()`, gerçek GL calls/triangles/textures/geometry resources, medyan ve 10 örnek max, 720p gerçek framebuffer PNG. Native GPU veya uzun süreli oynanış performansı DEĞİLDİR.
+- **DOĞRULANMIŞ BAŞARILI RUN:** [#44521687724](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44521687724) gerçekten **success**. İndirilen [ZIP artifact #14528171226](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44521687724/artifacts/14528171226) içindeki `perf-report.json`, MAP1/MAP4 720p PNG görüntüleri gözden geçirildi. **4 durak:** Map1 720 257 draw calls/62026 triangles/median 1.70ms/max 4.60ms; Map1 1080 aynı calls/tris/median1.85/max7.30ms; Map4 720 284 calls/177591 tris/median3.35/max9.90; Map4 1080 aynı calls/tris/median2.55/max2.90. Hepsi SwiftShader CPU'lu, fiziksel kullanıcı GPU FPS ve 5dk gameplay doğrulanmadı. Test JS pageError: 0.
+- **GÖRSEL KORUMA:** 189 gerçek SB-07 builder parçası, onaylı uzun burun/düz geniş yatay kanat/iki dikey wingtip/çift motor; 7 birleşik gemi mesh + 2 halo; Map1 saf yarış, Map4 B-04 249 model parça. Render budget testinde tümü assertion ile doğrulandı. Yeni dekoratif parça, yeni collider/silah, gameplay, Map4 ve game `index.html` değişikliği yok.
+- **FULL SMOKE:** yeni dal için tüm Map1/Map4 43-step regression başlatıldı; **bu kayıt sırasında final PASS teyit edilmedi**. Eski full smoke'ları başarılı ilan etme.
+- **YEREL ENGEL:** Sandbox Chromium ile lokal `file://` ve localhost erişimi `ERR_BLOCKED_BY_ADMINISTRATOR`. Yerel native GPU FPS iddiası yok; gerçek benchmark Github Actions üzerinde çalıştı.
+- **KABUL:** [C20N](MAP1_NEXT11C20N_SB07_RESOLUTION_PERF_QA.md). **SIRADA NEXT11C20O:** yeni dalın tüm regression finalini ve gerçek PNG'leri doğrula; seçici performans/çizgi problemi varsa *yeni süs objesi olmadan* düzelt.
+- **MERGE:** Kullanıcının açık onayı yok, stacked taslaklar **NO MERGE**.
+
+**Günlük:** `2026-11-19 | NEXT11C20N | REAL CHROMIUM MAP1+MAP4 720/1080 WEBGL PERF PASS | 257/284 DRAW CALLS | 62k/177k TRIANGLES | APT503 CI MITIGATED | NATIVE GPU & FULL SMOKE PENDING | DRAFT NO MERGE`.
