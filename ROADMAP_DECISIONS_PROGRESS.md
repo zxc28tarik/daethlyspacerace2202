@@ -931,3 +931,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SONRAKİ NEXT11C20W:** Üst kanat boyalarının cisimle bütünleşmesi ve kopuk kontur çizgileri; yeni mikro parça yaratma yok. Draft PR izinsiz birleştirilmez.
 
 **Karar günlüğü:** 2026-11-19 | NEXT11C20V | 60/60 genuine wing-root GPU vertices PASS | 4 same-renderer screenshots | 189 parts unchanged | full smoke pending | original 1× MSAA | no merge.
+
+
+## 48) 19 Kasım 2026 — NEXT11C20W kanat boya yüzeylerini ve bağlantı konturlarını tek parça inlay'a dönüştürme
+
+- **GERÇEK GÖRSEL GELİŞTİRME:** SB-07 ZENİT'in iki RED kalın extrude kanat çizgisi yerlerine aynı dış dört köşe korunarak **17×3 örnekli düz boya skin**. Alt HULL/SECOND panelin gerçek -.112 üst kotuna göre boya -.096 = **.016** ayrım; metal/kaplama z-fighting ve bariz yükselmiş şerit görünümü gideriliyor. İki DARK uzun flap kontrol çubuğu da daha ince 13×2 yüzeyin içine oturan eklem çizgisiyle değiştirildi.
+- **ÖNEMLİ:** 2 adet boya +2 adet bağlantı = 4 mevcut `emit` birebir yeni 4 ile değişir; **189 SB-07 parça /7 batch +2 glow**, C20V gövde–kanat fillet, C20U motor koruma ve B-04 249 parça korunur. Yeni dekor, silah, fizik, AI, 1.25/1.5/2× supersampling veya performans ayarı eklenmez. Orijinal 1x MSAA.
+- **GERÇEK QA:** W testinde **102 boya vertex +52 flap vertex=154** birleştirilmiş oyun GPU buffer kontrolü; C20V 60 root vertex, C20U 30 motor boya ve özgün SB-07 oynanış/8 panel z-fighting probe, C20R 304 ray seam, Map4 [6,36,200] collider. Dört 1600×900 gerçek WebGL kadrajı dedicated workflow ile; full Map1/4 smoke yeni W adımını içeriyor.
+- **STATUS:** Dedicated ve full CI sonuçları gerçek son HEAD'e göre kontrol edilmeli; otomatik görsel/oynanış kabul kararı verilmez. [C20W tasarım kabulü](MAP1_NEXT11C20W_WING_PAINT_INLAY_ACCEPTANCE.md).
+- **SIRADAKİ NEXT11C20X:** Gemi motor-kanat ve ön gövde kontur kalitesi, dekor eklemeden gerçek yüzey/normal iyileştirmesi. DRAFT / NO MERGE.
+
+**Günlük:** 2026-11-19 | NEXT11C20W | 2× wing RED slab->conformal paint, 2× DARK cylindrical joint->flush inlay | 154 real vertices | original 1x MSAA | CI pending | draft only.
