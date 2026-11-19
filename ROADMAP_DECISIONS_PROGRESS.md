@@ -898,3 +898,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Sonuç kullanıcı açıkça aksini söyleyinceye kadar geçerlidir. Önceki grafik önerileri kullanıcı seçimiyle **değiştirildi**. PR'lar DRAFT, izinsiz merge YOK.
 
 **Karar günlüğü:** 2026-11-19 | Görsel kalite 1.00× original MSAA seçildi | supersampling önerileri reddedildi | runtime zaten aynı | Next: gerçek geometri/çizim kalitesi.
+
+
+## 46) 19 Kasım 2026 — NEXT11C20U gerçek gemi çizgi kalitesi / bütünleşik motor kabuğu
+
+- **KULLANICI KARARI:** Orijinal 1× MSAA en iyi. FPS/pixel ratio yalnız koruma kriteri, hedef **gemi ve dünyayı daha iyi modellemek**, süpersampling yok.
+- **UYGULANDI:** SB-07 ZENİT iki motorunun üstündeki HULL dikdörtgen kutuları, çok istasyonlu kavisli tek parça aero-spine kaportaya dönüştürüldü. Eski kırmızı boya kutusu z=.04 ile destek kaporta z=.36 önünde yüzerdi; yeni kırmızı çizgi altındaki kaportanın üst topolojisini izler ve .014 yüzey aralığıyla z=.34–2.13 boyunca oturur. Yeni dekor/mesh yok, mevcut iki HULL + iki RED emit değiştirilmiş oldu.
+- **KORUMA:** 189 parça /7 malzeme batch +2 glow, B-04 249, 192 ring/6960 ray segmenti, 1x orijinal MSAA, fizik/silah/AI/HUD/rotalar ve tüm Map4 değişmedi.
+- **TEST:** 30 gerçek çatışmasız kaporta/boya surface raycast, dört farklı 1600×900 gerçek WebGL gemi screenshot, orijinal SB-07 normal/boost ve Map4 testi, 304 ray seam test, özel workflow ve tam browser smoke eklendi. **CI sonuçlanmadan PASS olarak işaretlenmez.**
+- **DOSYA:** [NEXT11C20U kabul kriterleri](MAP1_NEXT11C20U_CONTOURED_ENGINE_FAIRING_ACCEPTANCE.md). **SIRADA NEXT11C20V:** geminin gövde–kanat junction yüzeyi ve kırmızı panel sürekliliğini iyileştir, süs parçaları ekleme. Ana dala kullanıcı izni olmadan merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20U | real geometric nacelle roof and conformal stripe | original AA preserved | CI pending | stacked DRAFT.
