@@ -49,6 +49,11 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      noseStripeHullStations:race.userData.noseStripeHullStations,
+      noseStripeWidthSamples:race.userData.noseStripeWidthSamples,
+      noseStripeSkinClearance:race.userData.noseStripeSkinClearance,
+      flushedWingShrouds:race.userData.flushedWingShrouds,
+      geometryPartReductionProtected:race.userData.geometryPartReductionProtected,
       unifiedNoseStripe:race.userData.unifiedNoseStripe,
       integratedWingRootPanels:race.userData.integratedWingRootPanels,
       integratedWingRootChannels:race.userData.integratedWingRootChannels,
@@ -122,6 +127,27 @@ const {chromium}=require('playwright');
         uv:m.geometry.getAttribute('uv').count
       })),
       dimensions:box.toArray(), // Vector3 size [x,y,z]
+      // Inspect ACTUAL merged red ribbon vertices, not a metadata claim.
+      stripeStations:(()=>{
+        const a=meshes.find(m=>m.name==='NEXT11C20_SB07_RED')
+          .geometry.getAttribute('position');
+        return [-8.76,-7.85,-6.40,-4.95,-4.58].map(z=>{
+          const vertices=new Map();
+          for(let i=0;i<a.count;i++){
+            const x=a.getX(i), y=a.getY(i), pz=a.getZ(i);
+            if(Math.abs(pz-z)<.0004&&Math.abs(x)<.32){
+              const key=x.toFixed(4)+':'+y.toFixed(4);
+              vertices.set(key,{x:+x.toFixed(4),y:+y.toFixed(4)});
+            }
+          }
+          return {z,vertices:[...vertices.values()].sort((u,v)=>u.x-v.x)};
+        });
+      })(),
+      // The long inset shroud actually touches the wing top.
+      shroudSkinSamples:samples(
+        meshes.find(m=>m.name==='NEXT11C20_SB07_SECOND'),
+        (x,y,z)=>x>3.7&&x<5.9&&y>=-.145&&y<=-.119&&
+          z> -1.8&&z<.95),
       finLeft:samples(hull,(x,y)=>x<-6.9&&y>1.9),
       finRight:samples(hull,(x,y)=>x>6.9&&y>1.9),
       needle:samples(hull,(x,y,z)=>Math.abs(x)<.6&&z<-7.5),
@@ -159,7 +185,36 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20I');
+  assert.equal(geometry.detailPass,'NEXT11C20J');
+  assert.equal(geometry.noseStripeHullStations,5);
+  assert.equal(geometry.noseStripeWidthSamples,3);
+  assert.equal(geometry.noseStripeSkinClearance,.018);
+  assert.equal(geometry.flushedWingShrouds,2);
+  assert.equal(geometry.geometryPartReductionProtected,true);
+  const stripeExpected=[
+    [-8.76,.060,.0815,.0991],
+    [-7.85,.105,.1893,.2032],
+    [-6.40,.155,.2641,.2715],
+    [-4.95,.198,.3530,.3563],
+    [-4.58,.206,.3762,.3779]
+  ];
+  for(let i=0;i<stripeExpected.length;i++){
+    const [z,w,edge,peak]=stripeExpected[i];
+    const station=geometry.stripeStations[i];
+    assert.equal(station.z,z);
+    assert.equal(station.vertices.length,3,
+      'a single ribbon must have LEFT/CENTER/RIGHT at z='+z);
+    const [left,center,right]=station.vertices;
+    assert(Math.abs(left.x+w)<.001&&
+      Math.abs(center.x)<.001&&
+      Math.abs(right.x-w)<.001);
+    assert(Math.abs(left.y-edge)<.004&&
+      Math.abs(right.y-edge)<.004&&
+      Math.abs(center.y-peak)<.004,
+      'red stripe must follow the real 14-sided hull, not float/sink');
+  }
+  assert(geometry.shroudSkinSamples>=12,
+    'both integrated wing shrouds must sit flush with wing top');
   assert.equal(geometry.unifiedNoseStripe,true);
   assert.equal(geometry.integratedWingRootPanels,4);
   assert.equal(geometry.integratedWingRootChannels,2);
@@ -484,6 +539,8 @@ const {chromium}=require('playwright');
       return {png,metrics:{
         angle,ship:studio.ship.userData.authoredShipId,
         renderCalls:renderer.info.render.calls,
+        triangleCount:renderer.info.render.triangles,
+        drawMemory:renderer.info.memory.geometries,
         pixelSize:[width,height],
         antialias:!!gl.getContextAttributes()?.antialias,
         thrust:+h4Ship19Race.userData.thrustGlow.toFixed(4),
@@ -503,6 +560,10 @@ const {chromium}=require('playwright');
       'studio screenshots must use real seven-batch ship, not a mock');
     assert(metrics.renderCalls>=7&&metrics.renderCalls<=12,
       'ship studio review should stay within 7 meshes + 2 halos');
+    assert(metrics.triangleCount>4000&&metrics.triangleCount<66000,
+      'actual unified engine/wing poly budget must remain controlled');
+    assert(metrics.drawMemory>0,
+      'WebGL must allocate real geometry, not screenshot a mock');
     assert(metrics.pixelSize[0]>=1200&&metrics.pixelSize[1]>=700,
       'art evidence must have enough pixel density for a fair edge review');
     assert(metrics.engines.every(e=>
@@ -556,7 +617,7 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20I',
+    status:'PASS',id:'NEXT11C20J',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
     geometry,normal,boost,fixedNormal,fixedBoost,oblique,
     studioNormal,studioFront,studioBoost,map4Preserved:after,
@@ -567,6 +628,8 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    stripeStations:geometry.stripeStations,
+    flushWingShroudVertices:geometry.shroudSkinSamples,
     independentBuilderPieces:[354,geometry.parts],
     pieceCountReductionPct:+((354-geometry.parts)*100/354).toFixed(2),
     integratedCanopy:geometry.continuousCanopyRails,
