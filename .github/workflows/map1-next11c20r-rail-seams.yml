@@ -1,0 +1,37 @@
+name: Map1 NEXT11C20R Rail Sector Seam Continuity WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-rail-seams-r]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-seam-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: C20O original 192 rings, geometry and Map4
+        run: node tests/map1-next11c20o-corridor-clarity.cjs
+      - name: C20P 6960 original rail segments and real Map4
+        run: node tests/map1-next11c20p-distance-clarity.cjs
+      - name: C20Q primary/secondary guide fade same-camera WebGL A/B
+        run: node tests/map1-next11c20q-guide-contrast.cjs
+      - name: C20R inspect all 304 shared joins and capture 8 true GL seam frames
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Keep actual WebGL geometry and screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map1-next11c20r-rail-sector-seams
+          path: |
+            tests/next11c20q-evidence/
+            tests/next11c20r-evidence/
+          if-no-files-found: warn
