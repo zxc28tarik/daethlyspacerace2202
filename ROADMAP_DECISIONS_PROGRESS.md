@@ -846,3 +846,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **NEXT11C20S:** Koridor ring/rail görünürlük kalite stabilitesinden sonra WebGL çizgi aliasing/titreme 720/1080 ve uçuş kadrajında seçici AA değerlendirmesi; yeni dekor/silah/parça ekleme YOK; PR hala DRAFT / NO MERGE.
 
 **Günlük:** 2026-11-19 | NEXT11C20R | 304/304 rail sector joins exactly equal; 8 GL 720p frames; O/P/Q/R special PASS | full smoke+native FPS open | draft no merge.
+
+
+## 44) 19 Kasım 2026 — NEXT11C20S gerçek 720p/1080p çizgi kenarı / hareket titreşimi bütçesi
+
+- **KARAR:** renderer zaten WebGL `antialias:true`; Harita1 ve Harita4 için global blur/FXAA/gereksiz parçalar ekleme. 2x supersampling yeni çalışma maliyeti doğrulanmadan kalıcı uygulanmaz.
+- **GELİŞTİRME:** `codex/map1-sb07-zenit-aa-budget-s` C20R PR #83 üzerine stacked DRAFT. `tests/map1-next11c20s-msaa-shimmer-budget.cjs`, Map1 12.500 ve 27.500m'de 720/1080p için aynı kamera/aynı gerçek WebGL original MSAA ve 2x iç çözünürlükten downsampled referans (4 karşılaştırma PNG). Her kadrajda -6/0/+6m hareket taraması, line drawcalls, frame gl.finish süre, piksel parlaklık farkı ve temel MSAA context kontrolü. 2x **yalnız tanısal**.
+- **OYUN KODU:** `index.html` değiştirilmedi. R önceki 304 mükemmel ray birleşimi, 6960 segment/20 grup, 192 ring/10 grup, SB-07 189, B-04 249, Map4 [6,36,200] ve diğer oyun kısıtları aynen.
+- **CI:** Ayrı `.github/workflows/map1-next11c20s-msaa-shimmer.yml` ve tam `map-browser-smoke.yml` yeni taramayı başlatır. Sonuç bitmeden PASS yazılmaz. CPU SwiftShader süreleri native donanım FPS değildir.
+- **KABUL:** [NEXT11C20S AA kalite kriterleri](MAP1_NEXT11C20S_MSAA_SHIMMER_ACCEPTANCE.md). **SIRADAKİ NEXT11C20T:** sonuç üzerinden dar kapsamlı çizgi AA kararı; native GPU ve 5dk oyuncu onayı ayrıca açık. Taslak PR, merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20S | real 720/1080 native AA vs 2x diagnostic shimmer benchmark | production game unchanged | QA running | DRAFT NO MERGE.
