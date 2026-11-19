@@ -666,3 +666,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **NEXT11C20F:** Önce görüntü ve motor boğazı/kanat paneli clipping testleri, sonra çok hedefli art düzeltme.
 
 **Günlük:** `2026-11-19 | NEXT11C20E | GÖRSEL KALİTE KODLANDI | FLOATING PANEL FIX + ENGINE DEPTH | SYNTAX PASS / CI AÇIK | ESTETİK AÇIK | NO MERGE | NEXT11C20F`.
+
+
+## 31) 19 Kasım 2026 — NEXT11C20F SB-07 motor glow ve kanat birleşimi son katman
+
+- **KULLANICI DEVAM KARARI:** Önceki onaylı SB-07 Zenit'in kodda kalite/detail geliştirmesi, şekil değiştirmeden.
+- **UYGULANDI:** `codex/map1-sb07-zenit-lighting-f` stacked NEXT11C20E PR #70 üzerine. Her büyük motorun ucuna 1'er gerçek 64² Canvas radial halo Sprite eklendi; iki sprite ortak bir texture kullanır, hız/boostta .18→.48 opacity ve 1.85→2.27 boyutla yumuşak glow. Mevcut 7 ana batch aynen; **iki ek saydam sprite çizimi**, 0 yeni shadow/light physics/collider/silah/external model. 12 nozzle dark recessed işaret ve 6 kanat kökü flush panel derzi eklendi. Harita 4 B-04 korunur.
+- **KONTROL:** Tam oyun JavaScript inline parse PASS. WebGL hızlı testine iki halo, sağ/sol pozisyon, tek 64² atlas, additive/depthWrite false, gerçek boosttaki opacity/çap ve Harita 4 koruma kontrolleri eklendi. Yeni branch'te özel + full Map1/4 smoke workflow hazır. **CI PASS ve gerçek GPU gözlemi henüz doğrulanmadı**.
+- **PREVIEW:** Kullanıcıya ayrı SB07_Zenit_Detay_V4_Motor_Isik_Onizleme.html 360° browser inceleme dosyası (3. taraf CDN Three.js gerektirir; asıl oyun değil).
+- **MİMARİ SINIR:** Onaylı düz/swept kanatlar, iki yükselebilen dikey uç, sivri burun, 7 ana batch, race-only Harita1, untouched Harita4. GitHub stacked PR **taslak**; açık izin olmadan NO MERGE.
+- **KABUL:** [C20F](MAP1_NEXT11C20F_SB07_PLASMA_LIGHTING_ACCEPTANCE.md). Sonraki **NEXT11C20G** gerçek screenshots üzerinden bloom/opacity tuning + renderer perf validation.
+
+**Günlük:** `2026-11-19 | NEXT11C20F | GAME-CODED & HTML V4 | procedural soft glow+paired nozzle details | SYNTAX PASS / CI UNCONFIRMED | NO MERGE | NEXT11C20G`.
