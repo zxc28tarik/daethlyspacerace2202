@@ -11884,6 +11884,98 @@
                 emit(g,key);
                 g.dispose();
             };
+            const hullRoofY=(z,x)=>{
+                let j=0;
+                while(j<hullRows.length-2&&z>hullRows[j+1][0])j++;
+                const lo=hullRows[j],hi=hullRows[j+1],
+                    t=(z-lo[0])/(hi[0]-lo[0]),
+                    width=lo[1]+(hi[1]-lo[1])*t,
+                    height=lo[2]+(hi[2]-lo[2])*t;
+                // Intersect the top face of the actual 14-gon.
+                const u=Math.min(1,Math.abs(x)/width),
+                    step=2*Math.PI/14,
+                    seg=Math.min(6,Math.floor(Math.acos(u)/step)),
+                    a=seg*step,b=(seg+1)*step,
+                    mix=(Math.cos(a)-u)/
+                        (Math.cos(a)-Math.cos(b));
+                return height*(Math.sin(a)*(1-mix)+Math.sin(b)*mix);
+            };
+
+            // NEXT11C20V: replace the thin floating root seam with a
+            // real continuous HULL-color wing-to-fuselage fillet. Both
+            // upper and lower skins share their edge stations; root
+            // transitions start BELOW the approved fuselage envelope.
+            // There is NO new authored primitive per wing: one old
+            // SECOND seam line becomes one joined HULL fillet per side.
+            const wingRootStations=[
+                // Z, inboard x, outboard x (all within existing wing root)
+                [-2.93,1.02,1.96],[-2.53,1.075,2.11],
+                [-2.05,1.13,2.29],[-1.55,1.185,2.43],
+                [-.98,1.23,2.46]
+            ];
+            const wingRootColumns=[0,.16,.37,.62,.83,1];
+            const wingRootTopAt=(z,inboard,outboard,t)=>{
+                const x=inboard+(outboard-inboard)*t;
+                const noseBlend=hullRoofY(z,inboard)+.018;
+                const wingSkin=-.105;
+                const roll=Math.pow(1-t,1.65);
+                return wingSkin+(noseBlend-wingSkin)*roll+
+                    .018*Math.sin(t*Math.PI);
+            };
+            const buildUnifiedWingRoot=(side)=>{
+                const position=[],uv=[],index=[],
+                    columns=wingRootColumns.length,
+                    stations=wingRootStations.length;
+                // One folded surface, with a buried lower skin instead
+                // of a paper-thin hovering piece.
+                for(const lower of [false,true]){
+                    wingRootStations.forEach(([z,inner,outer],j)=>{
+                        wingRootColumns.forEach((t,k)=>{
+                            const x=inner+(outer-inner)*t,
+                                upperY=wingRootTopAt(z,inner,outer,t);
+                            position.push(side*x,lower?-.195:upperY,z);
+                            uv.push(k/(columns-1),j/(stations-1));
+                        });
+                    });
+                }
+                const topCount=stations*columns;
+                const tri=(a,b,c)=>{
+                    if(side>0)index.push(a,b,c);
+                    else index.push(a,c,b);
+                };
+                const quad=(a,b,c,d)=>{
+                    tri(a,b,c);tri(c,b,d);
+                };
+                for(let j=0;j<stations-1;j++){
+                    for(let k=0;k<columns-1;k++){
+                        const a=j*columns+k,b=(j+1)*columns+k,
+                            c=a+1,d=b+1;
+                        quad(a,b,c,d);
+                        // Underneath: mirrored winding is reversed.
+                        quad(a+topCount,c+topCount,b+topCount,
+                            d+topCount);
+                    }
+                    // Seal both longitudinal edges into the original
+                    // fuselage/wing skin so no bright detached side rim.
+                    for(const k of [0,columns-1]){
+                        const a=j*columns+k,b=(j+1)*columns+k;
+                        quad(a,a+topCount,b,b+topCount);
+                    }
+                }
+                // Seal fore and aft ends, giving an actual closed part.
+                for(const j of [0,stations-1]){
+                    for(let k=0;k<columns-1;k++){
+                        const a=j*columns+k,b=a+1;
+                        quad(a,b,a+topCount,b+topCount);
+                    }
+                }
+                const g=new THREE.BufferGeometry();
+                g.setAttribute('position',
+                    new THREE.Float32BufferAttribute(position,3));
+                g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+                g.setIndex(index);g.computeVertexNormals();
+                emit(g,'HULL');g.dispose();
+            };
             // Faceted longitudinal canopy replaces the stretched sphere.
             const canopyGlass=()=>{
                 const rows=[
@@ -11973,8 +12065,9 @@
                     [2.73,-.70],[2.93,-.55],
                     [3.08,.18],[2.94,.24]
                 ],.012);
-                line('SECOND',[side*2.0,-.095,-2.14],
-                    [side*3.64,-.093,-1.47],.058);
+                // Former floating root seam now a continuous, shaped
+                // white fuselage-to-wing junction, not more trim lines.
+                buildUnifiedWingRoot(side);
                 // Two tapered service spars on the belly, drawn within
                 // the same visual-only hull and excluded from collision.
                 line('SECOND',[side*1.72,-.51,-1.44],
@@ -11995,22 +12088,6 @@
                 [-8.76,.060],[-7.85,.105],[-6.40,.155],
                 [-4.95,.198],[-4.58,.206]
             ];
-            const hullRoofY=(z,x)=>{
-                let j=0;
-                while(j<hullRows.length-2&&z>hullRows[j+1][0])j++;
-                const lo=hullRows[j],hi=hullRows[j+1],
-                    t=(z-lo[0])/(hi[0]-lo[0]),
-                    width=lo[1]+(hi[1]-lo[1])*t,
-                    height=lo[2]+(hi[2]-lo[2])*t;
-                // Intersect the top face of the actual 14-gon.
-                const u=Math.min(1,Math.abs(x)/width),
-                    step=2*Math.PI/14,
-                    seg=Math.min(6,Math.floor(Math.acos(u)/step)),
-                    a=seg*step,b=(seg+1)*step,
-                    mix=(Math.cos(a)-u)/
-                        (Math.cos(a)-Math.cos(b));
-                return height*(Math.sin(a)*(1-mix)+Math.sin(b)*mix);
-            };
             const nosePos=[],noseUV=[],noseIdx=[];
             noseStripeStations.forEach(([z,w],j)=>{
                 for(let i=0;i<3;i++){
@@ -12493,6 +12570,12 @@
             root.userData.noseStripeWidthSamples=3;
             root.userData.noseStripeSkinClearance=.018;
             root.userData.flushedWingShrouds=2;
+            root.userData.unifiedWingRootBridges=2;
+            root.userData.wingRootBridgeStations=5;
+            root.userData.wingRootBridgeColumns=6;
+            root.userData.wingRootFormerSeamsReplaced=2;
+            root.userData.wingRootNoAdditionalPieces=true;
+            root.userData.wingRootPreservesOriginalMSAA=true;
             root.userData.contouredEngineSpines=2;
             root.userData.roofConformalSpineStripes=2;
             root.userData.engineSpineStations=6;
