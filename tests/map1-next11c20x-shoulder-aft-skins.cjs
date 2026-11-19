@@ -160,9 +160,9 @@ const out=path.join(__dirname,'next11c20x-evidence');fs.mkdirSync(out,{recursive
    const second=ship.children.find(o=>o.name==='NEXT11C20_SB07_SECOND'),
      secondAttr=px(second);
    const frontStations=[
-    [-1.12,4.49,.48,-.103],[-.86,4.54,.79,-.028],
-    [-.48,4.63,.93,-.009],[-.12,4.73,.83,-.021],
-    [.28,4.81,.49,-.102]
+    [-1.48,4.48,.30,-.103],[-1.10,4.53,.58,-.079],
+    [-.52,4.63,.76,-.057],[.10,4.74,.64,-.076],
+    [.52,4.84,.28,-.103]
    ];
    const frontU=[-1,-.76,-.42,0,.42,.76,1];
    const stripeZ=[-.84,-.75,-.65,-.56,-.47,-.38,-.29,-.21,-.14];
