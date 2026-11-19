@@ -702,3 +702,16 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KABUL:** [NEXT11C20H](MAP1_NEXT11C20H_SB07_RENDER_EVIDENCE_ACCEPTANCE.md). **SIRADA NEXT11C20I:** gerçek PNG ve ölçüm analizi, seçici kusur düzeltmesi, gerçek GPU perf.
 
 **Günlük:** `2026-11-19 | NEXT11C20H | CODED + 3 STUDIO WebGL PNG QA | script syntax PASS, CI UNCONFIRMED | rendering images not reviewed | DRAFT | NO MERGE`.
+
+
+## 34) 19 Kasım 2026 — NEXT-11C20I entegre SB-07 yüzey tasarımı / ayrık parçaları birleştirme
+
+- **KULLANICI KESİN KARARI:** "şimdi fazla parça eklemek yerine ayrık parçaları birleştir ve çizgi kalitesini yükselt" ve ardından "." = sonraki aşamaya geç. Bu turda **yeni görsel küçük dekor değil, gerçek primitif azaltma ve temiz uzun çizgiler**.
+- **KAYITLI UYGULAMA:** `codex/map1-sb07-zenit-unified-surfaces-i` branch, NEXT11C20H PR #73 üstüne stacked. 3 burun red box → tek gerçek hull-conformal ribbon, kokpit yatay 4×2 bağımsız rod → iki sürekli tube; kanat kökü kutuları → birleşik deck inlet; iki kanatta tek flap; 16×2 kanat arkası kutu → dört uzun rail; motor üstü louver dizileri → 2 continuous groove; her motorda 26 ufak thermal/petal blok+6 notch → 4 sürekli halka; motor yan 7×2 kutular → 2 metal skin; 2 soğutma çift çubuk → 2 curved conduits; gövde arkası exchanger sadeleştirildi.
+- **ÖLÇÜLEN DEĞİŞİM:** Önceki gerçek model fonksiyonu mock Three.js kaynak builder çalıştırması `parts=354`, yeni gerçek fonksiyon `parts=191` => **−163 (%46.05)**, ikisi de `batches=7`. Bu draw-call veya native GPU FPS iddiası DEĞİL.
+- **NET ÇİZGİLER:** `lineTube` radial 12→16, cylinder radial 24→32, torus ring 32→40, wing/fin bevel 3→4, kokpit enine 9→11, 128px mipmap/plasma korunur.
+- **SINIR:** Aynı onaylı SB-07 uzun burun + düz geniş kanat + iki dikey uç stabilizatörü; Harita1 saf yarış; Harita4 B-04 249 parçalık model/6 batch ve combat/AI/kamera/hitbox değişmez. 7+2 çizim bütçesi korunur. PR **taslak**, izin olmadan merge yok.
+- **QA:** Tam oyun inline JS parse PASS. Gerçek kaynak builder primitif sayım PASS, Chromium WebGL testinde exact 191 assertion + kaliteli geometri ölçüleri; branch için hızlı ve tam Map1/4 workflow. **CI screenshot/GPU PASS henüz doğrulanmadı**.
+- **KABUL BELGESİ:** [NEXT11C20I](MAP1_NEXT11C20I_SB07_UNIFIED_SURFACE_ACCEPTANCE.md). **NEXT11C20J** gerçek artifakt görüntüleri incele, fazla parlama/z-fighting, yüksek segment GPU yükü ve UX sorunu varsa düzelt; gereksiz dekor parçası ekleme.
+
+**Günlük:** `2026-11-19 | NEXT11C20I | REAL MODEL 354->191 (−46%) | CHASE-SAFE 16/32/40 CURVES | JS PASS / WEBGL CI UNVERIFIED | DRAFT NO MERGE | NEXT11C20J`.
