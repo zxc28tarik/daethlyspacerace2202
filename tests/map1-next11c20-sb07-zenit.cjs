@@ -49,6 +49,11 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      paintSurfaceLift:race.userData.paintSurfaceLift,
+      flapSurfaceLift:race.userData.flapSurfaceLift,
+      rootLipSurfaceLift:race.userData.rootLipSurfaceLift,
+      duplicateEngineRingsRemoved:race.userData.duplicateEngineRingsRemoved,
+      overlapSurfaceAudit:race.userData.overlapSurfaceAudit,
       noseStripeHullStations:race.userData.noseStripeHullStations,
       noseStripeWidthSamples:race.userData.noseStripeWidthSamples,
       noseStripeSkinClearance:race.userData.noseStripeSkinClearance,
@@ -127,6 +132,48 @@ const {chromium}=require('playwright');
         uv:m.geometry.getAttribute('uv').count
       })),
       dimensions:box.toArray(), // Vector3 size [x,y,z]
+      // Probe real merged THREE mesh surfaces using a downward ray.
+      // Coordinates are inside polygon OVERLAPS, not at their edges.
+      // Unparented mesh wrappers use local geometry positions so the
+      // game's current player-rig transform cannot distort readings.
+      overlappingPanelLayers:(()=>{
+        const materialKeys=['HULL','SECOND','RED','DARK'];
+        const probeMeshes={};
+        for(const key of materialKeys){
+          const src=meshes.find(m=>m.name==='NEXT11C20_SB07_'+key);
+          const proxy=new THREE.Mesh(src.geometry,src.material);
+          proxy.updateMatrixWorld(true);
+          probeMeshes[key]=proxy;
+        }
+        const raycaster=new THREE.Raycaster();
+        const down=new THREE.Vector3(0,-1,0);
+        const upperAt=(material,x,z)=>{
+          raycaster.set(new THREE.Vector3(x,3,z),down);
+          const found=raycaster.intersectObject(probeMeshes[material],false)
+            .filter(h=>h.point.y>=-.20&&h.point.y<=.10);
+          return found.length?+found[0].point.y.toFixed(5):null;
+        };
+        const regions=[
+          {name:'red-over-front-white',upper:'RED',lower:'HULL',
+            x:3.5341,z:-2.3713},
+          {name:'red-over-front-metal',upper:'RED',lower:'SECOND',
+            x:6.1742,z:-.9195},
+          {name:'flap-over-rear-wing',upper:'SECOND',lower:'HULL',
+            x:4.3713,z:2.1459},
+          {name:'root-lip-over-inset',upper:'SECOND',lower:'DARK',
+            x:2.925,z:-.185}
+        ];
+        return [-1,1].flatMap(side=>regions.map(r=>{
+          const x=side*r.x;
+          const upperY=upperAt(r.upper,x,r.z),
+            lowerY=upperAt(r.lower,x,r.z);
+          return {
+            region:r.name,side,x,z:r.z,upperY,lowerY,
+            clearance:upperY!==null&&lowerY!==null?
+              +(upperY-lowerY).toFixed(5):null
+          };
+        }));
+      })(),
       // Inspect ACTUAL merged red ribbon vertices, not a metadata claim.
       stripeStations:(()=>{
         const a=meshes.find(m=>m.name==='NEXT11C20_SB07_RED')
@@ -185,7 +232,23 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20J');
+  assert.equal(geometry.detailPass,'NEXT11C20K');
+  assert.equal(geometry.paintSurfaceLift,.016);
+  assert.equal(geometry.flapSurfaceLift,.012);
+  assert.equal(geometry.rootLipSurfaceLift,.012);
+  assert.equal(geometry.duplicateEngineRingsRemoved,2);
+  assert.equal(geometry.overlapSurfaceAudit,true);
+  assert.equal(geometry.overlappingPanelLayers.length,8);
+  for(const overlap of geometry.overlappingPanelLayers){
+    assert(Number.isFinite(overlap.upperY)&&
+      Number.isFinite(overlap.lowerY),
+      'both true 3D material surfaces must exist: '+
+      overlap.region+' side '+overlap.side);
+    assert(overlap.clearance>=.008&&overlap.clearance<=.05,
+      'avoid coplanar paint/metal z-fighting or floating gaps: '+
+      overlap.region+' side '+overlap.side+
+      ' measured '+overlap.clearance);
+  }
   assert.equal(geometry.noseStripeHullStations,5);
   assert.equal(geometry.noseStripeWidthSamples,3);
   assert.equal(geometry.noseStripeSkinClearance,.018);
@@ -221,7 +284,7 @@ const {chromium}=require('playwright');
   assert.equal(geometry.continuousCanopyRails,2);
   assert.equal(geometry.integratedWingRearRails,4);
   assert.equal(geometry.integratedNacelleGrooves,2);
-  assert.equal(geometry.integratedAnnularBands,8);
+  assert.equal(geometry.integratedAnnularBands,6);
   assert.equal(geometry.connectedCoolantConduits,2);
   assert.equal(geometry.consolidationPass,true);
   assert.equal(geometry.minMachiningLineDiameter,.056);
@@ -292,10 +355,10 @@ const {chromium}=require('playwright');
   // The identical model build counter was measured via deterministic
   // source-level geometry builder: C20H=354, new unified C20I=191.
   // Assert absolute limit and 40%+ reduction; no mock 3D screenshot.
-  assert.equal(geometry.parts,191,
-    'real emitted SB-07 objects must drop from 354 to 191');
-  assert((354-geometry.parts)/354>.45,
-    'must reduce disconnected primitives by more than 45 percent');
+  assert.equal(geometry.parts,189,
+    'real emitted SB-07 objects must drop from 354 to 189');
+  assert((354-geometry.parts)/354>.46,
+    'must reduce disconnected primitives by more than 46 percent');
   assert(geometry.tris>4000&&geometry.tris<65000);
   assert(geometry.dimensions[0]>14&&geometry.dimensions[0]<19);
   assert(geometry.dimensions[1]>2.7&&geometry.dimensions[1]<6);
@@ -617,7 +680,7 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20J',
+    status:'PASS',id:'NEXT11C20K',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
     geometry,normal,boost,fixedNormal,fixedBoost,oblique,
     studioNormal,studioFront,studioBoost,map4Preserved:after,
@@ -628,9 +691,10 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    overlappingPanelLayers:geometry.overlappingPanelLayers,
     stripeStations:geometry.stripeStations,
     flushWingShroudVertices:geometry.shroudSkinSamples,
-    independentBuilderPieces:[354,geometry.parts],
+    independentBuilderPieces:[354,191,geometry.parts],
     pieceCountReductionPct:+((354-geometry.parts)*100/354).toFixed(2),
     integratedCanopy:geometry.continuousCanopyRails,
     integratedEngineBands:geometry.integratedAnnularBands,
