@@ -10153,10 +10153,32 @@
         function buildVisibleCorridor() {
             corridorGuideGroup.clear();
             const r = state.tubeRadius;
-            const railMaterial = new THREE.LineBasicMaterial({ color: 0x17adcf, transparent: true, opacity: 0.58, blending: THREE.AdditiveBlending, depthWrite: false });
-            // NEXT11C20O: dial down distant micro-rings. Major course
-            // rings, lane boundaries, navigation and impact remain clear.
-            const ringMaterial = new THREE.LineBasicMaterial({ color: 0x406dff, transparent: true, opacity: 0.30, blending: THREE.AdditiveBlending, depthWrite: false });
+            // C20P: per-pixel, progress-relative gradient (not chunk-wide opacity).
+            const makeFadedGuideMat=(hex,opacity,near,far,floor)=>{
+                const mat=new THREE.ShaderMaterial({
+                    uniforms:{
+                        uColor:{value:new THREE.Color(hex)},
+                        uOpacity:{value:opacity},uProgress:{value:0},
+                        uNear:{value:near},uFar:{value:far},uFloor:{value:floor}
+                    },
+                    vertexShader:`attribute float routeDistance; varying float vDist;
+                        void main(){vDist=routeDistance;
+                        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+                    fragmentShader:`precision highp float;
+                        uniform vec3 uColor;
+                        uniform float uOpacity,uProgress,uNear,uFar,uFloor;
+                        varying float vDist;
+                        void main(){
+                        float clarity=1.0-smoothstep(uNear,uFar,abs(vDist-uProgress));
+                        gl_FragColor=vec4(uColor,uOpacity*mix(uFloor,1.0,clarity));}`,
+                    transparent:true,blending:THREE.AdditiveBlending,depthWrite:false
+                });
+                mat.opacity=opacity;
+                return mat;
+            };
+            const railMaterial=makeFadedGuideMat(0x17adcf,0.58,900,4600,0.12);
+            // All 192 ring positions stay in place; only far minor pixels dim.
+            const ringMaterial=makeFadedGuideMat(0x406dff,0.30,600,3000,0.08);
             const majorRingMaterial = new THREE.LineBasicMaterial({ color: 0x00e7ed, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
             // Kanat sürtünmesinin başlayacağı ve ağırlaşacağı eşikler de görülebilir.
             const boundaryHintMat = new THREE.LineBasicMaterial({ color: 0xffba65, transparent: true, opacity: 0.20, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -10173,25 +10195,52 @@
                     corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),material));
                 }
             }
-            // Rota boyunca 16 boyuna ışık rayı: virajlar ve geçiş alanı gözle takip edilir.
-            for (let k = 0; k < 16; k++) {
-                const theta = k * Math.PI * 2 / 16;
-                const points = [];
-                for (let d = 0; d <= RACE_ROUTE_NOMINAL_DISTANCE; d += 115) {
-                    const f = getRaceFrameAtDistance(d);
-                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(theta) * getCorridorRadiusAt(d)).addScaledVector(f.up, Math.sin(theta) * getCorridorRadiusAt(d)));
+            // C20P: same 16 sampled rails, packed into 20 frustum-local batches.
+            const railSectorLength=2500;
+            const railSectors=Array.from({length:Math.ceil(RACE_ROUTE_NOMINAL_DISTANCE/railSectorLength)},
+                (_,index)=>({index,points:[],distances:[],segmentCount:0}));
+            let originalRailSegments=0;
+            for(let k=0;k<16;k++){
+                const theta=k*Math.PI*2/16,pts=[],ds=[];
+                for(let d=0;d<=RACE_ROUTE_NOMINAL_DISTANCE;d+=115){
+                    const f=getRaceFrameAtDistance(d);
+                    pts.push(f.center.clone().addScaledVector(f.right,Math.cos(theta)*getCorridorRadiusAt(d))
+                        .addScaledVector(f.up,Math.sin(theta)*getCorridorRadiusAt(d)));
+                    ds.push(d);
                 }
-                const end = getRaceFrameAtDistance(RACE_ROUTE_NOMINAL_DISTANCE);
-                points.push(end.center.clone().addScaledVector(end.right, Math.cos(theta) * getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE)).addScaledVector(end.up, Math.sin(theta) * getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE)));
-                corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), railMaterial));
+                const end=getRaceFrameAtDistance(RACE_ROUTE_NOMINAL_DISTANCE);
+                pts.push(end.center.clone()
+                    .addScaledVector(end.right,Math.cos(theta)*getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE))
+                    .addScaledVector(end.up,Math.sin(theta)*getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE)));
+                ds.push(RACE_ROUTE_NOMINAL_DISTANCE);
+                for(let i=0;i<pts.length-1;i++){
+                    const sector=railSectors[Math.min(railSectors.length-1,Math.floor(ds[i]/railSectorLength))];
+                    sector.points.push(pts[i],pts[i+1]);
+                    sector.distances.push(ds[i],ds[i+1]);
+                    sector.segmentCount++;originalRailSegments++;
+                }
             }
+            for(const sector of railSectors){
+                const geo=new THREE.BufferGeometry().setFromPoints(sector.points);
+                geo.setAttribute('routeDistance',new THREE.Float32BufferAttribute(sector.distances,1));
+                const mesh=new THREE.LineSegments(geo,railMaterial);
+                mesh.name='MAP1_C20P_RAIL_SECTOR_'+sector.index;
+                mesh.userData={visualOnly:true,noCollider:true,
+                    railSector:sector.index,segmentCount:sector.segmentCount};
+                corridorGuideGroup.add(mesh);
+            }
+            corridorGuideGroup.userData.railBatchCount=railSectors.length;
+            corridorGuideGroup.userData.railSectorLength=railSectorLength;
+            corridorGuideGroup.userData.railOriginalCount=16;
+            corridorGuideGroup.userData.railOriginalSegments=originalRailSegments;
+            corridorGuideGroup.userData.distanceFadeEnabled=true;
             // NEXT11C20O: the SAME exact ring coordinates and spacing,
             // but five course sectors each hold two merged line batches.
             // 192 disconnected LineLoop objects => <=10 LineSegments.
             // Sector bounds (10km) keep frustum culling local; one huge
             // 50km buffer would cause avoidable distant GPU work.
             const corridorRingSectors=Array.from({length:5},(_,sector)=>({
-                sector,minor:[],major:[],minorCount:0,majorCount:0
+                sector,minor:[],major:[],minorDistances:[],minorCount:0,majorCount:0
             }));
             for (let d = 160; d < RACE_ROUTE_NOMINAL_DISTANCE; d += 260) {
                 const f = getRaceFrameAtDistance(d);
@@ -10206,8 +10255,10 @@
                 const major=Math.round((d-160)/260)%5===0;
                 const sector=corridorRingSectors[Math.min(4,Math.floor(d/10000))];
                 const target=major?sector.major:sector.minor;
+                const distances=major?null:sector.minorDistances;
                 for(let k=0;k<48;k++){
                     target.push(points[k],points[(k+1)%48]);
+                    if(distances)distances.push(d,d);
                 }
                 if(major)sector.majorCount++;
                 else sector.minorCount++;
@@ -10219,8 +10270,10 @@
                 ]){
                     const pts=sector[kind];
                     if(!pts.length)continue;
-                    const mesh=new THREE.LineSegments(
-                        new THREE.BufferGeometry().setFromPoints(pts),material);
+                    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+                    if(kind==='minor')geo.setAttribute('routeDistance',
+                        new THREE.Float32BufferAttribute(sector.minorDistances,1));
+                    const mesh=new THREE.LineSegments(geo,material);
                     mesh.name='MAP1_C20O_'+kind.toUpperCase()+
                         '_RINGS_SECTOR_'+sector.sector;
                     mesh.userData={visualOnly:true,noCollider:true,
@@ -10372,9 +10425,13 @@
             const pulse = 0.5 + 0.5 * Math.sin(state.raceTime * 3.2);
             const speed = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.BRAKE) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.BRAKE), 0, 1);
             m.railMaterial.opacity = 0.45 + 0.18 * pulse + 0.07 * speed;
+            m.railMaterial.uniforms.uOpacity.value=m.railMaterial.opacity;
+            m.railMaterial.uniforms.uProgress.value=state.routeProgress;
             // NEXT11C20O: avoid blue micro-ring washout while
             // preserving emphasized primary gate and crash-boundary cues.
             m.ringMaterial.opacity = 0.24 + 0.12 * pulse;
+            m.ringMaterial.uniforms.uOpacity.value=m.ringMaterial.opacity;
+            m.ringMaterial.uniforms.uProgress.value=state.routeProgress;
             m.majorRingMaterial.opacity = 0.70 + 0.22 * pulse;
             m.boundaryHintMat.opacity = 0.12 + 0.11 * pulse;
             m.boundaryDangerMat.opacity = 0.17 + 0.14 * pulse + 0.15 * (state.boundaryLevel >= 2 ? 1 : 0);
