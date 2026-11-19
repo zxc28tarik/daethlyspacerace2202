@@ -11614,9 +11614,14 @@
             };
             const parts={HULL:[],SECOND:[],RED:[],DARK:[],
                 GLASS:[],ORANGE:[],PLASMA:[]};
+            // NEXT11C20G: antialias was already enabled at the renderer.
+            // Increase the ACTUAL silhouette and machining geometry:
+            // 12-sided round seam strips (was 4-sided box),
+            // 24-sided barrels and 10x32 circular exhaust rims.
             const cube=new THREE.BoxGeometry(1,1,1),
-                tube=new THREE.CylinderGeometry(.5,.5,1,14),
-                ring=new THREE.TorusGeometry(.5,.085,7,18),
+                lineTube=new THREE.CylinderGeometry(.5,.5,1,12,1,false),
+                tube=new THREE.CylinderGeometry(.5,.5,1,24),
+                ring=new THREE.TorusGeometry(.5,.085,10,32),
                 dome=new THREE.SphereGeometry(.5,14,10),
                 rect=new THREE.BoxGeometry(1,1,1,2,1,3);
             const m=new THREE.Matrix4(),
@@ -11650,7 +11655,9 @@
                 helper.makeRotationFromQuaternion(
                     new THREE.Quaternion().setFromUnitVectors(
                         new THREE.Vector3(0,1,0),vec.clone().normalize()));
-                const temp=cube.clone();
+                // Smooth machined tubular seam instead of jagged
+                // four-corner extrusion. Still merged into 7 batches.
+                const temp=lineTube.clone();
                 temp.applyMatrix4(new THREE.Matrix4().compose(
                     mid,new THREE.Quaternion().setFromRotationMatrix(helper),
                     new THREE.Vector3(thick,vec.length(),thick)));
@@ -11710,7 +11717,7 @@
                 sh.closePath();
                 const geo=new THREE.ExtrudeGeometry(sh,{
                     depth:.21,steps:1,bevelEnabled:true,
-                    bevelThickness:.07,bevelSize:.07,bevelSegments:1
+                    bevelThickness:.07,bevelSize:.07,bevelSegments:3
                 });
                 geo.rotateX(Math.PI/2);
                 return geo;
@@ -11736,7 +11743,7 @@
                 const g=new THREE.ExtrudeGeometry(sh,{
                     depth:highlight?.055:.23,steps:1,
                     bevelEnabled:true,bevelThickness:.035,
-                    bevelSize:.035,bevelSegments:1
+                    bevelSize:.035,bevelSegments:3
                 });
                 g.rotateY(-Math.PI/2);
                 g.translate(side*(highlight?7.71:7.60),.11,0);
@@ -11749,7 +11756,9 @@
                     shape.lineTo(side*x,z):shape.moveTo(side*x,z));
                 shape.closePath();
                 const g=new THREE.ExtrudeGeometry(shape,{
-                    depth:.027,steps:1,bevelEnabled:false
+                    depth:.027,steps:1,bevelEnabled:true,
+                    bevelThickness:.004,bevelSize:.008,
+                    bevelSegments:2
                 });
                 g.rotateX(Math.PI/2);
                 // Topcoat flush with beveled wing top; no hovering panel.
@@ -11765,8 +11774,11 @@
                     [-1.84,.72,1.10],[-1.00,.48,.79],
                     [-.53,.17,.48]
                 ];
-                const span=[-1,-.72,-.36,0,.36,.72,1],
-                    arch=[0,.63,.90,1,.90,.63,0],
+                // Preserve approved windshield outline; nine sections
+                // soften its specular rim while the seven long stations
+                // keep the same identifying cockpit profile.
+                const span=[-1,-.81,-.59,-.31,0,.31,.59,.81,1],
+                    arch=[0,.48,.76,.93,1,.93,.76,.48,0],
                     xyz=[],uv=[],idx=[],n=span.length;
                 rows.forEach(([z,width,top],j)=>{
                     for(let i=0;i<n;i++){
@@ -12091,9 +12103,11 @@
             for(let y=0;y<128;y++)
                 for(let x=0;x<128;x++){
                     seed=(Math.imul(seed,1664525)+1013904223)>>>0;
-                    const grit=(seed>>>27)-16,
-                        seam=(x%32<2||y%32<2)?-17:0,
-                        brushed=(y%7===0)?5:0,
+                    // Softer micro-surface: avoid a tiled 32px
+                    // high-contrast moire pattern at racing distance.
+                    const grit=((seed>>>28)-8),
+                        seam=(x%32<2||y%32<2)?-7:0,
+                        brushed=(y%7===0)?3:0,
                         lum=Math.max(115,Math.min(245,
                             216+grit+seam+brushed)),
                         at=(y*128+x)*4;
@@ -12105,13 +12119,18 @@
             context.putImageData(pixels,0,0);
             const fineFinish=new THREE.CanvasTexture(finish);
             fineFinish.wrapS=fineFinish.wrapT=THREE.RepeatWrapping;
-            fineFinish.anisotropy=2;
+            fineFinish.anisotropy=4;
+            fineFinish.generateMipmaps=true;
+            fineFinish.minFilter=THREE.LinearMipmapLinearFilter;
+            fineFinish.magFilter=THREE.LinearFilter;
             const mats={
                 HULL:new THREE.MeshStandardMaterial({
                     name:'SB07_SILVER_CERAMIC',
                     color:0xdbe4ea,metalness:.58,roughness:.40,
                     roughnessMap:fineFinish,bumpMap:fineFinish,bumpScale:.012,
-                    emissive:0x97a7ba,emissiveIntensity:.38,
+                    // Reduce self-illumination: let real nebula lights
+                    // read on the ceramic bevel rather than flatten it.
+                    emissive:0x97a7ba,emissiveIntensity:.20,
                     side:THREE.DoubleSide}),
                 SECOND:new THREE.MeshStandardMaterial({
                     name:'SB07_GUNMETAL_SUBFRAME',
@@ -12181,19 +12200,22 @@
             // Two nested sprites add just two transparent draw calls
             // when Map1 SB-07 is visible, with no point light/particle.
             const glowCanvas=document.createElement('canvas');
-            glowCanvas.width=glowCanvas.height=64;
+            glowCanvas.width=glowCanvas.height=128;
             const g2d=glowCanvas.getContext('2d');
             const radial=g2d.createRadialGradient(
-                32,32,1,32,32,31);
-            radial.addColorStop(0,'rgba(220,249,255,.9)');
-            radial.addColorStop(.22,'rgba(125,220,255,.7)');
-            radial.addColorStop(.54,'rgba(48,145,255,.28)');
+                64,64,2,64,64,63);
+            radial.addColorStop(0,'rgba(220,249,255,.90)');
+            radial.addColorStop(.20,'rgba(125,220,255,.66)');
+            radial.addColorStop(.48,'rgba(48,145,255,.28)');
+            radial.addColorStop(.76,'rgba(22,93,190,.065)');
             radial.addColorStop(1,'rgba(0,60,130,0)');
             g2d.fillStyle=radial;
-            g2d.fillRect(0,0,64,64);
+            g2d.fillRect(0,0,128,128);
             const glowTexture=new THREE.CanvasTexture(glowCanvas);
-            glowTexture.minFilter=THREE.LinearFilter;
+            glowTexture.generateMipmaps=true;
+            glowTexture.minFilter=THREE.LinearMipmapLinearFilter;
             glowTexture.magFilter=THREE.LinearFilter;
+            glowTexture.anisotropy=4;
             const plasmaMesh=root.children.find(
                 child=>child.name==='NEXT11C20_SB07_PLASMA');
             for(const side of [-1,1]){
@@ -12211,13 +12233,22 @@
                 halo.scale.set(1.85,1.85,1);
                 plasmaMesh.add(halo);
             }
-            for(const g of [cube,tube,ring,dome,rect])g.dispose();
+            for(const g of [cube,lineTube,tube,ring,dome,rect])g.dispose();
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
-            root.userData.detailPass='NEXT11C20F';
+            root.userData.detailPass='NEXT11C20G';
+            root.userData.lineRadialSegments=12;
+            root.userData.engineBarrelSegments=24;
+            root.userData.engineRimRadialSegments=32;
+            root.userData.engineRimTubularSegments=10;
+            root.userData.wingBevelSegments=3;
+            root.userData.finBevelSegments=3;
+            root.userData.deckBevelSegments=2;
+            root.userData.canopyCrossSections=9;
+            root.userData.haloMipmapped=true;
             root.userData.engineHaloCount=2;
-            root.userData.engineHaloTextureSize=64;
+            root.userData.engineHaloTextureSize=128;
             root.userData.nozzleRecesses=12;
             root.userData.sealedWingRootLines=6;
             root.userData.flushWingTopcoats=true;
