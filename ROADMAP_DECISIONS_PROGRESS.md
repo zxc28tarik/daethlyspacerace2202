@@ -727,3 +727,17 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KORUMA:** Harita4 B-04 ve 6/36/200 colliders, combat/AI/timer, Harita1 kamera/physics/HUD/boost untouched. **DRAFT / NO MERGE**.
 
 **Günlük:** `2026-11-19 | NEXT11C20J | SINGLE NOSE STRIPE HULL SKIN FIT + WING SHROUD FLUSH | 191 PARTS / 7 BATCH | JS SYNTAX PASS CI AÇIK | NO MERGE | NEXT11C20K`.
+
+
+## 36) 19 Kasım 2026 — NEXT11C20K coplanar kanat boya / flap depth-fight onarımı
+
+- **KULLANICI TETİĞİ:** '.' ile bir sonraki aşamaya geç. Kesin "yeni küçük parça ekleme, ayrık parçaları birleştir ve çizgileri netleştir" kararı korunur.
+- **GERÇEK KOD:** `codex/map1-sb07-zenit-overlap-fix-k` C20J PR #75 üstüne stacked. Aynı y=-.116 düzleminde kısmen örtüşen RED/HULL, RED/SECOND, SECOND/HULL ve SECOND/DARK güverte kaplamaları belirlendi. `wingDeckPlate(...,lift)`: kırmızı boya +.016, arka tek flap +.012, root metal dudağı +.012. Kanat ana şekli/siluet değişmez; 0 yeni dekor parçası.
+- **MOTOR KALİTESİ:** Z5.97 turuncu motor collar'una yakın z6.02 ORANGE redundant torus birer adet iki motordan kaldırıldı. İki canlı motor ve 20 stator korunur, `integratedAnnularBands=6`.
+- **SAYIM KAYNAKTAN ÇALIŞTIRILDI:** C20H 354 → C20I/J 191 → C20K **189** = toplam 165 düşük (%46.61). 7 SB07 opaque batch +2 plume sprite bütçesi korunur. Bu gözlemlenmiş GPU/FPS artışı olarak yorumlanmaz.
+- **BROWSER QA:** Gerçek THREE.Mesh raycaster ile 4 kanat panel çakışma bölgesi x2 sides = 8 örnekte .008..05 yüzey derinliği aranıyor. Mevcut 15 nokta hull-fitting, 189 hard count, actual GL triangles and studio A/B PNG + Map4 B-04/physics/AI invariants, özel ve tam regression workflow yeni dalda.
+- **TEST DURUMU:** Inline game JS ve QA script parse PASS. **Gerçek WebGL CI PASS, screenshot ve native GPU FPS doğrulanmadı**.
+- **BELGE:** [NEXT11C20K](MAP1_NEXT11C20K_SB07_OVERLAP_QA.md). **SIRADA NEXT11C20L:** WebGL görsel kanıt ve 8 raycast sonucu üzerinden hedefli düzeltme, yeni dekor ve kamera/oyun kuralı değişikliği YOK.
+- **GİTHUB:** stacked draft branch, kullanıcı açık izni olmadan **NO MERGE**.
+
+**Günlük:** `2026-11-19 | NEXT11C20K | REAL OVERLAP CORRECTION / 191->189 | RED +.016, FLAP & ROOT +.012 | JS PASS, CI UNVERIFIED | NO MERGE | NEXT11C20L`.
