@@ -984,3 +984,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **DOKÜMAN:** [NEXT11C20Z kabul protokolü](MAP1_NEXT11C20Z_NOSE_ENGINE_NORMALS_ACCEPTANCE.md). **SONRAKİ NEXT11C21A:** yalnız görsel A/B'de gerçekten kalan kusur varsa yerel yüzey kalite düzeltmesi; dekor/çözünürlük yükseltme yok, DRAFT/NO MERGE.
 
 **Günlük:** 2026-11-19 | NEXT11C20Z | 54 original nose roof normals +84 twin-engine roof normals / correct inside-out hull and engine triangles | 138 real normal +4 face tests | native 1x MSAA | CI pending | stacked draft.
+
+
+### NEXT11C20Z — 19 Kasım 2026, gerçek WebGL doğrulanmış sonuç
+
+- **SON OYUN KODU + KABUL BELGESİ HEAD `127c048a190297e5dbb81341b66be56e518b80b8`:** [özel Chromium/Three r128 WebGL #44551656762](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44551656762) **COMPLETED / SUCCESS (16/16 adım)**. Oyun kodu / geometrik shader sabit, kullanıcının seçtiği orijinal 1.0× MSAA korunuyor.
+- **GERÇEK KOORDİNAT VE YÜZ YÖNÜ:** 54 nose +84 engine = **138/138** roof normals gerçek birleştirilmiş HULL geometry buffer'da tangent normal ile dot en düşük **0.99999996744**. Gerçek kaynak (orijinal değil fake model değil) 4 face orientation: sağ/sol nose dış normal dot **0.888286**, sağ/sol engine üst normal y **0.998412**. W154/V60/U30/X174+6/Y180 ve R 304/304 bağlantı PASS; SB07 **189**, B04 **249**, Map4 [6,36,200] preserved.
+- **GÖRSEL KANIT:** [Son HEAD artifact #14543802411](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44551656762/artifacts/14543802411) dört gerçek 1600×900 PNG + JSON, önceki [Y artifact #14543870004](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44549340473/artifacts/14543870004) aynı kamera/ışık kaynak. 1600×900 karede RGB kanal farkı >12 olan pikseller: üst **315 (~%0.022)**, ön **273 (~%0.019)**, arka çapraz **648 (~%0.045)**, arka **1150 (~%0.080)**. Bu küçük fark gerçek normal/yön temizliğinin subtıl olduğunu kanıtlar; kullanıcının estetik kabulü ve daha büyük görünüm iyileştirmesi değildir.
+- **GENEL KABUL SINIRI:** [Son HEAD kapsamlı browser smoke #44551656760](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44551656760) özel QA'dan bağımsız sonuçlanmadan bütün oyun PASS yazılmaz. Fiziksel GPU, uzun oynanış ve görsel estetik onayı ayrıca beklenir. PR DRAFT, hiçbir merge yok.
+- **SONRAKİ NEXT11C21A:** küçük normal/facet hatalarını tekrarlamak yerine orijinal native AA ile **daha belirgin, ancak silueti değiştirmeyen** gerçek surface shading/material tutarlılığına odaklan. Yeni mikro parça veya performans odaklı filtre yok; önce gerçek WebGL A/B.
+
+**Karar günlüğü:** 2026-11-19 | NEXT11C20Z | 138/138 normal +4/4 genuine winding PASS | 189 parts / 1x MSAA unchanged | full smoke pending | no merge.
