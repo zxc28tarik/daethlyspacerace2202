@@ -49,6 +49,20 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      engineHaloCount:race.userData.engineHaloCount,
+      engineHaloTextureSize:race.userData.engineHaloTextureSize,
+      nozzleRecesses:race.userData.nozzleRecesses,
+      sealedWingRootLines:race.userData.sealedWingRootLines,
+      haloSprites:plasma.children.filter(m=>m.isSprite).map(s=>({
+        name:s.name,
+        x:s.position.x,z:s.position.z,
+        additive:s.material.blending===THREE.AdditiveBlending,
+        depthWrite:s.material.depthWrite,
+        textureWidth:s.material.map?.image?.width||0,
+        noCollider:s.userData.noCollider
+      })),
+      haloTextureShared:plasma.children.filter(m=>m.isSprite)[0]?.material.map===
+        plasma.children.filter(m=>m.isSprite)[1]?.material.map,
       flushWingTopcoats:race.userData.flushWingTopcoats,
       recessedWingLouverPairs:race.userData.recessedWingLouverPairs,
       engineThroatRings:race.userData.engineThroatRings,
@@ -119,7 +133,20 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20E');
+  assert.equal(geometry.detailPass,'NEXT11C20F');
+  assert.equal(geometry.engineHaloCount,2);
+  assert.equal(geometry.engineHaloTextureSize,64);
+  assert.equal(geometry.nozzleRecesses,12);
+  assert.equal(geometry.sealedWingRootLines,6);
+  assert.equal(geometry.haloSprites.length,2,
+    'two live soft blue engine halos must exist');
+  assert(geometry.haloSprites.every(s=>
+    s.additive&&s.depthWrite===false&&
+    s.textureWidth===64&&s.noCollider),
+    'engine glows need safe additive blending + shared procedural atlas');
+  assert(geometry.haloTextureShared,
+    'both engine sprites must reuse a single in-browser texture');
+  assert.deepEqual(geometry.haloSprites.map(s=>s.x),[-1.8,1.8]);
   assert.equal(geometry.flushWingTopcoats,true);
   assert.equal(geometry.recessedWingLouverPairs,8);
   assert.equal(geometry.engineThroatRings,6);
@@ -223,6 +250,12 @@ const {chromium}=require('playwright');
         progress:state.routeProgress,
         renderCalls:renderer.info.render.calls,
         thrustGlow:+root.userData.thrustGlow.toFixed(4),
+        haloOpacities:root.children.find(
+          m=>m.material.name==='SB07_BLUE_PLASMA').children
+          .filter(m=>m.isSprite).map(m=>+m.material.opacity.toFixed(4)),
+        haloSizes:root.children.find(
+          m=>m.material.name==='SB07_BLUE_PLASMA').children
+          .filter(m=>m.isSprite).map(m=>+m.scale.x.toFixed(4)),
         plasmaColor:root.children.find(
           m=>m.material.name==='SB07_BLUE_PLASMA')
           .material.color.getHex(),
@@ -285,6 +318,13 @@ const {chromium}=require('playwright');
     'heat shield orange must respond to racing throttle');
   assert(boost.cockpitGlow>normal.cockpitGlow,
     'cockpit highlight must respond subtly to speed');
+  assert(normal.haloOpacities.length===2&&boost.haloOpacities.length===2);
+  assert(boost.haloOpacities.every((v,i)=>
+    v>normal.haloOpacities[i]+.05),
+    'both actual engine halo intensities must respond to boost');
+  assert(boost.haloSizes.every((v,i)=>
+    v>normal.haloSizes[i]+.07),
+    'both actual engine halo diameters must grow under boost');
   // Evidence image from oblique above; this is NOT the playable camera.
   const oblique=await page.evaluate(()=>{
     const ship=h4Ship19Race;
@@ -338,7 +378,7 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20C',
+    status:'PASS',id:'NEXT11C20F',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
     geometry,normal,boost,fixedNormal,fixedBoost,oblique,map4Preserved:after,
     actualNativeGPU:false,actualHumanRace:false,
@@ -348,6 +388,8 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    haloSprites:geometry.haloSprites.length,
+    haloOpacity:[normal.haloOpacities,boost.haloOpacities],
     insets:[geometry.insetRearPlasmaLeft,
       geometry.insetRearPlasmaRight],
     statorSamples:[geometry.statorLeft,geometry.statorRight],
