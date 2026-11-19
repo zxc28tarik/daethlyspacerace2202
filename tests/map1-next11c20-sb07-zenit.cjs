@@ -49,6 +49,10 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      minMachiningLineDiameter:race.userData.minMachiningLineDiameter,
+      boundedHaloOpacity:race.userData.boundedHaloOpacity,
+      boundedHaloSize:race.userData.boundedHaloSize,
+      reviewStudioCapture:race.userData.reviewStudioCapture,
       lineRadialSegments:race.userData.lineRadialSegments,
       roundLineCount:race.userData.roundLineCount,
       engineBarrelSegments:race.userData.engineBarrelSegments,
@@ -146,7 +150,11 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20G');
+  assert.equal(geometry.detailPass,'NEXT11C20H');
+  assert.equal(geometry.minMachiningLineDiameter,.056);
+  assert.deepEqual(geometry.boundedHaloOpacity,[.14,.38]);
+  assert.deepEqual(geometry.boundedHaloSize,[1.68,2.06]);
+  assert.equal(geometry.reviewStudioCapture,true);
   assert.equal(geometry.lineRadialSegments,12);
   assert(geometry.roundLineCount>40,
     'rounded line geometry must be actually emitted >40 times');
@@ -355,6 +363,10 @@ const {chromium}=require('playwright');
   assert(boost.haloSizes.every((v,i)=>
     v>normal.haloSizes[i]+.07),
     'both actual engine halo diameters must grow under boost');
+  assert(normal.haloOpacities.every(v=>v>=.13&&v<=.38));
+  assert(boost.haloOpacities.every(v=>v>=.14&&v<=.381),
+    'both boosts must be bright but not clip an oversized halo');
+  assert(boost.haloSizes.every(v=>v<=2.061));
   // Evidence image from oblique above; this is NOT the playable camera.
   const oblique=await page.evaluate(()=>{
     const ship=h4Ship19Race;
@@ -373,6 +385,118 @@ const {chromium}=require('playwright');
   assert(oblique.onScreen);
   await page.screenshot({path:path.join(__dirname,
     'map1-next11c20-zenit-3d-oblique.png')});
+  // NEXT11C20H visual acceptance PROOF, not a fake illustrated model:
+  // render the exact seven-batch live SB-07 Three.js geometry into a
+  // deterministic neutral studio. Screenshots have no HUD or race debris.
+  // Normal and boost get the SAME camera, lighting and pixel coordinates.
+  const captureStudio=async(angle,tag)=>{
+    const frame=await page.evaluate(angle=>{
+      if(!window.__SB07_STUDIO_H){
+        const studio=new THREE.Scene();
+        studio.background=new THREE.Color(0x0b1423);
+        const ship=h4Ship19Race.clone(true);
+        ship.position.set(0,0,0);
+        ship.quaternion.identity();
+        studio.add(ship);
+        studio.add(new THREE.AmbientLight(0xffffff,.70));
+        const key=new THREE.DirectionalLight(0xf2f6ff,2.1);
+        key.position.set(-8,13,-11);studio.add(key);
+        const fill=new THREE.DirectionalLight(0x74caff,1.3);
+        fill.position.set(9,5,14);studio.add(fill);
+        const red=new THREE.DirectionalLight(0xffa088,.65);
+        red.position.set(-5,-4,5);studio.add(red);
+        const view=new THREE.PerspectiveCamera(47,1600/900,.1,120);
+        window.__SB07_STUDIO_H={scene:studio,ship,camera:view};
+      }
+      const studio=window.__SB07_STUDIO_H;
+      const view=studio.camera;
+      if(angle==='front')view.position.set(11,9,-20);
+      else view.position.set(11,8,21);
+      view.lookAt(0,0,-.6);
+      view.updateProjectionMatrix();
+      renderer.render(studio.scene,view);
+      const gl=renderer.getContext();
+      const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
+      const sample=(x,y,z)=>{
+        const projected=new THREE.Vector3(x,y,z).project(view);
+        const N=40;
+        const left=Math.max(0,Math.min(width-N,
+          Math.round((projected.x*.5+.5)*width)-N/2));
+        const bottom=Math.max(0,Math.min(height-N,
+          Math.round((projected.y*.5+.5)*height)-N/2));
+        const data=new Uint8Array(N*N*4);
+        gl.readPixels(left,bottom,N,N,gl.RGBA,gl.UNSIGNED_BYTE,data);
+        let brightness=0,clipped=0,cyan=0;
+        for(let i=0;i<N*N;i++){
+          const at=i*4;
+          const r=data[at],g=data[at+1],b=data[at+2];
+          brightness+=(r+g+b)/3;
+          if(r>247&&g>247&&b>247)clipped++;
+          if(b>g*1.05&&g>r*1.20&&b>65)cyan++;
+        }
+        return {
+          uv:[+projected.x.toFixed(3),+projected.y.toFixed(3)],
+          meanBrightness:+(brightness/(N*N)).toFixed(2),
+          whiteClipRatio:+(clipped/(N*N)).toFixed(4),
+          blueTintRatio:+(cyan/(N*N)).toFixed(4)
+        };
+      };
+      // WebGL preserveDrawingBuffer is normally false. Capture pixels
+      // synchronously after render so studio evidence never becomes
+      // a blank/black screenshot during the next compositor tick.
+      const rgba=new Uint8Array(width*height*4);
+      gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,rgba);
+      const flipped=new Uint8ClampedArray(rgba.length);
+      for(let row=0;row<height;row++){
+        const stride=width*4;
+        flipped.set(rgba.subarray(row*stride,(row+1)*stride),
+          (height-1-row)*stride);
+      }
+      const output=document.createElement('canvas');
+      output.width=width;output.height=height;
+      const ctx=output.getContext('2d');
+      ctx.putImageData(new ImageData(flipped,width,height),0,0);
+      const png=output.toDataURL('image/png').split(',')[1];
+      return {png,metrics:{
+        angle,ship:studio.ship.userData.authoredShipId,
+        renderCalls:renderer.info.render.calls,
+        pixelSize:[width,height],
+        antialias:!!gl.getContextAttributes()?.antialias,
+        thrust:+h4Ship19Race.userData.thrustGlow.toFixed(4),
+        engines:angle==='rear'?[
+          sample(-1.8,-.25,6.65),
+          sample(1.8,-.25,6.65)
+        ]:[],
+        normalViewAligned:studio.ship.children.length===7
+      }};
+    },angle);
+    const metrics=frame.metrics;
+    fs.writeFileSync(path.join(__dirname,
+      'map1-next11c20-zenit-studio-h-'+tag+'.png'),
+      Buffer.from(frame.png,'base64'));
+    assert.equal(metrics.ship,'SB-07');
+    assert.equal(metrics.normalViewAligned,true,
+      'studio screenshots must use real seven-batch ship, not a mock');
+    assert(metrics.renderCalls>=7&&metrics.renderCalls<=12,
+      'ship studio review should stay within 7 meshes + 2 halos');
+    assert(metrics.pixelSize[0]>=1200&&metrics.pixelSize[1]>=700,
+      'art evidence must have enough pixel density for a fair edge review');
+    assert(metrics.engines.every(e=>
+      Number.isFinite(e.meanBrightness)&&
+      e.whiteClipRatio>=0&&e.whiteClipRatio<=1));
+    return metrics;
+  };
+  await fly(false);
+  const studioNormal=await captureStudio('rear','rear-normal');
+  const studioFront=await captureStudio('front','front');
+  await fly(true);
+  const studioBoost=await captureStudio('rear','rear-boost');
+  assert(studioBoost.thrust>studioNormal.thrust+.15,
+    'review images must show an actual game-state boost difference');
+  assert.deepEqual(studioNormal.pixelSize,studioBoost.pixelSize,
+    'A/B image dimensions must be identical');
+  // Pixel stats are diagnostic, not an invented human aesthetic PASS.
+  // Preserve original game camera and proceed to protected Map4 checks.
   await page.evaluate(()=>{
     state.running=false;state.paused=false;
     document.getElementById('gameover-screen').classList.add('hidden');
@@ -408,9 +532,10 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20G',
+    status:'PASS',id:'NEXT11C20H',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
-    geometry,normal,boost,fixedNormal,fixedBoost,oblique,map4Preserved:after,
+    geometry,normal,boost,fixedNormal,fixedBoost,oblique,
+    studioNormal,studioFront,studioBoost,map4Preserved:after,
     actualNativeGPU:false,actualHumanRace:false,
     aestheticApprovedByUserForModel:false
   };
@@ -418,6 +543,7 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    studioMetrics:[studioNormal,studioBoost],
     haloSprites:geometry.haloSprites.length,
     edgeQuality:[geometry.lineRadialSegments,
       geometry.engineBarrelSegments,geometry.engineRimRadialSegments],

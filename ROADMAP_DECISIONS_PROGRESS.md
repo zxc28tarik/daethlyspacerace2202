@@ -690,3 +690,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KABUL:** [NEXT11C20G](MAP1_NEXT11C20G_SB07_LINE_QUALITY_ACCEPTANCE.md). **SIRADA NEXT11C20H:** ekran görüntüsünde kenar/pixel ve glow histogram/artefact incelemesi, teknik gereksinim varsa hedefli FXAA prototipi.
 
 **Günlük:** `2026-11-19 | NEXT11C20G | KODLANDI | 12-segment round lines /24 barrel/32 rim /3 bevel /128 mipmap | JS PASS CI UNCONFIRMED | NO MERGE | NEXT11C20H`.
+
+
+## 33) 19 Kasım 2026 — NEXT-11C20H gerçek SB-07 modelinden aynı kadraj ekran görüntüsü QA
+
+- **TETİK:** Kullanıcı "." ile bir sonraki geliştirme aşamasına geçme talimatı verdi. Önceki NEXT11C20G PR #72 üzerine `codex/map1-sb07-zenit-review-h` ayrı stacked dalı.
+- **KALİTE KODU:** Mevcut renderer MSAA açık; global shader/Fxaa blur yok. `lineTube` min machining seam çapı .056 yapıldı, iki motor glow 128² atlas ve boost ışığı artık opacity `.14→.38` ve çap `1.68→2.06` sınırında; nozül iç 20 stator ve halkaları daha görünür kılma hedefi. Yedi batch + iki sprite; Map1 ve Map4 oyun mekaniği korunur.
+- **GERÇEK WEBGL GÖRSEL KANIT TESTİ:** Oyun içindeki SB-07 model `clone(true)` ile aynı gerçek mesh/matürler stüdyo ışığına alındı; sabit 1600×900 çizim, normal/boost **aynı kamera**, ön ve arka ayrı 3 PNG; `gl.readPixels`→Canvas PNG ile `preserveDrawingBuffer=false` boş resim riski giderildi. Her motor için 40×40 RGB parlaklık/beyaz clipping/cyan oranları, gl antialias ve draw calls raporlandı.
+- **GERÇEK BAŞARI IDDİASI YOK:** JS parse PASS; özel WebGL ve Map1+4 regresyon workflow tanımları kaydedildi. Github Actions run sonuçları ve resimleri **henüz incelenmedi**; bu yüzden render ve estetik PASS yazılmaz. Native GPU/FPS/p95 ve kullanıcı kararı açık.
+- **KORUMALAR:** SB-07 uzun burun/yatay düz geniş ana kanat/dikey dış uçlar, race-only Harita1; B-04 Harita4 ve tüm collider/AI/boost/harita amaçları değişmez. DRAFT/NO MERGE.
+- **KABUL:** [NEXT11C20H](MAP1_NEXT11C20H_SB07_RENDER_EVIDENCE_ACCEPTANCE.md). **SIRADA NEXT11C20I:** gerçek PNG ve ölçüm analizi, seçici kusur düzeltmesi, gerçek GPU perf.
+
+**Günlük:** `2026-11-19 | NEXT11C20H | CODED + 3 STUDIO WebGL PNG QA | script syntax PASS, CI UNCONFIRMED | rendering images not reviewed | DRAFT | NO MERGE`.
