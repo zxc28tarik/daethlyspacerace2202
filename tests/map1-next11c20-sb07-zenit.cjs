@@ -50,6 +50,7 @@ const {chromium}=require('playwright');
       batches:meshes.length,
       detailPass:race.userData.detailPass,
       lineRadialSegments:race.userData.lineRadialSegments,
+      roundLineCount:race.userData.roundLineCount,
       engineBarrelSegments:race.userData.engineBarrelSegments,
       engineRimRadialSegments:race.userData.engineRimRadialSegments,
       engineRimTubularSegments:race.userData.engineRimTubularSegments,
@@ -147,6 +148,8 @@ const {chromium}=require('playwright');
   assert.equal(geometry.batches,7);
   assert.equal(geometry.detailPass,'NEXT11C20G');
   assert.equal(geometry.lineRadialSegments,12);
+  assert(geometry.roundLineCount>40,
+    'rounded line geometry must be actually emitted >40 times');
   assert.equal(geometry.engineBarrelSegments,24);
   assert.equal(geometry.engineRimRadialSegments,32);
   assert.equal(geometry.engineRimTubularSegments,10);
@@ -419,6 +422,7 @@ const {chromium}=require('playwright');
     edgeQuality:[geometry.lineRadialSegments,
       geometry.engineBarrelSegments,geometry.engineRimRadialSegments],
     canopyColumns:geometry.canopyCrossSections,
+    roundedSeams:geometry.roundLineCount,
     haloOpacity:[normal.haloOpacities,boost.haloOpacities],
     insets:[geometry.insetRearPlasmaLeft,
       geometry.insetRearPlasmaRight],
