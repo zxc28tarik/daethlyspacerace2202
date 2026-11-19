@@ -14,6 +14,15 @@
 - İnce halkaların başlangıç opacity `.43→.30`; oyun sırasında pulse `.33+.17*pulse` yerine `.24+.12*pulse`. Büyük vurgu halkaları `.70+.22*pulse` korunur. Çarpışma tehlikesi uyarısı, rengi, parkur genişliği ve navigasyon aynı.
 - Ayrılan halka grupları `userData` altında `ringBatchCount`, `ringOriginalCount`, `ringSectorCount`, `ringEdgeSegments` ile gerçek geometri kabul testine açıldı.
 
+## Gerçek başarılı Chromium/WebGL QA kanıtı
+
+- [GitHub Actions #44524333490](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44524333490) **completed/success** — güncellenmiş test commit `4f7c304...` üzerinde Ubuntu Chromium/SwiftShader.
+- Gerçek log: `NEXT11C20O CORRIDOR WEBGL PASS` — `oldRingObjects=192`, `groupedRingObjects=10`, `totalMap1Calls=252`, `map4Calls=262`, `ringVertexError=0.000009740...`, `unchangedSB07Parts=189`. Testte 39 büyük/153 ince ve ring başına 48 segment korunur; 2 harita gerçek framebuffer PNG'si çıkarıldı.
+- [Gerçek artifact #14528678746](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44524333490/artifacts/14528678746): `corridor-batch-qa.json`, `map1-merged-rings-720p.png`, `map4-unaltered-720p.png` ve başarısızlık halinde log.
+- Önceki C20N 720p Map1 `257` çağrı, C20O mevcut test ekranında `252` çağrı. **Yalnız farklı test kareleri kıyaslanmıştır**, doğrudan bütün sahnenin aynı kameradaki önce/sonra deneyinin ölçüsü DEĞİLDİR. 182 nesne azaltımı ≠ 182 daha az GPU draw call; önceki tekil ring nesnelerinin çoğu kamera frustum culling ile çizilmiyordu.
+- İlk C20O özel test run'ı **FAIL** olmuştu; nedeni sadece testin Map1'de Map4 collider'ları beklemesiydi. Harita1 `physics=[0,0,0]`, sonra Harita4 başlayınca `physics=[6,36,200]` şartları ayrıldı ve gerçek geçerli C20O QA **PASS** oldu.
+- [43 aşamalı tam browser smoke](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44524333375) sonucu ayrıca tamamlanıp kontrol edilmelidir.
+
 ## Regresyon/test altyapısı
 - Orijinal `index.html` tam inline JavaScript statik syntax PASS.
 - Yeni `tests/map1-next11c20o-corridor-clarity.cjs` gerçek GitHub Actions Chromium / Three.js r128 üzerinde Harita 1'i çalıştırır, 192 original, 10 batch, 39/153 major/minor sayımı, 48 segment, her batched buffer vertex sayısı, 160m'deki ilk gerçek 3D rota köşesi (<.003 fark), 42 total guide object, korunan tehlike opacity, 189 SB-07 parçası, 249 B-04, [6,36,200] physics colliders, Map4 görünürlüğü doğrular.
