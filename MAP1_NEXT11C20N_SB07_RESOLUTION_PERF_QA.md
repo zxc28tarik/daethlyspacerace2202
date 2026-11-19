@@ -17,6 +17,23 @@
 - **CI onarımı:** Yeni özel benchmark workflow ve mevcut tam Map1/4 smoke workflow'da `npx playwright install --with-deps chromium` yerine `npx playwright install chromium` kullanıldı. GitHub'ın Ubuntu 24.04 runner'ında kurulu tarayıcı kitaplıklarını kullanır, tekrar eden hatalı APT fonts/mesa mirror 503 taleplerini engeller. Playwright 1.56.1 / Three.js r128 pinleri ve gerçek WebGL testleri korunur.
 - Çalışma ortamında yerel `file://` ve `http://127.0.0.1` Chromium erişimi `ERR_BLOCKED_BY_ADMINISTRATOR` ile engellendi. Yerel FPS sonucu sunulmaz; bu kısıt nedeniyle runner üzerinde ölçüm yapılıyor.
 
+## Gerçek WebGL performans ölçümleri (GitHub Actions başarılı run #44521687724)
+
+*Metod: 3 ısınma + 10 senkron `renderer.render + gl.finish` kare/harita/çözünürlük, DPR=1, pause edilmiş gerçek sahne. Sayılar SwiftShader **software render elapsed time**, oynanabilir frame-budget veya fiziksel GPU FPS'i DEĞİL.*
+
+| Harita | Fiziksel çözünürlük | Draw calls | Render triangles | Geometry/Text. resources | Medyan render+gl.finish | 10 örnekte en yavaş (yaklaşık p95) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Harita 1 | 1280×720 | 257 | 62.026 | 272 / 2 | 1,70 ms | 4,60 ms |
+| Harita 1 | 1920×1080 | 257 | 62.026 | 272 / 2 | 1,85 ms | 7,30 ms |
+| Harita 4 | 1280×720 | 284 | 177.591 | 342 / 30 | 3,35 ms | 9,90 ms |
+| Harita 4 | 1920×1080 | 284 | 177.591 | 342 / 30 | 2,55 ms | 2,90 ms |
+
+1080p Harita 4 sonuçlarının 720p'den daha kısa görünmesi 10 kısa örnek, shader/driver ısınması, farklı oyun zamanlaması ve CPU SwiftShader gürültüsü nedenleriyle **1080p'de daha hızlıdır** şeklinde okunamaz. Test ekranı fiziksel 1280×720/1920×1080, WebGL MSAA açık. Otomatik oyun güncellemesini pause edip yalnız render işini ölçtüğünden oyun mantığının FPS maliyetini kapsamaz.
+
+**Gerçek screenshot gözlemi:** 720p Map1 PNG'de onaylı SB-07 çift motoru ve yüksek wingtip fin görünür; kamera yarış koridoruna dönük. Harita 4 PNG'ye geçişte B-04 + arazi/gökyüzü gerçek render verilmiş ve framebuffer siyah/boş değil; kamera eğik açıda olabilir (otomatik test snapshot), estetik oyuncu onayı ayrıca gerekir.
+
+**Artifakt:** `sb07-next11c20n-native-budget-artifacts`: `MAP1-actual-720p.png`, `MAP4-actual-720p.png`, `perf-report.json`.
+
 ## Kullanıcı silueti ve oyun korumaları
 
 **Oyun `index.html` değiştirilmedi.** Onaylı SB-07: uzun sivri burun, iki geniş düz/swept yatay kanat, dış uçlarda dikey yükselen stabilizatörler, mavi cam, kırmızı-gümüş yüzey, iki mavi plazma motoru. Harita1 saf yarış; B-04 Harita4 aynen. 189 kaynak primitif, 7 birleşik ana mesh + 2 motor sprite, 16/32/40 çizgi/motor/halka kesit kalitesi, 128px mipmapped dokular korunur. Yeni collider, silah veya süs objesi eklenmez.
@@ -26,7 +43,7 @@
 - [x] Playwright benchmark JavaScript statik parse PASS.
 - [x] Özel 720/1080 test workflow ve Map1/4 tam regresyon için yeni dal tetikleyicisi kaydedildi.
 - [x] Ubuntu mirror kaynaklı gerçek önceki CI FAIL sebebi loglardan tespit edilip her iki workflow içinde APT bağımlılığını zorunlu kılan install azaltıldı.
-- [ ] **Yeni C20N HEAD** gerçek 720p/1080p benchmark PASS, 4 sayısal bütçe ölçümü ve 2 PNG sonucu incelenip onaylandı.
+- [x] **Gerçek GitHub Actions** [#44521687724](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44521687724) tamamlandı: `success`, dört Map1/Map4 720p/1080p gerçek SwiftShader örneği, sıfır JavaScript pageError, iki `gl.readPixels` PNG. [Artifact #14528171226](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44521687724/artifacts/14528171226) indirildi ve JSON/PNG kontrol edildi. Bu sonuç ölçüm kodu/ilgili commit içindir; daha sonraki doküman commit'inin tüm workflow durumunu kendiliğinden PASS ilan etmez.
 - [ ] **Yeni C20N HEAD** tam Map1+4 browser smoke PASS.
 - [ ] **Gerçek cihazda** GPU FPS/p95, en az 5 dk yarış ve görsel kalite kullanıcı onayı.
 - [ ] Kullanıcı **açık merge izni** verdi. DRAFT / NO MERGE.
