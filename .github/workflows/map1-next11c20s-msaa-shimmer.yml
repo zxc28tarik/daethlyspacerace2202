@@ -1,0 +1,33 @@
+name: Map1 NEXT11C20S Native MSAA and Supersampling Quality Budget
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-aa-budget-s]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-aa-and-shimmer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install genuine Chromium WebGL test dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Validate no rail seam gaps and Map1 / Map4 gameplay
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Real native MSAA versus 2x reference at 720p and 1080p
+        run: node tests/map1-next11c20s-msaa-shimmer-budget.cjs
+      - name: Save real Chromium screenshot comparison and benchmark JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20s-real-aa-shimmer-budget
+          path: |
+            tests/next11c20r-evidence/
+            tests/next11c20s-evidence/
+          if-no-files-found: warn
