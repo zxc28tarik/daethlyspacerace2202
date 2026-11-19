@@ -19,7 +19,7 @@
 - Yeni `tests/map1-next11c20o-corridor-clarity.cjs` gerçek GitHub Actions Chromium / Three.js r128 üzerinde Harita 1'i çalıştırır, 192 original, 10 batch, 39/153 major/minor sayımı, 48 segment, her batched buffer vertex sayısı, 160m'deki ilk gerçek 3D rota köşesi (<.003 fark), 42 total guide object, korunan tehlike opacity, 189 SB-07 parçası, 249 B-04, [6,36,200] physics colliders, Map4 görünürlüğü doğrular.
 - Gerçek WebGL framebuffer'dan Map1/Map4 **1280×720 PNG** (`gl.readPixels`) alır; bu gerçek render kanıtları JSON ile beraber workflow artifact olarak yüklenir.
 - Özel `.github/workflows/map1-next11c20o-corridor-clarity.yml` tanımlandı; mevcut 43 aşamalı `map-browser-smoke.yml` dal ve yeni özel test ile güncellendi.
-- **Gerçek CI PASS ve screenshots** yeni HEAD için tamamlanana dek başarı iddiası yok.
+- İlk GitHub Chromium çalışmasında halka/rota/segment/189-parça kabul kontrolleri geçti. Ancak ilk test yanlışlıkla Map4 collider sayılarının [6,36,200] değerini **Map1 hâlâ aktifken** bekledi; gerçek Map1 durumunda bu fizik nesneleri [0,0,0] olduğundan yalnız QA aşama varsayımı başarısızdı. Harita1 [0,0,0] ve Harita4 başladıktan sonra [6,36,200] kontrolü olarak düzeltildi; yeni HEAD'de gerçek CI PASS ayrıca doğrulanmalı.
 - Native kullanıcı ekran kartı FPS/p95 ve 5dk oynayarak görsel onayı açık.
 
 ## Korunacak sabitler
