@@ -12332,6 +12332,165 @@
                 paint.setIndex(paintIndices);paint.computeVertexNormals();
                 emit(paint,'RED');paint.dispose();
             };
+            // NEXT11C20X: the old front shoulder shroud was a straight
+            // rectangular box with a separate partly cantilevered red
+            // bar above/outside it. Replace BOTH, one-for-one, with
+            // a genuine tapered SECOND skin and a conformal RED film.
+            // No changes to the approved swept-wing outer perimeter.
+            const frontShoulderStations=[
+                // local Z, positive-side X centre, half-span X, peak Y
+                [-1.12,4.49,.48,-.103],
+                [-.86,4.54,.79,-.028],
+                [-.48,4.63,.93,-.009],
+                [-.12,4.73,.83,-.021],
+                [.28,4.81,.49,-.102]
+            ];
+            const shoulderCross=[-1,-.76,-.42,0,.42,.76,1];
+            const shoulderValue=(z)=>{
+                let i=0;
+                while(i<frontShoulderStations.length-2&&
+                    z>frontShoulderStations[i+1][0])i++;
+                const a=frontShoulderStations[i],
+                    b=frontShoulderStations[i+1],
+                    t=THREE.MathUtils.clamp((z-a[0])/(b[0]-a[0]),0,1);
+                return [1,2,3].map(j=>a[j]+(b[j]-a[j])*t);
+            };
+            const shoulderTopAt=(z,u)=>{
+                const [, ,peak]=shoulderValue(z);
+                const foot=-.106;
+                return foot+(peak-foot)*Math.pow(1-Math.abs(u),1.55);
+            };
+            const buildShoulderSkins=(side)=>{
+                const p=[],uv=[],idx=[],
+                    cols=shoulderCross.length,
+                    rows=frontShoulderStations.length;
+                for(const underneath of [false,true]){
+                    frontShoulderStations.forEach(([z,center,width],j)=>{
+                        shoulderCross.forEach((u,k)=>{
+                            p.push(side*(center+width*u),
+                                underneath?-.145:shoulderTopAt(z,u),z);
+                            uv.push(k/(cols-1),j/(rows-1));
+                        });
+                    });
+                }
+                const n=rows*cols;
+                const triangle=(a,b,c)=>{
+                    if(side>0)idx.push(a,b,c);
+                    else idx.push(a,c,b);
+                };
+                const face=(a,b,c,d)=>{
+                    triangle(a,b,c);triangle(c,b,d);
+                };
+                for(let j=0;j<rows-1;j++){
+                    for(let k=0;k<cols-1;k++){
+                        const a=j*cols+k,b=a+cols,
+                            c=a+1,d=b+1;
+                        face(a,b,c,d);
+                        face(a+n,c+n,b+n,d+n);
+                    }
+                    // Closed longitudinal edges terminate inside the
+                    // wing skin rather than producing a floating lip.
+                    for(const k of [0,cols-1]){
+                        const a=j*cols+k,b=a+cols;
+                        face(a,a+n,b,b+n);
+                    }
+                }
+                for(const j of [0,rows-1]){
+                    for(let k=0;k<cols-1;k++){
+                        const a=j*cols+k;
+                        face(a,a+1,a+n,a+1+n);
+                    }
+                }
+                const geo=new THREE.BufferGeometry();
+                geo.setAttribute('position',
+                    new THREE.Float32BufferAttribute(p,3));
+                geo.setAttribute('uv',
+                    new THREE.Float32BufferAttribute(uv,2));
+                geo.setIndex(idx);geo.computeVertexNormals();
+                emit(geo,'SECOND');geo.dispose();
+
+                // Inlaid red race accent now touches the same shoulder
+                // at ALL 9x3 real surface samples, not a separate block.
+                // Keep a 0.012 clearance to avoid z-fighting.
+                const stripeZ=[-.84,-.75,-.65,-.56,-.47,-.38,-.29,-.21,-.14],
+                    cross=[.62,.75,.88],
+                    red=[],redUV=[],redIndex=[];
+                stripeZ.forEach((z,j)=>{
+                    const [center,width]=shoulderValue(z);
+                    cross.forEach((u,k)=>{
+                        red.push(side*(center+width*u),
+                            shoulderTopAt(z,u)+.012,z);
+                        redUV.push(k/(cross.length-1),j/(stripeZ.length-1));
+                    });
+                    if(j>0)for(let k=0;k<cross.length-1;k++){
+                        const a=(j-1)*cross.length+k,b=a+cross.length;
+                        if(side>0)redIndex.push(a,b,a+1,a+1,b,b+1);
+                        else redIndex.push(a,a+1,b,a+1,b+1,b);
+                    }
+                });
+                const paint=new THREE.BufferGeometry();
+                paint.setAttribute('position',
+                    new THREE.Float32BufferAttribute(red,3));
+                paint.setAttribute('uv',
+                    new THREE.Float32BufferAttribute(redUV,2));
+                paint.setIndex(redIndex);paint.computeVertexNormals();
+                emit(paint,'RED');paint.dispose();
+            };
+            // NEXT11C20X: connect the aft engine root to its wing by
+            // replacing ONE flat bridge box with ONE tapered, closed
+            // SECOND surface. Longitudinal roots stay in the same wing.
+            const aftBridgeStations=[
+                // span x, z centre, half-depth z, upper y
+                [2.32,1.49,.115,-.072],
+                [2.78,1.55,.210,-.051],
+                [3.62,1.66,.247,-.043],
+                [4.53,1.78,.191,-.055],
+                [5.19,1.85,.105,-.085]
+            ];
+            const buildAftWingBridge=(side)=>{
+                const points=[],uv=[],idx=[],
+                    cols=5,rows=aftBridgeStations.length;
+                for(const underneath of [false,true])
+                    aftBridgeStations.forEach(([x,z,w,roof],j)=>{
+                        for(let k=0;k<cols;k++){
+                            const u=k/(cols-1),
+                                depth=2*u-1,
+                                y=underneath?-.143:
+                                  -.108+(roof+.108)*(1-Math.abs(depth)**1.6);
+                            points.push(side*x,y,z+depth*w);
+                            uv.push(u,j/(rows-1));
+                        }
+                    });
+                const upper=rows*cols;
+                const tri=(a,b,c)=>{
+                    if(side>0)idx.push(a,b,c);
+                    else idx.push(a,c,b);
+                };
+                const quad=(a,b,c,d)=>{tri(a,b,c);tri(c,b,d);};
+                for(let j=0;j<rows-1;j++){
+                    for(let k=0;k<cols-1;k++){
+                        const a=j*cols+k,b=a+cols,
+                            c=a+1,d=b+1;
+                        quad(a,b,c,d);quad(a+upper,c+upper,b+upper,d+upper);
+                    }
+                    for(const k of [0,cols-1]){
+                        const a=j*cols+k,b=a+cols;
+                        quad(a,a+upper,b,b+upper);
+                    }
+                }
+                for(const j of [0,rows-1])
+                    for(let k=0;k<cols-1;k++){
+                        const a=j*cols+k;
+                        quad(a,a+1,a+upper,a+upper+1);
+                    }
+                const geo=new THREE.BufferGeometry();
+                geo.setAttribute('position',
+                    new THREE.Float32BufferAttribute(points,3));
+                geo.setAttribute('uv',
+                    new THREE.Float32BufferAttribute(uv,2));
+                geo.setIndex(idx);geo.computeVertexNormals();
+                emit(geo,'SECOND');geo.dispose();
+            };
             // Unified dorsal fairing replaces alternating loose
             // surface rectangles with a single long body cap.
             box('HULL',0,.70,2.16,.90,.13,2.32);
@@ -12342,13 +12501,9 @@
                 // sweep; white top surfaces remain the dominant material.
                 // Red race stripe is already a single extruded
                 // wingDeckPlate; duplicate floating line overlays gone.
-                // Sit the shroud .05 lower: its old underside
-                // floated above the wing deck. Retain the red
-                // line-to-shroud overlap at ~.004 so no z-fight gap.
-                box('SECOND',side*4.63,-.07,-.42,
-                    1.85,.12,1.46,0,side*.19);
-                box('RED',side*5.56,.016,-.33,
-                    .28,.06,1.24,0,side*.18);
+                // Two existing detached boxes become exactly two
+                // physically conformal surfaces (SECOND body, RED paint).
+                buildShoulderSkins(side);
                 box('DARK',side*6.70,-.13,1.61,
                     1.08,.13,.39,0,side*.06);
                 // Tall wings have a machined inner spar and layered
@@ -12446,8 +12601,8 @@
                 hoop('DARK',side*1.80,-.25,5.53,.97);
                 // Connected engine-to-wing aerodynamic shroud
                 // replaces seven floating exhaust cover chips.
-                box('SECOND',side*3.75,-.083,1.71,
-                    2.90,.055,.42,0,side*.11);
+                // Original one box replaced one contoured bridge.
+                buildAftWingBridge(side);
                 line('ORANGE',[side*2.50,-.050,1.28],
                     [side*5.0,-.050,2.22],.056);
                 // Blue navigation line + inset unlit trailing groove:                // Blue navigation line + inset unlit trailing groove:
@@ -12639,6 +12794,17 @@
             root.userData.noseStripeWidthSamples=3;
             root.userData.noseStripeSkinClearance=.018;
             root.userData.flushedWingShrouds=2;
+            root.userData.contouredFrontShoulders=2;
+            root.userData.frontShoulderStations=5;
+            root.userData.frontShoulderCrossSections=7;
+            root.userData.frontShoulderPaintGrids=[9,3];
+            root.userData.frontShoulderRedClearance=.012;
+            root.userData.taperedAftWingBridges=2;
+            root.userData.aftBridgeStations=5;
+            root.userData.shoulderBoxesReplaced=4;
+            root.userData.aftBoxesReplaced=2;
+            root.userData.shoulderGeometryNoExtraPieces=true;
+            root.userData.shoulderOriginalMSAA=true;
             root.userData.conformalWingPaintStrips=2;
             root.userData.wingPaintTessellation=[17,3];
             root.userData.wingPaintSurfaceY=-.096;
