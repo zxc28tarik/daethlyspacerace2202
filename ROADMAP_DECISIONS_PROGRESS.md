@@ -715,3 +715,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KABUL BELGESİ:** [NEXT11C20I](MAP1_NEXT11C20I_SB07_UNIFIED_SURFACE_ACCEPTANCE.md). **NEXT11C20J** gerçek artifakt görüntüleri incele, fazla parlama/z-fighting, yüksek segment GPU yükü ve UX sorunu varsa düzelt; gereksiz dekor parçası ekleme.
 
 **Günlük:** `2026-11-19 | NEXT11C20I | REAL MODEL 354->191 (−46%) | CHASE-SAFE 16/32/40 CURVES | JS PASS / WEBGL CI UNVERIFIED | DRAFT NO MERGE | NEXT11C20J`.
+
+
+## 35) 19 Kasım 2026 — NEXT11C20J SB-07 bütünleşik yüzey oturtma / z-fight risk onarımı
+
+- **SEVK:** Kullanıcının "." mesajı = sıradaki geliştirme adımına geç. C20I "parça eklemek yerine birleştir" kararı KESİN, C20H/C20I onaylı SB-07 silueti değişmez.
+- **GERÇEK KOD:** `codex/map1-sb07-zenit-surface-fit-j`, PR #74 üstüne ayrı stacked draft. C20I tek parça burun kırmızı şeridi eski sabit yüksekliklerden bağımsız `hullRows` 14-gen gövde istasyonlarına göre yeniden hesaplandı: 5 z istasyonu x 3 genişlik örneği ve yalnız .018 düzgün surface clearance; 1 ribbon parçası korunur. Sağ/sol wing shroud CENTER -0.02→-0.07, alt yüzey -0.08→-0.13 gerçek kanat üstüne indirildi; iki üst kırmızı şerit de .066→.016. Yeni dekoratif geometri ve yeni collider yok.
+- **KALİTE:** 354→191 gerçek kaynak-builder parça azalışı, 7 materyal mesh +2 plume sprite bütçesi; line16/motor32/torus40/bevel4/glass11 ve 128² trilinear/aniso4 materyal korunuyor.
+- **TEST:** Tam oyun JS parse PASS; Chrome testinde 5×3 gerçek kırmızı burun vertex + ±.004 14-gen yüzey koordinat check, shroud skin samples, studio gerçek RenderTriangles/geometries budget, Map1 race/Map4 arena korunma check ve PNG taraması eklendi. Yalnız test kodu hazır, **webGL CI PASS/görsel ve native GPU FPS başarısı henüz teyit edilmedi**.
+- **BELGE:** [NEXT11C20J](MAP1_NEXT11C20J_SB07_SURFACE_FIT_QA.md). **SIRADA NEXT11C20K:** Gerçek CI ve screenshot kanıtını incele, gereksiz parça eklemeden hedefli kusur düzelt.
+- **KORUMA:** Harita4 B-04 ve 6/36/200 colliders, combat/AI/timer, Harita1 kamera/physics/HUD/boost untouched. **DRAFT / NO MERGE**.
+
+**Günlük:** `2026-11-19 | NEXT11C20J | SINGLE NOSE STRIPE HULL SKIN FIT + WING SHROUD FLUSH | 191 PARTS / 7 BATCH | JS SYNTAX PASS CI AÇIK | NO MERGE | NEXT11C20K`.
