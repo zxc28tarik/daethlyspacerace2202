@@ -93,6 +93,8 @@ const {chromium}=require('playwright');
         depthWrite:s.material.depthWrite,
         textureWidth:s.material.map?.image?.width||0,
         minFilter:s.material.map?.minFilter,
+        hasTrilinearMinFilter:
+          s.material.map?.minFilter===THREE.LinearMipmapLinearFilter,
         mipmapped:!!s.material.map?.generateMipmaps,
         anisotropy:s.material.map?.anisotropy||0,
         noCollider:s.userData.noCollider
@@ -311,7 +313,7 @@ const {chromium}=require('playwright');
   assert(geometry.haloSprites.every(s=>
     s.additive&&s.depthWrite===false&&
     s.textureWidth===128&&s.noCollider&&
-    s.minFilter===THREE.LinearMipmapLinearFilter&&
+    s.hasTrilinearMinFilter===true&&
     s.mipmapped&&s.anisotropy>=4),
     'engine glows need safe additive blending + shared procedural atlas');
   assert(geometry.haloTextureShared,
@@ -680,7 +682,7 @@ const {chromium}=require('playwright');
   });
   assert.deepEqual(errors,[],errors.join('\n'));
   const report={
-    status:'PASS',id:'NEXT11C20K',
+    status:'PASS',id:'NEXT11C20L',
     reference:'user-approved SB-07 Zenit image, gameplay art only',
     geometry,normal,boost,fixedNormal,fixedBoost,oblique,
     studioNormal,studioFront,studioBoost,map4Preserved:after,
@@ -691,6 +693,7 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    qaRepair:'Trilinear filter checked in browser realm, not Node.js',
     overlappingPanelLayers:geometry.overlappingPanelLayers,
     stripeStations:geometry.stripeStations,
     flushWingShroudVertices:geometry.shroudSkinSamples,

@@ -741,3 +741,16 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **GİTHUB:** stacked draft branch, kullanıcı açık izni olmadan **NO MERGE**.
 
 **Günlük:** `2026-11-19 | NEXT11C20K | REAL OVERLAP CORRECTION / 191->189 | RED +.016, FLAP & ROOT +.012 | JS PASS, CI UNVERIFIED | NO MERGE | NEXT11C20L`.
+
+
+## 37) 19 Kasım 2026 — NEXT11C20L gerçek GitHub Actions test hata giderme + tam oyun HTML
+
+- **YENİ DAL:** `codex/map1-sb07-zenit-webgl-qa-fix-l` üst üste taslak, C20K PR #76 tabanlı. Kullanıcının '.' komutu mevcut C20L kalite/doğrulama basamağına ilerleme anlamında uygulandı.
+- **GERÇEK CI BULGUSU:** Önceki C20K commit `96e0b96...` için GitHub push bazlı Actions çıktısı kontrol edildi. `#44509601434` hızlı Chrome SB07 QA = **FAIL**; `#44509601442` bütün Map1/4 smoke = **FAIL**. Kök: `tests/map1-next11c20-sb07-zenit.cjs:314` Node.js tarafında `THREE.LinearMipmapLinearFilter` kullanıyor, ancak Three.js yalnız `page.evaluate` browser tarafında var: `ReferenceError: THREE is not defined`. Offline GLB/oyun paketleme ve offline HTML Chromium kontrolü **başarılıydı**. Önceki "CI durumuna erişemiyoruz" kaydı yerine bu **doğrulanmış FAIL** esas alınacak.
+- **KOD DÜZELTMESİ:** browser `page.evaluate` içinde gerçek materyal `map.minFilter===THREE.LinearMipmapLinearFilter` boolean okunuyor; Node tarafında `s.hasTrilinearMinFilter===true` kontrol ediliyor. Sahte bypass yok, gerçek WebGL/material assert korunur. `index.html` aynı, 189 parça / 7 opaque material batch +2 halo Sprite, onaylı düz kanat/dikey uçlar, Map1 racing-only ve Map4 B-04 aynen.
+- **İNDİRİLEBİLİR TAM OYUN:** Actions full smoke `#44509601442` ile `map4-current-branch-playable-html` artifact ID `14520499229` çıktı. Bu ZIP Github bağlayıcısıyla indirildi; `Uzay_Yarisi_Guncel_Oynanabilir.html` dosyası (5,734,682 bayt) çıkarılıp `Starblade_Tekken5_Overdrive_PR76_Tam_Oyun.html` olarak konuşmaya doğrudan eklendi. Gerçek çevrimdışı oyun paketi; basit 3D önizleme veya indirici DEĞİL. Bundle içinde 4 inline JavaScript script `new Function` ile parse PASS. **Oynanış donanım testinin tümü başarıyla bitmedi.**
+- **GÜNCEL TEST:** Özel `.github/workflows/map1-next11c20l-zenit-qa.yml` ve tam `map-browser-smoke.yml` dal tetiklemesi kondu; GitHub yeni testleri tetikledi. Yeni çalışmanın sonuç raporu ayrı doğrulanmadan PASS iddiası yok.
+- **KABUL BELGESİ:** [C20L gerçek QA onarımı](MAP1_NEXT11C20L_REAL_WEBGL_QA_REPAIR.md). NEXT11C20M: son canlı QA run sonuçlarına göre gerekli gerçek 3D yüzey/koordinat düzeltmeleri ve gözle görüntü kabulü; yeni dekoratif küçük parça yok.
+- **KORUMA:** Kullanıcı açık onayı olmadan PR merge yok.
+
+**Günlük:** `2026-11-19 | NEXT11C20L | FOUND REAL CI FAIL NODE THREE | FIXED TEST REAL BROWSER FILTER | EXTRACTED DIRECT OFFLINE GAME HTML | CI RE-RUN IN PROGRESS/UNVERIFIED | DRAFT NO MERGE | NEXT11C20M`.
