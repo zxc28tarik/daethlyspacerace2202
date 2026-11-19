@@ -131,7 +131,10 @@ const errors=[];
    assert.equal(first.playerPartCount,189);
    assert.equal(first.combatPartCount,249);
    assert.equal(first.map1RaceVisible,true);
-   assert.deepEqual(first.physics,[6,36,200]);
+   // Map4 world colliders are intentionally lazy-built only when that
+   // map starts. They must not exist in the pure-race Map1 instance.
+   assert.deepEqual(first.physics,[0,0,0],
+     'Map1 must not pre-spawn any Map4 physical colliders');
    assert(first.calls>0&&first.triangles>1000);
    assert.deepEqual(first.buffer,[1280,720]);
    await page.evaluate(()=>{
