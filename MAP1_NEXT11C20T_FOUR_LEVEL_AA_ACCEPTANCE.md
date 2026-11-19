@@ -24,3 +24,7 @@
 
 ## NEXT11C20U
 Dört gerçek kalite mozağini ve JSON ölçümlerini incele. Artımlı 1.25x kazanımı varsa yalnız Harita1'e isteğe bağlı kalite profili A/B prototipini risk sınırlarıyla öner; yoksa mevcut WebGL MSAA'yı koru. Gerçek donanım FPS/p95 ve 5 dakika oynanış kullanıcı estetik kabulü açık. Yeni dekor yok, PR merge yok.
+
+## Nihai kullanıcı kabul kararı — 19 Kasım 2026
+
+Kullanıcı karşılaştırma görüntülerini inceledi ve **orijinal 1.00× MSAA'nın en iyi göründüğünü** belirtti. Nihai sanat/estetik kabulü bu yöndedir. 1.25×/1.5×/2× supersampling deneysel yöntemleri oyuna taşınmayacak ve kalite modları olarak sunulmayacak. Önceki NEXT11C20U isteğe bağlı AA profil planı **iptal**. Kontrol deneyleri tarihsel QA kanıtı olarak korunur. Bir sonraki adım yalnız orijinal renderda gerçek çizgi/yüzey geometrisi temizliği ve parça birleştirme yönünde olacaktır. Hiçbir PR kullanıcı açık onayı olmadan merge edilmez.
