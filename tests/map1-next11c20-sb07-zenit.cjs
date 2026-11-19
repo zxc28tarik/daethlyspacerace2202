@@ -49,6 +49,10 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      flushWingTopcoats:race.userData.flushWingTopcoats,
+      recessedWingLouverPairs:race.userData.recessedWingLouverPairs,
+      engineThroatRings:race.userData.engineThroatRings,
+      thermalShieldSegments:race.userData.thermalShieldSegments,
       controlSurfacePanels:race.userData.controlSurfacePanels,
       engineStatorVanes:race.userData.engineStatorVanes,
       bellySpars:race.userData.bellySpars,
@@ -84,6 +88,10 @@ const {chromium}=require('playwright');
       glassVertices:meshes.find(m=>m.name==='NEXT11C20_SB07_GLASS')
         .geometry.getAttribute('position').count,
       plasmaRearLip:samples(plasma,(x,y,z)=>z>6.37),
+      insetRearPlasmaLeft:samples(plasma,
+        (x,y,z)=>x<-1&&z>6.53),
+      insetRearPlasmaRight:samples(plasma,
+        (x,y,z)=>x>1&&z>6.53),
       statorLeft:samples(meshes.find(m=>
         m.name==='NEXT11C20_SB07_SECOND'),
         (x,y,z)=>x<-1.0&&z>6.48),
@@ -111,7 +119,14 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20D');
+  assert.equal(geometry.detailPass,'NEXT11C20E');
+  assert.equal(geometry.flushWingTopcoats,true);
+  assert.equal(geometry.recessedWingLouverPairs,8);
+  assert.equal(geometry.engineThroatRings,6);
+  assert.equal(geometry.thermalShieldSegments,12);
+  assert(geometry.insetRearPlasmaLeft>24&&
+    geometry.insetRearPlasmaRight>24,
+    'new inner plasma throat must exist in both engines');
   assert.equal(geometry.controlSurfacePanels,4);
   assert.equal(geometry.engineStatorVanes,20);
   assert.equal(geometry.bellySpars,4);
@@ -333,6 +348,8 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    insets:[geometry.insetRearPlasmaLeft,
+      geometry.insetRearPlasmaRight],
     statorSamples:[geometry.statorLeft,geometry.statorRight],
     boostLighting:[normal.thrustGlow,boost.thrustGlow],
     wingDeck:geometry.wingDeckPanels,glass:geometry.glassVertices,
