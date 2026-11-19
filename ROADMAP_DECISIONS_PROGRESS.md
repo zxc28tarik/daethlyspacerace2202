@@ -974,3 +974,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SIRADAKİ NEXT11C20Z:** Y farklı açılarda incelendikten sonra varsa gerçek ön gövde/motor üst normalleri kusurunu düzelt; yeni dekor ve izinsiz merge yok.
 
 **Günlük:** 2026-11-19 | NEXT11C20Y | 180 surface normals / 2 corrected aft face winding | unchanged 189 parts and original 1x AA | dedicated/full CI pending | DRAFT NO MERGE.
+
+
+## 51) 19 Kasım 2026 — NEXT11C20Z burun ve çift motor üzerindeki gerçek geometri normalleri
+
+- **GÖRSEL KALİTE KARARI:** FPS yükseltmek değil, kullanıcı tarafından en iyi seçilen **orijinal 1× MSAA** görüntüsünde uzun kama burun ve iki motorun ışık geçişlerini geliştirmek. Hiçbir ilave süs parçası/AA filtresi yok.
+- **OYUN KODU `index.html`:** SB-07 `customHull` 14 köşeli burun yan yüzlerinde orijinal inward üçgen winding düzeltildi; 9 gövde halkasında 6 üst nokta = **54 roof normal** gerçek teğetlerden hesaplandı. C20U'daki iki motor upper aero-spine'da 6×7×2 = **84 roof normal** ve orijinal inward winding düzeltildi. Burun/kanat/motor sınır koordinatları, renk/PBR texture, 189 parça /7 material batch +2 glow, race-only ve Map4 B-04 249 collider unchanged. Toplam **138** upper normal + 4 gerçek outward face orientation kontrolü.
+- **QA:** `tests/map1-next11c20z-nose-engine-roof-normals.cjs` gerçek GPU'daki `normal/position` attribute'larında 138 tepe normale normal-dot>0.985; gerçek görünen üçgenlerde 2 nose side outward ve 2 engine top upward; geçmiş U30/W154/X174/Y180/R304, özgün playable/boost/Map4 koruma ve 4 gerçek 1600×900 WebGL görünüm. Özel + full browser QA eklendi. Son HEAD CI sonucu beklenmeden PASS ilan edilmez.
+- **DOKÜMAN:** [NEXT11C20Z kabul protokolü](MAP1_NEXT11C20Z_NOSE_ENGINE_NORMALS_ACCEPTANCE.md). **SONRAKİ NEXT11C21A:** yalnız görsel A/B'de gerçekten kalan kusur varsa yerel yüzey kalite düzeltmesi; dekor/çözünürlük yükseltme yok, DRAFT/NO MERGE.
+
+**Günlük:** 2026-11-19 | NEXT11C20Z | 54 original nose roof normals +84 twin-engine roof normals / correct inside-out hull and engine triangles | 138 real normal +4 face tests | native 1x MSAA | CI pending | stacked draft.
