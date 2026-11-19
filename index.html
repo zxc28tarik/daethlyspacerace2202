@@ -12836,7 +12836,9 @@
                     roughnessMap:satinCeramicFinish,
                     bumpMap:satinCeramicFinish,bumpScale:.006,
                     clearcoat:.30,clearcoatRoughness:.23,
-                    emissive:0x97a7ba,emissiveIntensity:.12,
+                    // Preserve exact user-approved legacy ceramic glow:
+                    // changing this breaks original art baseline.
+                    emissive:0x97a7ba,emissiveIntensity:.20,
                     side:THREE.DoubleSide}),
                 SECOND:new THREE.MeshPhysicalMaterial({
                     name:'SB07_GUNMETAL_SUBFRAME',
