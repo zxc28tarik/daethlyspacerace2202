@@ -11621,9 +11621,7 @@
             const cube=new THREE.BoxGeometry(1,1,1),
                 lineTube=new THREE.CylinderGeometry(.5,.5,1,16,1,false),
                 tube=new THREE.CylinderGeometry(.5,.5,1,32),
-                ring=new THREE.TorusGeometry(.5,.085,10,40),
-                dome=new THREE.SphereGeometry(.5,14,10),
-                rect=new THREE.BoxGeometry(1,1,1,2,1,3);
+                ring=new THREE.TorusGeometry(.5,.085,10,40);
             const m=new THREE.Matrix4(),
                 p=new THREE.Vector3(),s=new THREE.Vector3(),
                 q=new THREE.Quaternion(),e=new THREE.Euler();
@@ -12222,13 +12220,15 @@
                 halo.scale.set(1.68,1.68,1);
                 plasmaMesh.add(halo);
             }
-            for(const g of [cube,lineTube,tube,ring,dome,rect])g.dispose();
+            // Retained only used reusable source primitives.
+            for(const g of [cube,lineTube,tube,ring])g.dispose();
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
             root.userData.detailPass='NEXT11C20I';
             root.userData.unifiedNoseStripe=true;
-            root.userData.integratedWingRootPanels=2;
+            root.userData.integratedWingRootPanels=4;
+            root.userData.integratedWingRootChannels=2;
             root.userData.continuousCanopyRails=2;
             root.userData.integratedWingRearRails=4;
             root.userData.integratedNacelleGrooves=2;
@@ -12267,7 +12267,7 @@
             root.userData.cockpitClearcoat=.75;
             root.userData.thrustGlow=0;
             root.userData.facetedCanopy=true;
-            root.userData.wingDeckPanels=12;
+            root.userData.wingDeckPanels=14;
             root.userData.nozzleCrowns=2;
             root.userData.nozzlePetals=0;
             root.userData.sharedMicrofinish=true;
