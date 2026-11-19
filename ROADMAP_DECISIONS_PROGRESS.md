@@ -655,3 +655,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Belge:** [NEXT11C20D](MAP1_NEXT11C20D_SB07_MECHANICAL_DETAIL_ACCEPTANCE.md).
 
 **Günlük:** `2026-11-19 | NEXT11C20D | DRAFT CODED | 4 kontrol paneli+20 stator+ızgara+kanal | JS PARSE PASS / CI AÇIK | NO MERGE | NEXT11C20E`.
+
+## 30) 19 Kasım — NEXT11C20E SB-07 yüzeye oturtma ve twin-engine art kalite
+
+- **KULLANICI:** "detay ve kalite arttırma devam". Kod/mevcut oyun kalitesine yönelik ve önceki onaylı SB-07 siluetini koruyan aşama.
+- **GELİŞTİRME KODU:** `codex/map1-sb07-zenit-surface-art-e` dalında C20D PR #69 üstüne: 8 kanat kökü hava kanalı, 2 ince spar çizgisi, fasetli cam ön/arka conta ve üst cam derzi, her motor için 3 iç 3D halka (toplam 6), 12 iç ısı kalkanı. Önceki kanat üst kaplama/yarış şeritleri ve kontrol derzleri y-offset hatası azaltılarak gerçek aerofoil üstüne indirildi; yeni uç veya şekil yok.
+- **KORUMALAR:** 7 SB-07 / 6 B-04 materyal grubu, 0 external asset/collider/weapon, normal Cinematic Chase ve boost Tight geçişi, C18, Harita1 adil yarış, Harita4 6/36/200, 5 rakip 8 hunter, 60/300/850 +%18/+%12.
+- **QA:** Bütün HTML script JS syntax PASS; WebGL C20E gerçek iki motor boğazı ve yeni meta kontrol eklendi; hızlı/full workflow. V3 ayrı HTML önizleme dosyası mevcut; **üretim oyunu WebGL başarı, FPS ve kullanıcı görsel onayı yok**.
+- **GitHub:** [Kabul belgesi](MAP1_NEXT11C20E_SB07_SURFACE_QUALITY_ACCEPTANCE.md). Draft stacked branch; kullanıcının açık kararı olmadan **NO MERGE**.
+- **NEXT11C20F:** Önce görüntü ve motor boğazı/kanat paneli clipping testleri, sonra çok hedefli art düzeltme.
+
+**Günlük:** `2026-11-19 | NEXT11C20E | GÖRSEL KALİTE KODLANDI | FLOATING PANEL FIX + ENGINE DEPTH | SYNTAX PASS / CI AÇIK | ESTETİK AÇIK | NO MERGE | NEXT11C20F`.
