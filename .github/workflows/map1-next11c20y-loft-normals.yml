@@ -1,0 +1,47 @@
+name: Map1 NEXT11C20Y Joined Loft Surface Normals WebGL QA
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-loft-normals-y]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-surface-normals:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install genuine Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: JavaScript syntax of new real normal QA
+        run: node --check tests/map1-next11c20y-smooth-loft-normals.cjs
+      - name: Original SB-07 flying view and normal / boost Map4 protection
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: C20U original integrated engine skin QA
+        run: node tests/map1-next11c20u-contoured-spines.cjs
+      - name: C20V original 60 hull-wing roof samples
+        run: node tests/map1-next11c20v-wing-root-fillet.cjs
+      - name: C20W original wing paint and inlay
+        run: node tests/map1-next11c20w-paint-and-inlays.cjs
+      - name: C20X shoulder, red film and engine-wing alignment
+        run: node tests/map1-next11c20x-shoulder-aft-skins.cjs
+      - name: C20Y 180 real GPU normals and upper aft winding plus four views
+        run: node tests/map1-next11c20y-smooth-loft-normals.cjs
+      - name: Preserve original 304 rail seams and Map4 physics
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Save real 1600x900 Chromium WebGL art and normals report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20y-loft-normals-real-webgl
+          path: |
+            tests/next11c20y-evidence/
+            tests/next11c20x-evidence/
+            tests/map1-next11c20-zenit-studio*.png
+            tests/next11c20r-evidence/
+          if-no-files-found: warn
