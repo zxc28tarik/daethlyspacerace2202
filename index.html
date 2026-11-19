@@ -10154,7 +10154,9 @@
             corridorGuideGroup.clear();
             const r = state.tubeRadius;
             const railMaterial = new THREE.LineBasicMaterial({ color: 0x17adcf, transparent: true, opacity: 0.58, blending: THREE.AdditiveBlending, depthWrite: false });
-            const ringMaterial = new THREE.LineBasicMaterial({ color: 0x406dff, transparent: true, opacity: 0.43, blending: THREE.AdditiveBlending, depthWrite: false });
+            // NEXT11C20O: dial down distant micro-rings. Major course
+            // rings, lane boundaries, navigation and impact remain clear.
+            const ringMaterial = new THREE.LineBasicMaterial({ color: 0x406dff, transparent: true, opacity: 0.30, blending: THREE.AdditiveBlending, depthWrite: false });
             const majorRingMaterial = new THREE.LineBasicMaterial({ color: 0x00e7ed, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
             // Kanat sürtünmesinin başlayacağı ve ağırlaşacağı eşikler de görülebilir.
             const boundaryHintMat = new THREE.LineBasicMaterial({ color: 0xffba65, transparent: true, opacity: 0.20, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -10183,17 +10185,57 @@
                 points.push(end.center.clone().addScaledVector(end.right, Math.cos(theta) * getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE)).addScaledVector(end.up, Math.sin(theta) * getCorridorRadiusAt(RACE_ROUTE_NOMINAL_DISTANCE)));
                 corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), railMaterial));
             }
-            // Aralıklı dairesel kesitler koridorun çapını ve dönüşlerini gösterir.
+            // NEXT11C20O: the SAME exact ring coordinates and spacing,
+            // but five course sectors each hold two merged line batches.
+            // 192 disconnected LineLoop objects => <=10 LineSegments.
+            // Sector bounds (10km) keep frustum culling local; one huge
+            // 50km buffer would cause avoidable distant GPU work.
+            const corridorRingSectors=Array.from({length:5},(_,sector)=>({
+                sector,minor:[],major:[],minorCount:0,majorCount:0
+            }));
             for (let d = 160; d < RACE_ROUTE_NOMINAL_DISTANCE; d += 260) {
                 const f = getRaceFrameAtDistance(d);
                 const points = [];
+                const radius=getCorridorRadiusAt(d);
                 for (let k = 0; k < 48; k++) {
-                    const a = k * Math.PI * 2 / 48;
-                    points.push(f.center.clone().addScaledVector(f.right, Math.cos(a) * getCorridorRadiusAt(d)).addScaledVector(f.up, Math.sin(a) * getCorridorRadiusAt(d)));
+                    const a=k*Math.PI*2/48;
+                    points.push(f.center.clone()
+                        .addScaledVector(f.right,Math.cos(a)*radius)
+                        .addScaledVector(f.up,Math.sin(a)*radius));
                 }
-                const major = Math.round((d - 160) / 260) % 5 === 0;
-                corridorGuideGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), major ? majorRingMaterial : ringMaterial));
+                const major=Math.round((d-160)/260)%5===0;
+                const sector=corridorRingSectors[Math.min(4,Math.floor(d/10000))];
+                const target=major?sector.major:sector.minor;
+                for(let k=0;k<48;k++){
+                    target.push(points[k],points[(k+1)%48]);
+                }
+                if(major)sector.majorCount++;
+                else sector.minorCount++;
             }
+            let corridorRingBatchCount=0;
+            for(const sector of corridorRingSectors){
+                for(const [kind,material] of [
+                    ['minor',ringMaterial],['major',majorRingMaterial]
+                ]){
+                    const pts=sector[kind];
+                    if(!pts.length)continue;
+                    const mesh=new THREE.LineSegments(
+                        new THREE.BufferGeometry().setFromPoints(pts),material);
+                    mesh.name='MAP1_C20O_'+kind.toUpperCase()+
+                        '_RINGS_SECTOR_'+sector.sector;
+                    mesh.userData={visualOnly:true,noCollider:true,
+                        sector:sector.sector,ringKind:kind,
+                        ringCount:sector[kind+'Count']};
+                    corridorGuideGroup.add(mesh);
+                    corridorRingBatchCount++;
+                }
+            }
+            corridorGuideGroup.userData.ringBatchCount=corridorRingBatchCount;
+            corridorGuideGroup.userData.ringOriginalCount=
+                corridorRingSectors.reduce((n,s)=>n+s.minorCount+s.majorCount,0);
+            corridorGuideGroup.userData.ringSectorCount=5;
+            corridorGuideGroup.userData.ringEdgeSegments=48;
+            corridorGuideGroup.userData.ringGeometryConsolidated=true;
         }
         // Parlak kenar çizgileri ile tariflenen yarı saydam UÇUŞ YOLU: görsel yol, 3D manevrayı kısıtlamaz.
         const raceRoadGroup = new THREE.Group();
@@ -10330,7 +10372,9 @@
             const pulse = 0.5 + 0.5 * Math.sin(state.raceTime * 3.2);
             const speed = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.BRAKE) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.BRAKE), 0, 1);
             m.railMaterial.opacity = 0.45 + 0.18 * pulse + 0.07 * speed;
-            m.ringMaterial.opacity = 0.33 + 0.17 * pulse;
+            // NEXT11C20O: avoid blue micro-ring washout while
+            // preserving emphasized primary gate and crash-boundary cues.
+            m.ringMaterial.opacity = 0.24 + 0.12 * pulse;
             m.majorRingMaterial.opacity = 0.70 + 0.22 * pulse;
             m.boundaryHintMat.opacity = 0.12 + 0.11 * pulse;
             m.boundaryDangerMat.opacity = 0.17 + 0.14 * pulse + 0.15 * (state.boundaryLevel >= 2 ? 1 : 0);

@@ -782,3 +782,22 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **MERGE:** Kullanıcının açık onayı yok, stacked taslaklar **NO MERGE**.
 
 **Günlük:** `2026-11-19 | NEXT11C20N | REAL CHROMIUM MAP1+MAP4 720/1080 WEBGL PERF PASS | 257/284 DRAW CALLS | 62k/177k TRIANGLES | APT503 CI MITIGATED | NATIVE GPU & FULL SMOKE PENDING | DRAFT NO MERGE`.
+
+
+## 40) 19 Kasım 2026 — NEXT11C20O Harita1 uzak hatlarını 5 sektör/10 birleşik halka grubuna indirme
+
+- **KULLANICI TALİMATI:** "." = sonraki basamağa geç. Kalıcı kısıt: yeni gereksiz parçalar yerine bütünleşik geometri ve pürüzsüz/az titreşen çizgiler.
+- **GERÇEK KOD:** `codex/map1-sb07-zenit-corridor-clarity-o` branch. `index.html` Harita1 `buildVisibleCorridor` fonksiyonundaki 192 `LineLoop` arka plan ring **192→10** `LineSegments` (5 adet 10km sektör ×2 malzeme) olarak gerçek 3D birleşik buffer'a alındı. 192 ring koordinatı, 48 segment çevre, 39 major / 153 minor ve statik race route 50km aynen. Böylece 182 ayrı çizim nesnesi azaldı; tam sahne draw calls ve native FPS bu sayıyla eşit değildir.
+- **İNCE ÇİZGİ KALİTESİ:** İnce ring opacity başlangıç .43→.30; dinamik pulse .33+.17p→.24+.12p. Major rings/güçlü yönlendirme ve çarpışma sınırları aynen. 16 boylam ışığı+16 sınır rayı korunur; Guide Group 42 çocuk çizgi nesnesi.
+- **OYNANIŞ KORUMA:** Onaylı SB-07 189 parça ve dikey dış wingtip, Map1 saf yarış, Map4 B-04 249 parça/6+36+200 collider/AI ve tüm fizikler değişmez. Global blur/FXAA ve yeni model/parça/kolay kazanma yok.
+- **QA:** game full inline JS parse PASS; Chrome özel gerçek WebGL QA `tests/map1-next11c20o-corridor-clarity.cjs` 192/10, vertex+3D point exact, Map4 protected, 2×720p PNG ve GL draw calls raporu üretecek şekilde kodlandı. Özel + full smoke workflow yeni dala eklendi. Gerçek CI sonucu finalde ayrı teyit edilmeli.
+- **C20N TARİHSEL:** [C20N gerçek başarı #44522289298](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44522289298) SwiftShader 720/1080 PASS, Map1 257 calls/62026 tri, Map4 284 calls/177591 tri; CPU software render FPS olarak yazılmaz.
+- **KABUL:** [C20O](MAP1_NEXT11C20O_CORRIDOR_CLARITY_ACCEPTANCE.md). **SIRADA C20P:** gerçek C20O görselleri/drawCalls karşılaştırması, sektörel görünürlük ve performans doğrulaması, gerekirse minimal düzeltme; kullanıcı onaysız merge yok.
+
+**Günlük:** `2026-11-19 | NEXT11C20O | MAP1 CORRIDOR 192 separate rings -> 10 sector batches | SUBDUED MINOR LINE CONTRAST | ORIGINAL ROUTE/PHYSICS | CI PENDING | DRAFT/NO MERGE`.
+
+
+### NEXT11C20O gerçek QA güncellemesi — 19 Kasım 2026, aynı aşama
+- **KÖK TEST HATASI ONARILDI:** İlk hızlı test Map1 içindeyken fizik `[6,36,200]` bekledi; Map4 henüz seçilmediğinden gerçek durum `[0,0,0]` idi. Harita1 için `[0,0,0]`, Harita4 başladıktan sonra `[6,36,200]` kontrol edildi. Oyun kodu değişmeden QA düzeldi.
+- **GERÇEK SUCCESS:** [GitHub Actions #44524333490](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44524333490) `success`; halka gerçek geometri: **192→10** batch, `ringVertexError=0.00000974`, 189 SB-07, Map1 `renderer.info.render.calls=252` ve Map4 `262`; gerçek Chromium 720p iki PNG artifact [#14528678746](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44524333490/artifacts/14528678746) indirildi. C20N Map1 257 çağrıyla bağımsız test bağlamında görülen fark 5. **Çıkarım sınırı:** C20O nesne azalması, aynı karede 182 gerçek draw-call kazancı anlamına gelmez (frustum culling).
+- **AÇIK:** yeni final commit/PR ve tam 43 basamak smoke testi bitişi, native GPU FPS ve kullanıcı görsel kabulü. Testin başarılı olduğunu iddia etmek için kullanılan HEAD `4f7c304...`; sonraki yalnız MD commit'leri kod değiştirmedi.
