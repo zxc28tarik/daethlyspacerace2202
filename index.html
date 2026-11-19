@@ -11752,7 +11752,8 @@
                     depth:.027,steps:1,bevelEnabled:false
                 });
                 g.rotateX(Math.PI/2);
-                g.translate(0,-.078,0);
+                // Topcoat flush with beveled wing top; no hovering panel.
+                g.translate(0,-.116,0);
                 emit(g,key);
                 g.dispose();
             };
@@ -11832,10 +11833,20 @@
                     [3.35,2.42,4.07,3.03],
                     [5.16,1.50,5.58,2.09]
                 ]){
-                    line('DARK',[side*x1,-.054,z1],
-                        [side*x2,-.054,z2],.055);
-                    box('RED',side*x1,-.02,z1,.13,.038,.12);
+                    line('DARK',[side*x1,-.095,z1],
+                        [side*x2,-.095,z2],.055);
+                    box('RED',side*x1,-.074,z1,.13,.038,.12);
                 }
+                // Four recessed wing-root flow channels per side.
+                for(let k=0;k<4;k++){
+                    const z=-.74+k*.34;
+                    box('DARK',side*(2.65+k*.11),-.077,z,
+                        .33,.055,.16,0,side*.13);
+                    box('SECOND',side*(2.65+k*.11),-.042,z+.09,
+                        .27,.042,.045,0,side*.13);
+                }
+                line('SECOND',[side*2.0,-.095,-2.14],
+                    [side*3.64,-.093,-1.47],.058);
                 // Two tapered service spars on the belly, drawn within
                 // the same visual-only hull and excluded from collision.
                 line('SECOND',[side*1.72,-.51,-1.44],
@@ -11850,6 +11861,10 @@
             box('RED',0,.46,-3.67,.43,.08,1.44);
             const cockpitShell=canopyGlass();
             emit(cockpitShell,'GLASS');cockpitShell.dispose();
+            // Narrow front/rear sealing seams on the custom glass.
+            line('SECOND',[-.42,.74,-4.14],[.42,.74,-4.14],.046);
+            line('SECOND',[-.17,.48,-.53],[.17,.48,-.53],.051);
+            line('DARK',[0,1.21,-2.62],[0,1.09,-1.82],.038);
             const glassRails=[
                 [-4.14,.34,.61],[-3.46,.54,.88],
                 [-2.64,.65,1.01],[-1.84,.59,.92],
@@ -11894,13 +11909,13 @@
             for(const side of [-1,1]){
                 // Angular horizontal red lane markings follow the wing's
                 // sweep; white top surfaces remain the dominant material.
-                line('RED',[side*1.8,.10,-3.42],
-                    [side*6.82,.12,-1.07],.22);
-                line('RED',[side*5.95,.10,-1.06],
-                    [side*7.26,.12,.25],.16);
-                box('SECOND',side*4.63,.23,-.42,
+                line('RED',[side*1.8,-.087,-3.42],
+                    [side*6.82,-.087,-1.07],.16);
+                line('RED',[side*5.95,-.084,-1.06],
+                    [side*7.26,-.084,.25],.12);
+                box('SECOND',side*4.63,-.02,-.42,
                     1.85,.12,1.46,0,side*.19);
-                box('RED',side*5.56,.32,-.33,
+                box('RED',side*5.56,.066,-.33,
                     .28,.06,1.24,0,side*.18);
                 box('DARK',side*6.70,-.13,1.61,
                     1.08,.13,.39,0,side*.06);
@@ -11982,6 +11997,10 @@
                 cyl('SECOND',side*1.80,-.25,6.48,.17,.12);
                 // Outer socket collar just ahead of the engine throat.
                 hoop('DARK',side*1.80,-.25,5.72,.91);
+                // Inset concentric throat layers add actual nozzle depth.
+                hoop('SECOND',side*1.80,-.25,6.33,.95);
+                hoop('DARK',side*1.80,-.25,6.51,.56);
+                hoop('PLASMA',side*1.80,-.25,6.58,.38);
                 for(let j=0;j<6;j++){
                     const a=j*Math.PI/3,
                         cx=side*1.80+Math.cos(a)*1.115,
@@ -12001,6 +12020,13 @@
                         y=-.25+Math.sin(t)*.97;
                     box(j%3===0?'ORANGE':'DARK',
                         x,y,5.52,.12,.10,.62,0,0,-t);
+                }
+                for(let j=0;j<6;j++){
+                    const a=j*Math.PI/3,
+                        x=side*1.80+Math.cos(a)*1.15,
+                        y=-.25+Math.sin(a)*1.15;
+                    box(j%3===0?'ORANGE':'SECOND',
+                        x,y,5.85,.12,.10,.17,0,0,a);
                 }
                 // Two embossed polygonal exhaust housings.
                 for(let j=0;j<7;j++){
@@ -12138,7 +12164,11 @@
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
-            root.userData.detailPass='NEXT11C20D';
+            root.userData.detailPass='NEXT11C20E';
+            root.userData.flushWingTopcoats=true;
+            root.userData.recessedWingLouverPairs=8;
+            root.userData.engineThroatRings=6;
+            root.userData.thermalShieldSegments=12;
             root.userData.controlSurfacePanels=4;
             root.userData.engineStatorVanes=20;
             root.userData.bellySpars=4;
