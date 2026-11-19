@@ -875,3 +875,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **BELGE:** [T kriterleri](MAP1_NEXT11C20T_FOUR_LEVEL_AA_ACCEPTANCE.md). **SIRADAKİ NEXT11C20U:** kanıta bağlı düşük maliyetli AA ayarı kararı; ana dala izinsiz birleştirme yapılmaz.
 
 **Günlük:** 2026-11-19 | NEXT11C20T | 4-level WebGL AA motion/quality A/B | gameplay unchanged | dedicated/full CI pending | draft/no merge.
+
+
+### NEXT11C20T gerçek Chromium/WebGL sonuçları — 19 Kasım 2026
+
+- **Gerçek dört aşamalı başarılı test:** [GitHub Actions #44535863856](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44535863856) tam son kod/acceptance HEAD `87aa1d76d75d...` özel QA **completed/success**. Ayrıca önceki kod HEAD [#44535663412](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44535663412) **success**, ve [artifact #14535976183](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44535663412/artifacts/14535976183) 4 gerçek 2×2 karşılaştırma PNG + JSON + C20R geçiş kanıtı.
+- **4× gerçek çıktı:** 1.25x en/boy -> **1.5625× pixel** / ortalama **%30.34** düşük kareler arası parlaklık hareket metriği; 1.5x -> **2.25× pixel** / **%33.52** azalma; 2x -> **4.00× pixel** / **%33.77** azalma. Her değer 720p +1080p, 12.500m +27.500m toplam dört örneğin aritmetik ortalamasıdır. Referans maliyeti pixel area olup gerçek FPS değildir.
+- **ÖNEMLİ:** 1.5x→2x ek **1.75× nihai çözünürlük alanı** (2.25×→4×) karşılığında yalnız ~**0.25 yüzde puan** daha düşük örnek hareket renk farkı. 1.25x çok daha düşük iş yükü ile 1.5x seviyesine görece yakın: **~3.18 yüzde puan** fark. Bu sonuçlarla henüz zorunlu 1.5x modu açılamaz; fiziksel GPU FPS/p95 60Hz ve 5dk oyun ekran kartı kabulü yok.
+- **SAHNE KORUNDU:** Dört örnekte tüm 1x/1.25x/1.5x/2x aynı çizim çağrıları **52 (12.500m) / 54 (27.500m)**, 6592 / 8400 rendered line; 192 halka/10 grup, 6960 ray segmenti, SB-07 189/B-04 249, Map4 [6,36,200]. Script'te 304/304 R birleşim ve Map4 doğrulaması da PASS. Oyun `index.html` ve gerçek user render ayarı **değişmedi**.
+- **S SONUÇ SINIRI:** Görüntü tanısal chase olmayan kamera ve ±6 metre hareket; temporal parıltı ile sahnenin doğal kayması birbirinden izole değil. Chrome SwiftShader CPU `gl.finish` zamanı native GPU performansını kanıtlamaz. 1.25x düşük maliyet hedefi; 1.5x referans kalitesi; opt-in profil kararı açık.
+- **FULL REGRESSION:** [Son HEAD C20T tam smoke #44535863884](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44535863884) final sonucu ayrıca okunmalı. Kapsamlı test bitmeden 'tam oyun PASS' yazılmaz. **NEXT11C20U**: GPU bütçesi kontrolü ve düşük maliyetli opt-in kalite profilinin mimarisi, default MSAA korunur. **DRAFT / NO MERGE.**
+
+**Günlük:** 2026-11-19 | NEXT11C20T | 1.25 ~30.34% /1.5 ~33.52% /2 ~33.77% motion proxy | same 52/54 calls | 1.5 value saturation | special WebGL PASS, full pending | no runtime change / no merge.
