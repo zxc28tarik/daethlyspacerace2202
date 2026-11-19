@@ -942,3 +942,24 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SIRADAKİ NEXT11C20X:** Gemi motor-kanat ve ön gövde kontur kalitesi, dekor eklemeden gerçek yüzey/normal iyileştirmesi. DRAFT / NO MERGE.
 
 **Günlük:** 2026-11-19 | NEXT11C20W | 2× wing RED slab->conformal paint, 2× DARK cylindrical joint->flush inlay | 154 real vertices | original 1x MSAA | CI pending | draft only.
+
+
+## 49) 19 Kasım 2026 — NEXT11C20X ön kanat omuzlarını / arka motor–kanat bağlantılarını gerçekten bütünleştirme
+
+- **GÖRSEL:** 2 adet ön SECOND kutu omuz +2 üstünde yüzen RED block yerine gerçek kanat eğrisi formunu takip eden **5×7 kapalı metal gövde +9×3 conformal boya filmi**. 2 arka SECOND box yerine **5×5 kapalı, uca doğru incelen motor–kanat bağlantısı**. Toplam eski 6 emit yerine yeni 6 emit, **189 SB-07** kaynak parçası ve 7 malzeme batch +2 halo korunur. Yüksekliği/kavisi kesintili sert kutular yerine gerçek geçişli geometridir.
+- **ORİJİNAL GÖRÜNTÜ:** kullanıcı seçimi 1.00× native MSAA aynı; FPS/grafik filtreleri, renkler, kanat ucu ve ship-approved silhouette, C20U motor, V fillet ve W RED kanat boyası korunur.
+- **GERÇEK QA:** 70 omuz +54 gerçek eğri RED boya +50 arka SECOND = **174 gerçek GPU buffer vertex**, gerçek 6 RED-SECOND kaporta boya raycast, C20W 154/C20V 60/C20U 30/C20R 304 koruma, SB07 normal-boost, 4 gerçek WebGL model PNG, B04 Map4 249/[6,36,200] collider. Dedicated ve tam Map1/4 browser workflows eklendi; testler tamamlanmadan geçiş ilan edilmez.
+- **KAYIT:** [NEXT11C20X kabul belgesi](MAP1_NEXT11C20X_ENGINE_WING_SHOULDER_ACCEPTANCE.md). **SIRADAKİ NEXT11C20Y:** gerçek art fotoğraf farkına göre kalan sert gövde/kanat kenarlarını ve yüzey normallerini geliştir; ekstra dekor, kör performans optimizasyonu ve izinsiz merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20X | two front contoured shoulder +red films, two aft engine-wing bridges | 174 vertex +6 true raycasts | dedicated+full CI pending | original 1x MSAA | DRAFT.
+
+
+### NEXT11C20X — Gerçek gemi modeli WebGL QA PASS ve görsel inceleme (19 Kasım 2026)
+
+- **SANAT DÜZELTMESİ:** İlk kavisli ön kaporta görüntüsü fazla yuvarlak/şişkin bulundu. Yalnız ön metal kaportanın mevcut 5 istasyonu ve test koordinatları değiştirildi: boylamı yaklaşık z=-1.48..+.52 boyunca uzandı, üst peak y=-.057'ye çekilerek daha alçak **aerodinamik fairing** yapıldı. 2 RED boya aynı roof fonksiyonunu izliyor; arka 2 taper bridge değişmedi. **189** parça, 7 malzeme batch +2 glow ve tüm dış siluet aynı. Orijinal 1x MSAA korunur.
+- **GERÇEK ÜRETİM KODU TESTİ:** [GitHub Actions #44547372949](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44547372949) `a4b552cc96f41b587e5f01d46a2b74a833f1e54a` **completed/success, 15/15**. Gerçek görüntülenecek birleştirilmiş GPU mesh buffer'da 70 ön SECOND + 54 RED boya +50 arka SECOND = **174/174** nokta, max vertex hata **2.29×10^-7**. 6 gerçek THREE.Raycaster boya/metal ayrımı **.01187–.01201**. C20W 154/C20V 60/C20U 30/C20R **304/304** birleşim ve 6960 segment PASS. SB-07 **189**, Map4 B-04 **249**, collider [6,36,200].
+- **REAL ART GÖRSELLERİ:** [GitHub Actions X artifact #14539554028](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44547372949/artifacts/14539554028) aynı gerçek WebGL 1600×900 dört stüdyo açı; önceki C20W HEAD [W artifact #14541490552](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44545040025/artifacts/14541490552) görüntüleri ile **farklı commit'lerden** doğru W→X A/B oluşturuldu. Eski W vs yeni X piksel farkları (eşit kamera, 1600×900, RGB kanalları arasında >10 eşik): ön **3549**, üst **11678**, arka çapraz **3671**; bu sadece gerçek yerel farkları kanıtlar, kullanıcının estetik kabulü değildir.
+- **KAPSAMLI REGRESYON:** son kod HEAD [full Map1/Map4 smoke #44547372970](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44547372970) ayrıca sonuca kadar izlenmeli; özel PASS tüm oyunun full CI PASS olduğu anlamına gelmez. Native GPU FPS, uzun oynanış ve kullanıcının sanat onayı hâlâ açık. Değişikliğin amacı FPS değildir.
+- **SIRADA NEXT11C20Y:** X iki kanat kaportası ve arka motor geçişleri sonrası çizgi/normallerin özellikle uzun kama gövde/kanat üstünde daha tutarlı olması. Onaylı silueti, 1x MSAA'yı ve dar kapsamı koru; dekor ekleme / izinsiz merge yok.
+
+**Karar günlüğü:** 2026-11-19 | NEXT11C20X | initial dome corrected to low-slung fairing | 174/174 +6 raycasts and native 1x GL screenshots PASS | full smoke pending | DRAFT NO MERGE.
