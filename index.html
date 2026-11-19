@@ -12376,9 +12376,13 @@
                 });
                 // A single indexed, watertight shell shared along all
                 // stations. Consistent outward winding on mirrored sides.
+                // Closed roof profile is wound inwards in the
+                // original SB-07 code (top normals pointed DOWN).
+                // Fix orientation on both mirrored engine spines,
+                // including fore/aft caps, without moving vertices.
                 const face=(a,b,c)=>{
-                    if(side>0)indices.push(a,b,c);
-                    else indices.push(a,c,b);
+                    if(side>0)indices.push(a,c,b);
+                    else indices.push(a,b,c);
                 };
                 for(let j=0;j<engineSpineStations.length-1;j++){
                     for(let i=0;i<n;i++){
@@ -12914,6 +12918,7 @@
             root.userData.noseRoofNormalCount=sb07RoofNormalCounts.nose;
             root.userData.engineRoofNormalCount=sb07RoofNormalCounts.engine;
             root.userData.noseHullSideWindingOutward=true;
+            root.userData.engineSpineWindingOutward=true;
             root.userData.hullEndCapsUnchanged=true;
             root.userData.noseAndEnginePositionsUnchanged=true;
             root.userData.noseAndEngineNativeMSAA=true;
