@@ -11658,9 +11658,13 @@
                 // Smooth machined tubular seam instead of jagged
                 // four-corner extrusion. Still merged into 7 batches.
                 const temp=lineTube.clone();
+                // NEXT11C20H: stable minimum machining seam diameter
+                // prevents 0.038-0.049 details from disappearing at
+                // cinematic chase distance (no global blur or FXAA).
+                const diameter=Math.max(thick,.056);
                 temp.applyMatrix4(new THREE.Matrix4().compose(
                     mid,new THREE.Quaternion().setFromRotationMatrix(helper),
-                    new THREE.Vector3(thick,vec.length(),thick)));
+                    new THREE.Vector3(diameter,vec.length(),diameter)));
                 const g=temp.index?temp.toNonIndexed():temp;
                 if(g!==temp)temp.dispose();
                 parts[key].push(g);partCount++;roundLineCount++;
@@ -12221,7 +12225,7 @@
             for(const side of [-1,1]){
                 const halo=new THREE.Sprite(new THREE.SpriteMaterial({
                     map:glowTexture,color:0xa4e9ff,
-                    transparent:true,opacity:.18,
+                    transparent:true,opacity:.14,
                     blending:THREE.AdditiveBlending,
                     depthWrite:false,depthTest:true,
                     toneMapped:false
@@ -12229,15 +12233,19 @@
                 halo.name='SB07_ENGINE_HALO_'+(side<0?'L':'R');
                 halo.userData.visualOnly=true;
                 halo.userData.noCollider=true;
-                halo.position.set(side*1.80,-.25,6.69);
-                halo.scale.set(1.85,1.85,1);
+                halo.position.set(side*1.80,-.25,6.65);
+                halo.scale.set(1.68,1.68,1);
                 plasmaMesh.add(halo);
             }
             for(const g of [cube,lineTube,tube,ring,dome,rect])g.dispose();
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
-            root.userData.detailPass='NEXT11C20G';
+            root.userData.detailPass='NEXT11C20H';
+            root.userData.minMachiningLineDiameter=.056;
+            root.userData.boundedHaloOpacity=[.14,.38];
+            root.userData.boundedHaloSize=[1.68,2.06];
+            root.userData.reviewStudioCapture=true;
             root.userData.lineRadialSegments=12;
             root.userData.roundLineCount=roundLineCount;
             root.userData.engineBarrelSegments=24;
@@ -12323,8 +12331,10 @@
             // Small additive halos blend smoothly without ever
             // modifying scene lighting, actual speed or ship controls.
             for(const halo of h4Ship20ZenitHalos){
-                halo.material.opacity=.18+.30*h4Ship20GlowBlend;
-                const size=1.85+.42*h4Ship20GlowBlend;
+                // Better ring readability at high speed, with capped
+                // additive bloom and no extra dynamic lights.
+                halo.material.opacity=.14+.24*h4Ship20GlowBlend;
+                const size=1.68+.38*h4Ship20GlowBlend;
                 halo.scale.set(size,size,1);
             }
             h4Ship19Race.userData.thrustGlow=h4Ship20GlowBlend;
