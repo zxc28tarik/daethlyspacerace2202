@@ -801,3 +801,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KÖK TEST HATASI ONARILDI:** İlk hızlı test Map1 içindeyken fizik `[6,36,200]` bekledi; Map4 henüz seçilmediğinden gerçek durum `[0,0,0]` idi. Harita1 için `[0,0,0]`, Harita4 başladıktan sonra `[6,36,200]` kontrol edildi. Oyun kodu değişmeden QA düzeldi.
 - **GERÇEK SUCCESS:** [GitHub Actions #44524333490](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44524333490) `success`; halka gerçek geometri: **192→10** batch, `ringVertexError=0.00000974`, 189 SB-07, Map1 `renderer.info.render.calls=252` ve Map4 `262`; gerçek Chromium 720p iki PNG artifact [#14528678746](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44524333490/artifacts/14528678746) indirildi. C20N Map1 257 çağrıyla bağımsız test bağlamında görülen fark 5. **Çıkarım sınırı:** C20O nesne azalması, aynı karede 182 gerçek draw-call kazancı anlamına gelmez (frustum culling).
 - **AÇIK:** yeni final commit/PR ve tam 43 basamak smoke testi bitişi, native GPU FPS ve kullanıcı görsel kabulü. Testin başarılı olduğunu iddia etmek için kullanılan HEAD `4f7c304...`; sonraki yalnız MD commit'leri kod değiştirmedi.
+
+
+## 41) 19 Kasım 2026 — NEXT11C20P mesafesel GPU fade ve gruplanan uzun raylar
+
+- **KOD:** C20O PR #80 dalı üzerine stacked codex/map1-sb07-zenit-distance-clarity-p. Orijinal 16 adet 50km boyuna ray, aynı 115m ölçüm/3D koordinatlarla 20×2500m yerel çizim batch'ine alınmıştır: 6960 segment. 192 halka aynı 10 ring batch, 39 major/153 minor korunur.
+- **YENİ GÖRSEL NETLİK:** GPU fragment shader, vertex rota mesafesi ile oyuncu routeProgress arasını ölçer. Ray 900–4600m, ince mavi halka 600–3000m aralığında yumuşak solar; önemli 39 major yön halkası ve 16 çarpışma sınırı değişmez. Dekor veya gemi parçası ekleme yok.
+- **PERFORMANS:** Rehber çizim nesnesi sayısı 42→46; bu artış render draw calls artışı iddiası değildir. Yerel frustum bütçe etkisi testte ölçülür; native GPU FPS açık.
+- **KORUNAN SİSTEMLER:** SB-07 189 parça 7 opaque+2 sprite, Map1 saf yarış, Map4 B-04 249 parça, 6+36+200 collider, oyun kuralları.
+- **TEST:** Eski halka geometri testi, yeni gerçek WebGL P testi ve tüm browser smoke tetikleyicisi eklendi. Son commit testleri sonuçlanmadan PASS yazılmaz. [Kabul kriterleri](MAP1_NEXT11C20P_DISTANCE_FADE_ACCEPTANCE.md).
+- **SIRADAKİ C20Q:** Son QA, screenshot ve draw-call sonuçlarını kontrol et; gerekirse küçük seçici düzeltme. **PR DRAFT / MERGE YOK.**
+
+**Günlük:** 2026-11-19 | NEXT11C20P | 16 rails / 20 local batches | 192 rings kept | progress GPU fade | 189/249 ships protected | CI pending | no merge.
