@@ -1,4 +1,4 @@
-name: Map1 NEXT11C20G SB07 Real Boost Glow QA
+name: Map1 NEXT11C20G SB07 Edge Geometry and Mipmap QA
 on:
   push:
     branches: [codex/map1-sb07-zenit-edge-quality-g]
