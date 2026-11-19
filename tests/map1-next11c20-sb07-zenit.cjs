@@ -49,6 +49,11 @@ const {chromium}=require('playwright');
       tris:race.userData.triangles,
       batches:meshes.length,
       detailPass:race.userData.detailPass,
+      controlSurfacePanels:race.userData.controlSurfacePanels,
+      engineStatorVanes:race.userData.engineStatorVanes,
+      bellySpars:race.userData.bellySpars,
+      nacelleLouverPairs:race.userData.nacelleLouverPairs,
+      coolantManifolds:race.userData.coolantManifolds,
       aeroIntakes:race.userData.aeroIntakes,
       finStructuralPass:race.userData.finStructuralPass,
       cockpitClearcoat:race.userData.cockpitClearcoat,
@@ -79,6 +84,12 @@ const {chromium}=require('playwright');
       glassVertices:meshes.find(m=>m.name==='NEXT11C20_SB07_GLASS')
         .geometry.getAttribute('position').count,
       plasmaRearLip:samples(plasma,(x,y,z)=>z>6.37),
+      statorLeft:samples(meshes.find(m=>
+        m.name==='NEXT11C20_SB07_SECOND'),
+        (x,y,z)=>x<-1.0&&z>6.48),
+      statorRight:samples(meshes.find(m=>
+        m.name==='NEXT11C20_SB07_SECOND'),
+        (x,y,z)=>x>1.0&&z>6.48),
       engineLeft:samples(plasma,(x,y,z)=>x<-1&&z>5.7),
       engineRight:samples(plasma,(x,y,z)=>x>1&&z>5.7),
       oldR01Instances:old,
@@ -100,7 +111,14 @@ const {chromium}=require('playwright');
   assert.equal(geometry.weaponMounts,0);
   assert.equal(geometry.replacementFor,'R-01 VEKTÖR');
   assert.equal(geometry.batches,7);
-  assert.equal(geometry.detailPass,'NEXT11C20C');
+  assert.equal(geometry.detailPass,'NEXT11C20D');
+  assert.equal(geometry.controlSurfacePanels,4);
+  assert.equal(geometry.engineStatorVanes,20);
+  assert.equal(geometry.bellySpars,4);
+  assert.equal(geometry.nacelleLouverPairs,10);
+  assert.equal(geometry.coolantManifolds,2);
+  assert(geometry.statorLeft>=36&&geometry.statorRight>=36,
+    'Both engines must have new rear nozzle stator geometry');
   assert.equal(geometry.aeroIntakes,2);
   assert.equal(geometry.finStructuralPass,true);
   assert.equal(geometry.cockpitClearcoat,.75);
@@ -121,7 +139,7 @@ const {chromium}=require('playwright');
   assert.equal(geometry.stats.newColliders,0);
   assert.equal(geometry.stats.newWeapons,0);
   assert.equal(geometry.stats.newAircraftClasses,0);
-  assert(geometry.parts>120&&geometry.parts<400);
+  assert(geometry.parts>190&&geometry.parts<500);
   assert(geometry.tris>4000&&geometry.tris<65000);
   assert(geometry.dimensions[0]>14&&geometry.dimensions[0]<19);
   assert(geometry.dimensions[1]>2.7&&geometry.dimensions[1]<6);
@@ -315,6 +333,7 @@ const {chromium}=require('playwright');
     'map1-next11c20-zenit-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C20 SB07 ZENIT WEBGL PASS',JSON.stringify({
     id:geometry.id,detail:geometry.detailPass,
+    statorSamples:[geometry.statorLeft,geometry.statorRight],
     boostLighting:[normal.thrustGlow,boost.thrustGlow],
     wingDeck:geometry.wingDeckPanels,glass:geometry.glassVertices,
     plasmaRearLip:geometry.plasmaRearLip,
