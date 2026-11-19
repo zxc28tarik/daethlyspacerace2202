@@ -643,3 +643,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Kabul:** [NEXT11C20C](MAP1_NEXT11C20C_SB07_ZENIT_BOOST_VISUAL_QA.md). **NEXT11C20D:** önce gerçek QA görüntü incelemesi, ardından gerekiyorsa hedefli art rötuşu.
 
 **Günlük:** `2026-11-18 | NEXT11C20C | NEW | yeni original geo+cam PBR+state-driven neon | CI BEKLİYOR | görüntü/kullanıcı onayı YOK | native GPU YOK | DRAFT/NO MERGE | NEXT11C20D`.
+
+
+## 29) 19 Kasım 2026 — NEXT11C20D SB-07 ikinci mekanik detay paketi
+
+- **KULLANICI YÖNLENDİRMESİ:** 'gemi detay ekleme devam'. Onaylı Zenit gövdesi değil, mevcut oyun içi modelin mikro/orta ölçek mekanik işçiliği geliştirilir.
+- **KOD VAR — GELİŞTİRME-PR:** `codex/map1-sb07-zenit-detail-wave2` stacked C20C PR #68 üzerine. SB-07 için 4 ayrık kanat kontrol yüzeyi, 4 alt spar, 10 çift motor servis ızgarası, 20 stator kanadı ve 2 termal manifold eklendi. Kanat uçlarının boyu/yönü ve uzun burun değişmez; tüm parça var olan 7 materyal batch'inde.
+- **KORUNAN:** Harita1 yarış fiziği/AI/kamera, speed boost ve C18; Harita4 B-04/arena, 6+36+200 collider, 5 rakip/8 avcı, 60/300/850, +18/+12. Yeni weapon/collider/external model yok.
+- **TEST DURUMU:** HTML JS parse PASS; WebGL gerçek geometri stator/assertion test ve Chromium workflow eklendi, tam Map1/4 regresyon dalı yeni branch'e eklendi. **CI PASS ve native GPU/estetik onay henüz iddia edilmez**.
+- **Sonraki:** NEXT11C20E gerçek WebGL screenshot 3/4/chase görsel incelemesi ve hedefli rötuş; kullanıcı izni olmadan MERGE YOK.
+- **Belge:** [NEXT11C20D](MAP1_NEXT11C20D_SB07_MECHANICAL_DETAIL_ACCEPTANCE.md).
+
+**Günlük:** `2026-11-19 | NEXT11C20D | DRAFT CODED | 4 kontrol paneli+20 stator+ızgara+kanal | JS PARSE PASS / CI AÇIK | NO MERGE | NEXT11C20E`.
