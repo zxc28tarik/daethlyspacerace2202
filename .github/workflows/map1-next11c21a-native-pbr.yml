@@ -1,0 +1,48 @@
+name: Map1 NEXT11C21A Genuine Ceramic + Gunmetal PBR WebGL Art
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-pbr-materials-21a]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-native-material-art:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 27
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Syntax check
+        run: node --check tests/map1-next11c21a-native-pbr-finishes.cjs
+      - name: Original approved SB-07 geometry and Map4 playable protection
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: C20U paired engine integrated shrouds
+        run: node tests/map1-next11c20u-contoured-spines.cjs
+      - name: C20W wing topcoats and flush flap inlays
+        run: node tests/map1-next11c20w-paint-and-inlays.cjs
+      - name: C20X shoulder and motor-wing transitions
+        run: node tests/map1-next11c20x-shoulder-aft-skins.cjs
+      - name: C20Y/Z polished geometry normals and true outward facing winding
+        run: |
+          node tests/map1-next11c20y-smooth-loft-normals.cjs
+          node tests/map1-next11c20z-nose-engine-roof-normals.cjs
+      - name: C21A real ceramic and gunmetal shaders, two atlas pixel stats and four native-AA captures
+        run: node tests/map1-next11c21a-native-pbr-finishes.cjs
+      - name: Preserve 304 original race rail joins and Map4 physics
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Archive real Chromium WebGL images and material evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c21a-native-pbr-art
+          path: |
+            tests/next11c21a-evidence/
+            tests/map1-next11c20-zenit-studio*.png
+            tests/next11c20r-evidence/
+          if-no-files-found: warn

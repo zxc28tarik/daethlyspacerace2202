@@ -12789,20 +12789,65 @@
             fineFinish.generateMipmaps=true;
             fineFinish.minFilter=THREE.LinearMipmapLinearFilter;
             fineFinish.magFilter=THREE.LinearFilter;
+            // NEXT11C21A: two genuinely distinct PBR micro-finishes
+            // for EXISTING silver-ceramic and gunmetal model batches.
+            // Previously both inherited the identical 32px grid
+            // texture, which read as checker-like material shading.
+            // New ceramic satin micrograin and longitudinal brushed
+            // gunmetal use no extra geometry and leave RED untouched.
+            const makeSurfaceFinish=(variant)=>{
+                const canvas=document.createElement('canvas');
+                canvas.width=canvas.height=128;
+                const ctx=canvas.getContext('2d');
+                const image=ctx.createImageData(128,128);
+                let noise=variant==='ceramic'?0x21a07c3:0x21a0451;
+                for(let y=0;y<128;y++){
+                    for(let x=0;x<128;x++){
+                        noise=(Math.imul(noise,1664525)+1013904223)>>>0;
+                        const rand=((noise>>>25)&127)-63;
+                        const grain=variant==='ceramic'?rand*.052:rand*.105;
+                        const fiber=variant==='ceramic'?
+                          1.5*Math.sin(x*.27+y*.035):
+                          6*Math.sin(y*.74)+2.6*Math.sin(y*1.48);
+                        const lum=Math.max(145,Math.min(246,Math.round(
+                          (variant==='ceramic'?226:203)+grain+fiber)));
+                        const at=4*(y*128+x);
+                        image.data[at]=lum;image.data[at+1]=lum;
+                        image.data[at+2]=lum;image.data[at+3]=255;
+                    }
+                }
+                ctx.putImageData(image,0,0);
+                const finishMap=new THREE.CanvasTexture(canvas);
+                finishMap.wrapS=finishMap.wrapT=THREE.RepeatWrapping;
+                finishMap.anisotropy=4;
+                finishMap.generateMipmaps=true;
+                finishMap.minFilter=THREE.LinearMipmapLinearFilter;
+                finishMap.magFilter=THREE.LinearFilter;
+                return finishMap;
+            };
+            const satinCeramicFinish=makeSurfaceFinish('ceramic'),
+                brushedGunmetalFinish=makeSurfaceFinish('gunmetal');
             const mats={
-                HULL:new THREE.MeshStandardMaterial({
+                HULL:new THREE.MeshPhysicalMaterial({
                     name:'SB07_SILVER_CERAMIC',
-                    color:0xdbe4ea,metalness:.58,roughness:.40,
-                    roughnessMap:fineFinish,bumpMap:fineFinish,bumpScale:.012,
-                    // Reduce self-illumination: let real nebula lights
-                    // read on the ceramic bevel rather than flatten it.
+                    // Keep original silver-white shade and geometry.
+                    // Satin ceramic catches smooth broad highlights.
+                    color:0xdbe4ea,metalness:.47,roughness:.34,
+                    roughnessMap:satinCeramicFinish,
+                    bumpMap:satinCeramicFinish,bumpScale:.006,
+                    clearcoat:.30,clearcoatRoughness:.23,
+                    // Preserve exact user-approved legacy ceramic glow:
+                    // changing this breaks original art baseline.
                     emissive:0x97a7ba,emissiveIntensity:.20,
                     side:THREE.DoubleSide}),
-                SECOND:new THREE.MeshStandardMaterial({
+                SECOND:new THREE.MeshPhysicalMaterial({
                     name:'SB07_GUNMETAL_SUBFRAME',
-                    color:0x566675,metalness:.70,roughness:.51,
-                    roughnessMap:fineFinish,bumpMap:fineFinish,bumpScale:.016,
-                    emissive:0x1d2a35,emissiveIntensity:.18,
+                    // Brushed gunmetal distinct from pearl ceramic.
+                    color:0x566675,metalness:.76,roughness:.44,
+                    roughnessMap:brushedGunmetalFinish,
+                    bumpMap:brushedGunmetalFinish,bumpScale:.010,
+                    clearcoat:.12,clearcoatRoughness:.40,
+                    emissive:0x1d2a35,emissiveIntensity:.13,
                     side:THREE.DoubleSide}),
                 RED:new THREE.MeshStandardMaterial({
                     name:'SB07_RACING_RED',
@@ -12914,6 +12959,13 @@
             root.userData.noseStripeWidthSamples=3;
             root.userData.noseStripeSkinClearance=.018;
             root.userData.flushedWingShrouds=2;
+            root.userData.pbrCeramicGunmetalSplit=true;
+            root.userData.pbrFinishAtlasSize=128;
+            root.userData.pbrFinishFamilies=['ceramic','gunmetal'];
+            root.userData.pbrMaterialBatchCountUnchanged=7;
+            root.userData.pbrRedFinishPreserved=true;
+            root.userData.pbrOriginalMSAA=true;
+            root.userData.pbrNoNewGeometry=true;
             root.userData.polishedNoseAndEngineRoofs=true;
             root.userData.noseRoofNormalCount=sb07RoofNormalCounts.nose;
             root.userData.engineRoofNormalCount=sb07RoofNormalCounts.engine;
