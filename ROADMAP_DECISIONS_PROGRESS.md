@@ -824,3 +824,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **BELGE:** [NEXT11C20Q kabul](MAP1_NEXT11C20Q_GUIDE_CONTRAST_ACCEPTANCE.md). **SIRADAKİ NEXT11C20R:** görünüm ve same-camera Q A/B delilleri sonrası 2.5km ray batch sınır çizgilerindeki pop/titreme analizi. Taslak stacked PR; explicit izin olmadan merge yok.
 
 **Günlük:** 2026-11-19 | NEXT11C20Q | major+boundary selective distance fade | original geometry, game, Map4 protected | fixed-camera WebGL A-B triggered | DRAFT / NO MERGE.
+
+
+## 43) 19 Kasım 2026 — NEXT11C20R 2.5 km ray grupları arasında kesintisizlik incelemesi
+
+- **GELİŞTİRME:** `codex/map1-sb07-zenit-rail-seams-r`, C20Q PR #82 üstüne stacked DRAFT. Bu aşamada oyun veya gemi geometrisi değiştirilmedi: 304 komşu ray bağlantısı (19 sektör ×16 ray), 6960 original segment, 20 batched sector ve frustum bounding sphere kontrollerini gerçek Chromium/Three r128 ile yapan yeni read-only test eklendi.
+- **GÖRSEL KANIT:** Dört ilerleme sınırında (-15m,+15m) gerçek WebGL 1280×720 gl.readPixels toplam 8 PNG + JSON, GL render counts, shader progress, harita koruma (SB-07 189, B-04 249, Map4 [6,36,200]) assertion'ları; Q/O/P testleri özel workflow içinde.
+- **AÇIK / DURUM:** Dedicated C20R ve Map1/4 full smoke yeni dal için çalıştırıldı; final PASS kontrol edilmeden başarılı yazılmaz. GPU/native FPS ve 5 dakika oynanış estetik onayı hâlâ açık. Bu aşama özellikle birleşimlerde boşluk/fade sıçramasını kanıtlamak içindir; gereksiz render değişikliği yapılmadı.
+- **KABUL:** [C20R rail seam](MAP1_NEXT11C20R_RAIL_SEAM_ACCEPTANCE.md). **SIRADA NEXT11C20S:** çıkan gerçek sorun varsa hedefli düzelt; yoksa çizgi altyapısını sabitleyerek AA/kalite değerlendirmesine geç. Kullanıcı izni olmadan merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20R | 304 seam continuity and 8 GL frames testing | 189/249 ships protected | CI pending | DRAFT no merge.
