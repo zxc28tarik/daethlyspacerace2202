@@ -678,3 +678,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KABUL:** [C20F](MAP1_NEXT11C20F_SB07_PLASMA_LIGHTING_ACCEPTANCE.md). Sonraki **NEXT11C20G** gerçek screenshots üzerinden bloom/opacity tuning + renderer perf validation.
 
 **Günlük:** `2026-11-19 | NEXT11C20F | GAME-CODED & HTML V4 | procedural soft glow+paired nozzle details | SYNTAX PASS / CI UNCONFIRMED | NO MERGE | NEXT11C20G`.
+
+
+## 32) 19 Kasım 2026 — NEXT11C20G SB-07 çizgi kalitesi / art netliği
+
+- **KULLANICI İSTEĞİ:** "kalite arrtırmaya devam çizgi kalitesi vb". Odak yeni gemi biçimi değil gerçek oyun çizgi silüeti, low-poly kenarlar ve uzaktan doku titreşmesi.
+- **KODLANDI / YENİ STACKED DAL:** `codex/map1-sb07-zenit-edge-quality-g`, NEXT11C20F PR #71 üzerine. Renderer mevcut MSAA ve DPR<=2 korunuyor. SB-07 gerçek modelindeki square beam yerine 12-yüzlü cylinder seam; engine barrel 14→24, torus 7×18→10×32; yatay ana kanat bevel 1→3 ve iki dikey fin bevel 1→3, güverte panel 2 bevel; kokpit enine 7→9 örneklem. Siluet ana ölçüleri bozulmaz.
+- **DOKU VE IŞIK:** Roughness bump texture 4× anisotropic + trilinear mipmaps; grid seam kontrastı düşürüldü; gümüş emissive .38→.20. Twin halo atlas 64²→128², daha pürüzsüz gradyan ve mipmap. Önceki actual-speed boost shader ve 2 sprites aynen.
+- **KORUMALAR:** R01 geri yok; SB07 Map1 race-only 7 mesh material batches +2 opacity sprite, 0 new collision/weapon/downloaded model; Map4 B04 6 batches, physics/AI/camera/mapping untouched. No merge.
+- **TEST:** Inline game JS statik parse PASS; WebGL test updated with nine cockpit columns, AA geometry detail meta and 128px mipmapped paired halos; dedicated + full Map1/Map4 smoke workflows. **WebGL CI SUCCESS, screenshots ve native GPU FPS henüz doğrulanmadı**.
+- **KABUL:** [NEXT11C20G](MAP1_NEXT11C20G_SB07_LINE_QUALITY_ACCEPTANCE.md). **SIRADA NEXT11C20H:** ekran görüntüsünde kenar/pixel ve glow histogram/artefact incelemesi, teknik gereksinim varsa hedefli FXAA prototipi.
+
+**Günlük:** `2026-11-19 | NEXT11C20G | KODLANDI | 12-segment round lines /24 barrel/32 rim /3 bevel /128 mipmap | JS PASS CI UNCONFIRMED | NO MERGE | NEXT11C20H`.
