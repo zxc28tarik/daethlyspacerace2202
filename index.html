@@ -11667,16 +11667,19 @@
                 if(g!==temp)temp.dispose();
                 parts[key].push(g);partCount++;roundLineCount++;
             };
+            // NEXT11C20J: the nose stripe uses the SAME station data
+            // as the 14-sided central hull, rather than manually
+            // positioned floating red patches.
+            const hullRows=[
+                [-9.0,.045,.055],[-7.85,.28,.19],
+                [-6.4,.55,.26],[-4.4,.92,.38],
+                [-2.0,1.25,.59],[.3,1.44,.58],
+                [2.5,1.39,.54],[4.8,1.07,.38],
+                [6.15,.38,.23]
+            ];
             const customHull=()=>{
-                // The tapered polygon section is purpose-made for this ship;
-                // it is not a stretched aircraft template.
-                const rows=[
-                    [-9.0,.045,.055],[-7.85,.28,.19],
-                    [-6.4,.55,.26],[-4.4,.92,.38],
-                    [-2.0,1.25,.59],[.3,1.44,.58],
-                    [2.5,1.39,.54],[4.8,1.07,.38],
-                    [6.15,.38,.23]
-                ];
+                // Original approved hull dimensions and topology.
+                const rows=hullRows;
                 const xyz=[],uv=[],indices=[],n=14;
                 rows.forEach(([z,wx,wy],j)=>{
                     for(let i=0;i<n;i++){
@@ -11865,18 +11868,40 @@
             // The original three disconnected nose patches become
             // one conformal 3D ribbon that follows the upper hull
             // stations, ending just before the smoked canopy.
+            // The existing single ribbon now CONFORMS to the
+            // faceted 14-sided hull, even across the stripe width.
+            // Three width samples per station prevent the centre
+            // sinking into the hull or the side edges hovering.
             const noseStripeStations=[
-                [-8.76,.126,.060],[-7.85,.208,.105],
-                [-6.40,.290,.155],[-4.95,.370,.198],
-                [-4.58,.412,.206]
+                [-8.76,.060],[-7.85,.105],[-6.40,.155],
+                [-4.95,.198],[-4.58,.206]
             ];
+            const hullRoofY=(z,x)=>{
+                let j=0;
+                while(j<hullRows.length-2&&z>hullRows[j+1][0])j++;
+                const lo=hullRows[j],hi=hullRows[j+1],
+                    t=(z-lo[0])/(hi[0]-lo[0]),
+                    width=lo[1]+(hi[1]-lo[1])*t,
+                    height=lo[2]+(hi[2]-lo[2])*t;
+                // Intersect the top face of the actual 14-gon.
+                const u=Math.min(1,Math.abs(x)/width),
+                    step=2*Math.PI/14,
+                    seg=Math.min(6,Math.floor(Math.acos(u)/step)),
+                    a=seg*step,b=(seg+1)*step,
+                    mix=(Math.cos(a)-u)/
+                        (Math.cos(a)-Math.cos(b));
+                return height*(Math.sin(a)*(1-mix)+Math.sin(b)*mix);
+            };
             const nosePos=[],noseUV=[],noseIdx=[];
-            noseStripeStations.forEach(([z,y,w],j)=>{
-                nosePos.push(-w,y,z,w,y,z);
-                noseUV.push(0,j/4,1,j/4);
-                if(j<4){
-                    const i=j*2;
-                    noseIdx.push(i,i+2,i+1,i+1,i+2,i+3);
+            noseStripeStations.forEach(([z,w],j)=>{
+                for(let i=0;i<3;i++){
+                    const x=w*(i-1);
+                    nosePos.push(x,hullRoofY(z,x)+.018,z);
+                    noseUV.push(i/2,j/4);
+                }
+                if(j<4)for(let i=0;i<2;i++){
+                    const v=j*3+i,n=v+3;
+                    noseIdx.push(v,n,v+1,v+1,n,n+1);
                 }
             });
             const unifiedNose=new THREE.BufferGeometry();
@@ -11943,9 +11968,12 @@
                 // sweep; white top surfaces remain the dominant material.
                 // Red race stripe is already a single extruded
                 // wingDeckPlate; duplicate floating line overlays gone.
-                box('SECOND',side*4.63,-.02,-.42,
+                // Sit the shroud .05 lower: its old underside
+                // floated above the wing deck. Retain the red
+                // line-to-shroud overlap at ~.004 so no z-fight gap.
+                box('SECOND',side*4.63,-.07,-.42,
                     1.85,.12,1.46,0,side*.19);
-                box('RED',side*5.56,.066,-.33,
+                box('RED',side*5.56,.016,-.33,
                     .28,.06,1.24,0,side*.18);
                 box('DARK',side*6.70,-.13,1.61,
                     1.08,.13,.39,0,side*.06);
@@ -12225,7 +12253,12 @@
             root.userData.parts=partCount;
             root.userData.triangles=triangleCount;
             root.userData.materialBatches=root.children.length;
-            root.userData.detailPass='NEXT11C20I';
+            root.userData.detailPass='NEXT11C20J';
+            root.userData.noseStripeHullStations=5;
+            root.userData.noseStripeWidthSamples=3;
+            root.userData.noseStripeSkinClearance=.018;
+            root.userData.flushedWingShrouds=2;
+            root.userData.geometryPartReductionProtected=true;
             root.userData.unifiedNoseStripe=true;
             root.userData.integratedWingRootPanels=4;
             root.userData.integratedWingRootChannels=2;
