@@ -813,3 +813,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SIRADAKİ C20Q:** Son QA, screenshot ve draw-call sonuçlarını kontrol et; gerekirse küçük seçici düzeltme. **PR DRAFT / MERGE YOK.**
 
 **Günlük:** 2026-11-19 | NEXT11C20P | 16 rails / 20 local batches | 192 rings kept | progress GPU fade | 189/249 ships protected | CI pending | no merge.
+
+
+## 42) 19 Kasım 2026 — NEXT11C20Q kılavuz/sınır çizgilerinde uzak görüntü kontrastı
+
+- **ÖNCEKİ KANIT:** C20P gerçek 720p Chromium görüntülerinde uzak turkuaz/mavi çevre çizgileri hâlâ yoğun. C20P özel tam SHA 29723d5e86.. WebGL PASS; C20P tam browser smoke'nun ayrıca sonuç kaydı gerekir. Eski ekran görüntüleri farklı anları gösterdiğinden doğrudan pixel A/B sayılmaz.
+- **KOD:** `codex/map1-sb07-zenit-guide-contrast-q` — 39 ana ring (48 segment/halka) ve 16 warning boundary (8 amber+8 red; 235m özgün sample) geometri koordinatları aynen, `routeDistance` eklenerek GPU'da oyuncu ilerlemesine göre kontrast fade. Major 1700–5400m floor .35; hint 1400–5500m floor .22; danger 1500–6200m floor .24. Yakındaki alarm opasitesi/renk/pulse değişmez.
+- **SABİT KORUMA:** 192 halka, 10 ring batch, 16 orijinal ray / 20 batch /6960 segment, toplam 46 guide nesnesi; SB-07 189 parça, Harita1 saf yarış, Harita4 B-04 249 parça ve [6,36,200] collider, AI/fizik/HUD korunur. Yeni dekor yok.
+- **TEST:** Q özel gerçek Chromium aynı-kamera ve aynı-frame Q-shader açık/kapalı A/B, 2 PNG, renk-parlaklık farkı, geometri attribute ve Map4/ships regresyonu; ayrıca O/P ve tam browser smoke. Sonuç doğrulanana dek Q CI **BEKLİYOR**. Ekran kartı native FPS ve 5dk estetik kabul açık.
+- **BELGE:** [NEXT11C20Q kabul](MAP1_NEXT11C20Q_GUIDE_CONTRAST_ACCEPTANCE.md). **SIRADAKİ NEXT11C20R:** görünüm ve same-camera Q A/B delilleri sonrası 2.5km ray batch sınır çizgilerindeki pop/titreme analizi. Taslak stacked PR; explicit izin olmadan merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20Q | major+boundary selective distance fade | original geometry, game, Map4 protected | fixed-camera WebGL A-B triggered | DRAFT / NO MERGE.

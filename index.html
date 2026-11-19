@@ -10179,20 +10179,25 @@
             const railMaterial=makeFadedGuideMat(0x17adcf,0.58,900,4600,0.12);
             // All 192 ring positions stay in place; only far minor pixels dim.
             const ringMaterial=makeFadedGuideMat(0x406dff,0.30,600,3000,0.08);
-            const majorRingMaterial = new THREE.LineBasicMaterial({ color: 0x00e7ed, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+            // C20Q: full navigation guidance nearby, selective fade at the horizon.
+            const majorRingMaterial=makeFadedGuideMat(0x00e7ed,0.85,1700,5400,0.35);
             // Kanat sürtünmesinin başlayacağı ve ağırlaşacağı eşikler de görülebilir.
-            const boundaryHintMat = new THREE.LineBasicMaterial({ color: 0xffba65, transparent: true, opacity: 0.20, blending: THREE.AdditiveBlending, depthWrite: false });
-            const boundaryDangerMat = new THREE.LineBasicMaterial({ color: 0xff6e67, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
+            // Original safety warning pulses and color stay unchanged nearby.
+            const boundaryHintMat=makeFadedGuideMat(0xffba65,0.20,1400,5500,0.22);
+            const boundaryDangerMat=makeFadedGuideMat(0xff6e67,0.25,1500,6200,0.24);
             corridorGuideGroup.userData = { railMaterial, ringMaterial, majorRingMaterial, boundaryHintMat, boundaryDangerMat };
             for (const [radius, material, count] of [[215*COURSE_WIDTH_SCALE,boundaryHintMat,8],[250*COURSE_WIDTH_SCALE,boundaryDangerMat,8]]) {
                 for (let k=0;k<count;k++) {
                     const angle=k*2*Math.PI/count;
-                    const points=[];
+                    const points=[],progresses=[];
                     for(let d=0;d<=RACE_ROUTE_NOMINAL_DISTANCE;d+=235) {
                         const f=getRaceFrameAtDistance(d);
                         points.push(f.center.clone().addScaledVector(f.right,Math.cos(angle)*radius*getCorridorRadiusAt(d)/state.tubeRadius).addScaledVector(f.up,Math.sin(angle)*radius*getCorridorRadiusAt(d)/state.tubeRadius));
+                        progresses.push(d);
                     }
-                    corridorGuideGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),material));
+                    const geo=new THREE.BufferGeometry().setFromPoints(points);
+                    geo.setAttribute('routeDistance',new THREE.Float32BufferAttribute(progresses,1));
+                    corridorGuideGroup.add(new THREE.Line(geo,material));
                 }
             }
             // C20P: same 16 sampled rails, packed into 20 frustum-local batches.
@@ -10240,7 +10245,7 @@
             // Sector bounds (10km) keep frustum culling local; one huge
             // 50km buffer would cause avoidable distant GPU work.
             const corridorRingSectors=Array.from({length:5},(_,sector)=>({
-                sector,minor:[],major:[],minorDistances:[],minorCount:0,majorCount:0
+                sector,minor:[],major:[],minorDistances:[],majorDistances:[],minorCount:0,majorCount:0
             }));
             for (let d = 160; d < RACE_ROUTE_NOMINAL_DISTANCE; d += 260) {
                 const f = getRaceFrameAtDistance(d);
@@ -10255,7 +10260,7 @@
                 const major=Math.round((d-160)/260)%5===0;
                 const sector=corridorRingSectors[Math.min(4,Math.floor(d/10000))];
                 const target=major?sector.major:sector.minor;
-                const distances=major?null:sector.minorDistances;
+                const distances=major?sector.majorDistances:sector.minorDistances;
                 for(let k=0;k<48;k++){
                     target.push(points[k],points[(k+1)%48]);
                     if(distances)distances.push(d,d);
@@ -10271,8 +10276,8 @@
                     const pts=sector[kind];
                     if(!pts.length)continue;
                     const geo=new THREE.BufferGeometry().setFromPoints(pts);
-                    if(kind==='minor')geo.setAttribute('routeDistance',
-                        new THREE.Float32BufferAttribute(sector.minorDistances,1));
+                    geo.setAttribute('routeDistance',new THREE.Float32BufferAttribute(
+                        kind==='major'?sector.majorDistances:sector.minorDistances,1));
                     const mesh=new THREE.LineSegments(geo,material);
                     mesh.name='MAP1_C20O_'+kind.toUpperCase()+
                         '_RINGS_SECTOR_'+sector.sector;
@@ -10435,6 +10440,10 @@
             m.majorRingMaterial.opacity = 0.70 + 0.22 * pulse;
             m.boundaryHintMat.opacity = 0.12 + 0.11 * pulse;
             m.boundaryDangerMat.opacity = 0.17 + 0.14 * pulse + 0.15 * (state.boundaryLevel >= 2 ? 1 : 0);
+            for(const mat of [m.majorRingMaterial,m.boundaryHintMat,m.boundaryDangerMat]){
+                mat.uniforms.uOpacity.value=mat.opacity;
+                mat.uniforms.uProgress.value=state.routeProgress;
+            }
         }
 
         function formatRaceTime(seconds) {
