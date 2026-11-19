@@ -1,0 +1,47 @@
+name: Map1 NEXT11C20X Front Shoulder and Aft Wing Joined Surfaces WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-shoulder-skin-x]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-shoulder-aft:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Check test script JavaScript
+        run: node --check tests/map1-next11c20x-shoulder-aft-skins.cjs
+      - name: Approved SB-07 genuine flying, 8 panel overlaps and Map4
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: C20U verify twin engine crowns and 30 paint surface points
+        run: node tests/map1-next11c20u-contoured-spines.cjs
+      - name: C20V preserve 60 real hull-wing root vertices
+        run: node tests/map1-next11c20v-wing-root-fillet.cjs
+      - name: C20W preserve 154 wing red paint and flap inlay points
+        run: node tests/map1-next11c20w-paint-and-inlays.cjs
+      - name: C20X genuine 174 shoulder and aft-wing vertices, 6 raycasts and 4 views
+        run: node tests/map1-next11c20x-shoulder-aft-skins.cjs
+      - name: Preserve 304 race corridor guide rail joins, Map4 physic
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Upload real SB07 1600x900 model views and original physics evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20x-true-shoulder-wing-geometry
+          path: |
+            tests/next11c20x-evidence/
+            tests/next11c20w-evidence/
+            tests/next11c20v-evidence/
+            tests/next11c20u-evidence/
+            tests/next11c20r-evidence/
+            tests/map1-next11c20-zenit-studio*.png
+          if-no-files-found: warn
