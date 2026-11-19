@@ -864,3 +864,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - [S test artifact #14535222369](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44534431908/artifacts/14535222369) dört gerçek aynı-kamera native MSAA / 2x supersampling testi: 12.500m / 720p parlaklık hareket delta **16.58097→11.24476 (%32,2 azalma)**; 27.500m /720p **18.46970→11.99977 (%35,0)**; 12.500m /1080p **19.19861→12.82315 (%33,2)**; 27.500m /1080p **19.47194→12.72693 (%34,6)**.
 - **ÖLÇÜM SINIRI:** Hareket proxy'si iki 6m kamera farkındaki renk değişimini ölçer; yalnız shimmering'i izole etmez. 2x referans dört kat piksel içerir, browser SwiftShader CPU süreleri fiziksel kullanıcı GPU FPS değil. Real native GPU maliyet eşiği olmadan **kalıcı kalite profili / FXAA / blur etkinleştirilmedi**; `index.html` hiç değiştirilmedi.
 - **AÇIK:** [son HEAD full smoke #44534431933](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44534431933) sonucu ayrıca kontrol edilecek; kullanıcı oynanış/görsel onayı ve native GPU FPS/p95 açık. DRAFT / NO MERGE.
+
+
+## 45) 19 Kasım 2026 — NEXT11C20T 1× / 1,25× / 1,5× / 2× örnekleme kalite / maliyet karşılaştırması
+
+- **GEÇERLİ KARAR:** Yeni mikro parça/süs yok. C20S ile orijinal MSAA'nın açık olduğu ve 2× diagnostic görüntü için 720p/1080p hareket parlaklık değişiminin %32–35 azaldığı görüldü; fiziksel ekran kartı GPU maliyeti henüz ölçülmedi.
+- **UYGULAMA:** `codex/map1-sb07-zenit-supersampling-budget-t` PR #84 üzerine stacked dal. Tek mevcut HTML ve oynanış **değişmedi**. `tests/map1-next11c20t-four-quality-levels.cjs` gerçek oyun WebGL içinde 1/1.25/1.5/2x iç boyut, 720/1080p ve 12500/27500m ×(-6,0,+6m) alanlarını kare/kare ölçer. Supersampled 2D downsample, dört gerçek 2×2 before/after mozaik, JSON pixel deltas, gl.finish ve gerçek line counts. Grafik 1x100%, 1.25x156.25%, 1.5x225%, 2x400% piksel yükü: **native FPS tahmini değildir**.
+- **KORUMA:** 192 ring/10 batch, 16 rail/20 batch/6960 original segment, 304 düzgün birleşim; SB-07 189/B-04 249, Harita4 6+36+200 collider, AI/rotalar/fizik/HUD. Supersampling **yalnız test**; canlı oyunda yeni postprocess / global blur yok.
+- **TEST DURUMU:** Özel Chromium/GL workflow ve tüm Map1/4 browser-smoke dal tetikleyicisi eklendi, gerçek son-head CI başarısı ayrı kontrol edilmeli. Yerel donanım FPS/p95 ve 5dk kullanıcının çizgi kalitesi onayı açık.
+- **BELGE:** [T kriterleri](MAP1_NEXT11C20T_FOUR_LEVEL_AA_ACCEPTANCE.md). **SIRADAKİ NEXT11C20U:** kanıta bağlı düşük maliyetli AA ayarı kararı; ana dala izinsiz birleştirme yapılmaz.
+
+**Günlük:** 2026-11-19 | NEXT11C20T | 4-level WebGL AA motion/quality A/B | gameplay unchanged | dedicated/full CI pending | draft/no merge.
