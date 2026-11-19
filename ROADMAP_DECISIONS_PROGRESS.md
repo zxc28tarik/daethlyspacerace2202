@@ -887,3 +887,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **FULL REGRESSION:** [Son HEAD C20T tam smoke #44535863884](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44535863884) final sonucu ayrıca okunmalı. Kapsamlı test bitmeden 'tam oyun PASS' yazılmaz. **NEXT11C20U**: GPU bütçesi kontrolü ve düşük maliyetli opt-in kalite profilinin mimarisi, default MSAA korunur. **DRAFT / NO MERGE.**
 
 **Günlük:** 2026-11-19 | NEXT11C20T | 1.25 ~30.34% /1.5 ~33.52% /2 ~33.77% motion proxy | same 52/54 calls | 1.5 value saturation | special WebGL PASS, full pending | no runtime change / no merge.
+
+
+### KESİN KULLANICI GÖRSEL KARARI — 19 Kasım 2026 (NEXT11C20T sonrasında)
+
+- Kullanıcı dört örneklemeli gerçek WebGL karşılaştırmasına bakıp **"orjinal en iyi gözükeni"** dedi. Görsel kabul kararı açık: **orijinal 1.00× MSAA görüntüsü en iyi**, tercih edilir ve varsayılan/aktif haliyle korunur.
+- **1.25× / 1.50× / 2.00× supersampling profili uygulama önerisi iptal/askıda.** Bu test sonuçları yalnızca tanısal kayıt olarak tutulur; otomatik yükseltme, ek AA filtresi, 2× render, gizli performans maliyeti, global FXAA veya bulanıklaştırma uygulanmaz.
+- Daha önce raporlanan %30–34 kareler arası parlaklık farkı azalması, kullanıcıya daha iyi göründüğü anlamına gelmez. Kullanıcının görsel değerlendirmesi, bu kalite seçeneklerinin estetik kabulünü geçersiz kılar.
+- **Sıradaki geliştirme:** orijinal 1.00× MSAA'yı koruyarak çizgi/kenar kontrastı ve geometrik hatların pürüzsüzlüğü, kopuk model parçalarının birleştirilmesi, yüzeylerin çakışma/z-fighting bakımından temizlenmesi. Geminin onaylı silueti, 189/249 model parçası, koridor 192 ring/6960 segment, Harita1 yarış ve Harita4 fizik korunur.
+- Sonuç kullanıcı açıkça aksini söyleyinceye kadar geçerlidir. Önceki grafik önerileri kullanıcı seçimiyle **değiştirildi**. PR'lar DRAFT, izinsiz merge YOK.
+
+**Karar günlüğü:** 2026-11-19 | Görsel kalite 1.00× original MSAA seçildi | supersampling önerileri reddedildi | runtime zaten aynı | Next: gerçek geometri/çizim kalitesi.
