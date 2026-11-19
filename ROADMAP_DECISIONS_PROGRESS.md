@@ -963,3 +963,14 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SIRADA NEXT11C20Y:** X iki kanat kaportası ve arka motor geçişleri sonrası çizgi/normallerin özellikle uzun kama gövde/kanat üstünde daha tutarlı olması. Onaylı silueti, 1x MSAA'yı ve dar kapsamı koru; dekor ekleme / izinsiz merge yok.
 
 **Karar günlüğü:** 2026-11-19 | NEXT11C20X | initial dome corrected to low-slung fairing | 174/174 +6 raycasts and native 1x GL screenshots PASS | full smoke pending | DRAFT NO MERGE.
+
+
+## 50) 19 Kasım 2026 — NEXT11C20Y birleşik gemi yüzeyinde gerçek vertex normal / aydınlatma sürekliliği
+
+- **KULLANICI ÖNCELİĞİ:** FPS değil, gerçek gemi görünümü. Kullanıcı orijinal **1× native MSAA**'yı en iyi seçti; mevcut renderer ve 1.25/1.5/2x test profilleri değişmez.
+- **GERÇEK `index.html` DEĞİŞİKLİĞİ:** C20V HULL 2 wing-root loft **60**; C20X SECOND 2 front shoulder **70**; C20X SECOND 2 aft engine-wing bridge **50** = **180 gerçek üst yüzey vertex normali** için yan kapak normals karışmadan teğet-temelli smooth normal hesaplama. Eski arka bridge'ın aşağı bakan üçgen sırası yukarı yönlendirildi. Modelde yeni vertex, yeni part, shader, PBR renk/doku/roughness, silah, fizik/AI/HUD veya FPS mekanizması yok. SB-07 **189**, 7 ana mesh+2 halo, B-04 Map4 **249**, 304 rail joint/6960 segment korunur.
+- **QA:** `tests/map1-next11c20y-smooth-loft-normals.cjs` gerçek GPU buffer'dan 180 ayrı upper normal ile geometrik tangent normal dot≥0.985, iki gerçek aft raycast normal up; önceki X174+6 red probe, W154, V60, U30, R304 ve özgün SB07/Map4 testleri. Aynı native 1× MSAA 4 gerçek 1600×900 kamera görüntüsü.
+- **KABUL SINIRI:** Son HEAD dedicated/final full browser CI sonuçlanmadan PASS yazılmaz; normal geometrisi testini geçmesi kullanıcı estetik onayı yerine geçmez. [Y kabul planı](MAP1_NEXT11C20Y_SURFACE_NORMAL_ACCEPTANCE.md). Kapsamlı uzun oynanış/yerel GPU testleri ayrı.
+- **SIRADAKİ NEXT11C20Z:** Y farklı açılarda incelendikten sonra varsa gerçek ön gövde/motor üst normalleri kusurunu düzelt; yeni dekor ve izinsiz merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20Y | 180 surface normals / 2 corrected aft face winding | unchanged 189 parts and original 1x AA | dedicated/full CI pending | DRAFT NO MERGE.
