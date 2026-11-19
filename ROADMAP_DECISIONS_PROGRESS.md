@@ -942,3 +942,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SIRADAKİ NEXT11C20X:** Gemi motor-kanat ve ön gövde kontur kalitesi, dekor eklemeden gerçek yüzey/normal iyileştirmesi. DRAFT / NO MERGE.
 
 **Günlük:** 2026-11-19 | NEXT11C20W | 2× wing RED slab->conformal paint, 2× DARK cylindrical joint->flush inlay | 154 real vertices | original 1x MSAA | CI pending | draft only.
+
+
+## 49) 19 Kasım 2026 — NEXT11C20X ön kanat omuzlarını / arka motor–kanat bağlantılarını gerçekten bütünleştirme
+
+- **GÖRSEL:** 2 adet ön SECOND kutu omuz +2 üstünde yüzen RED block yerine gerçek kanat eğrisi formunu takip eden **5×7 kapalı metal gövde +9×3 conformal boya filmi**. 2 arka SECOND box yerine **5×5 kapalı, uca doğru incelen motor–kanat bağlantısı**. Toplam eski 6 emit yerine yeni 6 emit, **189 SB-07** kaynak parçası ve 7 malzeme batch +2 halo korunur. Yüksekliği/kavisi kesintili sert kutular yerine gerçek geçişli geometridir.
+- **ORİJİNAL GÖRÜNTÜ:** kullanıcı seçimi 1.00× native MSAA aynı; FPS/grafik filtreleri, renkler, kanat ucu ve ship-approved silhouette, C20U motor, V fillet ve W RED kanat boyası korunur.
+- **GERÇEK QA:** 70 omuz +54 gerçek eğri RED boya +50 arka SECOND = **174 gerçek GPU buffer vertex**, gerçek 6 RED-SECOND kaporta boya raycast, C20W 154/C20V 60/C20U 30/C20R 304 koruma, SB07 normal-boost, 4 gerçek WebGL model PNG, B04 Map4 249/[6,36,200] collider. Dedicated ve tam Map1/4 browser workflows eklendi; testler tamamlanmadan geçiş ilan edilmez.
+- **KAYIT:** [NEXT11C20X kabul belgesi](MAP1_NEXT11C20X_ENGINE_WING_SHOULDER_ACCEPTANCE.md). **SIRADAKİ NEXT11C20Y:** gerçek art fotoğraf farkına göre kalan sert gövde/kanat kenarlarını ve yüzey normallerini geliştir; ekstra dekor, kör performans optimizasyonu ve izinsiz merge yok.
+
+**Günlük:** 2026-11-19 | NEXT11C20X | two front contoured shoulder +red films, two aft engine-wing bridges | 174 vertex +6 true raycasts | dedicated+full CI pending | original 1x MSAA | DRAFT.
