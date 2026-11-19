@@ -12332,6 +12332,10 @@
                 paint.setIndex(paintIndices);paint.computeVertexNormals();
                 emit(paint,'RED');paint.dispose();
             };
+            // NEXT11C20X ART TUNE: first WebGL studio review revealed
+            // the earlier broad dome silhouette. The same five stations
+            // are now longer and shallower, a tapered aerodynamic
+            // fairing seated within the original wing outline.
             // NEXT11C20X: the old front shoulder shroud was a straight
             // rectangular box with a separate partly cantilevered red
             // bar above/outside it. Replace BOTH, one-for-one, with
@@ -12339,11 +12343,11 @@
             // No changes to the approved swept-wing outer perimeter.
             const frontShoulderStations=[
                 // local Z, positive-side X centre, half-span X, peak Y
-                [-1.12,4.49,.48,-.103],
-                [-.86,4.54,.79,-.028],
-                [-.48,4.63,.93,-.009],
-                [-.12,4.73,.83,-.021],
-                [.28,4.81,.49,-.102]
+                [-1.48,4.48,.30,-.103],
+                [-1.10,4.53,.58,-.079],
+                [-.52,4.63,.76,-.057],
+                [.10,4.74,.64,-.076],
+                [.52,4.84,.28,-.103]
             ];
             const shoulderCross=[-1,-.76,-.42,0,.42,.76,1];
             const shoulderValue=(z)=>{
