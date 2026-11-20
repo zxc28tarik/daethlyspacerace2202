@@ -1037,3 +1037,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SIRADAKİ C21C:** şeritlerin renk dağılımı/kontrastını daha yüksek gerçek A/B kalite ölçeğinde değerlendir; yeni yüzey eklemeden yalnız C21B pigment ayarlarıyla ilerle. Sonra C21D motor renk rolleri ve C21E son estetik kilit.
 
 **Karar günlüğü:** 2026-11-20 | NEXT11C21B art tune | visible but restrained red/wing/metal colors | 74.700 real GPU vertex pigments PASS | original 1x AA | full smoke pending | no merge.
+
+
+## 54) 20 Kasım 2026 — NEXT11C21C Yarış kırmızısı mevcut yüzeylerde akış olarak rafine edildi
+
+- **KOD:** C21B HEAD’den yeni stacked dal `codex/map1-sb07-zenit-red-flow-21c`. Gerçek `index.html` RED vertex pigmentinde yalnız `wingEdge × clamp((3-z)/7)` yumuşak ön/dış kanat doygunluk akışı uygulanıyor. Eski malzeme hex, PBR, C21B diğer 3 renk ailesi, mevcut **189 parça / 7 batch + 2 halo**, 1× MSAA ve Map4 korunuyor. Fark yeni parça eklemek değil, mevcut kırmızının yönlendirici hale gelmesi.
+- **TEST KAPILARI:** [C21C gerçek A/B kabulü](MAP1_NEXT11C21C_RED_RACE_FLOW.md); özel Chromium gerçek GPU shader color attribute + C21B/C21C aynı kamerada framebuffer A/B, eski C21A/C21B, SB07 oyun ve Map4, 304 ray seam koruması; geniş tarayıcı smoke'a dahil. CI tamamlanmadan sonuç PASS yazılmayacak. Kullanıcı birleştirme izni vermedi; DRAFT tutulacak.
+- **SIRADA:** C21D motor/gunmetal/amber/plasma dengesi, C21E son estetik kilit ve karşılaştırma.
+
+**Günlük:** 2026-11-20 | NEXT11C21C | gerçek RED yüzey pigmenti revize edildi; onaylı gemi silueti ve native AA korundu | özel CI sonrası doğrulama | stacked DRAFT no merge.
