@@ -1046,3 +1046,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SIRADA:** C21D motor/gunmetal/amber/plasma dengesi, C21E son estetik kilit ve karşılaştırma.
 
 **Günlük:** 2026-11-20 | NEXT11C21C | gerçek RED yüzey pigmenti revize edildi; onaylı gemi silueti ve native AA korundu | özel CI sonrası doğrulama | stacked DRAFT no merge.
+
+
+## 55) 20 Kasım 2026 — NEXT11C21D motor çevresi teknik boya geliştirildi
+
+- **KOD:** C21C üstüne `codex/map1-sb07-zenit-engine-tone-21d` stacked dalında mevcut SECOND ve DARK pigmentlerinin **motor tarafındaki renk dengesi** softstep `engineSmooth` ile ayarlandı. Çelik hafif soğuk/mavi; GLASS, ORANGE ve PLASMA özgün, HULL/RED C21C korunuyor. Ek geometri/ışık/AA/post-process/FPS optimizasyonu yok.
+- **KABUL:** [C21D motor malzemesi](MAP1_NEXT11C21D_ENGINE_METAL_BALANCE.md), gerçek Chromium 1600×900 WebGL C21C/C21D aynı sahne karşılaştırması, per-vertex RGB matematiği ve draw call gate; C21A/B/C, SB07 yarış, B04 Map4 ve 304 seam dahil. Son CI tamamlanmadan PASS yazılmayacak; kullanıcı izni olmadan merge yok.
+- **SIRADA:** C21E nihai palet/ışık estetik dengelemesi, son kare/art review ve final kod koruması.
+
+**Günlük:** 2026-11-20 | NEXT11C21D | motor SECOND/DARK mavi çelik pigmenti rafine edildi | iki gerçek framebuffer A/B ve bütün regresyon CI izle | DRAFT.
