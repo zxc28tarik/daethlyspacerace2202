@@ -1064,3 +1064,15 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **DURUM:** Kod/paket uygulandı, ancak son CI ve galeri estetik incelemesi tamamlanmadan `final PASS` veya `art approved` yazılmayacak. **Kullanıcı onayı olmadan hiçbir PR ana dala birleştirilmeyecek.**
 
 **Günlük:** 2026-11-20 | NEXT11C21E | dört açı gerçek WebGL son kalite testi+rapor | stacked DRAFT | teknik CI ve sanat kararı ayrı kapılar.
+
+
+### NEXT11C21B–E gerçek Chromium/WebGL özel kabul sonuçları (20 Kasım 2026)
+
+- **C21B:** [son dengeli boya özel CI #44704983634](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44704983634) **PASS**. Orijinal C21A görüntüleriyle kontrollü Balanced farkı: arka-çapraz %1,60 ve üst %1,85 RGB kanal eşiği >12.
+- **C21C:** [gerçek RED şerit A/B özel CI #44707334817](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44707334817) **PASS**; renk akışı 1632 RED vertex üzerinde doğrulandı. Arka-çapraz 1406, üst 3746 pikselin renk kanalı farkı >2; 9 çizim çağrısı/1× MSAA aynı. [Gerçek A/B kareler](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44707334817/artifacts/14615138346).
+- **C21D:** [motor mavi çelik özel CI #44708042939](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44708042939) **PASS**; SECOND 38.376 ve DARK 24.216 mevcut pigmentli vertex, metal/enerji malzeme kimliği korunuyor. Aynı WebGL kamerada arka 728 ve arka-çapraz 482 piksel farkı >2. [Gerçek A/B kareler](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44708042939/artifacts/14616485045).
+- **C21E:** [son dört açı özel CI #44709062545](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44709062545) **PASS**: arka, ön, arka-çapraz, üst gerçek WebGL 1600×900, **189 parça / 7 batch + 2 halo = 9 call**, 74.700 gerçek RGB vertex ve 7 ana hex korundu, GL error=0. [Dört açı + 2×2 görsel galeri](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44709062545/artifacts/14617295909).
+- **GÖRSEL UYARI:** Güçlü sabit stüdyo ışıkları (ambient .75, key 2.3, fill 1.1) altında üst görünümde ışıklı gemi piksellerinin **%52,1'i** beyaza doygun. Bu üst kamera/stüdyo konfigürasyonu için kullanıcı görsel incelemesi gerekir; bunu oyun kamerasında aynı oran varmış gibi yorumlama. Renkleri/oyunu değiştirmeden raporlandı. Diğer açılar: arka %17,2, ön %42,8, arka-çapraz %21,4.
+- **KAPSAMLI TAM OYUN:** Son `HEAD` Map1/4 [smoke #44709062516](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44709062516) ayrı sonuçlanmadan **full game PASS ilan edilmez**. Özel CI PASS, kullanıcı estetik onayı değildir. Dört stacked PR #93–#96 DRAFT; **merge yok**.
+
+**Teknik karar:** C21B/C21C/C21D renk uygulamaları + C21E final görüntü paketi tamam; yeni renk/ışık/geometri değişimi otomatik yapılmayacak. Kalan kapılar son full smoke ve gerçek görüntülerin estetik değerlendirmesi.
