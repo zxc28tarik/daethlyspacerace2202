@@ -35,11 +35,11 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
    const frame=first.spin,geom=frame.geometry;
    geom.computeBoundingSphere();
    return {amount:all.length,allSameCollider:all.every(x=>x.radius===49),
-    allThreeMesh:all.every(x=>x.amount===3),
+    allFiveMesh:all.every(x=>x.amount===5),
     noCage:all.every(x=>!x.meshNames.some(n=>n.includes('CAGE'))),
     noMetal:all.every(x=>!x.meshNames.some(n=>n.includes('METAL'))),
-    zeroMetalness:all.every(x=>x.meshNames.length===3)&&
-      [first.spin.material,first.orbit.material,first.core.material].every(m=>
+    zeroMetalness:all.every(x=>x.meshNames.length===5)&&
+      [first.spin.material,first.core.material,...first.orbits.map(o=>o.material)].every(m=>
        !m.isMeshStandardMaterial||m.metalness===0),
     noBoxes:all.every(x=>!x.hasCubicGeometry),
     allVisual:all.every(x=>x.allVisual),
@@ -62,7 +62,7 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
    };
   });
   assert.equal(geometry.amount,49);
-  assert(geometry.allSameCollider&&geometry.allThreeMesh&&geometry.noBoxes);
+  assert(geometry.allSameCollider&&geometry.allFiveMesh&&geometry.noBoxes);
   assert(geometry.noCage&&geometry.noMetal&&geometry.zeroMetalness);
   assert(geometry.allVisual&&geometry.colliderPositionsUnchanged);
   assert.equal(geometry.type,'MAP1_VIOLET_CORE_PICKUP');
@@ -122,7 +122,7 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
     canvas.toDataURL('image/png').split(',')[1]};
   });
   assert.equal(studio.glError,0);assert(studio.aa);
-  assert.equal(studio.drawCalls,7,'old cube draws four, new minimal crystal draws three');
+  assert.equal(studio.drawCalls,9,'old cube draws four, new triple-ring crystal draws five');
   fs.writeFileSync(path.join(out,'old-box-left__violet-core-right-1600x900.png'),
    Buffer.from(studio.png,'base64'));delete studio.png;
   await page.locator('#start-btn').click();
@@ -178,7 +178,7 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
    caveat:'Studio panel left is faithful reconstruction of previous C21G cube; right new model. In-game shot stages ONLY one visual pickup temporarily to evaluate legibility; original route/colliders and gameplay restored.'};
   fs.writeFileSync(path.join(out,'violet-core-art-qa.json'),JSON.stringify(report,null,2));
   console.log('NEXT11C21G3 NO METAL PICKUP WEBGL PASS '+JSON.stringify({
-   items:geometry.amount,allThreeMesh:geometry.allThreeMesh,
+   items:geometry.amount,allFiveMesh:geometry.allFiveMesh,
    noMetal:geometry.noCage&&geometry.zeroMetalness,
    noBoxGeometry:geometry.noBoxes,crystalVertices:geometry.frameVertexCount,
    crystalRadius:geometry.frameRadius,sharedAssets:geometry.sharedFrameGeometry,

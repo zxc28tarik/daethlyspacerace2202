@@ -39,7 +39,7 @@ const out=path.join(__dirname,'next11c21g3-evidence');fs.mkdirSync(out,{recursiv
    state.raceTime=clock;
    renderer.render(scene,camera);
    const gl=renderer.getContext();gl.finish();
-   return {items:itemBoxes.length,three:all.every(x=>x.meshCount===3),
+   return {items:itemBoxes.length,five:all.every(x=>x.meshCount===5),
     noMetal:all.every(x=>x.noMetal&&x.noCage),
     noBox:all.every(x=>x.noBox),visual:all.every(x=>x.visual),
     radius49:all.every(x=>x.radius===49),
@@ -54,7 +54,7 @@ const out=path.join(__dirname,'next11c21g3-evidence');fs.mkdirSync(out,{recursiv
     aa:!!gl.getContextAttributes().antialias,glError:gl.getError()};
   });
   assert.equal(v.items,49);
-  assert(v.three&&v.noMetal&&v.noBox&&v.visual&&v.radius49);
+  assert(v.five&&v.noMetal&&v.noBox&&v.visual&&v.radius49);
   assert(v.sharedCrystal&&v.sharedOrbit);
   assert.equal(v.crystalMetalness,0);
   assert.equal(v.orbitRadius,24);

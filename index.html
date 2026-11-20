@@ -9865,9 +9865,10 @@
                     moveType:'STATIC', driftVx:0, driftVy:0, approachSpeed:0,
                     touchingShips:new Set(),hitTimes:Object.create(null) });
             });
-            // NEXT11C21G3: no frame, metal or decorative cage.
-            // A restrained collectible with three reused draw meshes:
-            // crystalline shell, inner light and a thin violet orbit.
+            // NEXT11C21G4: minimal metal-free crystal with THREE separately
+            // rotating, ultra-thin energy orbits. Outer/inner orbits are
+            // lower opacity than the approved C21G3 main orbit. Their 49
+            // positions, crystal and radius-49 collisions are unchanged.
             const rewardCrystalMat=new THREE.MeshStandardMaterial({
                 color:0x60bdd6,metalness:0,roughness:.28,
                 emissive:0x21688f,emissiveIntensity:.35,
@@ -9878,14 +9879,28 @@
                 color:0xcff8ff,toneMapped:false,
                 transparent:true,opacity:.69,depthWrite:false
             });
+            // Three distinct shared buffers/materials (never duplicated per
+            // pickup). Cumulative glow remains restrained, no metal/glass.
             const rewardOrbitMat=new THREE.MeshBasicMaterial({
-                color:0x9768ce,transparent:true,opacity:.36,
+                color:0x9768ce,transparent:true,opacity:.29,
+                blending:THREE.AdditiveBlending,depthWrite:false,
+                side:THREE.DoubleSide,toneMapped:false
+            });
+            const rewardOrbitOuterMat=new THREE.MeshBasicMaterial({
+                color:0xa28cdb,transparent:true,opacity:.18,
+                blending:THREE.AdditiveBlending,depthWrite:false,
+                side:THREE.DoubleSide,toneMapped:false
+            });
+            const rewardOrbitInnerMat=new THREE.MeshBasicMaterial({
+                color:0x6b90d6,transparent:true,opacity:.20,
                 blending:THREE.AdditiveBlending,depthWrite:false,
                 side:THREE.DoubleSide,toneMapped:false
             });
             const rewardCrystalGeo=new THREE.OctahedronGeometry(16.5,0);
             const rewardCoreGeo=new THREE.OctahedronGeometry(7.7,0);
             const rewardOrbitGeometry=new THREE.TorusGeometry(24,.52,6,40);
+            const rewardOrbitOuterGeo=new THREE.TorusGeometry(28,.40,6,48);
+            const rewardOrbitInnerGeo=new THREE.TorusGeometry(19,.37,6,40);
             itemBlueprints.forEach(([routeProgress,laneX,laneY],i)=>{
                 const g=makeCourseLocalGroup(routeProgress,laneX,laneY);
                 const art=new THREE.Group();
@@ -9905,18 +9920,30 @@
                 );
                 orbit.rotation.set(.72,.30,.18);
                 orbit.name='MAP1_REWARD_PICKUP_ORBIT';
-                // Only crystal, central light and subtle orbit; no metal.
-                for(const m of [crystal,core,orbit]){
+                const orbitOuter=new THREE.Mesh(
+                    rewardOrbitOuterGeo,rewardOrbitOuterMat
+                );
+                orbitOuter.rotation.set(1.22,-.39,.56);
+                orbitOuter.name='MAP1_REWARD_PICKUP_ORBIT_OUTER';
+                const orbitInner=new THREE.Mesh(
+                    rewardOrbitInnerGeo,rewardOrbitInnerMat
+                );
+                orbitInner.rotation.set(.24,1.14,-.62);
+                orbitInner.name='MAP1_REWARD_PICKUP_ORBIT_INNER';
+                // Five visual meshes, zero metal, zero obstacle/collider
+                // changes. Outer and inner rings run on independent axes.
+                for(const m of [crystal,core,orbit,orbitOuter,orbitInner]){
                     m.userData.visualOnly=true;
                     m.userData.noCollider=true;
                 }
-                art.add(crystal,orbit);
+                art.add(crystal,orbit,orbitOuter,orbitInner);
                 g.add(art);
                 itemBoxGroup.add(g);
                 itemBoxes.push({
                     id:`ITEM-${i}`,routeProgress,laneX,laneY,
                     radius:49,mesh:g,art,claimed:new Set(),
-                    spin:crystal,orbit,core
+                    spin:crystal,orbit,orbits:[orbit,orbitOuter,orbitInner],
+                    core
                 });
             });
         }
@@ -10000,8 +10027,12 @@
                 if(!box.mesh.visible)return; // distant pickup culling kept
                 box.spin.rotation.x += dt*.27;
                 box.spin.rotation.y += dt*.67;
-                box.orbit.rotation.z += dt*.38;
-                box.orbit.rotation.y += dt*.24;
+                box.orbit.rotation.z += dt*.27;
+                box.orbit.rotation.y += dt*.16;
+                box.orbits[1].rotation.x -= dt*.23;
+                box.orbits[1].rotation.y += dt*.17;
+                box.orbits[2].rotation.z -= dt*.41;
+                box.orbits[2].rotation.x += dt*.29;
                 // The root group remains fixed at the route/collision
                 // position; only non-physical presentation floats.
                 box.art.position.y=Math.sin(state.raceTime*2.1+i*.55)*2.7;

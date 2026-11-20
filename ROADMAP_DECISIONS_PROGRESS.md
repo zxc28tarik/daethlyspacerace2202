@@ -1101,3 +1101,8 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Kod: 30 kirisli kafes materyali/meshi, geometri ve donus animasyonu silindi. Crystal metalness=0, minimal cekirdek + ince dusuk opaklikli halka. 49 odulde mesh sayisi 4->3.
 - Korunan: radius 49, odul olasiliklari, laser suresi, iki boost mekanigi, gemi ve Map4.
 - QA: MAP1_NEXT11C21G3_NO_METAL.md, gercek Chromium/WebGL, offline oynanabilir HTML ve full smoke. Main merge yok.
+
+## 61) NEXT11C21G4 — minimal ödül kristaline 3 ince enerji halkası
+- Kullanıcı "daha fazla halka" kararı: metal kafes YOK; mevcut 24 yarıçaplı ana mor halkanın yanına 28 dış ve 19 iç halka (opaklıklar 0.29 / 0.18 / 0.20) eklendi.
+- Her halka başka eksende/yönde dönüyor, geometri 49 ödülde paylaşılıyor. Pickup radius49 / rota / RNG / HYPER ve manuel boost mekaniği / gemi / Harita4 aynen duruyor.
+- Test: [NEXT11C21G4](MAP1_NEXT11C21G4_TRIPLE_ORBITS.md), 1600x900 one-vs-three ring gerçek Chromium WebGL screenshot, 49 ödül, Map4 249 / physics, offline playable artifact. CI sonucu doğrulanacak; taslak PR, merge için açık onay gerekir.
