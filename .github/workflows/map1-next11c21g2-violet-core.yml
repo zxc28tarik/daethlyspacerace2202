@@ -1,0 +1,42 @@
+name: Map1 NEXT11C21G2 Violet Core Pickup Art
+on:
+  push:
+    branches: [codex/map1-violet-core-pickup-21g2]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-violet-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and original Three r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Syntax check
+        run: node --check tests/map1-next11c21g2-violet-core.cjs
+      - name: Real WebGL old box vs new Violet Core, unchanged Map4
+        run: node tests/map1-next11c21g2-violet-core.cjs
+      - name: Protect original collectible prize logic and hyper-only logic
+        run: node tests/map1-next11c21g-reward-hyper.cjs
+      - name: Protect original 189-part ship and 304 rail joins
+        run: |
+          node tests/map1-next11c20-sb07-zenit.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+      - name: Build latest portable OFFLINE playable full HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload playable game and native comparison screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c21g2-violet-core-playable-and-webgl
+          path: |
+            tests/next11c21g2-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn
