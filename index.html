@@ -1159,12 +1159,71 @@
 
         // Uzay İstasyonu Silüetleri ve Asteroit Kuşağı (Boru İçi Engeller)
         const asteroids = [];
+        // NEXT11C21H — strictly visual meteor refinement. Keep each
+        // ORIGINAL dodecahedron vertex, radius, placement and collider.
+        // Stone facets use class-specific natural mineral tones instead of
+        // toy-like uniform lavender and sharp cyan wire silhouettes.
         const asteroidMaterials = {
-            SMALL: new THREE.MeshStandardMaterial({ color: 0x84839d, roughness: 0.79, metalness: 0.16, flatShading: true, emissive: 0x0b1622 }),
-            MEDIUM: new THREE.MeshStandardMaterial({ color: 0x81748d, roughness: 0.80, metalness: 0.19, flatShading: true, emissive: 0x120c26 }),
-            LARGE: new THREE.MeshStandardMaterial({ color: 0x8e7280, roughness: 0.84, metalness: 0.2, flatShading: true, emissive: 0x220d1a })
+            SMALL: new THREE.MeshStandardMaterial({
+                color:0xa6abb6,roughness:.91,metalness:.035,
+                flatShading:true,vertexColors:true,emissive:0x070a10
+            }),
+            MEDIUM: new THREE.MeshStandardMaterial({
+                color:0x948e9b,roughness:.93,metalness:.045,
+                flatShading:true,vertexColors:true,emissive:0x09080d
+            }),
+            LARGE: new THREE.MeshStandardMaterial({
+                color:0x9b8881,roughness:.94,metalness:.055,
+                flatShading:true,vertexColors:true,emissive:0x100907
+            })
         };
-        const asteroidEdgeMat = new THREE.LineBasicMaterial({ color: 0x5ccddb, transparent: true, opacity: 0.24, depthWrite: false });
+        // Each variant retains a faint rock edge cue, not a neon outline.
+        const asteroidEdgeMaterials={
+            SMALL:new THREE.LineBasicMaterial({
+                color:0xa4b4c3,transparent:true,opacity:.17,
+                depthWrite:false
+            }),
+            MEDIUM:new THREE.LineBasicMaterial({
+                color:0x9c94aa,transparent:true,opacity:.14,
+                depthWrite:false
+            }),
+            LARGE:new THREE.LineBasicMaterial({
+                color:0xbda192,transparent:true,opacity:.14,
+                depthWrite:false
+            })
+        };
+        // Stable per-face pigment: NO Math.random calls, so no change to
+        // track placement, sizes, AI, damage or procedural race seeding.
+        // Geometry positions are untouched. Every non-indexed triangle
+        // gets one nuanced tone: shaded mineral patches with no 3D clutter.
+        function tintAsteroidFacets(geometry,meteorIndex,sizeClass){
+            const positions=geometry.getAttribute('position');
+            const colors=new Float32Array(positions.count*3);
+            const floorTone={SMALL:.79,MEDIUM:.74,LARGE:.72}[sizeClass];
+            const strata={SMALL:.06,MEDIUM:.10,LARGE:.13}[sizeClass];
+            const hash=(n)=>{
+                const x=Math.sin(n*12.9898+78.233)*43758.5453;
+                return x-Math.floor(x);
+            };
+            for(let vertex=0;vertex<positions.count;vertex+=3){
+                const p=vertex*3,face=vertex/3;
+                const mix=hash((meteorIndex+1)*59.3+face*1.83);
+                const mineral=hash((meteorIndex+1)*11.7+face*.37);
+                const tone=floorTone+.31*mix;
+                const streak=mineral>.83?strata:0;
+                const rust=sizeClass==='LARGE'?.042:0;
+                for(let k=vertex;k<Math.min(vertex+3,positions.count);k++){
+                    const color=k*3;
+                    colors[color]=tone*(1+rust+streak*.75);
+                    colors[color+1]=tone*(1-streak*.30);
+                    colors[color+2]=tone*(1+streak*.65);
+                }
+            }
+            geometry.setAttribute('color',
+                new THREE.BufferAttribute(colors,3));
+            geometry.userData.map1MineralSurface='C21H_FACET_TINT';
+            geometry.userData.sourceVertexPositionsUnchanged=true;
+        }
         const driftTailMat = new THREE.LineBasicMaterial({ color: 0x63e9ff, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false });
         const approachTailMat = new THREE.LineBasicMaterial({ color: 0xffac66, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
         for (let i = 0; i < 320; i++) {
@@ -1184,9 +1243,19 @@
             }
 
             radius *= ASTEROID_SIZE_SCALE;
-            const ast = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), asteroidMaterials[sizeClass]);
+            const rockGeometry=new THREE.DodecahedronGeometry(radius,1);
+            tintAsteroidFacets(rockGeometry,i,sizeClass);
+            const ast = new THREE.Mesh(rockGeometry, asteroidMaterials[sizeClass]);
+            ast.name='MAP1_ORIGINAL_METEOR_REFINED';
+            ast.userData.visualRefinement='NEXT11C21H';
             ast.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
-            const edgeGlow = new THREE.LineSegments(new THREE.EdgesGeometry(ast.geometry, 25), asteroidEdgeMat);
+            const edgeGlow = new THREE.LineSegments(
+                new THREE.EdgesGeometry(ast.geometry,25),
+                asteroidEdgeMaterials[sizeClass]
+            );
+            edgeGlow.name='MAP1_METEOR_SOFT_FACET_EDGES';
+            edgeGlow.userData.visualOnly=true;
+            edgeGlow.userData.noCollider=true;
             ast.add(edgeGlow);
             scene.add(ast);
             const movementTail = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), driftTailMat);
