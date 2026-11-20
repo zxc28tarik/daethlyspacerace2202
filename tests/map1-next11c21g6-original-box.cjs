@@ -33,7 +33,10 @@ const out=path.join(__dirname,'next11c21g6-evidence');fs.mkdirSync(out,{recursiv
       b.routeProgress,b.laneX,b.laneY).position)<.0001,
      visual:[...m,...l].every(x=>x.userData.visualOnly&&x.userData.noCollider)};
    });
-   const before=first.spin.scale.x;state.raceTime=.9;animateItemBoxes(.016);
+   const before=first.spin.scale.x,oldVisibility=first.mesh.visible;
+   first.mesh.visible=true; // Force sampled pickup visible for animation QA.
+   state.raceTime=.9;animateItemBoxes(.016);
+   first.mesh.visible=oldVisibility;
    const fixture={energy:100,shield:100,itemTurboTimer:0,powerShieldTimer:0};
    return {count:all.length,originalBox:all.every(x=>x.meshCount===2&&
     x.edges===1&&x.cubes.length===1&&x.cubes[0].width===34&&
