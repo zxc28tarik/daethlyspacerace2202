@@ -33,7 +33,10 @@ const out=path.join(__dirname,'next11c21g3-evidence');fs.mkdirSync(out,{recursiv
      visual:list.every(m=>m.userData.visualOnly&&m.userData.noCollider)};
    });
    const oldPosition=first.art.position.y,oldRot=first.spin.rotation.y;
+   const clock=state.raceTime;
+   state.raceTime=1.5; // force nonzero hover phase (raceTime=0 is sine origin)
    animateItemBoxes(.3);
+   state.raceTime=clock;
    renderer.render(scene,camera);
    const gl=renderer.getContext();gl.finish();
    return {items:itemBoxes.length,three:all.every(x=>x.meshCount===3),
