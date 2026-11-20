@@ -9865,18 +9865,35 @@
                     moveType:'STATIC', driftVx:0, driftVy:0, approachSpeed:0,
                     touchingShips:new Set(),hitTimes:Object.create(null) });
             });
-            const cubeMat = new THREE.MeshStandardMaterial({ color: 0x5a39b8, metalness:0.35, roughness:0.3, emissive:0x331e85, emissiveIntensity:0.9, transparent:true, opacity:0.9 });
-            const cubeEdgeMat = new THREE.LineBasicMaterial({color:0xffeaff});
-            const coreMat = new THREE.MeshBasicMaterial({color:0x60eeff});
+            // NEXT11C21G: purple random reward capsule; the result remains
+            // unknown until collection. Reuse one orbital geometry/material.
+            const cubeMat = new THREE.MeshStandardMaterial({
+                color:0x493477,metalness:.52,roughness:.29,
+                emissive:0x321a79,emissiveIntensity:.75,
+                transparent:true,opacity:.76,depthWrite:false
+            });
+            const cubeEdgeMat = new THREE.LineBasicMaterial({color:0xd5c1ff});
+            const coreMat = new THREE.MeshBasicMaterial({color:0xa9f6ff});
+            const rewardOrbitMat = new THREE.MeshBasicMaterial({
+                color:0xb28aff,transparent:true,opacity:.60,
+                blending:THREE.AdditiveBlending,depthWrite:false,
+                side:THREE.DoubleSide
+            });
+            const rewardOrbitGeometry=new THREE.TorusGeometry(26,1.05,6,40);
             itemBlueprints.forEach(([routeProgress, laneX, laneY],i)=>{
                 const g = makeCourseLocalGroup(routeProgress,laneX,laneY);
                 const cube = new THREE.Mesh(new THREE.BoxGeometry(34,34,34),cubeMat);
                 cube.rotation.set(0.15,0.15,0.1);
                 const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(36,36,36)), cubeEdgeMat);
                 const core = new THREE.Mesh(new THREE.OctahedronGeometry(9,0),coreMat);
-                cube.add(core);g.add(cube,edge);
+                const orbit=new THREE.Mesh(rewardOrbitGeometry,rewardOrbitMat);
+                orbit.rotation.set(.64,.34,.2);
+                orbit.name='MAP1_REWARD_PICKUP_ORBIT';
+                orbit.userData.visualOnly=true;
+                orbit.userData.noCollider=true;
+                cube.add(core);g.add(cube,edge,orbit);
                 itemBoxGroup.add(g);
-                itemBoxes.push({id:`ITEM-${i}`,routeProgress,laneX,laneY,radius:49,mesh:g,claimed:new Set(),spin:cube,edge});
+                itemBoxes.push({id:`ITEM-${i}`,routeProgress,laneX,laneY,radius:49,mesh:g,claimed:new Set(),spin:cube,edge,orbit});
             });
         }
         buildItemAndBarrierCourse();
@@ -9959,6 +9976,8 @@
                 if (!box.mesh.visible) return; // AI-34: kutu fiziksel olarak durur, uzakta animasyon yapmaz.
                 box.spin.rotation.x += dt * 0.67;
                 box.spin.rotation.y += dt * 1.15;
+                box.orbit.rotation.z += dt * .43;
+                box.orbit.rotation.y += dt * .21;
                 box.mesh.scale.setScalar(1 + Math.sin(state.raceTime*3+i)*0.09);
             });
         }
@@ -13207,14 +13226,65 @@
             h4Ship19Race.userData.thrustGlow=h4Ship20GlowBlend;
         }
 
+        // NEXT11C21G: ONLY collectible HYPER_TURBO, NEVER Shift/W.
+        // Four bounded GPU draws while earned; no new SB-07 mesh batches.
+        const h4RewardTurboFx=new THREE.Group();
+        h4RewardTurboFx.name='MAP1_REWARD_HYPER_TURBO_ONLY';
+        h4RewardTurboFx.visible=false;
+        h4RewardTurboFx.userData.visualOnly=true;
+        h4RewardTurboFx.userData.noCollider=true;
+        const h4RewardTrailMat=new THREE.MeshBasicMaterial({
+            color:0xab82ff,transparent:true,opacity:.30,
+            blending:THREE.AdditiveBlending,depthWrite:false,
+            side:THREE.DoubleSide,toneMapped:false
+        });
+        const h4RewardRingMat=new THREE.MeshBasicMaterial({
+            color:0xe3c4ff,transparent:true,opacity:.58,
+            blending:THREE.AdditiveBlending,depthWrite:false,
+            side:THREE.DoubleSide,toneMapped:false
+        });
+        const h4RewardTrailShape=new THREE.CylinderGeometry(
+            .045,.43,4.8,12,1,true);
+        h4RewardTrailShape.rotateX(Math.PI/2);
+        const h4RewardRingShape=new THREE.TorusGeometry(.92,.075,8,32);
+        const h4RewardTurboTrails=[],h4RewardTurboRings=[];
+        for(const side of [-1,1]){
+            const trail=new THREE.Mesh(h4RewardTrailShape,h4RewardTrailMat);
+            trail.position.set(side*1.80,-.25,9);
+            trail.name=side<0?'HYPER_REWARD_TRAIL_L':'HYPER_REWARD_TRAIL_R';
+            const rim=new THREE.Mesh(h4RewardRingShape,h4RewardRingMat);
+            rim.position.set(side*1.80,-.25,6.76);
+            rim.name=side<0?'HYPER_REWARD_RIM_L':'HYPER_REWARD_RIM_R';
+            trail.userData.visualOnly=rim.userData.visualOnly=true;
+            trail.userData.noCollider=rim.userData.noCollider=true;
+            h4RewardTurboFx.add(trail,rim);
+            h4RewardTurboTrails.push(trail);h4RewardTurboRings.push(rim);
+        }
+        function h4RewardTurboVisualTick(dt){
+            const active=state.activeMap===MAP_MODES.MAP1 &&
+                state.running&&!state.paused&&!state.finished &&
+                state.itemTurboTimer>0;
+            h4RewardTurboFx.visible=active;
+            if(!active)return;
+            const phase=state.raceTime*23,wave=.5+.5*Math.sin(phase);
+            h4RewardTrailMat.opacity=.29+.075*wave;
+            h4RewardRingMat.opacity=.47+.12*wave;
+            for(let i=0;i<2;i++){
+                h4RewardTurboTrails[i].scale.z=1+.12*Math.sin(phase+i*1.5);
+                const size=1+.065*Math.sin(phase+i*2.1);
+                h4RewardTurboRings[i].scale.set(size,size,1);
+            }
+        }
+
         h4Ship19Stats.stylePass='SB07_ZENIT_RACER__DARK_AMBER_B04';
         h4Ship19Stats.referenceStyleOnly=true;
-        geoSwordMesh.add(h4Ship19Race);
+        geoSwordMesh.add(h4Ship19Race,h4RewardTurboFx);
         h4GeoSwordArt.add(h4Ship19Combat);
         function h4Ship19Select(){
             const map4=state.activeMap===MAP_MODES.MAP4;
             h4Ship19Race.visible=!map4;
             h4Ship19Combat.visible=map4;
+            if(map4)h4RewardTurboFx.visible=false;
             // Preserve old geometries for backward tests but never draw
             // the bare prototype craft on top of our R-01 design.
             for(const old of [noseCone,cockpit,mainWings,
@@ -15130,6 +15200,7 @@
 
             // Appearance only; game controls/camera/physics unchanged.
             h4Ship20ZenitVisualTick(dt);
+            h4RewardTurboVisualTick(dt);
 
             // Köşe Taretlerin Geri Tepme Düzelmesi
             leftTurret.position.z += (-6.2 - leftTurret.position.z) * 12 * dt;
