@@ -1,0 +1,40 @@
+name: Map1 NEXT11C21G6 Original Reward Box Visual Polish
+on:
+  push:
+    branches: [codex/map1-original-cube-visual-polish-21g6]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-box-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium / Three r128 / offline builder
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Syntax-check and run real original-vs-polished box WebGL
+        run: |
+          node --check tests/map1-next11c21g6-original-box.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: Preserve original SB-07 and corridor renderer/physics
+        run: |
+          node tests/map1-next11c20-sb07-zenit.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+      - name: Build complete offline playable HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload screenshots, test evidence and actual full game
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21g6-original-box-playable-webgl
+          path: |
+            tests/next11c21g6-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn

@@ -1112,3 +1112,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KOD:** İç halka rengini 0x6B90D6 -> 0xA17BCB yaptık, ilk açıyı (0.24,1.14,-0.62) -> (0.72,-0.32,-0.25) değiştirdik. Sürekli x dönmesi yerine sınırlı ve yumuşak pitch/yaw salınımı, uzun yarışta dik/kenardan görünmeme güvencesi; 3 halka ve metal-yok kimliği korunuyor.
 - **KORUNAN:** 49 pickup / r49 / RNG, ödül ve manuel boost, Map4, SB07; önceki C21G4 bileşenleri.
 - **KABUL:** [C21G5](MAP1_NEXT11C21G5_INNER_ORBIT.md) + gerçek WebGL eski dik / yeni yatık mor karşılaştırması, 300sn simülasyon örneklemesi, playable offline HTML + smoke. PR taslak, main merge için kullanıcı onayı gerekir.
+
+## 63) NEXT11C21G6 — Eski mor kutu kimliği tekrar seçildi
+- **KULLANICI KARARI:** Atom kristali ve yeni pickup formu artık kullanılmayacak. Eski mor kutu/kenar/core tasarımı kullanılacak ve **yalnızca görüntü kalitesi** geliştirilecek.
+- **YAPILDI:** 49 pickup tekrar aynı 34-kutu, 36-kenar, 9-core; mor malzeme dengesi ve çizgi ışığı hafif iyileştirildi. Orbital halkalar ve kristal mesh'leri silindi; aynı üç render parçası; paylaşılan GPU geometrileri.
+- **DEĞİŞMEYEN:** radius49 ve pozisyon, RNG/HYPER/SHIELD/ENERGY, 12s lazer, manuel boost, SB-07, Map4.
+- **QA:** MAP1_NEXT11C21G6_ORIGINAL_BOX.md; gerçek Chromium karşılaştırma ve oynanabilir offline HTML. Tarihi C21G-G5 atom QA yeni dalda skip, orijinal PR'larda kalır. Merge için açık onay gerekir.
