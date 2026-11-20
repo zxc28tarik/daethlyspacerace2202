@@ -1016,3 +1016,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **TAM OYUN REGRESYONU:** [Son HEAD Map1/4 smoke #44554230249](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44554230249) ayrı tamamlanmadan tam oyun PASS yazılmaz. **SIRADAKİ NEXT11C21B:** bu belirgin gerçek PBR farkı görsel olarak değerlendirilip kullanıcıya fazla parlak/karanlık geliyorsa yalnız HULL/SECOND malzeme parametrelerini düzelt; yeni parça, ekstra MSAA/supersampling veya kör FPS optimizasyonu yok.
 
 **Karar günlüğü:** 2026-11-19 | NEXT11C21A | PBR ceramic+brushed metal code and native 1× actual WebGL 16/16 PASS | 44.9k/47.4k differing RGB pixels in 2 views | full smoke pending | DRAFT no merge.
+
+
+## 53) 20 Kasım 2026 — NEXT11C21B Balanced renk kimliği uygulandı (kullanıcı kararıyla doğrudan)
+
+- **SANAT HEDEFİ:** Kullanıcı renkleri daha iyi yapmamızı ve kendi kararlarımızı uygulamaya başlamamızı istedi. Stil **Balanced / temiz yarış prototipi + premium teknik metal** seçildi. Onaylı geminin ana renkleri, silueti ve orijinal **1.00× MSAA** korunur; global blur/FXAA/supersampling/dekoratif yeni parça yok.
+- **GERÇEK `index.html` OYUN KODU:** 4 mevcut GPU mesh materyaline (HULL seramik, SECOND gunmetal, RED yarış boyası, DARK iç mekanizma) `vertexColors=true` ve birleştirilmiş geometriye konumdan hesaplanan `color` RGB buffer eklendi. Boya çarpanları sürekli `nose/wing/engine/roof` koordinat fonksiyonlarından gelir, mesh veya draw call sayısı artmaz. Ana renk **#DBE4EA/#566675/#C43838/#15202C** aynen; GLASS #18394F, ORANGE #FAA15D, PLASMA #6DD9FF aynen. C21A physical PBR, 189 SB-07, 7 ana mesh+2 glow, B-04 Map4 249/6-36-200, yarış fiziği, 304 corridor seams korunur.
+- **GERÇEK QA EKLENDİ:** 4 materyalin gerçek birleşmiş GPU geometry color count, RGB aralık/gradient/pigment sayısı ve 3 değişmeyen materyal; önceki C21A + özgün SB07 normal/boost + C20R 304 seam, 4×1600×900 real 1× MSAA WebGL stüdyo; özel CI workflow ve tam Map1/Map4 smoke kapsamına eklendi. Test sonuçlanmadan PASS ilan edilmez.
+- **KABUL BELGESİ:** [C21B Balanced renk kimliği](MAP1_NEXT11C21B_BALANCED_COLOR_IDENTITY.md). **SIRADA C21C:** kırmızı şerit uzaktan okunma/kontrast ve mevcut boya yerleşiminde pigment dengesi; **C21D:** koyu motor/amber/plasma dengesini kontrol; **C21E:** son estetik kilit. Kullanıcı açıkça izin vermeden merge yok.
+
+**Günlük:** 2026-11-20 | NEXT11C21B | actual 4-batch original palette vertex tint | no new pieces / no AA or FPS target | dedicated/full Chromium CI pending | stacked DRAFT.
