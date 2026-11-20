@@ -29,3 +29,12 @@ Bu renklendirme işlemi malzeme bazında değil, gerçek modelin her vertex koor
 ## Sonraki geliştirme
 
 **NEXT11C21C:** C21B gerçek görüntü farkına bakarak kırmızı stripe okunurluğunun estetik son kontrolü; gerekiyorsa yalnız mevcut renk maskesi azalt/artır, yeni decal veya parça yaratma. Ardından teknik/motor renklerinin aşırı enerjiye dönüşmemesini kontrol (C21D), son renk kilidi (C21E). Tam oyun regresyonu ve kullanıcı görsel tercihi temel kapıdır.
+
+
+## Güncellenen nihai renk ölçümü — 20 Kasım 2026
+
+İlk 1. versiyon stüdyo incelemesinde çok az fark görüldüğü için aynı geometri üzerinde **wingEdge smoothstep** pigmenti, daha tok mavi-çelik SECOND ve daha doygun RED katsayıları düzeltildi. Son kod/test `95a3780cb9a241baed8b21a4557e093056e303b9`, [gerçek özel Chromium/WebGL PASS #44704983634](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44704983634). **4 shader renkli mesh, 74.700 gerçek vertex**, değişmeyen base renk hex ve 1x MSAA.
+
+Önceki C21A ile aynı ışık/kamera/native MSAA karelerinde (1600×900) RGB kanal farkı eşiği >12: arka-çapraz %1,60 (23.048 piksel), üst %1,85 (26.591 piksel). Sayı görsel fark büyüklüğüdür, estetik beğenilme ölçütü değildir. [Son dört açı ve JSON artifact #14615020719](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44704983634/artifacts/14615020719).
+
+Bu varyant yeni parça içermeden C21B'nin kabul adayıdır. Devam etmeden önce kullanıcıya aynı kamera, büyük kadraj A/B gösterilmeli. 189/249 parça, 7 mesh batch+2 glow, B04 [6/36/200], 304/304 ray seam ve orijinal 1× MSAA korunur. Kapsamlı Map1/4 smoke [#44704983656](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44704983656) ayrıca tamamlanmalıdır. PR DRAFT, açık onay olmadan birleştirme yok.
