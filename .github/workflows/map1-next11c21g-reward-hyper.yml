@@ -1,0 +1,39 @@
+name: Map1 NEXT11C21G Reward HYPER Pickup Art
+on:
+  push:
+    branches: [codex/map1-reward-hyper-pickup-art-21g]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reward-only-vfx:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium and original Three r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Syntax-check reward visual test
+        run: node --check tests/map1-next11c21g-reward-hyper.cjs
+      - name: Real WebGL prize capsule and reward-only purple boost
+        run: node tests/map1-next11c21g-reward-hyper.cjs
+      - name: Protect original 189-part SB-07 and Map4 249
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Previous color and genuine game-camera guards
+        run: |
+          node tests/map1-next11c21e-final-color-review.cjs
+          node tests/map1-next11c21f-game-camera.cjs
+      - name: Preserve physical 304/304 corridor seams
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Upload actual normal/manual/reward/expired WebGL comparisons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21g-reward-hyper-vfx-real-webgl
+          path: tests/next11c21g-evidence/
+          if-no-files-found: warn
