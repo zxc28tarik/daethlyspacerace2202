@@ -9865,90 +9865,47 @@
                     moveType:'STATIC', driftVx:0, driftVy:0, approachSpeed:0,
                     touchingShips:new Set(),hitTimes:Object.create(null) });
             });
-            // NEXT11C21G4: minimal metal-free crystal with THREE separately
-            // rotating, ultra-thin energy orbits. Outer/inner orbits are
-            // lower opacity than the approved C21G3 main orbit. Their 49
-            // positions, crystal and radius-49 collisions are unchanged.
-            const rewardCrystalMat=new THREE.MeshStandardMaterial({
-                color:0x60bdd6,metalness:0,roughness:.28,
-                emissive:0x21688f,emissiveIntensity:.35,
-                flatShading:true,transparent:true,opacity:.83,
-                depthWrite:false,side:THREE.DoubleSide
+            // NEXT11C21G6: user-approved rollback to the ORIGINAL
+            // box silhouette and dimensions. ONLY colors, reflectance,
+            // edge/core clarity and restrained spin/pulse are polished.
+            // No orbit/ring, floating crystal, extra particles or decals.
+            // Three shared geometries for all 49 original pickups.
+            const cubeMat=new THREE.MeshStandardMaterial({
+                color:0x6242a5, metalness:.18, roughness:.40,
+                emissive:0x2c1a65, emissiveIntensity:.58,
+                transparent:true, opacity:.92
             });
-            const rewardCoreMat=new THREE.MeshBasicMaterial({
-                color:0xcff8ff,toneMapped:false,
-                transparent:true,opacity:.69,depthWrite:false
+            const cubeEdgeMat=new THREE.LineBasicMaterial({
+                color:0xe2caff,transparent:true,opacity:.84
             });
-            // Three distinct shared buffers/materials (never duplicated per
-            // pickup). Cumulative glow remains restrained, no metal/glass.
-            const rewardOrbitMat=new THREE.MeshBasicMaterial({
-                color:0x9768ce,transparent:true,opacity:.29,
-                blending:THREE.AdditiveBlending,depthWrite:false,
-                side:THREE.DoubleSide,toneMapped:false
+            const coreMat=new THREE.MeshBasicMaterial({
+                color:0x83e4f2,transparent:true,opacity:.90
             });
-            const rewardOrbitOuterMat=new THREE.MeshBasicMaterial({
-                color:0xa28cdb,transparent:true,opacity:.18,
-                blending:THREE.AdditiveBlending,depthWrite:false,
-                side:THREE.DoubleSide,toneMapped:false
-            });
-            // NEXT11C21G5: the old icy-blue inner orbit looked like an
-            // upright wire from the player's camera. A softer orchid-violet
-            // matches the other two rings without adding bloom or metal.
-            const rewardOrbitInnerMat=new THREE.MeshBasicMaterial({
-                color:0xa17bcb,transparent:true,opacity:.20,
-                blending:THREE.AdditiveBlending,depthWrite:false,
-                side:THREE.DoubleSide,toneMapped:false
-            });
-            const rewardCrystalGeo=new THREE.OctahedronGeometry(16.5,0);
-            const rewardCoreGeo=new THREE.OctahedronGeometry(7.7,0);
-            const rewardOrbitGeometry=new THREE.TorusGeometry(24,.52,6,40);
-            const rewardOrbitOuterGeo=new THREE.TorusGeometry(28,.40,6,48);
-            const rewardOrbitInnerGeo=new THREE.TorusGeometry(19,.37,6,40);
+            const cubeGeo=new THREE.BoxGeometry(34,34,34);
+            const cubeEdgeGeo=new THREE.EdgesGeometry(
+                new THREE.BoxGeometry(36,36,36)
+            );
+            const coreGeo=new THREE.OctahedronGeometry(9,0);
             itemBlueprints.forEach(([routeProgress,laneX,laneY],i)=>{
                 const g=makeCourseLocalGroup(routeProgress,laneX,laneY);
-                const art=new THREE.Group();
-                art.name='MAP1_VIOLET_CORE_PICKUP';
-                art.userData.visualOnly=true;
-                art.userData.noCollider=true;
-                const crystal=new THREE.Mesh(
-                    rewardCrystalGeo,rewardCrystalMat
-                );
-                crystal.name='MAP1_VIOLET_CORE_CRYSTAL';
-                crystal.rotation.set(.12,.35,.18);
-                const core=new THREE.Mesh(rewardCoreGeo,rewardCoreMat);
-                core.name='MAP1_VIOLET_CORE_LIGHT';
-                crystal.add(core);
-                const orbit=new THREE.Mesh(
-                    rewardOrbitGeometry,rewardOrbitMat
-                );
-                orbit.rotation.set(.72,.30,.18);
-                orbit.name='MAP1_REWARD_PICKUP_ORBIT';
-                const orbitOuter=new THREE.Mesh(
-                    rewardOrbitOuterGeo,rewardOrbitOuterMat
-                );
-                orbitOuter.rotation.set(1.22,-.39,.56);
-                orbitOuter.name='MAP1_REWARD_PICKUP_ORBIT_OUTER';
-                const orbitInner=new THREE.Mesh(
-                    rewardOrbitInnerGeo,rewardOrbitInnerMat
-                );
-                // C21G5: turn its almost edge-on vertical plane toward
-                // the camera, with a gentle opposed tilt. Keep the diameter.
-                orbitInner.rotation.set(.72,-.32,-.25);
-                orbitInner.name='MAP1_REWARD_PICKUP_ORBIT_INNER';
-                // Five visual meshes, zero metal, zero obstacle/collider
-                // changes. Outer and inner rings run on independent axes.
-                for(const m of [crystal,core,orbit,orbitOuter,orbitInner]){
-                    m.userData.visualOnly=true;
-                    m.userData.noCollider=true;
+                const cube=new THREE.Mesh(cubeGeo,cubeMat);
+                cube.rotation.set(.15,.15,.1);
+                cube.name='MAP1_ORIGINAL_REWARD_BOX';
+                const edge=new THREE.LineSegments(cubeEdgeGeo,cubeEdgeMat);
+                edge.name='MAP1_ORIGINAL_REWARD_EDGES';
+                const core=new THREE.Mesh(coreGeo,coreMat);
+                core.name='MAP1_ORIGINAL_REWARD_CORE';
+                for(const part of [cube,edge,core]){
+                    part.userData.visualOnly=true;
+                    part.userData.noCollider=true;
                 }
-                art.add(crystal,orbit,orbitOuter,orbitInner);
-                g.add(art);
+                cube.add(core);
+                g.add(cube,edge);
                 itemBoxGroup.add(g);
                 itemBoxes.push({
                     id:`ITEM-${i}`,routeProgress,laneX,laneY,
-                    radius:49,mesh:g,art,claimed:new Set(),
-                    spin:crystal,orbit,orbits:[orbit,orbitOuter,orbitInner],
-                    core
+                    radius:49,mesh:g,claimed:new Set(),spin:cube,
+                    edge,core
                 });
             });
         }
@@ -10029,29 +9986,15 @@
 
         function animateItemBoxes(dt) {
             itemBoxes.forEach((box,i)=>{
-                if(!box.mesh.visible)return; // distant pickup culling kept
-                box.spin.rotation.x += dt*.27;
-                box.spin.rotation.y += dt*.67;
-                box.orbit.rotation.z += dt*.27;
-                box.orbit.rotation.y += dt*.16;
-                box.orbits[1].rotation.x -= dt*.23;
-                box.orbits[1].rotation.y += dt*.17;
-                // C21G5: bounded, slow orbital precession. Unlike free
-                // x-axis accumulation this cannot eventually turn into a
-                // needle-like edge-on upright ring during a long race.
-                box.orbits[2].rotation.x=.72+
-                    .12*Math.sin(state.raceTime*.8+i*.47);
-                box.orbits[2].rotation.y=-.32+
-                    .09*Math.sin(state.raceTime*.56+i*.31);
-                box.orbits[2].rotation.z -= dt*.17;
-                // The root group remains fixed at the route/collision
-                // position; only non-physical presentation floats.
-                box.art.position.y=Math.sin(state.raceTime*2.1+i*.55)*2.7;
-                const pulse=1+.055*Math.sin(state.raceTime*4.2+i*.6);
-                box.spin.scale.setScalar(pulse);
-                box.mesh.scale.setScalar(1+.026*Math.sin(
-                    state.raceTime*2.4+i
-                ));
+                if(!box.mesh.visible)return; // original distant-object culling
+                // Original rotation, softer breathing pulse, no orbital art.
+                box.spin.rotation.x+=dt*.67;
+                box.spin.rotation.y+=dt*1.15;
+                const pulse=1+.042*Math.sin(state.raceTime*3+i*.6);
+                box.mesh.scale.setScalar(pulse);
+                box.core.scale.setScalar(
+                    1+.065*Math.sin(state.raceTime*3.8+i*.7)
+                );
             });
         }
 
