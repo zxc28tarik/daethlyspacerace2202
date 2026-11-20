@@ -9891,8 +9891,11 @@
                 blending:THREE.AdditiveBlending,depthWrite:false,
                 side:THREE.DoubleSide,toneMapped:false
             });
+            // NEXT11C21G5: the old icy-blue inner orbit looked like an
+            // upright wire from the player's camera. A softer orchid-violet
+            // matches the other two rings without adding bloom or metal.
             const rewardOrbitInnerMat=new THREE.MeshBasicMaterial({
-                color:0x6b90d6,transparent:true,opacity:.20,
+                color:0xa17bcb,transparent:true,opacity:.20,
                 blending:THREE.AdditiveBlending,depthWrite:false,
                 side:THREE.DoubleSide,toneMapped:false
             });
@@ -9928,7 +9931,9 @@
                 const orbitInner=new THREE.Mesh(
                     rewardOrbitInnerGeo,rewardOrbitInnerMat
                 );
-                orbitInner.rotation.set(.24,1.14,-.62);
+                // C21G5: turn its almost edge-on vertical plane toward
+                // the camera, with a gentle opposed tilt. Keep the diameter.
+                orbitInner.rotation.set(.72,-.32,-.25);
                 orbitInner.name='MAP1_REWARD_PICKUP_ORBIT_INNER';
                 // Five visual meshes, zero metal, zero obstacle/collider
                 // changes. Outer and inner rings run on independent axes.
@@ -10031,8 +10036,14 @@
                 box.orbit.rotation.y += dt*.16;
                 box.orbits[1].rotation.x -= dt*.23;
                 box.orbits[1].rotation.y += dt*.17;
-                box.orbits[2].rotation.z -= dt*.41;
-                box.orbits[2].rotation.x += dt*.29;
+                // C21G5: bounded, slow orbital precession. Unlike free
+                // x-axis accumulation this cannot eventually turn into a
+                // needle-like edge-on upright ring during a long race.
+                box.orbits[2].rotation.x=.72+
+                    .12*Math.sin(state.raceTime*.8+i*.47);
+                box.orbits[2].rotation.y=-.32+
+                    .09*Math.sin(state.raceTime*.56+i*.31);
+                box.orbits[2].rotation.z -= dt*.17;
                 // The root group remains fixed at the route/collision
                 // position; only non-physical presentation floats.
                 box.art.position.y=Math.sin(state.raceTime*2.1+i*.55)*2.7;
