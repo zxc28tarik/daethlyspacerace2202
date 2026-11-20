@@ -12893,10 +12893,14 @@
                     .982+.018*nose+.009*roof-.075*wingEdge-.012*engine,
                     .995+.015*nose+.008*roof-.040*wingEdge-.006*engine
                 ];
+                // NEXT11C21D: smooth engine-shroud machining finish.
+                // Blue steel deepens ONLY where existing SECOND metal
+                // surrounds the thruster; plasma/amber stay untouched.
+                const engineSmooth=engine*engine*(3-2*engine);
                 if(key==='SECOND')return [
-                    .870+.040*roof+.018*wing-.040*engine,
-                    .925+.035*roof-.024*engine,
-                    1.040+.018*roof-.008*engine
+                    .870+.040*roof+.018*wing-.068*engineSmooth,
+                    .925+.035*roof-.045*engineSmooth,
+                    1.040+.018*roof+.010*engineSmooth
                 ];
                 // NEXT11C21C: race RED now carries a continuous
                 // front-to-outboard flow along EXISTING painted strips.
@@ -12912,9 +12916,9 @@
                     ];
                 }
                 if(key==='DARK')return [
-                    .925+.035*roof,
-                    .975+.018*engine,
-                    1.035+.015*engine
+                    .925+.035*roof-.030*engineSmooth,
+                    .975+.020*engineSmooth,
+                    1.035+.024*engineSmooth
                 ];
                 return [1,1,1];
             };
@@ -13027,6 +13031,8 @@
             root.userData.flushedWingShrouds=2;
             root.userData.colorHierarchy='SB07_BALANCED';
             root.userData.raceRedFlowVersion='NEXT11C21C';
+            root.userData.engineToneVersion='NEXT11C21D';
+            root.userData.engineToneOriginalEnergy=true;
             root.userData.raceRedFlowOriginalGeometry=true;
             root.userData.colorHierarchyVersion='NEXT11C21B-E';
             root.userData.colorHierarchyFamilies=balancedColorKeys.slice();
