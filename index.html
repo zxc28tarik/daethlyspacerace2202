@@ -9865,35 +9865,133 @@
                     moveType:'STATIC', driftVx:0, driftVy:0, approachSpeed:0,
                     touchingShips:new Set(),hitTimes:Object.create(null) });
             });
-            // NEXT11C21G: purple random reward capsule; the result remains
-            // unknown until collection. Reuse one orbital geometry/material.
-            const cubeMat = new THREE.MeshStandardMaterial({
-                color:0x493477,metalness:.52,roughness:.29,
-                emissive:0x321a79,emissiveIntensity:.75,
-                transparent:true,opacity:.76,depthWrite:false
+            // NEXT11C21G2 / VIOLET CORE: no pickup box. Purpose-built
+            // six-sided energy relic has a machined 3D open cage, floating
+            // double diamond and one orbit. Each of 49 pickups shares the
+            // EXACT same four draw meshes + immutable geometries; collider
+            // and random item odds remain those of the old box.
+            const rewardFrameMat=new THREE.MeshStandardMaterial({
+                color:0x9486b1,metalness:.58,roughness:.29,
+                emissive:0x28183a,emissiveIntensity:.44,
+                flatShading:true
             });
-            const cubeEdgeMat = new THREE.LineBasicMaterial({color:0xd5c1ff});
-            const coreMat = new THREE.MeshBasicMaterial({color:0xa9f6ff});
-            const rewardOrbitMat = new THREE.MeshBasicMaterial({
-                color:0xb28aff,transparent:true,opacity:.60,
+            const rewardCrystalMat=new THREE.MeshStandardMaterial({
+                color:0x58bcd9,metalness:.16,roughness:.18,
+                emissive:0x2c8fbd,emissiveIntensity:.62,
+                flatShading:true,transparent:true,opacity:.79,
+                depthWrite:false,side:THREE.DoubleSide
+            });
+            const rewardCoreMat=new THREE.MeshBasicMaterial({
+                color:0xd3ffff,toneMapped:false,
+                transparent:true,opacity:.84,depthWrite:false
+            });
+            const rewardOrbitMat=new THREE.MeshBasicMaterial({
+                color:0xc18aff,transparent:true,opacity:.69,
                 blending:THREE.AdditiveBlending,depthWrite:false,
-                side:THREE.DoubleSide
+                side:THREE.DoubleSide,toneMapped:false
             });
-            const rewardOrbitGeometry=new THREE.TorusGeometry(26,1.05,6,40);
-            itemBlueprints.forEach(([routeProgress, laneX, laneY],i)=>{
-                const g = makeCourseLocalGroup(routeProgress,laneX,laneY);
-                const cube = new THREE.Mesh(new THREE.BoxGeometry(34,34,34),cubeMat);
-                cube.rotation.set(0.15,0.15,0.1);
-                const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(36,36,36)), cubeEdgeMat);
-                const core = new THREE.Mesh(new THREE.OctahedronGeometry(9,0),coreMat);
-                const orbit=new THREE.Mesh(rewardOrbitGeometry,rewardOrbitMat);
-                orbit.rotation.set(.64,.34,.2);
+            // The cage is engineered from thirty slim five-sided bars.
+            // Merge their fully transformed positions/normals/UV once,
+            // avoiding 30 draw calls PER collectible.
+            const makeRewardCageGeometry=()=>{
+                const segments=[];
+                const up=new THREE.Vector3(0,1,0);
+                const makeBeam=(a,b,width)=>{
+                    const delta=b.clone().sub(a),center=a.clone().add(b).multiplyScalar(.5);
+                    const geo=new THREE.CylinderGeometry(
+                        width,width,delta.length(),5,1,true
+                    );
+                    const q=new THREE.Quaternion().setFromUnitVectors(
+                        up,delta.normalize()
+                    );
+                    geo.applyMatrix4(new THREE.Matrix4().compose(
+                        center,q,new THREE.Vector3(1,1,1)
+                    ));
+                    const expanded=geo.toNonIndexed();
+                    geo.dispose();
+                    segments.push(expanded);
+                };
+                const ringPoint=(i,y,r)=>{
+                    const a=i*Math.PI/3+Math.PI/6;
+                    return new THREE.Vector3(
+                        Math.cos(a)*r,y,Math.sin(a)*r
+                    );
+                };
+                for(let i=0;i<6;i++){
+                    const next=(i+1)%6;
+                    // Two hexagonal gaskets, six slanted pillars, twelve
+                    // inward prongs. No opaque faces hide the energy core.
+                    makeBeam(ringPoint(i,-9.5,20.3),
+                        ringPoint(next,-9.5,20.3),.92);
+                    makeBeam(ringPoint(i,9.5,20.3),
+                        ringPoint(next,9.5,20.3),.92);
+                    makeBeam(ringPoint(i,-9.5,20.3),
+                        ringPoint((i+1)%6,9.5,20.3),.62);
+                    makeBeam(ringPoint(i,9.5,20.3),
+                        ringPoint(i,18.5,8.5),.73);
+                    makeBeam(ringPoint(i,-9.5,20.3),
+                        ringPoint(i,-18.5,8.5),.73);
+                }
+                const pos=[],norm=[],uv=[];
+                for(const geo of segments){
+                    const p=geo.getAttribute('position'),
+                        n=geo.getAttribute('normal'),
+                        t=geo.getAttribute('uv');
+                    for(let v=0;v<p.count;v++){
+                        pos.push(p.getX(v),p.getY(v),p.getZ(v));
+                        norm.push(n.getX(v),n.getY(v),n.getZ(v));
+                        uv.push(t.getX(v),t.getY(v));
+                    }
+                    geo.dispose();
+                }
+                const merged=new THREE.BufferGeometry();
+                merged.setAttribute('position',
+                    new THREE.Float32BufferAttribute(pos,3));
+                merged.setAttribute('normal',
+                    new THREE.Float32BufferAttribute(norm,3));
+                merged.setAttribute('uv',
+                    new THREE.Float32BufferAttribute(uv,2));
+                merged.computeBoundingSphere();
+                return merged;
+            };
+            const rewardCageGeo=makeRewardCageGeometry();
+            const rewardCrystalGeo=new THREE.OctahedronGeometry(16.5,0);
+            const rewardCoreGeo=new THREE.OctahedronGeometry(8.7,0);
+            const rewardOrbitGeometry=new THREE.TorusGeometry(26,.88,6,40);
+            itemBlueprints.forEach(([routeProgress,laneX,laneY],i)=>{
+                const g=makeCourseLocalGroup(routeProgress,laneX,laneY);
+                const art=new THREE.Group();
+                art.name='MAP1_VIOLET_CORE_PICKUP';
+                art.userData.visualOnly=true;
+                art.userData.noCollider=true;
+                const cage=new THREE.Mesh(rewardCageGeo,rewardFrameMat);
+                cage.name='MAP1_VIOLET_CORE_CAGE';
+                const crystal=new THREE.Mesh(
+                    rewardCrystalGeo,rewardCrystalMat
+                );
+                crystal.name='MAP1_VIOLET_CORE_CRYSTAL';
+                crystal.rotation.set(.12,.35,.18);
+                const core=new THREE.Mesh(rewardCoreGeo,rewardCoreMat);
+                core.name='MAP1_VIOLET_CORE_LIGHT';
+                crystal.add(core);
+                const orbit=new THREE.Mesh(
+                    rewardOrbitGeometry,rewardOrbitMat
+                );
+                orbit.rotation.set(.72,.30,.18);
                 orbit.name='MAP1_REWARD_PICKUP_ORBIT';
-                orbit.userData.visualOnly=true;
-                orbit.userData.noCollider=true;
-                cube.add(core);g.add(cube,edge,orbit);
+                // Four meshes total: cage, crystal, core and orbit.
+                for(const m of [cage,crystal,core,orbit]){
+                    m.userData.visualOnly=true;
+                    m.userData.noCollider=true;
+                }
+                art.add(cage,crystal,orbit);
+                g.add(art);
                 itemBoxGroup.add(g);
-                itemBoxes.push({id:`ITEM-${i}`,routeProgress,laneX,laneY,radius:49,mesh:g,claimed:new Set(),spin:cube,edge,orbit});
+                itemBoxes.push({
+                    id:`ITEM-${i}`,routeProgress,laneX,laneY,
+                    radius:49,mesh:g,art,claimed:new Set(),
+                    spin:crystal,edge:cage,orbit,core
+                });
             });
         }
         buildItemAndBarrierCourse();
@@ -9973,12 +10071,20 @@
 
         function animateItemBoxes(dt) {
             itemBoxes.forEach((box,i)=>{
-                if (!box.mesh.visible) return; // AI-34: kutu fiziksel olarak durur, uzakta animasyon yapmaz.
-                box.spin.rotation.x += dt * 0.67;
-                box.spin.rotation.y += dt * 1.15;
-                box.orbit.rotation.z += dt * .43;
-                box.orbit.rotation.y += dt * .21;
-                box.mesh.scale.setScalar(1 + Math.sin(state.raceTime*3+i)*0.09);
+                if(!box.mesh.visible)return; // distant pickup culling kept
+                box.spin.rotation.x += dt*.27;
+                box.spin.rotation.y += dt*.67;
+                box.edge.rotation.y += dt*.13;
+                box.orbit.rotation.z += dt*.38;
+                box.orbit.rotation.y += dt*.24;
+                // The root group remains fixed at the route/collision
+                // position; only non-physical presentation floats.
+                box.art.position.y=Math.sin(state.raceTime*2.1+i*.55)*2.7;
+                const pulse=1+.055*Math.sin(state.raceTime*4.2+i*.6);
+                box.spin.scale.setScalar(pulse);
+                box.mesh.scale.setScalar(1+.026*Math.sin(
+                    state.raceTime*2.4+i
+                ));
             });
         }
 

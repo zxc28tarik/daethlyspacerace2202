@@ -1090,3 +1090,8 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **GERÇEK KOD:** Mor ödül kapsülü görünümü iyileştirildi, ortak orbital ring eklendi; yalnız itemTurboTimer>0 iken 2 mor motor izi + 2 ring, manuel normal boostta FX=OFF. Oyuncu/bot ödül RNG, 1.25 s Hyper, 12 s lazer, rota, çarpışmalar, gemi materyalleri ve Map4 korunur.
 - **TEST / KAPI:** [NEXT11C21G rehber](MAP1_NEXT11C21G_REWARD_BOOST_ART.md), Playwright WebGL ödül-kontrol-karşılaştırma, full smoke. Test sonucu CI PASS gelince kaydedilecek. Önceki PR #97 üzerinde draft, kullanıcı izni olmadan merge yok.
 - **SONRAKİ:** meteorlerin gerçek kaya siluetleri / detay, çarpışmalı engellerin net görsel ayrımı.
+
+## 59) NEXT-11C21G2 — kullanıcı düzeltmesi: gerçekten ödül nesnesi, kutu şekli şart değil
+- **KARAR / YAPILAN:** İstenen objenin kendisi, HYPER ödülünün gemide bıraktığı özel iz değil. Sıradan kare kutu tamamen yenilendi: 30 ince çubuğun birleştirilmesiyle metal altıgen enerji kafesi, çok yüzeyli iki katmanlı aqua çekirdek, mor orbital halka. **VIOLET CORE** tasarım kimliği.
+- **KORUNAN:** 49 pickup noktası, bütün RNG olasılıkları ve radius=49; 12sn lazer, HYPER hızı/süresi; SB-07 tüm korunan kaynaklar, Map4 savaşı; aynı dört render mesh ve paylaşımlı materyal/buffer.
+- **KABUL:** [C21G2 ayrıntı](MAP1_NEXT11C21G2_VIOLET_CORE_PICKUP.md). Aynı kamera eski/yeni A/B ve oyunun doğal chase kamerasında geçici obje sahnelemesi, real WebGL tests, dedicated CI, full smoke ve güncel çevrimdışı oynanabilir HTML üretilmesi. CI sonuçları teyit edilecek; main merge onaya bağlı.
