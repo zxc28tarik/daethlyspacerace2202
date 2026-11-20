@@ -1095,3 +1095,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KARAR / YAPILAN:** İstenen objenin kendisi, HYPER ödülünün gemide bıraktığı özel iz değil. Sıradan kare kutu tamamen yenilendi: 30 ince çubuğun birleştirilmesiyle metal altıgen enerji kafesi, çok yüzeyli iki katmanlı aqua çekirdek, mor orbital halka. **VIOLET CORE** tasarım kimliği.
 - **KORUNAN:** 49 pickup noktası, bütün RNG olasılıkları ve radius=49; 12sn lazer, HYPER hızı/süresi; SB-07 tüm korunan kaynaklar, Map4 savaşı; aynı dört render mesh ve paylaşımlı materyal/buffer.
 - **KABUL:** [C21G2 ayrıntı](MAP1_NEXT11C21G2_VIOLET_CORE_PICKUP.md). Aynı kamera eski/yeni A/B ve oyunun doğal chase kamerasında geçici obje sahnelemesi, real WebGL tests, dedicated CI, full smoke ve güncel çevrimdışı oynanabilir HTML üretilmesi. CI sonuçları teyit edilecek; main merge onaya bağlı.
+
+## 60) NEXT11C21G3 — kullanici: abartili, metali cikar
+- KESIN KARAR: Violet Core kutu metal iskeleti tamamen kaldirildi; baska metal kafes eklenmeyecek.
+- Kod: 30 kirisli kafes materyali/meshi, geometri ve donus animasyonu silindi. Crystal metalness=0, minimal cekirdek + ince dusuk opaklikli halka. 49 odulde mesh sayisi 4->3.
+- Korunan: radius 49, odul olasiliklari, laser suresi, iki boost mekanigi, gemi ve Map4.
+- QA: MAP1_NEXT11C21G3_NO_METAL.md, gercek Chromium/WebGL, offline oynanabilir HTML ve full smoke. Main merge yok.

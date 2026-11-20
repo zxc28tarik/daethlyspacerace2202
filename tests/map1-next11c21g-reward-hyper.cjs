@@ -42,7 +42,7 @@ const out=path.join(__dirname,'next11c21g-evidence');fs.mkdirSync(out,{recursive
     drawCalls:renderer.info.render.calls,rendererAA:!!gl.getContextAttributes().antialias,
     glError:gl.getError(),pixelRatio:renderer.getPixelRatio(),
     shipBatches:h4Ship19Race.children.length,shipParts:h4Ship19Race.userData.parts,
-    items:boxes.length,allOrbit:boxes.every(b=>b.hasOrbit&&b.visual&&b.noCollider&&b.r===26),
+    items:boxes.length,allOrbit:boxes.every(b=>b.hasOrbit&&b.visual&&b.noCollider&&b.r===24),
     allOriginalRadius:boxes.every(b=>b.radius===49),
     expectedHyperZeroRoll:chooseBalancedRaceItem(state,0)
    };

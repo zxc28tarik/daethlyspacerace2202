@@ -1,4 +1,4 @@
-/* NEXT11C21G2: original Violet Core, real WebGL model + gameplay regression. */
+/* NEXT11C21G2 legacy visual acceptance, updated for the approved C21G3 removal of the metal cage. */
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
@@ -32,16 +32,22 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
       makeCourseLocalGroup(b.routeProgress,b.laneX,b.laneY).position)<1e-4
     };
    });
-   const frame=first.edge,geom=frame.geometry;
+   const frame=first.spin,geom=frame.geometry;
+   geom.computeBoundingSphere();
    return {amount:all.length,allSameCollider:all.every(x=>x.radius===49),
-    allFourMesh:all.every(x=>x.amount===4),
+    allThreeMesh:all.every(x=>x.amount===3),
+    noCage:all.every(x=>!x.meshNames.some(n=>n.includes('CAGE'))),
+    noMetal:all.every(x=>!x.meshNames.some(n=>n.includes('METAL'))),
+    zeroMetalness:all.every(x=>x.meshNames.length===3)&&
+      [first.spin.material,first.orbit.material,first.core.material].every(m=>
+       !m.isMeshStandardMaterial||m.metalness===0),
     noBoxes:all.every(x=>!x.hasCubicGeometry),
     allVisual:all.every(x=>x.allVisual),
     colliderPositionsUnchanged:all.every(x=>x.collisionCentered),
     type:first.art.name,geometryName:geom.type,
     frameVertexCount:geom.getAttribute('position').count,
     frameRadius:geom.boundingSphere.radius,
-    sharedFrameGeometry:frame.geometry===last.edge.geometry,
+    sharedFrameGeometry:frame.geometry===last.spin.geometry,
     sharedCrystalGeometry:first.spin.geometry===last.spin.geometry,
     sharedOrbitGeometry:first.orbit.geometry===last.orbit.geometry,
     ringRadius:first.orbit.geometry.parameters.radius,
@@ -56,15 +62,16 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
    };
   });
   assert.equal(geometry.amount,49);
-  assert(geometry.allSameCollider&&geometry.allFourMesh&&geometry.noBoxes);
+  assert(geometry.allSameCollider&&geometry.allThreeMesh&&geometry.noBoxes);
+  assert(geometry.noCage&&geometry.noMetal&&geometry.zeroMetalness);
   assert(geometry.allVisual&&geometry.colliderPositionsUnchanged);
   assert.equal(geometry.type,'MAP1_VIOLET_CORE_PICKUP');
-  assert.equal(geometry.geometryName,'BufferGeometry');
-  assert(geometry.frameVertexCount>400&&geometry.frameVertexCount<2000);
-  assert(geometry.frameRadius<32&&geometry.frameRadius>18);
+  assert.equal(geometry.geometryName,'OctahedronGeometry');
+  assert(geometry.frameVertexCount>=18&&geometry.frameVertexCount<200);
+  assert(geometry.frameRadius<19&&geometry.frameRadius>15);
   assert(geometry.sharedFrameGeometry&&geometry.sharedCrystalGeometry&&
    geometry.sharedOrbitGeometry);
-  assert.equal(geometry.ringRadius,26);
+  assert.equal(geometry.ringRadius,24);
   assert.deepEqual(geometry.legacyRandomPrizes,
    ['HYPER_TURBO','SHIELD','ENERGY']);
   const studio=await page.evaluate(()=>{
@@ -115,7 +122,7 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
     canvas.toDataURL('image/png').split(',')[1]};
   });
   assert.equal(studio.glError,0);assert(studio.aa);
-  assert.equal(studio.drawCalls,8,'old and new are four draw calls each');
+  assert.equal(studio.drawCalls,7,'old cube draws four, new minimal crystal draws three');
   fs.writeFileSync(path.join(out,'old-box-left__violet-core-right-1600x900.png'),
    Buffer.from(studio.png,'base64'));delete studio.png;
   await page.locator('#start-btn').click();
@@ -167,13 +174,14 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
   assert.equal(map4.map,'map4');assert.equal(map4.combatParts,249);
   assert.deepEqual(map4.physics,[6,36,200]);assert(!map4.visibleRace);
   assert.equal(map4.glError,0);assert.deepEqual(errors,[]);
-  const report={pass:true,tag:'NEXT11C21G2',geometry,studio,gameplay,map4,errors,
+  const report={pass:true,tag:'NEXT11C21G3-COMPAT',geometry,studio,gameplay,map4,errors,
    caveat:'Studio panel left is faithful reconstruction of previous C21G cube; right new model. In-game shot stages ONLY one visual pickup temporarily to evaluate legibility; original route/colliders and gameplay restored.'};
   fs.writeFileSync(path.join(out,'violet-core-art-qa.json'),JSON.stringify(report,null,2));
-  console.log('NEXT11C21G2 VIOLET CORE PICKUP WEBGL PASS '+JSON.stringify({
-   items:geometry.amount,allFourMesh:geometry.allFourMesh,
-   noBoxGeometry:geometry.noBoxes,frameVertices:geometry.frameVertexCount,
-   frameRadius:geometry.frameRadius,sharedAssets:geometry.sharedFrameGeometry,
+  console.log('NEXT11C21G3 NO METAL PICKUP WEBGL PASS '+JSON.stringify({
+   items:geometry.amount,allThreeMesh:geometry.allThreeMesh,
+   noMetal:geometry.noCage&&geometry.zeroMetalness,
+   noBoxGeometry:geometry.noBoxes,crystalVertices:geometry.frameVertexCount,
+   crystalRadius:geometry.frameRadius,sharedAssets:geometry.sharedFrameGeometry,
    oldVsNewCalls:studio.drawCalls,gameCalls:gameplay.calls,
    map4,errors}));
  }finally{await browser.close();}

@@ -1,0 +1,45 @@
+name: Map1 NEXT11C21G3 Minimal No-Metal Pickup
+on:
+  push:
+    branches: [codex/map1-minimal-crystal-pickup-21g3]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-metal-crystal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium and offline game build tools
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Syntax check
+        run: node --check tests/map1-next11c21g3-no-metal.cjs
+      - name: Verify 49 metal-free collectible cores and actual WebGL
+        run: node tests/map1-next11c21g3-no-metal.cjs
+      - name: Old box and new crystal A/B screenshot plus Map4 protection
+        run: node tests/map1-next11c21g2-violet-core.cjs
+      - name: Preserve normal and reward boost behavior
+        run: node tests/map1-next11c21g-reward-hyper.cjs
+      - name: Preserve original SB-07 and corridor
+        run: |
+          node tests/map1-next11c20-sb07-zenit.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+      - name: Build single-file OFFLINE playable latest game
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload WebGL images and playable HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21g3-minimal-no-metal-playable
+          path: |
+            tests/next11c21g3-evidence/
+            tests/next11c21g2-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn
