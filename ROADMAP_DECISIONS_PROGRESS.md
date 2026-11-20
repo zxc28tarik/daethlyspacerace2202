@@ -1118,3 +1118,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **YAPILDI:** 49 pickup tekrar aynı 34-kutu, 36-kenar, 9-core; mor malzeme dengesi ve çizgi ışığı hafif iyileştirildi. Orbital halkalar ve kristal mesh'leri silindi; aynı üç render parçası; paylaşılan GPU geometrileri.
 - **DEĞİŞMEYEN:** radius49 ve pozisyon, RNG/HYPER/SHIELD/ENERGY, 12s lazer, manuel boost, SB-07, Map4.
 - **QA:** MAP1_NEXT11C21G6_ORIGINAL_BOX.md; gerçek Chromium karşılaştırma ve oynanabilir offline HTML. Tarihi C21G-G5 atom QA yeni dalda skip, orijinal PR'larda kalır. Merge için açık onay gerekir.
+
+## 64) NEXT11C21H — mevcut meteorlerin yalnızca görüntüsü rafine edildi
+- KULLANICI KARARI: Yeni modelleri eski kutu/meteor/engel modelleriyle değiştirmek yok. Yalnız grafik kalite iyileştirme.
+- 320 mevcut meteor radius/vertex/rota/collision/movement/durability tamamen aynı. Üç sınıfa mineral tonlaması, düşük metalik yansıma, farklı yüz renkleri, doğal soluk konturlar eklendi; ek mesh veya RNG tüketimi yok.
+- Korunan: 49 mor orijinal kutu, ödül sistemi, SB-07 189, Map4 249, koridor.
+- Test: MAP1_NEXT11C21H_METEORS.md; gerçek WebGL eski-yeni aynı geometri karşılaştırması, 320 meteor ve physics/Map4, offline oynanabilir HTML. Dedicated ve full CI takip edilecek. PR stacked draft #103 üzerine. Sonraki etap C21I aynı engel modellerinin yüzey/kenar kalitesi.
