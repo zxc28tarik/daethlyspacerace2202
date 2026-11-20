@@ -1106,3 +1106,9 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Kullanıcı "daha fazla halka" kararı: metal kafes YOK; mevcut 24 yarıçaplı ana mor halkanın yanına 28 dış ve 19 iç halka (opaklıklar 0.29 / 0.18 / 0.20) eklendi.
 - Her halka başka eksende/yönde dönüyor, geometri 49 ödülde paylaşılıyor. Pickup radius49 / rota / RNG / HYPER ve manuel boost mekaniği / gemi / Harita4 aynen duruyor.
 - Test: [NEXT11C21G4](MAP1_NEXT11C21G4_TRIPLE_ORBITS.md), 1600x900 one-vs-three ring gerçek Chromium WebGL screenshot, 49 ödül, Map4 249 / physics, offline playable artifact. CI sonucu doğrulanacak; taslak PR, merge için açık onay gerekir.
+
+## 62) NEXT11C21G5 — iç halkadaki dik duruş ve soğuk mavi tonu düzeltildi
+- **KULLANICI GERİ BİLDİRİMİ:** C21G4 üç halkalı kristalin dik gibi duran halkasının duruşu ve rengi kötü. Referans A/B'de bunun en küçük, buz mavisi **iç halka** olduğu doğrulandı; dış halka değiştirilmeyecek.
+- **KOD:** İç halka rengini 0x6B90D6 -> 0xA17BCB yaptık, ilk açıyı (0.24,1.14,-0.62) -> (0.72,-0.32,-0.25) değiştirdik. Sürekli x dönmesi yerine sınırlı ve yumuşak pitch/yaw salınımı, uzun yarışta dik/kenardan görünmeme güvencesi; 3 halka ve metal-yok kimliği korunuyor.
+- **KORUNAN:** 49 pickup / r49 / RNG, ödül ve manuel boost, Map4, SB07; önceki C21G4 bileşenleri.
+- **KABUL:** [C21G5](MAP1_NEXT11C21G5_INNER_ORBIT.md) + gerçek WebGL eski dik / yeni yatık mor karşılaştırması, 300sn simülasyon örneklemesi, playable offline HTML + smoke. PR taslak, main merge için kullanıcı onayı gerekir.
