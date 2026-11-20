@@ -12872,6 +12872,52 @@
                     name:'SB07_BLUE_PLASMA',color:0x6dd9ff,
                     toneMapped:false,side:THREE.DoubleSide})
             };
+            // NEXT11C21B-E: BALANCED color hierarchy without new
+            // parts or changing the seven material base-color hexes.
+            // Existing silver, gunmetal, racing red and dark machinery
+            // are painted using continuous geometry vertex pigment.
+            const balancedColorKeys=['HULL','SECOND','RED','DARK'];
+            const pigmentClamp=v=>Math.max(0,Math.min(1,v));
+            const balancedTint=(key,x,y,z)=>{
+                const wing=pigmentClamp((Math.abs(x)-1.05)/6.4),
+                    nose=pigmentClamp((-z-1)/8),
+                    engine=pigmentClamp((z-1.1)/5.5)*
+                        pigmentClamp((Math.abs(x)-.8)/1.1),
+                    roof=pigmentClamp((y+.18)/1.2);
+                // Smoothstep prevents a visible dark band at
+                // wing roots; cool ceramic pigment develops only on
+                // the outward sweep of the existing white aerofoil.
+                const wingEdge=wing*wing*(3-2*wing);
+                if(key==='HULL')return [
+                    .975+.025*nose+.010*roof-.105*wingEdge-.022*engine,
+                    .982+.018*nose+.009*roof-.075*wingEdge-.012*engine,
+                    .995+.015*nose+.008*roof-.040*wingEdge-.006*engine
+                ];
+                if(key==='SECOND')return [
+                    .870+.040*roof+.018*wing-.040*engine,
+                    .925+.035*roof-.024*engine,
+                    1.040+.018*roof-.008*engine
+                ];
+                // More readable saturated race RED on the SAME
+                // already-authored strips, without any extra decals.
+                if(key==='RED')return [
+                    .995+.005*nose,
+                    .720+.070*wing+.016*nose,
+                    .740+.045*wing+.015*nose
+                ];
+                if(key==='DARK')return [
+                    .925+.035*roof,
+                    .975+.018*engine,
+                    1.035+.015*engine
+                ];
+                return [1,1,1];
+            };
+            for(const key of balancedColorKeys)
+                mats[key].vertexColors=true;
+            let balancedColorVertexCount=0;
+            const balancedColorVertexByFamily={
+                HULL:0,SECOND:0,RED:0,DARK:0
+            };
             let triangleCount=0;
             for(const [key,batch] of Object.entries(parts)){
                 let count=0;
@@ -12898,6 +12944,20 @@
                     new THREE.BufferAttribute(normal,3));
                 geometry.setAttribute('uv',
                     new THREE.BufferAttribute(uv,2));
+                if(balancedColorKeys.includes(key)){
+                    const pigment=new Float32Array(count*3);
+                    for(let i=0;i<count;i++){
+                        const tint=balancedTint(key,
+                            pos[i*3],pos[i*3+1],pos[i*3+2]);
+                        pigment[i*3]=tint[0];
+                        pigment[i*3+1]=tint[1];
+                        pigment[i*3+2]=tint[2];
+                    }
+                    geometry.setAttribute('color',
+                        new THREE.BufferAttribute(pigment,3));
+                    balancedColorVertexCount+=count;
+                    balancedColorVertexByFamily[key]=count;
+                }
                 geometry.computeBoundingSphere();
                 const mesh=new THREE.Mesh(geometry,mats[key]);
                 mesh.name='NEXT11C20_SB07_'+key;
@@ -12959,6 +13019,17 @@
             root.userData.noseStripeWidthSamples=3;
             root.userData.noseStripeSkinClearance=.018;
             root.userData.flushedWingShrouds=2;
+            root.userData.colorHierarchy='SB07_BALANCED';
+            root.userData.colorHierarchyVersion='NEXT11C21B-E';
+            root.userData.colorHierarchyFamilies=balancedColorKeys.slice();
+            root.userData.colorHierarchyPigmentVertices=
+                balancedColorVertexCount;
+            root.userData.colorHierarchyByFamily=
+                balancedColorVertexByFamily;
+            root.userData.colorHierarchyNativeAA=true;
+            root.userData.colorHierarchyDrawCallNeutral=true;
+            root.userData.colorHierarchyNoExtraShipParts=true;
+            root.userData.colorHierarchyOriginalMaterialHex=true;
             root.userData.pbrCeramicGunmetalSplit=true;
             root.userData.pbrFinishAtlasSize=128;
             root.userData.pbrFinishFamilies=['ceramic','gunmetal'];
