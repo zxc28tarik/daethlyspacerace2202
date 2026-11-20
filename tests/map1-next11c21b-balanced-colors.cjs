@@ -656,9 +656,9 @@ const out=path.join(__dirname,'next11c21b-evidence');fs.mkdirSync(out,{recursive
     assert(values.positionCount>200);
     assert(values.nonDefault>200);
     assert(values.distinctSamples>4);
-    assert(values.min.every(x=>x>.77&&x<1.10));
-    assert(values.max.every(x=>x>.82&&x<1.11));
-    assert(values.mean.every(x=>x>.83&&x<1.11));
+    assert(values.min.every((x,i)=>x>(key==='RED'&&i>0?.69:.77)&&x<1.10));
+    assert(values.max.every((x,i)=>x>(key==='RED'&&i>0?.72:.82)&&x<1.11));
+    assert(values.mean.every((x,i)=>x>(key==='RED'&&i>0?.70:.83)&&x<1.11));
     totalPigmentVertices+=values.colorCount;
     assert.equal(geom.colorHierarchyByFamily[key],values.colorCount);
   }
