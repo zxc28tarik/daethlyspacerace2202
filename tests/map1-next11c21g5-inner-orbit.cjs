@@ -98,9 +98,7 @@ const out=path.join(__dirname,'next11c21g5-evidence');fs.mkdirSync(out,{recursiv
    const width=1600,height=900,row=width*4,raw=new Uint8Array(width*height*4);
    gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,raw);
    const rgba=new Uint8ClampedArray(raw.length);
-   for(let y=0;y<height;y++)
-    rgba.set(raw.subarray(y*row,(height-1-y)*row),(height-1-y)*row);
-   // Re-read correct bottom-up orientation for every row.
+   // Convert WebGL bottom-up pixel buffer to canvas top-down rows.
    for(let y=0;y<height;y++)
     rgba.set(raw.subarray(y*row,(y+1)*row),(height-1-y)*row);
    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
