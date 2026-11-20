@@ -9871,15 +9871,16 @@
             // No orbit/ring, floating crystal, extra particles or decals.
             // Three shared geometries for all 49 original pickups.
             const cubeMat=new THREE.MeshStandardMaterial({
-                color:0x6242a5, metalness:.18, roughness:.40,
-                emissive:0x2c1a65, emissiveIntensity:.58,
-                transparent:true, opacity:.92
+                color:0x583895, metalness:.18, roughness:.42,
+                emissive:0x28175e, emissiveIntensity:.50,
+                transparent:true, opacity:.82, depthWrite:false
             });
             const cubeEdgeMat=new THREE.LineBasicMaterial({
-                color:0xe2caff,transparent:true,opacity:.84
+                color:0xdac3ff,transparent:true,opacity:.87
             });
             const coreMat=new THREE.MeshBasicMaterial({
-                color:0x83e4f2,transparent:true,opacity:.90
+                color:0x83e4f2,transparent:true,opacity:.82,
+                depthTest:false,depthWrite:false
             });
             const cubeGeo=new THREE.BoxGeometry(34,34,34);
             const cubeEdgeGeo=new THREE.EdgesGeometry(
@@ -9895,6 +9896,10 @@
                 edge.name='MAP1_ORIGINAL_REWARD_EDGES';
                 const core=new THREE.Mesh(coreGeo,coreMat);
                 core.name='MAP1_ORIGINAL_REWARD_CORE';
+                // The central energy must remain visible through the
+                // original translucent purple box; don't add geometry.
+                core.renderOrder=1;
+                edge.renderOrder=2;
                 for(const part of [cube,edge,core]){
                     part.userData.visualOnly=true;
                     part.userData.noCollider=true;
