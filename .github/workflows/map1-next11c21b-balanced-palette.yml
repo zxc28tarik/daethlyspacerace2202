@@ -1,0 +1,41 @@
+name: Map1 NEXT11C21B Balanced Color Hierarchy Real WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-balanced-colors-21b]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  balanced-palette-real-webgl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install actual Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: New paint hierarchy QA syntax
+        run: node --check tests/map1-next11c21b-balanced-colors.cjs
+      - name: Protect original approved SB-07 normal and boost play plus B-04
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Protect previous PBR ceramic and gunmetal material data
+        run: node tests/map1-next11c21a-native-pbr-finishes.cjs
+      - name: Validate real 4-batch RGB color geometry and render four 1600x900 studio views
+        run: node tests/map1-next11c21b-balanced-colors.cjs
+      - name: Preserve all 304 race corridor rail joins and original Map4 colliders
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Upload genuine SB-07 1x MSAA screenshots and chromatic data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c21b-balanced-ship-palette-webgl
+          path: |
+            tests/next11c21b-evidence/
+            tests/next11c21a-evidence/
+            tests/next11c20r-evidence/
+            tests/map1-next11c20-zenit-studio*.png
+          if-no-files-found: warn
