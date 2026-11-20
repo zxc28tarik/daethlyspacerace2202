@@ -12898,13 +12898,19 @@
                     .925+.035*roof-.024*engine,
                     1.040+.018*roof-.008*engine
                 ];
-                // More readable saturated race RED on the SAME
-                // already-authored strips, without any extra decals.
-                if(key==='RED')return [
-                    .995+.005*nose,
-                    .720+.070*wing+.016*nose,
-                    .740+.045*wing+.015*nose
-                ];
+                // NEXT11C21C: race RED now carries a continuous
+                // front-to-outboard flow along EXISTING painted strips.
+                // The root/nose stays refined; outer forward sweeps
+                // become more saturated without a hard color band.
+                // No new mesh, decal, material, or draw call.
+                if(key==='RED'){
+                    const sweep=wingEdge*pigmentClamp((3-z)/7);
+                    return [
+                        .985+.010*nose+.009*sweep,
+                        .755-.034*nose-.058*sweep+.008*roof,
+                        .780-.032*nose-.058*sweep+.006*roof
+                    ];
+                }
                 if(key==='DARK')return [
                     .925+.035*roof,
                     .975+.018*engine,
@@ -13020,6 +13026,8 @@
             root.userData.noseStripeSkinClearance=.018;
             root.userData.flushedWingShrouds=2;
             root.userData.colorHierarchy='SB07_BALANCED';
+            root.userData.raceRedFlowVersion='NEXT11C21C';
+            root.userData.raceRedFlowOriginalGeometry=true;
             root.userData.colorHierarchyVersion='NEXT11C21B-E';
             root.userData.colorHierarchyFamilies=balancedColorKeys.slice();
             root.userData.colorHierarchyPigmentVertices=
