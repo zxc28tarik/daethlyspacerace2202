@@ -1083,3 +1083,10 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **GÖRSEL İNCELEME:** Gerçek C21E dört açı stüdyo artifaktı incelendi: onaylı SB-07 ZENİT kimliği ve mavi plazma/seramik korunuyor; güçlü üst stüdyo ışığında beyaz bölgeler düzleşiyor, önce **gerçek oyun kamerasında** tekrar test gerektiriyor.
 - **KODUN DURUMU:** C21F yalnız yeni read-only Chromium/WebGL QA; `index.html` gemi geometri/rengi/oyun ışığı/AA/physic/fps kodu değiştirilmedi.
 - **KABUL:** [C21F gerçek kamera testi](MAP1_NEXT11C21F_REAL_RACE_CAMERA.md) ile normal/boost aktif Map1 framebuffer/HUD 1600×900 ekranları, projeksiyon çerçevesi, renk doygunluğu, gerçek boost rengi ve Map4. Dedicated CI ve full smoke sonucu incelenecek. **Kullanıcı açık izni olmadan merge yok.**
+
+
+## 58) 20 Kasım 2026 — NEXT11C21G ödül boostu (normal boost DEĞİL)
+- **KULLANICI DÜZELTMESİ — KESİN:** İstenen boost görsel iyileştirme, Shift/W normal hızlanma değil, **Harita 1'in mor kutusundan kazanılan HYPER_TURBO ödülü**. Önceki normal boost efekt geliştirme planı burada uygulanmaz.
+- **GERÇEK KOD:** Mor ödül kapsülü görünümü iyileştirildi, ortak orbital ring eklendi; yalnız itemTurboTimer>0 iken 2 mor motor izi + 2 ring, manuel normal boostta FX=OFF. Oyuncu/bot ödül RNG, 1.25 s Hyper, 12 s lazer, rota, çarpışmalar, gemi materyalleri ve Map4 korunur.
+- **TEST / KAPI:** [NEXT11C21G rehber](MAP1_NEXT11C21G_REWARD_BOOST_ART.md), Playwright WebGL ödül-kontrol-karşılaştırma, full smoke. Test sonucu CI PASS gelince kaydedilecek. Önceki PR #97 üzerinde draft, kullanıcı izni olmadan merge yok.
+- **SONRAKİ:** meteorlerin gerçek kaya siluetleri / detay, çarpışmalı engellerin net görsel ayrımı.
