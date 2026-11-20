@@ -1,5 +1,5 @@
 /* NEXT11C21F — actual Map1 game-camera normal/boost color exposure.
- * No game code or render setting changes. Studio clipping != gameplay clipping. */
+ * No game code or render setting changes. Studio clipping != gameplay clipping; sample beyond startup camera interpolation. */
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
@@ -28,7 +28,7 @@ const out=path.join(__dirname,'next11c21f-evidence');fs.mkdirSync(out,{recursive
    null,{timeout:25000});
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.activeMap===MAP_MODES.MAP1&&
-   state.raceTime>.02,null,{timeout:25000});
+   state.raceTime>2.0,null,{timeout:25000});
   await page.evaluate(()=>{state.paused=true;renderer.setPixelRatio(1);
    renderer.setSize(1600,900,false);});
   const captures=[];
