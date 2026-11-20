@@ -46,11 +46,13 @@ const out=path.join(__dirname,'next11c21g2-evidence');fs.mkdirSync(out,{recursiv
     sharedOrbitGeometry:first.orbit.geometry===last.orbit.geometry,
     ringRadius:first.orbit.geometry.parameters.radius,
     fineFloat:first.art.position.y===0,
-    legacyRandomPrizes:[
-      chooseBalancedRaceItem(state,0),
-      chooseBalancedRaceItem(state,.5),
-      chooseBalancedRaceItem(state,.9999)
-    ]
+    legacyRandomPrizes:(()=>{
+      // Fixed full-energy fixture, not mutable live race energy.
+      const ship={energy:100,shield:100,itemTurboTimer:0,powerShieldTimer:0};
+      return [chooseBalancedRaceItem(ship,0),
+        chooseBalancedRaceItem(ship,.7),
+        chooseBalancedRaceItem(ship,.9999)];
+    })()
    };
   });
   assert.equal(geometry.amount,49);
