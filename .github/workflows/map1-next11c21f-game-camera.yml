@@ -1,0 +1,42 @@
+name: Map1 NEXT11C21F Real Race Camera Exposure QA
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-race-camera-exposure-21f]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-map1-race-camera:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Check actual game camera QA syntax
+        run: node --check tests/map1-next11c21f-game-camera.cjs
+      - name: Protect original SB-07, normal and boost and Map4
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Previous Balanced palette and four angle WebGL review
+        run: |
+          node tests/map1-next11c21c-red-flow.cjs
+          node tests/map1-next11c21d-engine-tone.cjs
+          node tests/map1-next11c21e-final-color-review.cjs
+      - name: Capture real Map1 chase camera normal and boost WebGL/HUD
+        run: node tests/map1-next11c21f-game-camera.cjs
+      - name: Preserve 304 corridor rail seams
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Upload real Map1 in-game camera and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c21f-game-camera-normal-boost
+          path: |
+            tests/next11c21f-evidence/
+            tests/next11c21e-evidence/
+          if-no-files-found: warn

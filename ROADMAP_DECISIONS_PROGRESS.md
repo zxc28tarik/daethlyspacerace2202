@@ -1076,3 +1076,10 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KAPSAMLI TAM OYUN:** Son `HEAD` Map1/4 [smoke #44709062516](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44709062516) ayrı sonuçlanmadan **full game PASS ilan edilmez**. Özel CI PASS, kullanıcı estetik onayı değildir. Dört stacked PR #93–#96 DRAFT; **merge yok**.
 
 **Teknik karar:** C21B/C21C/C21D renk uygulamaları + C21E final görüntü paketi tamam; yeni renk/ışık/geometri değişimi otomatik yapılmayacak. Kalan kapılar son full smoke ve gerçek görüntülerin estetik değerlendirmesi.
+
+
+## 57) 20 Kasım 2026 — NEXT11C21F gerçek yarış kamerası / ışık ayrımı
+
+- **GÖRSEL İNCELEME:** Gerçek C21E dört açı stüdyo artifaktı incelendi: onaylı SB-07 ZENİT kimliği ve mavi plazma/seramik korunuyor; güçlü üst stüdyo ışığında beyaz bölgeler düzleşiyor, önce **gerçek oyun kamerasında** tekrar test gerektiriyor.
+- **KODUN DURUMU:** C21F yalnız yeni read-only Chromium/WebGL QA; `index.html` gemi geometri/rengi/oyun ışığı/AA/physic/fps kodu değiştirilmedi.
+- **KABUL:** [C21F gerçek kamera testi](MAP1_NEXT11C21F_REAL_RACE_CAMERA.md) ile normal/boost aktif Map1 framebuffer/HUD 1600×900 ekranları, projeksiyon çerçevesi, renk doygunluğu, gerçek boost rengi ve Map4. Dedicated CI ve full smoke sonucu incelenecek. **Kullanıcı açık izni olmadan merge yok.**
