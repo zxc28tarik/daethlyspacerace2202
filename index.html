@@ -1916,22 +1916,29 @@
                 void main(){
                     vec3 ray=normalize(vSkyDirection);
                     float h=ray.y;
-                    float up=smoothstep(-.23,.74,h);
+                    float up=smoothstep(-.26,.78,h);
                     vec3 sky=mix(horizon,zenith,up);
                     sky=mix(lower,sky,smoothstep(-.54,-.035,h));
+                    // Broad atmospheric depth, strongest close to the horizon.
+                    float farHaze=exp(-pow(abs(h)*6.8,1.35))*haze;
+                    sky=mix(sky,horizon,farHaze*.17);
+                    float upperAir=smoothstep(.14,.91,h);
+                    sky*=1.-upperAir*.085*(1.-orbitFade);
                     float sun=max(0.,dot(ray,normalize(sunDirection)));
-                    float broadCorona=pow(sun,12.)*.22*haze;
-                    float sharpCorona=pow(sun,140.)*.74*haze;
-                    float solarDisk=smoothstep(.9994,.99985,sun)*.74*haze;
+                    float broadCorona=pow(sun,9.)*.19*haze;
+                    float midCorona=pow(sun,38.)*.17*haze;
+                    float sharpCorona=pow(sun,150.)*.64*haze;
+                    float solarDisk=smoothstep(.99950,.99990,sun)*.67*haze;
                     float atmosphericBand=exp(-abs(h)*9.5)*horizonDust;
-                    sky+=sunTint*(broadCorona+sharpCorona+solarDisk);
+                    sky+=sunTint*(broadCorona+midCorona+sharpCorona+solarDisk);
                     sky+=sunTint*atmosphericBand*.115;
                     // Two frequency-distinct, softly separated cirrus bands.
                     float w1=sin(ray.x*29.+ray.z*13.+sin(ray.z*19.)*1.7+atmosTime*.006);
                     float w2=sin(ray.z*43.-ray.x*22.+sin(ray.x*17.)*.8-atmosTime*.004);
-                    float cirrus=smoothstep(.45,.85,(w1+w2)*.33+.47);
-                    cirrus*=smoothstep(-.04,.15,h)*(1.-smoothstep(.58,.91,h))*cloudiness;
-                    sky=mix(sky,sky+sunTint*.21,cirrus*.60);
+                    float wisps=sin(ray.x*61.-ray.z*27.+sin(ray.z*11.)*2.1);
+                    float cirrus=smoothstep(.43,.79,(w1+w2)*.28+wisps*.09+.47);
+                    cirrus*=smoothstep(-.05,.18,h)*(1.-smoothstep(.60,.90,h))*cloudiness;
+                    sky=mix(sky,sky+sunTint*.16,cirrus*.48);
                     // Space reveals discrete, stable stars as atmospheric haze thins.
                     vec3 cell=floor(ray*260.);
                     float star=step(.9977,h4Hash(cell));
@@ -1997,13 +2004,13 @@
         // VQ04 cinematic atmosphere: smoothly interpolate the entire planet's
         // light rig, fog and sky. Reuses colors/uniforms, allocates nothing per frame.
         const H4_VQ04_PALETTES=[
-            {zenith:0x243f60,horizon:0xd1a07a,lower:0x88605c,
+            {zenith:0x28445f,horizon:0xcda084,lower:0x82645f,
                 sun:0xffd1a0,fog:0xb68d75,ambient:0xb9afa0,
                 key:0xffd8b8,rim:0x86a9bf,density:.000160,cloud:.48,dust:.92},
-            {zenith:0x3b4a5d,horizon:0xc08669,lower:0x66545b,
+            {zenith:0x38485e,horizon:0xb98976,lower:0x68565d,
                 sun:0xffb88a,fog:0x94746b,ambient:0xb9a49c,
                 key:0xffc4a4,rim:0x93a2ac,density:.000122,cloud:.62,dust:.72},
-            {zenith:0x34445b,horizon:0x9c8d82,lower:0x414e5d,
+            {zenith:0x30475e,horizon:0x9e918c,lower:0x455566,
                 sun:0xffd2aa,fog:0x79848b,ambient:0xa8b2ba,
                 key:0xffd2b5,rim:0x81b4c8,density:.000116,cloud:.68,dust:.50},
             {zenith:0x112946,horizon:0x8c7487,lower:0x424b67,
@@ -2207,7 +2214,7 @@
                     const shelves=Math.sin(progress*.00078+side*.00033);
                     elevation=outside*outside*235+
                         Math.pow(crest,2.4)*525+
-                        outside*(shelves*76+weather*61+fine*26)+
+                        outside*(shelves*90+weather*65+fine*22)+
                         (1-outside)*Math.max(0,noise)*17;
                 }
                 return h4WorldPosition(progress,side,-440+elevation);
@@ -2231,9 +2238,9 @@
                     const band=(x%4)*(def.type==='industrial'?.004:
                         def.type==='fortress'?.002:def.type==='canyon'?.023:.035);
                     const contour=(def.type==='industrial'?.96:
-                        def.type==='fortress'?.98:.90)+
+                        def.type==='fortress'?.98:.93)+
                         (def.type==='industrial'?.014:
-                         def.type==='fortress'?.018:.07)*
+                         def.type==='fortress'?.018:.048)*
                         Math.sin(i*0.53+x*1.6)+
                         (def.type==='canyon'?Math.sin(a*.005+x*.73)*.055:0);
                     const u1=left/560,u2=right/560,v1=a/670,v2=b/670;
@@ -2283,8 +2290,9 @@
                 const ring=[];
                 for(let j=0;j<sections;j++){
                     const angle=Math.PI*2*j/sections;
-                    const weather=1+.13*Math.sin(j*2.39+seed*1.71)+
-                        .09*Math.sin(j*4.13-seed*.83);
+                    const weather=1+.15*Math.sin(j*2.39+seed*1.71)+
+                        .08*Math.sin(j*4.13-seed*.83)+
+                        .035*Math.cos(k*.86+j*1.11+seed);
                     const r=radius[k]*weather*(1+.045*Math.sin(k*1.37+j*.73+seed));
                     ring.push([r*Math.cos(angle)+Math.sin(k*.71+seed)*.035,
                         heights[k],r*.86*Math.sin(angle)+Math.cos(k*.63+seed)*.035]);
@@ -2293,8 +2301,9 @@
             }
             const push=(p,k,j)=>{
                 xyz.push(p[0],p[1],p[2]);uv.push(j/sections*3,k/levels*4);
-                const tone=.84+k*.014+Math.sin(k*2.21+seed)*.086+
-                    Math.sin(j*.83+seed)*.065;
+                const tone=.88+k*.011+Math.sin(k*2.21+seed)*.062+
+                    Math.sin(j*.83+seed)*.075+
+                    .032*Math.cos(k*.73+j*1.4);
                 color.copy(base).multiplyScalar(tone);
                 rgb.push(color.r,color.g,color.b);
             };
@@ -2455,12 +2464,14 @@
             for(let i=0;i<9;i++){
                 const progress=def.from+(def.to-def.from)*(i+.4)/9;
                 const side=(i%2?1:-1)*(1100+(i*337)%1720);
-                const altitude=1250+(i*123)%600;
+                const altitude=1180+(i*157+regionIndex*83)%780;
                 const m=new THREE.Mesh(h4CloudGeometry,
                     h4CloudMaterials[(i+regionIndex)%3]);
                 m.position.copy(h4WorldPosition(progress,side,altitude));
-                m.scale.set(580+(i%4)*220,65+(i%3)*32,335+(i%4)*98);
-                m.rotation.y=i*.38;
+                // More varied cloud banks: broad, thin, staggered silhouettes.
+                m.scale.set(670+(i%4)*265,48+(i%3)*27,390+(i%5)*95);
+                m.rotation.y=i*.31+regionIndex*.12;
+                m.rotation.z=Math.sin(i*1.7+regionIndex)*.045;
                 m.userData.visualOnly=true;
                 clouds.add(m);
                 h4Clouds.push(m);
