@@ -45,14 +45,14 @@ const assert=require('node:assert/strict');
   });
   assert.equal(signature.root,true);
   assert.equal(signature.rootNoCollider,true);
-  assert.deepEqual(signature.counts,[28,24,18]);
-  assert.deepEqual(signature.byType,{ribs:28,brokenDecks:24,warningLamps:18});
-  assert.equal(signature.batches,3);assert.equal(signature.instances,70);
+  assert.deepEqual(signature.counts,[28,24,18,24,18]);
+  assert.deepEqual(signature.byType,{ribs:28,brokenDecks:24,warningLamps:18,deckEdges:24,beaconHalos:18});
+  assert.equal(signature.batches,5);assert.equal(signature.instances,112);
   assert.equal(signature.oldBatches,4);assert.equal(signature.oldInstances,74);
   assert.equal(signature.visualOnly,true);
   assert.equal(signature.errors,0);
   assert.deepEqual(signature.colliders.slice(0,2),[6,36]);
   assert.equal(errors.length,0,errors.join('; '));
-  console.log('NEXT22E WEBGL SCENE PASS',JSON.stringify(signature));
+  console.log('NEXT22E+22F WEBGL SCENE PASS',JSON.stringify(signature));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
