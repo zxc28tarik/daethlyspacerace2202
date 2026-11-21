@@ -104,7 +104,8 @@ const out=path.join(__dirname,'next11c21u-evidence');fs.mkdirSync(out,{recursive
   assert(audit.colorRange[0]>.77&&audit.colorRange[1]<1.11);
   assert.deepEqual(audit.other,{meteor:320,barriers:97,gates:8,boxes:49,
     rings:192,ringBatches:10,stars:2600,nebula:38,combatShip:249});
-  assert.deepEqual(audit.allPhysics,[6,36,200]);
+  // Map4 colliders initialize only after switching to Map4; audit them below.
+  assert.deepEqual(audit.allPhysics,[0,0,0]);
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.activeMap===MAP_MODES.MAP1&&
     state.raceTime>2,null,{timeout:30000});
