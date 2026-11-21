@@ -10056,16 +10056,18 @@
         }
         const courseHazardPaint=makeCourseHazardPaintMap(17,true);
         const courseWreckPaint=makeCourseHazardPaintMap(41,false);
+        // NEXT11C21Q: immutable original-barrier palette shared by the
+        // renderer and independent real-browser regression checks.
+        const MAP1_C21Q_BARRIER_CORE_DEPTH=Object.freeze({
+            base:.91,directional:.19,
+            lightX:.18,lightY:.78,lightZ:.56,
+            warmR:1.018,warmG:.996,warmB:.975
+        });
         function buildItemAndBarrierCourse() {
             // NEXT11C21Q: existing 97 barrier core facets gain restrained
             // directional paint depth. No new polygons, lamps, rings or colliders.
             // The original shared C21I weathered paint and physical material
             // are untouched except for reading colors on the existing vertices.
-            const MAP1_C21Q_BARRIER_CORE_DEPTH=Object.freeze({
-                base:.91,directional:.19,
-                lightX:.18,lightY:.78,lightZ:.56,
-                warmR:1.018,warmG:.996,warmB:.975
-            });
             const obstacleHull = new THREE.MeshStandardMaterial({
                 color:0x807b82,metalness:.48,roughness:.74,
                 flatShading:true,map:courseHazardPaint,vertexColors:true
