@@ -1202,3 +1202,20 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **AÇIK:** Güncel tam Map1/Map4 smoke [#44902696598](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696598) sonucu henüz tam doğrulanmadı; dedicated PASS yerine geçmez. Kullanıcı estetik kabulü ve native GPU FPS, yayıncı ≥3 harita, merge açık izni bekler. PR #110 DRAFT/STACKED, main merge **YOK**.
 
 **Günlük:** `2026-11-21 | NEXT11C21N | dedicated Chromium PASS, drawcall117/117, 672px, GL0 | Offline 5.797.003 byte | Genel smoke açık | PR #110 DRAFT/MERGE YOK`.
+
+## 71) NEXT11C21O — Harita 1 orijinal beş yol sektöründe renk bütünlüğü (21 Kasım 2026)
+- **Hedef:** Mevcut 5×10km yarı saydam yol yüzeyinin eski çok keskin `[0x16e7ff,0x43a5ff,0xe87eff,0x44ffaf,0xffb467]` paletini, aynı turkuaz/mavi/mor/yeşil/amber karakterini koruyan `[0x49bfce,0x709bc8,0xb48abf,0x6aba9e,0xcfa57e]` ile rafine etmek. Sadece eski `sectorPalette` verisi değişti.
+- **Korunan:** Orijinal beş `raceRoadGroup.userData.sectors` ve 5×10km, `step=145`, yol üçgenleri, edge `.74`, yüzey `.115` additive, orta çizgi `.33`, sarı viraj okları, 192 halkalık 10 batch kılavuz, 320 meteor, 97 bariyer, 8 enkaz, 49 eski mor kutu, SB07 189 / Map4 249 ve 6/36/200 fizik. Yeni model/mesh/ışık/çarpışma/shader/drawcall/oynanış yok.
+- **QA:** [C21O kararı](MAP1_NEXT11C21O_RACE_ROAD_COLOR_COHESION.md), `tests/map1-next11c21o-road-colors.cjs` gerçek Chromium/WebGL 1600×900 A/B normal yarış kamerası + aynı oyun sahnesi kontrollü yol yakın açısı. Eski/yeni pigment, çizim çağrısı, GL error, sektör nesneleri, Map4 geçişi, Map1 geri dönüş. C21N/M/L/K/J/I/H/G6 + C20O/P/Q/R + SB07 + full Map1/Map4 smoke ve offline HTML.
+- **BAŞLANGIÇ DURUMU:** Son C21N dedicated PASS; C21N geniş smoke [#44902696598](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696598) son bakışta çalışıyordu. C21O testleri yeni iş; PASS iddia edilmez. `main` merge için kullanıcı onayı yok, PR DRAFT.
+
+**Günlük:** `2026-11-21 | NEXT11C21O | 5 mevcut yol sektörü renkleri rafine | geometrik/oynanış etki yok | native WebGL/CI açık | stacked DRAFT, merge yok`.
+
+### NEXT11C21O — Chromium/WebGL PASS, oynanabilir HTML (21 Kasım 2026)
+- **Dedicated gerçek Chromium/WebGL:** [C21O workflow #44903945431](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44903945431) **SUCCESS**. C21O kendi A/B, C21N/M/L/K/J/I/H/G6 regresyonları, C20O/P/Q/R koridor, SB07 ve tam offline HTML/artefakt **PASS**.
+- **Sayılar:** 5 orijinal yol sektörü, her birinde **414 gerçek yol yüzeyi vertex'i** (değişmedi). Eski/yeni **normal chase kamera** 63 değişen piksel, kontrollü yol yüzeyi yakın kamerası **726.302** değişen piksel, maksimum kanal farkı 39. **158/158 drawcalls**, GL error 0. Map4 6/36/200 çarpışma, 249 parça orijinal; kamera ve malzeme geri dönüş PASS.
+- **Görsel kabul şeffaflık:** Yarış kamerasında bu yüzey düşük kadraj ağırlığına sahip, dolayısıyla **63 piksel** farkla etki neredeyse fark edilmez. Yakından yol karakteri değişiyor; kullanıcıya büyük bir görsel sınıf atlaması olarak sunulmayacak. Gelecek adımda 3D yarış kadrajında yüksek görünürlüklü sahne bileşenlerine öncelik verilecek.
+- **Tek dosya offline HTML:** `dist/Uzay_Yarisi_Guncel_Oynanabilir.html` **5.797.398 byte**, SHA256 `9ed3de3b052f0ec4232653a6268ff08d262a4830dc3b369ece456ae7dccb6356`. [C21O playable HTML ZIP + oyun/yol eski/yeni A/B PNG](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44903945431/artifacts/14707571007).
+- **AÇIK:** Latest full Map1/Map4 browser smoke [#44904012376](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44904012376) sonuç ayrı. Dedicated workflow final dokümantasyon commit'i dışındaki aynı `index.html` kodunu test etti. Native GPU FPS, kullanıcı görsel kabulü, yayıncı en az üç harita ve merge kullanıcı izni açık. PR #111 stacked **DRAFT**.
+
+**Günlük:** `2026-11-21 | NEXT11C21O | 5 orijinal yol sektörü pigment PASS, chase63px / road726302px / draws158=158 / GL0 | offline 5.797.398B | full smoke ayrı | PR111 DRAFT`.
