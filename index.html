@@ -9324,10 +9324,24 @@
             g.computeVertexNormals();
             return g;
         }
+        // NEXT-22I: follow the ACTUAL cut-out contour with a thin rim.
+        // Unlike the old solid box, this mesh has no face across the hole.
+        function h4Next22iDeckOpeningRimGeometry(){
+            const outline=[
+                [-.17,-.14],[.07,-.28],[.27,-.09],
+                [.18,.15],[-.10,.21]
+            ];
+            const pts=outline.map(([x,z])=>new THREE.Vector3(x,0,z));
+            pts.push(pts[0].clone());
+            const curve=new THREE.CatmullRomCurve3(pts,true,'centripetal');
+            const g=new THREE.TubeGeometry(curve,40,.009,5,true);
+            g.computeVertexNormals();
+            return g;
+        }
         const H4_NEXT22F_SCULPT=Object.freeze({
             shipRib:h4Next22fBrokenRibGeometry(),
             fracturedDeck:h4Next22hFracturedDeckGeometry(),
-            weatheredTrim:new THREE.BoxGeometry(1,1,1),
+            weatheredTrim:h4Next22iDeckOpeningRimGeometry(),
             warningHalo:new THREE.TorusGeometry(.50,.045,6,28)
         });
         // Dedicated arena steel: not shared with either map's other objects.
@@ -9413,7 +9427,10 @@
                         getRaceFrameAtDistance(progress).up);
                     dummy.rotateZ((i%5-2)*.10+(sector===1?-.09:sector===2?.08:0));
                     dummy.rotateY((i%7-3)*.09+(sector===1?-.13:sector===2?.10:0));
-                    if(family===3)dummy.position.y+=25+(i%3)*12;
+                    // Rim belongs to the same cut-out as its deck. Translate
+                    // along the route's up direction, not global world Y.
+                    if(family===3)dummy.position.addScaledVector(
+                        getRaceFrameAtDistance(progress).up,14+(i%3)*5);
                     // Vertical plane is the orientation of the shared torus geometry.
                     if(family===4)dummy.rotateY((i%3-1)*.15);
                     if(family===0)dummy.scale.set(
@@ -9423,9 +9440,9 @@
                     else if(family===2)dummy.scale.set(
                         24+(i%3)*8,24+(i%3)*8,24+(i%3)*8);
                     else if(family===3)dummy.scale.set(
-                        200+(i%4)*42,4+(i%3)*1.5,220+(i%5)*39);
+                        240+(i%4)*46,6,270+(i%5)*45);
                     else dummy.scale.set(
-                        100+(i%3)*22,100+(i%3)*22,18);
+                        43+(i%3)*5,43+(i%3)*5,8);
                     dummy.updateMatrix();
                     mesh.setMatrixAt(i,dummy.matrix);
                     const tint=family===0?
