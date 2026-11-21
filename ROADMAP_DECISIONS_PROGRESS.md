@@ -1192,3 +1192,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KARAR:** DRAFT stacked PR, main merge için kullanıcı açık onayı; 7–8/10 estetik ve native GPU/güncel pitch kabulü açık.
 
 **Günlük:** `2026-11-21 | NEXT11C21N | 153 küçük halka sadece mavi renk/parlaklık | C21M full 74/74 PASS | C21N CI BAŞLATILDI/SONUÇ AÇIK | MERGE YOK`.
+
+### NEXT11C21N — Özel Chromium/WebGL testlerinin kapanışı (21 Kasım 2026)
+- **Özel C21N CI [#44902696377](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696377) SUCCESS** (oyun kodu commit `ad5a789`, test onarımı `84c5ed3`): C21N ilk A/B, C21M/L/K/J/I/H/G6, C20O/P/Q/R, SB07, offline HTML ve artifact upload **PASS**.
+- **Gerçek aynı kamera 1600×900:** C21N 153 küçük halka, 39 ana halka; eski/yeni 672 piksel fark, maksimum RGB delta 25, 117→117 drawcall, GL error 0. Orijinal 192 halka/10 batch, 16 ray/20 batch, 320 meteor/97 bariyer/8 enkaz/49 kutu, Map4 249 parça/6-36-200 çarpışma sabit.
+- **C21N asıl çalışma koşulu:** Önceki `0.24+0.12*pulse` canlı mikro-halka parlaması her karede başlangıç opaklığını üzerine yazıyordu; C21N `0.24+0.08*pulse` olarak **aynı frekans ve pulse davranışını**, yalnız zirve .36→.32 azaltarak tutar. Önemli ana halka/amber-kırmızı tehlike sinyalleri tamamen eski.
+- **QA onarımı şeffaflık:** İlk dedicated CI testleri `MAP1_C21N_MINOR_RING_GRADE` sabitinin yanlışlıkla fonksiyon içi scope'ta olması (test erişimi) ve ardından runtime pulse beklentisini yanlış sabit sayan assert nedeniyle FAIL olmuştu; gerçek sahne/oyun arızası değil. Sabit görünür scope'a taşındı, canlı pulse kıyası düzeltildi. Güncel özel test **başarılı**.
+- **Oynanabilir tam offline HTML:** `dist/Uzay_Yarisi_Guncel_Oynanabilir.html` **5.797.003 byte**, SHA256 `9764d10c7d666065f6a90fb970afba945b279030146b9abb212a9c02053c56ec`. [C21N playable HTML + gerçek WebGL PNG A/B](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696377/artifacts/14707200049).
+- **AÇIK:** Güncel tam Map1/Map4 smoke [#44902696598](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696598) sonucu henüz tam doğrulanmadı; dedicated PASS yerine geçmez. Kullanıcı estetik kabulü ve native GPU FPS, yayıncı ≥3 harita, merge açık izni bekler. PR #110 DRAFT/STACKED, main merge **YOK**.
+
+**Günlük:** `2026-11-21 | NEXT11C21N | dedicated Chromium PASS, drawcall117/117, 672px, GL0 | Offline 5.797.003 byte | Genel smoke açık | PR #110 DRAFT/MERGE YOK`.
