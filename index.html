@@ -2026,6 +2026,16 @@
         const h4VQ04Stats={atmosphereUpdates:0,lastOrbitFade:0,lastFogDensity:0,
             particleFields:0,particleCount:0,contactShadows:0};
         const h4VQ04ScratchColor=new THREE.Color();
+        // NEXT-22G — controlled arena-only tonal composition.
+        // The scene keeps its existing renderer/light rig and shadow physics.
+        const h4Next22gLook={
+            enabled:true,updates:0,lastWeight:0,
+            fog:new THREE.Color(0x746b70),
+            key:new THREE.Color(0xf5b59c),
+            rim:new THREE.Color(0x8aaec2),
+            ambient:new THREE.Color(0x9da4ac)
+        };
+
         function h4UpdateCinematicAtmosphere(time){
             if(state.activeMap!==MAP_MODES.MAP4)return;
             const smooth=(a,b)=>THREE.MathUtils.smoothstep(state.routeProgress,a,b);
@@ -2112,6 +2122,33 @@
                 h4SunHalo.scale.multiplyScalar(1-.11*grade);
                 renderer.toneMappingExposure*=1-.018*grade;
             }
+            // NEXT-22G: readable mid-distance wreck metal and blue/orange
+            // separation in the arena only. Blend away at both phase edges.
+            // No new lights, meshes, fog instances, or per-frame allocations.
+            const arenaEntry=THREE.MathUtils.smoothstep(
+                state.routeProgress,MAP4_PHASES.introEnd-300,
+                MAP4_PHASES.introEnd+270);
+            const arenaExit=1-THREE.MathUtils.smoothstep(
+                state.routeProgress,MAP4_PHASES.arenaEnd-350,
+                MAP4_PHASES.arenaEnd+250);
+            const arenaGrade=state.map4Phase===2 && h4Next22gLook.enabled?
+                arenaEntry*arenaExit:0;
+            if(arenaGrade>0){
+                scene.fog.color.lerp(h4Next22gLook.fog,.20*arenaGrade);
+                scene.fog.density*=1-.095*arenaGrade;
+                ambientLight.color.lerp(h4Next22gLook.ambient,.20*arenaGrade);
+                ambientLight.intensity*=1-.045*arenaGrade;
+                nebulaLight1.color.lerp(h4Next22gLook.key,.28*arenaGrade);
+                nebulaLight1.intensity*=1+.065*arenaGrade;
+                nebulaLight2.color.lerp(h4Next22gLook.rim,.33*arenaGrade);
+                nebulaLight2.intensity*=1+.14*arenaGrade;
+                h4SunHalo.material.opacity*=1-.20*arenaGrade;
+                renderer.toneMappingExposure*=1-.04*arenaGrade;
+                h4AtmosphereUniforms.horizon.value.lerp(
+                    h4Next22gLook.fog,.12*arenaGrade);
+            }
+            h4Next22gLook.lastWeight=arenaGrade;
+            h4Next22gLook.updates++;
             // Orbit clouds fade, rather than popping at an altitude threshold.
             for(let i=0;i<h4CloudGroups.length;i++){
                 h4CloudGroups[i].visible=i!==3 || orbit<.92;
@@ -9255,6 +9292,17 @@
             weatheredTrim:new THREE.BoxGeometry(1,1,1),
             warningHalo:new THREE.TorusGeometry(.50,.045,6,28)
         });
+        // Dedicated arena steel: not shared with either map's other objects.
+        // Soft angular normals and darker cavities retain 3D rib readability.
+        const H4_NEXT22G_RIB_MATERIAL=new THREE.MeshStandardMaterial({
+            name:'MAP4_NEXT22G_WARFRONT_RIB_STEEL',
+            map:h4SurfaceMaps.steel,
+            normalMap:h4MicroMaps.metal.normal,
+            normalScale:new THREE.Vector2(.13,.13),
+            roughnessMap:h4MicroMaps.metal.roughness,
+            color:0xb2b7b6,metalness:.38,roughness:.74,
+            flatShading:true
+        });
         const H4_NEXT22F_MAT=Object.freeze({
             deckEdge:new THREE.MeshBasicMaterial({
                 color:0xacc7c8,transparent:true,opacity:.34,
@@ -9276,7 +9324,7 @@
             root.userData.noCollider=true;
             const specs=[
                 {name:'CARRIER_SPINE_RIBS',geometry:H4_NEXT22F_SCULPT.shipRib,
-                    material:H4_GFX04_MAT.exposed,count:28,type:'ribs'},
+                    material:H4_NEXT22G_RIB_MATERIAL,count:28,type:'ribs'},
                 {name:'SHATTERED_SERVICE_DECKS',geometry:H4_GFX04_GEO.brokenPlate,
                     material:H4_GFX04_MAT.armor,count:24,type:'brokenDecks'},
                 {name:'DISTANT_WARNING_BEACONS',geometry:H4_GFX04_GEO.beacon,
