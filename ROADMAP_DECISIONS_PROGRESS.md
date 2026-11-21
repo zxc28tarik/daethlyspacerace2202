@@ -1175,3 +1175,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **DURUM:** Kod+test+taslak PR yapılmakta; **CI sonucu / estetik kabul ayrı kapı**, 720/1080 native GPU, 3/6 yayıncı ilk sunum kapısı açık. Kullanıcı izni olmadan main merge YOK.
 
 **Günlük:** `2026-11-21 | NEXT11C21M | orijinal 49 kutu altı yüz pigment; 24 vertex, 0 yeni parça | gerçek WebGL ve full smoke kontrol edilecek | DRAFT MERGE YOK`.
+
+### NEXT11C21M — Dedicated Chromium PASS ve oynanabilir teslim (21 Kasım 2026)
+- **Güncel özel QA:** [C21M run #44850791661](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44850791661) **SUCCESS**. Gerçek Chromium/WebGL aynı oyun kamerasında yeni 6 yüzey pigmenti: **4.847 değişen piksel**, ön/son **112/112 drawcall**, GL error **0**, original `BoxGeometry` **24 vertex / 36 index / 49 kutu** korunmuş. Materyal/transform geri dönüş ve Map4 249 parça/6-36-200 fizik PASS.
+- **Geçmiş testler:** C21L/K/J/I/H/G6, SB07 ve C20R job adımları PASS. Genel `map-browser-smoke` #44850791645 **ayrı iş**, sonuç henüz doğrulanmadı; özel PASS genel PASS değildir.
+- **Tek offline oynanabilir HTML** `dist/Uzay_Yarisi_Guncel_Oynanabilir.html` **5.795.992 byte**, SHA256 `797c2d60229f007cdb4395004660735dfd130073bd6299cd2a095bfb70888c1e`. [İndir: güncel 21M ZIP + PNG eski/yeni + JSON](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44850791661/artifacts/14685915242).
+- **Açık:** Kapsamlı Map1/Map4 smoke sonucu, kullanıcı gerçek ekranda estetik seçimi, native GPU 720/1080 FPS/p95, 3/6 yayıncı oynanabilirlik doğrulaması ve kullanıcı merge izni. PR #109 stacked DRAFT olarak kalacak.
+
+**Günlük:** `2026-11-21 | NEXT11C21M | orijinal 49 kutu yüz tonu C21M PASS / 112 draw / 4.847px fark / GL0 | offline build 5.795.992B | Genel smoke AÇIK | PR109 DRAFT`.
