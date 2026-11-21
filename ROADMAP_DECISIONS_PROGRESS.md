@@ -1228,3 +1228,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **DURUM:** Kod ve QA GitHub dalına kaydedildi; **CI PASS netleşmeden tamamlandı denmeyecek**. PR stacked DRAFT, ana dala kullanıcı onayı olmadan merge yapılmaz. C21O tam smoke #44904012376 önceki kontrolde hâlâ çalışıyordu; güncel statü ayrı doğrulanmalı.
 
 **Günlük:** `2026-11-21 | NEXT11C21P | mevcut 320 kayaya natural face-relief vertex pigment | 0 yeni obje, fizik aynı | Chromium QA + smoke açık | DRAFT/merge yok`.
+
+### NEXT11C21P — Dedicated Chromium/WebGL PASS ve oynanabilir sürüm (21 Kasım 2026)
+- **C21P Dedicated [#44904762570](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44904762570): SUCCESS.** `tests/map1-next11c21p-meteor-facet-relief.cjs` gerçek Chromium/WebGL 1600x900 orijinal oyun kamerası A/B: 320 meteor sınıfı 128/128/64 korunur; **50.901 değişen piksel**, maksimum kanal farkı **30**, **113→113 drawcalls**, GL error **0**, 4 geçici sahne kayasının renk/transformları geri alındı, Map4 **6/36/200**.
+- **Geçmiş QA:** C21O/N/M/L/K/J/I/H/G6, C20O/P/Q/R ve SB07 özel workflow adımları **SUCCESS**. C21P test sayıları yeni model/halo/collider/AI değil, mevcut taşların vertex pigmenti üzerine gerçek farklılıktır.
+- **Dikkatli yorum:** 50.901 piksel fark, dört büyük mevcut meteorun **test amacıyla aynı gerçek yarış kamerasının önüne geçici yerleştirildiği** görüntüdedir; bu sayı normal rastgele yarış karelerinin ortalama farkı olduğunu kanıtlamaz. Kullanıcının gerçek cihaz estetik değerlendirmesi ve native GPU FPS ölçümü ayrı kapılar.
+- **Tek HTML offline build:** `dist/Uzay_Yarisi_Guncel_Oynanabilir.html` **5.799.053 byte**, SHA256 `cf62ac63a09d2c62208fdf09729243e5e02ec2b55f7aa869883471c869577d32`. [Güncel C21P ZIP: oynanabilir HTML + A/B PNG + JSON](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44904762570/artifacts/14707801735).
+- **AÇIK:** Kapsamlı Map1/Map4 smoke [#44904762573](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44904762573) ayrı job; dedicated PASS genel smoke PASS demek değildir. Önceki C21O full smoke #44904012376 de ayrı izlenecek. Kullanıcı izni olmadan PR #112 stacked DRAFT; `main` merge YOK.
+**Günlük:** `2026-11-21 | NEXT11C21P | dedicated PASS: 50.901 px staged rocks, 113=113 draws, GL0 | offline 5.799.053B | full smoke açık | PR112 DRAFT`.
