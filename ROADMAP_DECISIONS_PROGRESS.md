@@ -1183,3 +1183,22 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Açık:** Kapsamlı Map1/Map4 smoke sonucu, kullanıcı gerçek ekranda estetik seçimi, native GPU 720/1080 FPS/p95, 3/6 yayıncı oynanabilirlik doğrulaması ve kullanıcı merge izni. PR #109 stacked DRAFT olarak kalacak.
 
 **Günlük:** `2026-11-21 | NEXT11C21M | orijinal 49 kutu yüz tonu C21M PASS / 112 draw / 4.847px fark / GL0 | offline build 5.795.992B | Genel smoke AÇIK | PR109 DRAFT`.
+
+## 70) NEXT11C21N — Harita 1 mevcut küçük halka ton uyumu (21 Kasım 2026)
+- **ÖNCEKİ ADIM TAM DOĞRULANDI:** C21M [full Map1/4 browser smoke #44850791645](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44850791645) **SUCCESS, 74/74 adım**, PR #109 DRAFT ve main merge yok.
+- **C21N GELİŞTİRME:** 153 mevcut non-critical koridor küçük halkası aynı `ShaderMaterial` üzerinde `0x406dff/.30 → 0x557fc4/.26`; 39 kritik ana halka, 16 uçuş yönlendirme rayı, 16 amber/kırmızı sınır uyarısı **birebir aynı**. 192 halka=10 çizim grubu, 16 ray=20 çizim grubu, 46 guide obje, 6960 segment; tüm koordinatlar ve shader fade korunuyor.
+- **MEVCUT MODELLER:** 49 orijinal mor ödül kutusu (C21M yüzey tonları dahil), 320 meteor, 97 bariyer, 8 enkaz, SB07 189 parça, Map4 249 parça sabit. 0 yeni halka/mesh/shader/drawcall/collider/particle/oynanış.
+- **QA:** [C21N kabul](MAP1_NEXT11C21N_ORIGINAL_CORRIDOR_GRADE.md), `tests/map1-next11c21n-minor-rings.cjs` Chromium/WebGL aynı kamera C21M/C21N karşılaştırma, eşit drawcall, Map4 izolasyonu. C21M/L/K/J/I/H/G6 + C20O/P/Q/R + SB07 dedicated suite ve tam 1/4 smoke + offline HTML. Bu kayıt yazıldığında **yeni CI sonucu henüz kesinleşmedi**; PASS denmeyecek.
+- **KARAR:** DRAFT stacked PR, main merge için kullanıcı açık onayı; 7–8/10 estetik ve native GPU/güncel pitch kabulü açık.
+
+**Günlük:** `2026-11-21 | NEXT11C21N | 153 küçük halka sadece mavi renk/parlaklık | C21M full 74/74 PASS | C21N CI BAŞLATILDI/SONUÇ AÇIK | MERGE YOK`.
+
+### NEXT11C21N — Özel Chromium/WebGL testlerinin kapanışı (21 Kasım 2026)
+- **Özel C21N CI [#44902696377](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696377) SUCCESS** (oyun kodu commit `ad5a789`, test onarımı `84c5ed3`): C21N ilk A/B, C21M/L/K/J/I/H/G6, C20O/P/Q/R, SB07, offline HTML ve artifact upload **PASS**.
+- **Gerçek aynı kamera 1600×900:** C21N 153 küçük halka, 39 ana halka; eski/yeni 672 piksel fark, maksimum RGB delta 25, 117→117 drawcall, GL error 0. Orijinal 192 halka/10 batch, 16 ray/20 batch, 320 meteor/97 bariyer/8 enkaz/49 kutu, Map4 249 parça/6-36-200 çarpışma sabit.
+- **C21N asıl çalışma koşulu:** Önceki `0.24+0.12*pulse` canlı mikro-halka parlaması her karede başlangıç opaklığını üzerine yazıyordu; C21N `0.24+0.08*pulse` olarak **aynı frekans ve pulse davranışını**, yalnız zirve .36→.32 azaltarak tutar. Önemli ana halka/amber-kırmızı tehlike sinyalleri tamamen eski.
+- **QA onarımı şeffaflık:** İlk dedicated CI testleri `MAP1_C21N_MINOR_RING_GRADE` sabitinin yanlışlıkla fonksiyon içi scope'ta olması (test erişimi) ve ardından runtime pulse beklentisini yanlış sabit sayan assert nedeniyle FAIL olmuştu; gerçek sahne/oyun arızası değil. Sabit görünür scope'a taşındı, canlı pulse kıyası düzeltildi. Güncel özel test **başarılı**.
+- **Oynanabilir tam offline HTML:** `dist/Uzay_Yarisi_Guncel_Oynanabilir.html` **5.797.003 byte**, SHA256 `9764d10c7d666065f6a90fb970afba945b279030146b9abb212a9c02053c56ec`. [C21N playable HTML + gerçek WebGL PNG A/B](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696377/artifacts/14707200049).
+- **AÇIK:** Güncel tam Map1/Map4 smoke [#44902696598](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696598) sonucu henüz tam doğrulanmadı; dedicated PASS yerine geçmez. Kullanıcı estetik kabulü ve native GPU FPS, yayıncı ≥3 harita, merge açık izni bekler. PR #110 DRAFT/STACKED, main merge **YOK**.
+
+**Günlük:** `2026-11-21 | NEXT11C21N | dedicated Chromium PASS, drawcall117/117, 672px, GL0 | Offline 5.797.003 byte | Genel smoke açık | PR #110 DRAFT/MERGE YOK`.
