@@ -13264,8 +13264,8 @@
             context.putImageData(pixels,0,0);
             const fineFinish=new THREE.CanvasTexture(finish);
             fineFinish.name='SB07_C21T_ORIGINAL_RED_SATIN_COAT';
-            fineFinish.userData.visualOnly=true;
-            fineFinish.userData.surfaceRevision='NEXT11C21T';
+            // THREE r128 Texture does not initialize userData by default.
+            fineFinish.userData={visualOnly:true,surfaceRevision:'NEXT11C21T'};
             fineFinish.wrapS=fineFinish.wrapT=THREE.RepeatWrapping;
             fineFinish.anisotropy=4;
             fineFinish.generateMipmaps=true;
