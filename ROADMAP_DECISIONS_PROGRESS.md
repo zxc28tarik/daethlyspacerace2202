@@ -1219,3 +1219,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **AÇIK:** Latest full Map1/Map4 browser smoke [#44904012376](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44904012376) sonuç ayrı. Dedicated workflow final dokümantasyon commit'i dışındaki aynı `index.html` kodunu test etti. Native GPU FPS, kullanıcı görsel kabulü, yayıncı en az üç harita ve merge kullanıcı izni açık. PR #111 stacked **DRAFT**.
 
 **Günlük:** `2026-11-21 | NEXT11C21O | 5 orijinal yol sektörü pigment PASS, chase63px / road726302px / draws158=158 / GL0 | offline 5.797.398B | full smoke ayrı | PR111 DRAFT`.
+
+## 72) NEXT11C21P — Eski meteor geometrisinde doğal yüzey derinliği (21 Kasım 2026)
+- **NEDEN:** C21O gerçek yarış kamerasında yalnız 63 piksel değişiklik gösterdiği için oyuncunun gördüğü eski engel meteorlarına odaklanılır. Yeni model yerine 320 orijinal `DodecahedronGeometry(radius,1)` yüzeyinde aynı C21H pigmentine hafif, üçgen normali yönlü doğal kaya tonlama çarpanı uygulanır.
+- **KOD:** `MAP1_C21P_METEOR_RELIEF` `strength=.19`; yalnız C21H `tintAsteroidFacets` fonksiyonu içindeki mevcut `color` vertex buffer'a deterministic üçgen yüz yönü açık/koyu katsayısı. Mesh, geometri, position/normal/uv, materyal roughness/metalness, edge, RNG, collider/AI/rotasyon, performans drawcall **değişmez**.
+- **KORUNAN:** SMALL 128, MEDIUM 128, LARGE 64 eski meteor; 49 eski mor kutu ve C21M altı yüzey, 97 bariyer, 8 enkaz, 192 halka=10 batch, 5 sektör yol C21O, SB07 189 ve Map4 249 parça/6-36-200.
+- **QA:** [C21P kabul](MAP1_NEXT11C21P_NATURAL_METEOR_RELIEF.md), `tests/map1-next11c21p-meteor-facet-relief.cjs` gerçek 1600x900 WebGL aynı kamera **4 mevcut büyük meteor** eski C21H vs yeni C21P render, orijinal vertex konumu ve 320 adet sayımı, 0 GL error, drawcall karşılaştırması, render sonrası pozisyon/renk geri dönüş, Map4 izolasyonu. Dedicated workflow, geçmiş C21O/N/M/L/K/J/I/H/G6 + C20O/P/Q/R+SB07, bütün Map1/4 smoke, offline HTML.
+- **DURUM:** Kod ve QA GitHub dalına kaydedildi; **CI PASS netleşmeden tamamlandı denmeyecek**. PR stacked DRAFT, ana dala kullanıcı onayı olmadan merge yapılmaz. C21O tam smoke #44904012376 önceki kontrolde hâlâ çalışıyordu; güncel statü ayrı doğrulanmalı.
+
+**Günlük:** `2026-11-21 | NEXT11C21P | mevcut 320 kayaya natural face-relief vertex pigment | 0 yeni obje, fizik aynı | Chromium QA + smoke açık | DRAFT/merge yok`.
