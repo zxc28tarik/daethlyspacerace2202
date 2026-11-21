@@ -10113,6 +10113,9 @@
                 roughness:MAP1_C21L_LIGHT_BALANCE.rewardRoughness,
                 emissive:0x28175e,
                 emissiveIntensity:MAP1_C21L_LIGHT_BALANCE.rewardEmissive,
+                // C21M: original 34-unit six-face box, only its existing
+                // face pigment now responds subtly to the scene lighting.
+                vertexColors:true,
                 transparent:true, opacity:.82, depthWrite:false
             });
             const cubeEdgeMat=new THREE.LineBasicMaterial({
@@ -10125,6 +10128,34 @@
                 depthTest:false,depthWrite:false
             });
             const cubeGeo=new THREE.BoxGeometry(34,34,34);
+            // NEXT11C21M — tonal depth on the ORIGINAL box faces only.
+            // Six original faces / 24 existing vertices; zero new geometry,
+            // RNG, objects, textures, particles or extra draw calls.
+            // +X, -X, +Y, -Y, +Z, -Z; muted mineral-violet reflectance.
+            const MAP1_C21M_BOX_FACE_TONES=Object.freeze([
+                Object.freeze([1.00,.95,1.04]),
+                Object.freeze([.84,.88,.99]),
+                Object.freeze([1.12,1.05,1.10]),
+                Object.freeze([.78,.80,.91]),
+                Object.freeze([1.04,.97,1.08]),
+                Object.freeze([.89,.87,1.00])
+            ]);
+            const cubeFaceColors=new Float32Array(cubeGeo.getAttribute('position').count*3);
+            for(let face=0;face<6;face++){
+                const rgb=MAP1_C21M_BOX_FACE_TONES[face];
+                for(let vertex=0;vertex<4;vertex++){
+                    // A barely perceptible upper-face light falloff avoids
+                    // flat uniform plastic without painting extra outlines.
+                    const upper=vertex<2?1.018:.974;
+                    const side=vertex%2===0?1.008:.992;
+                    const at=(face*4+vertex)*3;
+                    cubeFaceColors[at]=rgb[0]*upper*side;
+                    cubeFaceColors[at+1]=rgb[1]*upper*side;
+                    cubeFaceColors[at+2]=rgb[2]*upper*side;
+                }
+            }
+            cubeGeo.setAttribute('color',new THREE.BufferAttribute(cubeFaceColors,3));
+            cubeGeo.userData.map1OriginalCubeFacetDepth='NEXT11C21M';
             const cubeEdgeGeo=new THREE.EdgesGeometry(
                 new THREE.BoxGeometry(36,36,36)
             );

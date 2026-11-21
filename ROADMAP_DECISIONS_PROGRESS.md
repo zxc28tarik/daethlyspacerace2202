@@ -1166,3 +1166,20 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Bu test **yeni görselin kullanıcıca estetik kabulü, native donanım FPS veya üç haritanın yayıncı sunumu onayı değildir**. PR #108 DRAFT, main merge YOK. Gelecek görev C21M, yeni grafik açısından kabul bekler.
 
 **Günlük:** `2026-11-21 | C21L Chromium 108/108 drawcall / CI SUCCESS / offline HTML PASS | PR #108 DRAFT | estetik kabul açık, MERGE YOK`.
+
+## 69) NEXT11C21M — orijinal mor ödül kutusu altı yüzey derinliği (21 Kasım 2026)
+- **KULLANICI KISITI KESİN:** Eski mor kutu, meteor, bariyer, enkaz, gemi ve oynanış kullanılmaya devam edilir; yeni kristal/atom halkası/metal kafes çıkarılmaz, yalnız görsel kalite geliştirilir.
+- **GERÇEK KOD:** 49 paylaşılmış `BoxGeometry(34,34,34)` mor kutu yüzeyinde 24 mevcut vertex'in `color` attribute'u ile 6 deterministik, sade mineral-mor yüz tınısı. Fiziksel 34×34×34 gövde, 36 kenar, 9 sekiz yüzlü çekirdek, 49 kollisyon yarıçapı, RNG/bonus ve manuel turbo aynı. Yeni mesh/collider/texture/lights/particle yok. `MAP1_C21M_BOX_FACE_TONES` kodda.
+- **GÖRSEL KABUL:** [C21M ayrıntı](MAP1_NEXT11C21M_ORIGINAL_BOX_FACETS.md), aynı gerçek kamera/bir ödül ile C21L nötr yüz ve C21M altı tonda PNG A/B, WebGL sıfır hata ve aynı drawcall. Yüzey tonları aşırı göze batarsa yalnız tonal değer azaltılacak.
+- **TESTLER:** `tests/map1-next11c21m-box-facets.cjs` ve özel GitHub Actions; C21L/K/J/I/H/G6, SB07, C20R geri dönük testler ve offline HTML. Genel `map-browser-smoke.yml` de C21M dalını tarar, reddedilmiş C21G–G5 kristal testlerini bu dalda atlar.
+- **DURUM:** Kod+test+taslak PR yapılmakta; **CI sonucu / estetik kabul ayrı kapı**, 720/1080 native GPU, 3/6 yayıncı ilk sunum kapısı açık. Kullanıcı izni olmadan main merge YOK.
+
+**Günlük:** `2026-11-21 | NEXT11C21M | orijinal 49 kutu altı yüz pigment; 24 vertex, 0 yeni parça | gerçek WebGL ve full smoke kontrol edilecek | DRAFT MERGE YOK`.
+
+### NEXT11C21M — Dedicated Chromium PASS ve oynanabilir teslim (21 Kasım 2026)
+- **Güncel özel QA:** [C21M run #44850791661](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44850791661) **SUCCESS**. Gerçek Chromium/WebGL aynı oyun kamerasında yeni 6 yüzey pigmenti: **4.847 değişen piksel**, ön/son **112/112 drawcall**, GL error **0**, original `BoxGeometry` **24 vertex / 36 index / 49 kutu** korunmuş. Materyal/transform geri dönüş ve Map4 249 parça/6-36-200 fizik PASS.
+- **Geçmiş testler:** C21L/K/J/I/H/G6, SB07 ve C20R job adımları PASS. Genel `map-browser-smoke` #44850791645 **ayrı iş**, sonuç henüz doğrulanmadı; özel PASS genel PASS değildir.
+- **Tek offline oynanabilir HTML** `dist/Uzay_Yarisi_Guncel_Oynanabilir.html` **5.795.992 byte**, SHA256 `797c2d60229f007cdb4395004660735dfd130073bd6299cd2a095bfb70888c1e`. [İndir: güncel 21M ZIP + PNG eski/yeni + JSON](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44850791661/artifacts/14685915242).
+- **Açık:** Kapsamlı Map1/Map4 smoke sonucu, kullanıcı gerçek ekranda estetik seçimi, native GPU 720/1080 FPS/p95, 3/6 yayıncı oynanabilirlik doğrulaması ve kullanıcı merge izni. PR #109 stacked DRAFT olarak kalacak.
+
+**Günlük:** `2026-11-21 | NEXT11C21M | orijinal 49 kutu yüz tonu C21M PASS / 112 draw / 4.847px fark / GL0 | offline build 5.795.992B | Genel smoke AÇIK | PR109 DRAFT`.
