@@ -10506,8 +10506,20 @@
                 return mat;
             };
             const railMaterial=makeFadedGuideMat(0x17adcf,0.58,900,4600,0.12);
-            // All 192 ring positions stay in place; only far minor pixels dim.
-            const ringMaterial=makeFadedGuideMat(0x406dff,0.30,600,3000,0.08);
+            // NEXT11C21N: same 192 ring positions, batches and fade,
+            // quieter mineral-blue for the 153 noncritical minor rings.
+            // Original cyan major navigation rings and amber/red edge warnings
+            // are untouched, as are all geometry, collisions and course rules.
+            const MAP1_C21N_MINOR_RING_GRADE=Object.freeze({
+                tint:0x557fc4,opacity:.26,near:600,far:3000,floor:.08
+            });
+            const ringMaterial=makeFadedGuideMat(
+                MAP1_C21N_MINOR_RING_GRADE.tint,
+                MAP1_C21N_MINOR_RING_GRADE.opacity,
+                MAP1_C21N_MINOR_RING_GRADE.near,
+                MAP1_C21N_MINOR_RING_GRADE.far,
+                MAP1_C21N_MINOR_RING_GRADE.floor
+            );
             // C20Q: full navigation guidance nearby, selective fade at the horizon.
             const majorRingMaterial=makeFadedGuideMat(0x00e7ed,0.85,1700,5400,0.35);
             // Kanat sürtünmesinin başlayacağı ve ağırlaşacağı eşikler de görülebilir.
