@@ -1,0 +1,65 @@
+name: Map1 NEXT11C21U SB07 Original Hull Contour
+on:
+  push:
+    branches: [codex/map1-sb07-hull-contour-light-21u]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sb07-original-hull-depth:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and THREE WebGL regression tools
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: C21U original SB07 silver-ceramic hull 1600x900 same race-camera A-B
+        run: |
+          node --check tests/map1-next11c21u-hull-contour.cjs
+          node tests/map1-next11c21u-hull-contour.cjs
+      - name: Original SB07 C21A/B/C/D/E/F and C20O/P/Q/R regressions
+        run: |
+          node tests/map1-next11c21a-native-pbr-finishes.cjs
+          node tests/map1-next11c21b-balanced-colors.cjs
+          node tests/map1-next11c21c-red-flow.cjs
+          node tests/map1-next11c21d-engine-tone.cjs
+          node tests/map1-next11c21e-final-color-review.cjs
+          node tests/map1-next11c21f-game-camera.cjs
+          node tests/map1-next11c20o-corridor-clarity.cjs
+          node tests/map1-next11c20p-distance-clarity.cjs
+          node tests/map1-next11c20q-guide-contrast.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+          node tests/map1-next11c20-sb07-zenit.cjs
+      - name: C21T/S/R/Q/P/O/N/M/L/K/J/I/H/G6 original gameplay art regressions
+        run: |
+          node tests/map1-next11c21t-red-coat.cjs
+          node tests/map1-next11c21s-space-color.cjs
+          node tests/map1-next11c21r-wreck-gate-facets.cjs
+          node tests/map1-next11c21q-barrier-core-depth.cjs
+          node tests/map1-next11c21p-meteor-facet-relief.cjs
+          node tests/map1-next11c21o-road-colors.cjs
+          node tests/map1-next11c21n-minor-rings.cjs
+          node tests/map1-next11c21m-box-facets.cjs
+          node tests/map1-next11c21l-light-balance.cjs
+          node tests/map1-next11c21k-distance-grade.cjs
+          node tests/map1-next11c21j-contact-cues.cjs
+          node tests/map1-next11c21i-barrier-wreck.cjs
+          node tests/map1-next11c21h-meteors.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: Build complete single-file offline HTML game
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Publish real before-after WebGL screenshot and full playable game
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21u-sb07-original-hull-playable
+          path: |
+            tests/next11c21u-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn
