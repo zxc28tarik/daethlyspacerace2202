@@ -1153,11 +1153,15 @@
         // Renkli Nebula Bulutsuları (Görseldeki Mor/Pembe/Turuncu Uzay Atmosferi)
         const nebulaGroup = new THREE.Group();
         const nebulaColors = [0x881177, 0xff4477, 0xff8833, 0x2244aa, 0x551199];
+        // NEXT11C21K: the same 38 original nebula shapes remain in the
+        // same positions, but subtler opacity reduces huge overlapping
+        // foreground clouds that masked the track/hazard silhouettes.
+        const MAP1_C21K_NEBULA_OPACITY=0.062;
         for (let i = 0; i < 38; i++) {
             const nebMat = new THREE.MeshBasicMaterial({
                 color: nebulaColors[i % nebulaColors.length],
                 transparent: true,
-                opacity: 0.09,
+                opacity: MAP1_C21K_NEBULA_OPACITY,
                 depthWrite: false,
                 blending: THREE.AdditiveBlending
             });
