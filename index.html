@@ -10479,6 +10479,11 @@
         // Gerçek sınır yarıçapı ile birebir eşleşir (tubeRadius = 360).
         const corridorGuideGroup = new THREE.Group();
         scene.add(corridorGuideGroup);
+        // Top-level immutable palette: shared with browser visual QA,
+        // while the original geometry/shader creation remains unchanged.
+        const MAP1_C21N_MINOR_RING_GRADE=Object.freeze({
+            tint:0x557fc4,opacity:.26,near:600,far:3000,floor:.08
+        });
         function buildVisibleCorridor() {
             corridorGuideGroup.clear();
             const r = state.tubeRadius;
@@ -10510,9 +10515,6 @@
             // quieter mineral-blue for the 153 noncritical minor rings.
             // Original cyan major navigation rings and amber/red edge warnings
             // are untouched, as are all geometry, collisions and course rules.
-            const MAP1_C21N_MINOR_RING_GRADE=Object.freeze({
-                tint:0x557fc4,opacity:.26,near:600,far:3000,floor:.08
-            });
             const ringMaterial=makeFadedGuideMat(
                 MAP1_C21N_MINOR_RING_GRADE.tint,
                 MAP1_C21N_MINOR_RING_GRADE.opacity,
