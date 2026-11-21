@@ -33,9 +33,9 @@ const out=path.join(__dirname,'next11c21s-evidence');fs.mkdirSync(out,{recursive
       const bin=bins[i],color=palette[bin];
       count[bin]++;
       const factor=i%13===0?1:i%5===0?.73:.89;
-      for(const axis of ['x','y','z']){
-        const seen=cc['get'+axis.toUpperCase()](i);
-        const expected=color[axis]*factor;
+      for(const [axis,channel] of [['X','r'],['Y','g'],['Z','b']]){
+        const seen=cc['get'+axis](i);
+        const expected=color[channel]*factor;
         err=Math.max(err,Math.abs(seen-expected));
         min=Math.min(min,seen);max=Math.max(max,seen);
       }
