@@ -23,6 +23,14 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
    itemBoxes.length===49&&wreckageModules.length===8,null,{timeout:30000});
   const checks=await page.evaluate(()=>{
    const fog=scene.fog,grade=MAP1_C21K_DISTANCE_GRADE;
+   const nebula={
+    count:nebulaGroup.children.length,
+    allOriginalSpheres:nebulaGroup.children.every(o=>
+     o.geometry.type==='SphereGeometry'),
+    opacity:nebulaGroup.children.map(o=>o.material.opacity),
+    radiusSample:nebulaGroup.children.slice(0,4).map(o=>
+     o.geometry.parameters.radius)
+   };
    const materials=Object.fromEntries(Object.entries(asteroidMaterials)
     .map(([size,mat])=>[size,{
      color:mat.color.getHex(),flatShading:mat.flatShading,
@@ -44,7 +52,7 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
      radius:a.radius,cls:a.sizeClass};
    });
    return {
-    map:state.activeMap,grade,fog:{color:fog.color.getHex(),density:fog.density},
+    map:state.activeMap,grade,nebula,fog:{color:fog.color.getHex(),density:fog.density},
     colorMaterial:materials,edges,
     originalObjects:{
      asteroids:asteroids.length,
@@ -70,6 +78,9 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
   assert.equal(checks.map,'map1');
   assert.equal(checks.fog.color,0x0d0e21);
   assert.equal(checks.fog.density,.00044);
+  assert.equal(checks.nebula.count,38);
+  assert(checks.nebula.allOriginalSpheres);
+  assert(checks.nebula.opacity.every(x=>x===.062));
   assert.deepEqual([checks.colorMaterial.SMALL.color,
    checks.colorMaterial.MEDIUM.color,checks.colorMaterial.LARGE.color],
    [0xb0b3be,0xa09aa7,0xa3928a]);
@@ -111,6 +122,9 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
     LARGE:[0x9b8881,0xbda192,.14]
    };
    const oldFog=scene.fog.color.clone(),oldDensity=scene.fog.density;
+   const savedClouds=nebulaGroup.children.map(o=>({
+    material:o.material,opacity:o.material.opacity
+   }));
    const saveColor={},saveEdge={};
    for(const key of ['SMALL','MEDIUM','LARGE']){
     saveColor[key]=asteroidMaterials[key].color.clone();
@@ -136,6 +150,7 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
    try{
     scene.fog.color.setHex(0x09051d);
     scene.fog.density=.00055;
+    savedClouds.forEach(c=>{c.material.opacity=.09;});
     for(const key of Object.keys(oldPalette)){
      const [rock,edge,alpha]=oldPalette[key];
      asteroidMaterials[key].color.setHex(rock);
@@ -144,6 +159,7 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
     }
     old=frame();
     scene.fog.color.copy(oldFog);scene.fog.density=oldDensity;
+    savedClouds.forEach(c=>{c.material.opacity=c.opacity;});
     for(const key of Object.keys(saveColor)){
      asteroidMaterials[key].color.copy(saveColor[key]);
      asteroidEdgeMaterials[key].color.copy(saveEdge[key].color);
@@ -152,6 +168,7 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
     newer=frame();
    }finally{
     scene.fog.color.copy(oldFog);scene.fog.density=oldDensity;
+    savedClouds.forEach(c=>{c.material.opacity=c.opacity;});
     for(const key of Object.keys(saveColor)){
      asteroidMaterials[key].color.copy(saveColor[key]);
      asteroidEdgeMaterials[key].color.copy(saveEdge[key].color);
@@ -179,7 +196,8 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
     rendererAA:!!gl.getContextAttributes().antialias,
     playableModel:h4Ship19Race.userData.parts,
     gradeRestored:scene.fog.color.getHex()===MAP1_C21K_DISTANCE_GRADE.fogColor&&
-     Math.abs(scene.fog.density-MAP1_C21K_DISTANCE_GRADE.density)<1e-9};
+     Math.abs(scene.fog.density-MAP1_C21K_DISTANCE_GRADE.density)<1e-9&&
+     savedClouds.every(c=>c.material.opacity===c.opacity)};
   });
   assert(comparison.rendererAA&&comparison.restored&&comparison.gradeRestored);
   assert.equal(comparison.playableModel,189);
@@ -230,7 +248,7 @@ const out=path.join(__dirname,'next11c21k-evidence');fs.mkdirSync(out,{recursive
   assert.equal(map1Return.glError,0);assert.deepEqual(errors,[]);
   const report={pass:true,revision:'NEXT11C21K',checks,comparison,
    studioDrawCalls:drawCalls,map4,map1Return,errors,
-   note:'A/B images are real 1600x900 native Chromium/WebGL frames from IDENTICAL player camera/staged original objects. BEFORE uses C21J fog and meteor colors; AFTER uses C21K. Images are reverted to real scene with original hazard transforms. No gameplay physics, item appearance, hazard placements or Map4 visuals changed.'};
+   note:'A/B images are real 1600x900 native Chromium/WebGL frames from IDENTICAL player camera/staged original objects. BEFORE uses C21J fog, meteor colors and 38 cloud opacity .09; AFTER uses C21K cloud opacity .062, blue fog and mineral midtones. Images are reverted to real scene with original hazard transforms. No gameplay physics, item appearance, hazard placements or Map4 visuals changed.'};
   fs.writeFileSync(path.join(out,'distance-grade-regression.json'),
    JSON.stringify(report,null,2));
   console.log('NEXT11C21K DISTANCE GRADE WEBGL PASS '+JSON.stringify({

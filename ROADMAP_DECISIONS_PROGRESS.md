@@ -1146,3 +1146,5 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Orijinal 320 meteor geometrisine dokunulmadan 3 mineral paletine hafif midtone/soluk kontur uyumu. Bariyer, kutu, enkaz, SB07 ve Map4 malzemeleri, fizik/RNG/mekanikler aynen.
 - Gerçek tarayıcı aynı kamera old/new screenshot, 5 eski meteor geometry, FogExp2 matematik, GL draw-call eşitliği, Map4 atmosphere izolasyonu ve Map1 geri dönüş.
 - Regresyon: C21J/I/H/G6 + SB07 + corridor. [C21K test notu](MAP1_NEXT11C21K_DISTANCE_COLOR.md); draft PR, main merge kullanıcı onayına bağlı.
+
+- C21K aynı paket görsel teyit: Ön plandaki eski 38 bulutsu opacity .09→.062; gökyüzünde üst üste binen büyük mor lekeler seyreltiliyor. Eski küre geometri/konum/sayı ve RNG aynı. A/B test eski ve yeni cloud opacity ile koşar.

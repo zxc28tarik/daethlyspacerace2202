@@ -5,7 +5,8 @@ Harita 1'deki orijinal 49 mor ödül kutusu, 320 meteor, 97 bariyer ve 8 enkaz k
 - Sahnedeki uzak nesneleri fazla karartan Map1 FogExp2 yoğunluğu 0.00055 → **0.00044**. Sis rengindeki mor baskınlığı azaltıp soğuk laciverte çekildi (0x09051D → **0x0D0E21**). Sadece Harita 1'e uygulanır.
 - Yaklaşık 1500 mesafede atmosfer geçirgenliği 0.507 → 0.647; 2400'de 0.175 → 0.328. Önemli tehlikeler daha erken fark edilir, tamamen sis kaldırılmaz.
 - Üç orijinal meteor sınıfında hafif mineral-midtone dengesi ve daha uyumlu soluk konturlar yapıldı. Vertex/geometri, roughness/metalness, hareket, sınıf ve collision yok.
-- Eski mor pickup rengi/dış çizgisi, uyarı bariyer/enkaz turuncuları ve koridor renkleri tamamen aynı; başka ışık, shader, 3D obje, draw call, parçacık eklenmez.
+- Eski **38 bulutsu küresinin** aynı şekil/pozisyon/sayı bilgileri korunuyor; yalnız katmanlarının opaklığı **0.09 → 0.062** düşürüldü. Ön planı kapatan büyük mor lekeler seyreltiliyor. Yeni ışık, shader, 3D obje, draw call veya parçacık eklenmez.
+- Eski mor pickup, bariyer/enkaz ve koridor renkleri aynıdır.
 - Map4 farklı fog rengi/density ve ACES exposure kullanmaya devam eder; Map4'ten Map1'e geri dönünce Map1 paleti doğru şekilde geri yüklenir.
 
 ## QA
