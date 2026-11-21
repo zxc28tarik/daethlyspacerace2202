@@ -9222,10 +9222,52 @@
             zone.userData.h4Gfx11bArenaBuilt=true;
         }
 
-        // NEXT-22E: visually distinct battlefield silhouettes in three pooled batches.
+        // NEXT-22F: a genuine broken ship-frame arch replaces 22E's plain pole.
+        // Constructed once; one InstancedMesh reuses the result for 28 ribs.
+        function h4Next22fBrokenRibGeometry(){
+            const shape=new THREE.Shape();
+            shape.moveTo(-.53,-.50);
+            shape.lineTo(-.51,.12);
+            shape.lineTo(-.39,.35);
+            shape.lineTo(-.13,.48);
+            shape.lineTo(.17,.42);
+            shape.lineTo(.36,.17);
+            shape.lineTo(.42,-.13);
+            shape.lineTo(.26,-.16);
+            shape.lineTo(.20,.10);
+            shape.lineTo(.09,.23);
+            shape.lineTo(-.12,.28);
+            shape.lineTo(-.28,.19);
+            shape.lineTo(-.33,-.04);
+            shape.lineTo(-.34,-.50);
+            shape.closePath();
+            const g=new THREE.ExtrudeGeometry(shape,{
+                depth:.19,steps:1,curveSegments:1,
+                bevelEnabled:true,bevelSegments:1,
+                bevelThickness:.016,bevelSize:.019
+            });
+            g.translate(0,0,-.095);
+            g.computeVertexNormals();
+            return g;
+        }
+        const H4_NEXT22F_SCULPT=Object.freeze({
+            shipRib:h4Next22fBrokenRibGeometry(),
+            weatheredTrim:new THREE.BoxGeometry(1,1,1),
+            warningHalo:new THREE.TorusGeometry(.50,.045,6,28)
+        });
+        const H4_NEXT22F_MAT=Object.freeze({
+            deckEdge:new THREE.MeshBasicMaterial({
+                color:0xacc7c8,transparent:true,opacity:.34,
+                depthWrite:false,side:THREE.DoubleSide}),
+            warningHalo:new THREE.MeshBasicMaterial({
+                color:0xf0a37f,transparent:true,opacity:.47,
+                blending:THREE.AdditiveBlending,depthWrite:false,
+                side:THREE.DoubleSide})
+        });
+        // NEXT-22E: visually distinct battlefield silhouettes in pooled batches.
         // No collision boxes, enemies, route changes or per-frame allocations.
         const h4Next22eStats={batches:0,instances:0,collidersAdded:0,
-            byType:{ribs:0,brokenDecks:0,warningLamps:0}};
+            byType:{ribs:0,brokenDecks:0,warningLamps:0,deckEdges:0,beaconHalos:0}};
         function h4Next22eWarfrontDress(zone){
             if(zone.userData.h4Next22eDressed)return;
             const root=new THREE.Group();
@@ -9233,12 +9275,16 @@
             root.userData.visualOnly=true;
             root.userData.noCollider=true;
             const specs=[
-                {name:'CARRIER_SPINE_RIBS',geometry:H4_GFX04_GEO.support,
+                {name:'CARRIER_SPINE_RIBS',geometry:H4_NEXT22F_SCULPT.shipRib,
                     material:H4_GFX04_MAT.exposed,count:28,type:'ribs'},
                 {name:'SHATTERED_SERVICE_DECKS',geometry:H4_GFX04_GEO.brokenPlate,
                     material:H4_GFX04_MAT.armor,count:24,type:'brokenDecks'},
                 {name:'DISTANT_WARNING_BEACONS',geometry:H4_GFX04_GEO.beacon,
-                    material:H4_GFX04_MAT.ember,count:18,type:'warningLamps'}
+                    material:H4_GFX04_MAT.ember,count:18,type:'warningLamps'},
+                {name:'SHATTERED_DECK_EDGES',geometry:H4_NEXT22F_SCULPT.weatheredTrim,
+                    material:H4_NEXT22F_MAT.deckEdge,count:24,type:'deckEdges'},
+                {name:'DISTANT_BEACON_HALOS',geometry:H4_NEXT22F_SCULPT.warningHalo,
+                    material:H4_NEXT22F_MAT.warningHalo,count:18,type:'beaconHalos'}
             ];
             const dummy=new THREE.Object3D();
             for(let family=0;family<specs.length;family++){
@@ -9256,25 +9302,34 @@
                     const progress=MAP4_PHASES.introEnd+
                         [380,550,745][sector]+Math.floor(i/3)*37;
                     const side=sign*([900,1280,1120][sector]+(i%5)*96);
-                    const altitude=family===2?120+(i%4)*80:
-                        family===1?-405+(i%3)*35:-240+(i%4)*34;
+                    const altitude=(family===2||family===4)?120+(i%4)*80:
+                        (family===1||family===3)?-405+(i%3)*35:
+                        -240+(i%4)*34;
                     dummy.position.copy(h4WorldPosition(progress,side,altitude));
                     dummy.quaternion.setFromUnitVectors(H4_UP,
                         getRaceFrameAtDistance(progress).up);
                     dummy.rotateZ((i%5-2)*.10);
                     dummy.rotateY((i%7-3)*.09);
+                    if(family===3)dummy.position.y+=25+(i%3)*12;
+                    // Vertical plane is the orientation of the shared torus geometry.
+                    if(family===4)dummy.rotateY((i%3-1)*.15);
                     if(family===0)dummy.scale.set(
-                        24+(i%3)*7,215+(i%5)*44,25+(i%4)*7);
+                        180+(i%4)*38,225+(i%5)*38,62+(i%3)*16);
                     else if(family===1)dummy.scale.set(
                         220+(i%4)*45,34+(i%3)*19,260+(i%5)*42);
-                    else dummy.scale.set(24+(i%3)*8,24+(i%3)*8,24+(i%3)*8);
+                    else if(family===2)dummy.scale.set(
+                        24+(i%3)*8,24+(i%3)*8,24+(i%3)*8);
+                    else if(family===3)dummy.scale.set(
+                        210+(i%4)*42,5+(i%3)*2,240+(i%5)*39);
+                    else dummy.scale.set(
+                        100+(i%3)*22,100+(i%3)*22,18);
                     dummy.updateMatrix();
                     mesh.setMatrixAt(i,dummy.matrix);
                     const tint=family===0?
-                        [0x8696a0,0xb5a08f,0x77858c][i%3]:
-                        family===1?
-                        [0x8a8882,0x708b98,0x9d7565][i%3]:
-                        [0xffb571,0xff775c,0x89c5da][i%3];
+                        [0x9ba6ab,0xb5a08f,0x85969c][i%3]:
+                        (family===1||family===3)?
+                        [0x909795,0x7695a1,0xa28875][i%3]:
+                        [0xffbd87,0xf69579,0x93cad9][i%3];
                     mesh.setColorAt(i,new THREE.Color(tint));
                 }
                 mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
