@@ -1135,25 +1135,40 @@
         nebulaLight2.position.set(500, -300, 400);
         scene.add(nebulaLight2);
 
+        // NEXT11C21S: harmonize the EXISTING 2600 stars + 38 original
+        // nebulae into a calmer cool-white/blue/violet/amber space field.
+        // NO new geometry or particles, NO new Math.random calls, identical
+        // star positions, nebula shapes, camera/physics and C21L star size.
+        const MAP1_C21S_ORIGINAL_SPACE_GRADE=Object.freeze({
+            starPalette:Object.freeze([0xf2f6ff,0x9ec6e5,0xd1b3d9,0xe8c39b]),
+            nebulaPalette:Object.freeze([
+                0x75315f,0xb75178,0xc77b54,0x345b91,0x4c3492
+            ]),
+            primary:0.89,quiet:0.73,highlight:1.0
+        });
         const starGeo = new THREE.BufferGeometry();
         const starCount = 2600;
         const starPositions = new Float32Array(starCount * 3);
         const starColors = new Float32Array(starCount * 3);
+        const starPaletteBins = new Uint8Array(starCount);
+        const starPalette=MAP1_C21S_ORIGINAL_SPACE_GRADE.starPalette
+            .map(value=>new THREE.Color(value));
         for (let i = 0; i < starCount; i++) {
             starPositions[i * 3] = (Math.random() - 0.5) * 3600;
             starPositions[i * 3 + 1] = (Math.random() - 0.5) * 3600;
             starPositions[i * 3 + 2] = (Math.random() - 0.5) * 3600;
 
-            const palette = [
-                new THREE.Color(0xffffff),
-                new THREE.Color(0x88ffff),
-                new THREE.Color(0xff99dd),
-                new THREE.Color(0xffcc77)
-            ];
-            const c = palette[Math.floor(Math.random() * palette.length)];
-            starColors[i * 3] = c.r;
-            starColors[i * 3 + 1] = c.g;
-            starColors[i * 3 + 2] = c.b;
+            // Same fourth original random draw per star, same palette bin.
+            // Deterministic luminance gives depth without adding stars.
+            const bin=Math.floor(Math.random()*starPalette.length);
+            starPaletteBins[i]=bin;
+            const c=starPalette[bin];
+            const brightness=i%13===0?MAP1_C21S_ORIGINAL_SPACE_GRADE.highlight:
+                i%5===0?MAP1_C21S_ORIGINAL_SPACE_GRADE.quiet:
+                MAP1_C21S_ORIGINAL_SPACE_GRADE.primary;
+            starColors[i * 3] = c.r*brightness;
+            starColors[i * 3 + 1] = c.g*brightness;
+            starColors[i * 3 + 2] = c.b*brightness;
         }
         starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
         starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
@@ -1161,11 +1176,13 @@
             starGeo,
             new THREE.PointsMaterial({ size: MAP1_C21L_LIGHT_BALANCE.starSize, vertexColors: true, transparent: true, opacity: MAP1_C21L_LIGHT_BALANCE.starOpacity })
         );
+        starField.userData.map1OriginalStarPaletteBins=starPaletteBins;
+        starField.userData.map1VisualGrade='NEXT11C21S';
         scene.add(starField);
 
-        // Renkli Nebula Bulutsuları (Görseldeki Mor/Pembe/Turuncu Uzay Atmosferi)
+        // Same 38 original nebula spheres/positions/radius/opacity.
         const nebulaGroup = new THREE.Group();
-        const nebulaColors = [0x881177, 0xff4477, 0xff8833, 0x2244aa, 0x551199];
+        const nebulaColors = MAP1_C21S_ORIGINAL_SPACE_GRADE.nebulaPalette;
         // NEXT11C21K: the same 38 original nebula shapes remain in the
         // same positions, but subtler opacity reduces huge overlapping
         // foreground clouds that masked the track/hazard silhouettes.
