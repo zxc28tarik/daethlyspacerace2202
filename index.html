@@ -9740,6 +9740,77 @@
             [[2050, 2850], [5600, 6550], [8100, 8850]]
                 .map(([a,b])=>[a+sector*10000,b+sector*10000])).flat();
 
+        // NEXT11C21J — restrained directional danger accents, only on the
+        // EXISTING Map1 2D fx canvas. No collectible rings, new 3D meshes,
+        // particle emissions, collision/radius/timing/reward changes.
+        const map1ContactCue={
+            kind:'',side:0,at:-100,duration:0,
+            count:{NEAR:0,ASTEROID:0,BARRIER:0,SHIELD:0},
+            lastNearAt:-100
+        };
+        function triggerMap1ContactCue(kind,hazardLaneX=state.laneX){
+            if(state.activeMap!==MAP_MODES.MAP1||
+                !state.running||state.finished||state.playerDNF)return false;
+            if(!Object.prototype.hasOwnProperty.call(
+                map1ContactCue.count,kind))return false;
+            if(kind==='NEAR'&&state.raceTime-map1ContactCue.lastNearAt<.22)
+                return false;
+            if(kind==='NEAR')map1ContactCue.lastNearAt=state.raceTime;
+            // The strongest recent collision wins over an incidental near miss.
+            if(kind==='NEAR'&&map1ContactCue.kind!=='NEAR'&&
+                state.raceTime-map1ContactCue.at<.17)return false;
+            const relative=hazardLaneX-state.laneX;
+            map1ContactCue.side=relative>9?1:relative< -9?-1:0;
+            map1ContactCue.kind=kind;
+            map1ContactCue.at=state.raceTime;
+            map1ContactCue.duration=kind==='NEAR'?.36:
+                kind==='SHIELD'?.30:.32;
+            map1ContactCue.count[kind]++;
+            return true;
+        }
+        function paintMap1ContactCue(){
+            if(!fxCtx||!state.running||state.finished||
+                state.activeMap!==MAP_MODES.MAP1)return;
+            const cue=map1ContactCue;
+            const age=state.raceTime-cue.at;
+            if(age<0||age>=cue.duration)return;
+            const progress=THREE.MathUtils.clamp(age/cue.duration,0,1);
+            const fade=(1-progress)*(1-progress);
+            const color=cue.kind==='NEAR'?[255,207,122]:
+                cue.kind==='SHIELD'?[107,224,218]:
+                cue.kind==='ASTEROID'?[255,153,95]:
+                [255,180,103];
+            const impact=cue.kind!=='NEAR';
+            // Stay peripheral: no full-screen red flash or aiming occlusion.
+            // Side selection follows the ACTUAL obstacle lane, not random FX.
+            const sides=cue.side===0?[-1,1]:[cue.side];
+            fxCtx.save();
+            for(const side of sides){
+                const edge=side<0?0:W;
+                const span=Math.max(28,Math.min(106,W*.10));
+                const inner=edge-side*span;
+                const gradient=fxCtx.createLinearGradient(inner,0,edge,0);
+                gradient.addColorStop(0,'rgba(0,0,0,0)');
+                gradient.addColorStop(1,'rgba('+color.join(',')+','+
+                    (fade*(impact?.16:.09)).toFixed(3)+')');
+                fxCtx.fillStyle=gradient;
+                fxCtx.fillRect(Math.min(inner,edge),H*.19,span,H*.62);
+                fxCtx.strokeStyle='rgba('+color.join(',')+','+
+                    (fade*(impact?.66:.39)).toFixed(3)+')';
+                fxCtx.lineWidth=impact?2:1.3;
+                const x=edge-side*Math.max(16,Math.min(43,W*.045));
+                for(let i=-1;i<=1;i++){
+                    const y=H*(.53+i*.085);
+                    fxCtx.beginPath();
+                    fxCtx.moveTo(x-side*11,y-12);
+                    fxCtx.lineTo(x,y);
+                    fxCtx.lineTo(x-side*11,y+12);
+                    fxCtx.stroke();
+                }
+            }
+            fxCtx.restore();
+        }
+
         function updatePlayerNearMisses(previousProgress) {
             if (state.finished || state.playerDNF) return;
             for (const a of asteroids) {
@@ -9753,6 +9824,7 @@
                         state.score += 300;
                         state.energy = Math.min(100, state.energy + 5);
                         spawnFloatingText(a.mesh.position, 'NEAR MISS +300 / +5 ENERGY', '#ffdc61');
+                        triggerMap1ContactCue('NEAR',a.laneX);
                     }
                 }
             }
@@ -10315,6 +10387,9 @@
                 if(last!==undefined&&state.raceTime-last<1.2)continue;
                 o.hitTimes[shipId]=state.raceTime;
                 if(!registerCourseImpact(ship)) continue;
+                if(isPlayer)triggerMap1ContactCue(
+                    ship.powerShieldTimer>0?'SHIELD':'BARRIER',o.laneX
+                );
                 if(ship.powerShieldTimer>0){if(isPlayer)spawnFloatingText(o.mesh.position,'SHIELD DEFLECTED','#5bfffa');continue;}
                 if(isPlayer){
                     applyPlayerDamage(13);
@@ -16202,6 +16277,9 @@
                     if(a.hitTimes[id]!==undefined&&state.raceTime-a.hitTimes[id]<1.3)return;
                     a.hitTimes[id]=state.raceTime;
                     if(!registerCourseImpact(ship)) return;
+                    if(isPlayer)triggerMap1ContactCue(
+                        ship.powerShieldTimer>0?'SHIELD':'ASTEROID',a.laneX
+                    );
                     if(ship.powerShieldTimer>0){
                         if(isPlayer)spawnFloatingText(a.mesh.position,'SHIELD BLOCK','#5bfffa');
                         return;
@@ -16556,6 +16634,9 @@
         function render2DTacticalReticle(dt) {
             if (!fxCtx) return;
             fxCtx.clearRect(0, 0, W, H);
+            // C21J: brief unobtrusive peripheral screen marks for actual
+            // Map1 contacts. This does not make a collectible/energy ring.
+            paintMap1ContactCue();
             if (state.running && !state.finished) {
                 const intensity = THREE.MathUtils.clamp((state.currentSpeed - RACE_SPEEDS.NORMAL) / (RACE_SPEEDS.BOOST - RACE_SPEEDS.NORMAL), 0, 1);
                 if (intensity > 0.08) {
@@ -17113,6 +17194,13 @@
             h4Gfx08Reset();
             clearObstacleShards();
             clearLaserImpacts();
+            map1ContactCue.kind='';
+            map1ContactCue.side=0;
+            map1ContactCue.at=-100;
+            map1ContactCue.duration=0;
+            map1ContactCue.lastNearAt=-100;
+            for(const kind of Object.keys(map1ContactCue.count))
+                map1ContactCue.count[kind]=0;
             floatingTexts.length = 0;
             shipContactTimes.clear();
             if (state.boss) {
