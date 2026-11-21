@@ -20,8 +20,9 @@ const out=path.join(__dirname,'next11c21t-evidence');fs.mkdirSync(out,{recursive
   await page.goto(pathToFileURL(path.resolve(__dirname,'../index.html')).toString(),
    {waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>typeof h4Ship20ZenitBuild==='function'&&
-   typeof startGame==='function'&&Array.isArray(itemBoxes)&&itemBoxes.length===49&&
-   typeof h4Ship19Race!=='undefined'&&h4Ship19Race.userData.parts===189,
+   typeof startGame==='function'&&typeof selectMap==='function'&&
+   Array.isArray(itemBoxes)&&itemBoxes.length===49&&
+   Array.isArray(wreckageModules)&&wreckageModules.length===8,
    null,{timeout:30000});
   const initial=await page.evaluate(()=>{
    const ship=h4Ship19Race,red=ship.children.find(m=>m.name==='NEXT11C20_SB07_RED'),
