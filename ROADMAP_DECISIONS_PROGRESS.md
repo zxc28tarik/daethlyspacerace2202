@@ -1158,3 +1158,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **SONRAKİ:** C21L CI sonucunu gör, gerçek A/B fotoğrafı incele, gerekirse yalnız ışığı düzelt. C21M seçimi bunun ardından.
 
 **Günlük:** `2026-11-21 | NEXT11C21L | Map1 light hierarchy kod + browser QA hazır | dedicated PASS KONTROL EDİLECEK | stacked draft, MERGE YOK`.
+
+### NEXT11C21L — 21 Kasım tam CI kapanışı
+- [C21L Dedicated Chromium/WebGL + geçmiş regresyon CI #44849178942](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44849178942) **SUCCESS**, tüm ilgili adımlar PASS: C21L gerçek aynı-kamera A/B, C21K/J/I/H/G6, SB07, C20R, offline bundle ve artifact upload.
+- Yeni C21L aynı kamera 1600×900 WebGL önce/sonra drawcalls **108/108**, GL errors **0**, 320 meteor/97 bariyer/8 enkaz/49 orijinal kutu, 2600 yıldız; Map4 6/36/200 physics, 249 ship parçası, Map1 189 ship parçası doğrulandı.
+- Tek dosya HTML build **5.794.232 byte**, SHA256 `62589a45f81640df65bdf5ef9f687a35588d93585f7baa9bc41ab5abab647189`. [C21L oynanabilir HTML ve 3 gerçek PNG artifact](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44849178942/artifacts/14684597084) indirilebilir ZIP içinde.
+- Bu test **yeni görselin kullanıcıca estetik kabulü, native donanım FPS veya üç haritanın yayıncı sunumu onayı değildir**. PR #108 DRAFT, main merge YOK. Gelecek görev C21M, yeni grafik açısından kabul bekler.
+
+**Günlük:** `2026-11-21 | C21L Chromium 108/108 drawcall / CI SUCCESS / offline HTML PASS | PR #108 DRAFT | estetik kabul açık, MERGE YOK`.
