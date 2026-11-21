@@ -1,0 +1,47 @@
+name: Map1 NEXT11C21L Original Scene Light Balance
+on:
+  push:
+    branches: [codex/map1-original-scene-light-balance-21l]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-light-balance-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser, Three, and offline build dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: New C21L same-camera original light hierarchy
+        run: |
+          node --check tests/map1-next11c21l-light-balance.cjs
+          node tests/map1-next11c21l-light-balance.cjs
+      - name: Previous C21K depth and C21J / C21I / C21H / C21G6 original-art regressions
+        run: |
+          node tests/map1-next11c21k-distance-grade.cjs
+          node tests/map1-next11c21j-contact-cues.cjs
+          node tests/map1-next11c21i-barrier-wreck.cjs
+          node tests/map1-next11c21h-meteors.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: Preserve SB07 and corridor and race systems
+        run: |
+          node tests/map1-next11c20-sb07-zenit.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+      - name: Generate current complete OFFLINE playable HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Export actual screenshots, full HTML and QA reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21l-original-light-playable
+          path: |
+            tests/next11c21l-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn
