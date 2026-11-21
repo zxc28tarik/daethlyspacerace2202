@@ -13226,8 +13226,15 @@
             box('SECOND',0,.44,4.02,.92,.065,.77);
             box('SECOND',0,-.34,3.18,1.44,.25,2.38);
             box('ORANGE',0,-.48,3.85,1.02,.055,.38);
-            // Deterministic shared 128px brushed surface/roughness atlas,            // Deterministic shared 128px brushed surface/roughness atlas,
-            // entirely generated inside the existing offline HTML.
+            // NEXT11C21T — remove the visible 32px square lattice from
+            // the EXISTING red-ribbon roughness map. The seven original
+            // ship batches, all positions/normals/UVs, emissive/color,
+            // 128px atlas size and shader/material count remain unchanged.
+            // Continuous satin fibers replace checker-like plate joints,
+            // preserving the paint's true existing 3D silhouette.
+            const MAP1_C21T_RED_SATIN=Object.freeze({
+                base:202,grit:.45,verticalFiber:3.1,diagonalFiber:1.2
+            });
             const finish=document.createElement('canvas');
             finish.width=finish.height=128;
             const context=finish.getContext('2d'),
@@ -13236,13 +13243,18 @@
             for(let y=0;y<128;y++)
                 for(let x=0;x<128;x++){
                     seed=(Math.imul(seed,1664525)+1013904223)>>>0;
-                    // Softer micro-surface: avoid a tiled 32px
-                    // high-contrast moire pattern at racing distance.
-                    const grit=((seed>>>28)-8),
-                        seam=(x%32<2||y%32<2)?-7:0,
-                        brushed=(y%7===0)?3:0,
-                        lum=Math.max(115,Math.min(245,
-                            216+grit+seam+brushed)),
+                    // Same original deterministic LCG noise draw.
+                    // Remove only the old perpendicular 32px grid
+                    // seam; continuous short-wavelength satin brushing
+                    // reads cleanly on the existing slim red wing paint.
+                    const grit=((seed>>>28)-8)*
+                            MAP1_C21T_RED_SATIN.grit,
+                        brushed=MAP1_C21T_RED_SATIN.verticalFiber*
+                                Math.sin(y*.43)+
+                                MAP1_C21T_RED_SATIN.diagonalFiber*
+                                Math.sin(x*.13+y*.09),
+                        lum=Math.max(115,Math.min(245,Math.round(
+                            MAP1_C21T_RED_SATIN.base+grit+brushed))),
                         at=(y*128+x)*4;
                     pixels.data[at]=lum;
                     pixels.data[at+1]=lum;
@@ -13251,6 +13263,9 @@
                 }
             context.putImageData(pixels,0,0);
             const fineFinish=new THREE.CanvasTexture(finish);
+            fineFinish.name='SB07_C21T_ORIGINAL_RED_SATIN_COAT';
+            fineFinish.userData.visualOnly=true;
+            fineFinish.userData.surfaceRevision='NEXT11C21T';
             fineFinish.wrapS=fineFinish.wrapT=THREE.RepeatWrapping;
             fineFinish.anisotropy=4;
             fineFinish.generateMipmaps=true;
