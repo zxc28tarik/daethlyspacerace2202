@@ -72,7 +72,11 @@ const {pathToFileURL}=require('node:url');
   assert.equal(init.stats.stations,6);
   assert.equal(init.stats.heroBatches,5);
   assert.equal(init.stats.detailBatches,3);
-  assert.equal(init.stats.instances,72);
+  // NEXT-22D adds exactly 42 visual-only factory details across the same 8 batches.
+  assert.equal(init.stats.instances,72+42);
+  assert.equal(init.stats.crownGantryParts,12);
+  assert.equal(init.stats.ventStackParts,12);
+  assert.equal(init.stats.signalParts,18);
   assert.equal(init.stats.newColliders,0);
   assert.equal(init.allVisualOnly,true);
   assert.equal(init.heroes,5);assert.equal(init.details,3);
