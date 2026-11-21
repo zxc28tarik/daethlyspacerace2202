@@ -56,7 +56,6 @@ const out=path.join(__dirname,'next11c21l-evidence');fs.mkdirSync(out,{recursive
   assert.deepEqual(initial.objects,[320,97,8,49]);
   assert.equal(initial.nebula,38);
   assert.equal(initial.ship,189);
-  assert.deepEqual(initial.stars,[].length?[]:initial.stars);
   assert.deepEqual([initial.stars.count,initial.stars.size,initial.stars.opacity],
    [2600,2.5,.78]);
   assert.deepEqual([initial.reward.radius,initial.reward.width,
