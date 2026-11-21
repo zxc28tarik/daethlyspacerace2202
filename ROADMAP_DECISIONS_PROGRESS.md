@@ -1139,3 +1139,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Var olan near miss +300/+5, çarpışma hasarı ve 3 vuruş engel sistemine yalnız görsel sinyal tetiklemesi eklenir. Map4 etkilenmez, restart sıfırlar.
 - Gerçek Chromium/WebGL 4 ekran görüntüsü, near-miss gerçek oyunu ve görselin sayısal etkisizliği; eski C21I/H/G6 regresyonları ve offline HTML: [C21J](MAP1_NEXT11C21J_CONTACT_CUES.md).
 - Stacked draft PR, main'e merge için açık kullanıcı onayı.
+
+## 67) NEXT11C21K — Harita1 uzak mesafe ve renk bütünlüğü
+- Kullanıcı "eski kutu vb kullanmaya devam, yalnız görüntü iyileştir" kısıtı aynen. Sonraki C21K'de yeni nesne yok.
+- Harita1 fog density 0.00055→0.00044, fog rengi 0x09051D→0x0D0E21; 1500-2400 mesafelerde eski meteor/bariyerlerin daha erken okunabilmesi.
+- Orijinal 320 meteor geometrisine dokunulmadan 3 mineral paletine hafif midtone/soluk kontur uyumu. Bariyer, kutu, enkaz, SB07 ve Map4 malzemeleri, fizik/RNG/mekanikler aynen.
+- Gerçek tarayıcı aynı kamera old/new screenshot, 5 eski meteor geometry, FogExp2 matematik, GL draw-call eşitliği, Map4 atmosphere izolasyonu ve Map1 geri dönüş.
+- Regresyon: C21J/I/H/G6 + SB07 + corridor. [C21K test notu](MAP1_NEXT11C21K_DISTANCE_COLOR.md); draft PR, main merge kullanıcı onayına bağlı.
+
+- C21K aynı paket görsel teyit: Ön plandaki eski 38 bulutsu opacity .09→.062; gökyüzünde üst üste binen büyük mor lekeler seyreltiliyor. Eski küre geometri/konum/sayı ve RNG aynı. A/B test eski ve yeni cloud opacity ile koşar.
