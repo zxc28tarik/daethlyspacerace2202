@@ -10642,8 +10642,15 @@
         // Parlak kenar çizgileri ile tariflenen yarı saydam UÇUŞ YOLU: görsel yol, 3D manevrayı kısıtlamaz.
         const raceRoadGroup = new THREE.Group();
         scene.add(raceRoadGroup);
+        // NEXT11C21O: same five route sectors and the exact original
+        // road/ribbon/edge geometry. Only the old five sector pigments are
+        // harmonized to sit behind hazards, reward boxes and warning gates.
+        // Cyan, cobalt, violet, teal and amber sector identities remain.
+        const MAP1_C21O_ROAD_PALETTE=Object.freeze([
+            0x49bfce,0x709bc8,0xb48abf,0x6aba9e,0xcfa57e
+        ]);
         function buildRaceRoad() {
-            const sectorPalette = [0x16e7ff,0x43a5ff,0xe87eff,0x44ffaf,0xffb467];
+            const sectorPalette = MAP1_C21O_ROAD_PALETTE;
             raceRoadGroup.userData.sectors = [];
             for(let sector=0; sector<5; sector++) {
                 // AI-34: her 10 km bölüm bağımsız gizlenebilir, parkur geometrisi değişmez.
