@@ -4195,7 +4195,8 @@
         // buildings. No new collider is registered and the physics Mesh stays.
         const h4Vis02Stats={sculpted:0,physical:0,facadeBatches:0,
             facadeInstances:0,geometryPreserved:0,addedColliders:0,
-            dualTaggedPhysical:0,visualOnly:true};
+            dualTaggedPhysical:0,visualOnly:true,
+            skylineCaps:0,skylineAerials:0,skylineBatches:0};
         function h4Vis02Kit(style){
             const vertices=[],colors=[];
             const tone={
@@ -4316,6 +4317,58 @@
                 mesh.userData.visualOnly=true;
                 h4Vis02Stats.sculpted++;
             });
+            // NEXT-22D: two pooled roof silhouettes over existing, nonphysical
+            // W02 scenery. Their anchors inherit the original skyline transforms.
+            // Unlike collider geometry these are purely distant visual identity.
+            const skylineMeshes=[];
+            wide.traverse(obj=>{
+                if(obj.isMesh && obj.userData.h4Vis02Sculpted)
+                    skylineMeshes.push(obj);
+            });
+            const skylineDetails=[
+                {name:'ROOF_CAPS',geo:new THREE.CylinderGeometry(.52,.67,1,8),
+                    mat:H4_GFX11C_MAT.steel,matrices:[]},
+                {name:'ROOF_AERIALS',geo:new THREE.CylinderGeometry(.08,.15,1,7),
+                    mat:H4_GFX11C_MAT.patina,matrices:[]}
+            ];
+            const skylineDummy=new THREE.Object3D();
+            skylineMeshes.forEach((obj,index)=>{
+                if(index%3===2)return;
+                // All details remain inside distant scenic silhouettes,
+                // never the central physical refinery or pilot corridor.
+                for(let kind=0;kind<skylineDetails.length;kind++){
+                    skylineDummy.position.copy(obj.position);
+                    const height=obj.scale.y;
+                    const up=new THREE.Vector3(0,height*(kind===0?.59:.78),0)
+                        .applyQuaternion(obj.quaternion);
+                    skylineDummy.position.add(up);
+                    skylineDummy.quaternion.copy(obj.quaternion);
+                    skylineDummy.scale.set(
+                        kind===0?obj.scale.x*.45:obj.scale.x*.055,
+                        kind===0?height*.14:height*.40,
+                        kind===0?obj.scale.z*.45:obj.scale.z*.055);
+                    skylineDummy.updateMatrix();
+                    skylineDetails[kind].matrices.push(skylineDummy.matrix.clone());
+                    if(kind===0)h4Vis02Stats.skylineCaps++;
+                    else h4Vis02Stats.skylineAerials++;
+                }
+            });
+            const skylineAccents=new THREE.Group();
+            skylineAccents.name='MAP4_NEXT22D_BATCHED_DISTANT_ROOFS';
+            skylineAccents.userData.visualOnly=true;
+            skylineDetails.forEach(spec=>{
+                if(!spec.matrices.length)return;
+                const instances=new THREE.InstancedMesh(spec.geo,spec.mat,spec.matrices.length);
+                instances.name='MAP4_NEXT22D_'+spec.name;
+                instances.frustumCulled=false;
+                instances.userData.visualOnly=true;
+                instances.userData.noCollider=true;
+                spec.matrices.forEach((matrix,i)=>instances.setMatrixAt(i,matrix));
+                instances.instanceMatrix.needsUpdate=true;
+                skylineAccents.add(instances);
+                h4Vis02Stats.skylineBatches++;
+            });
+            wide.add(skylineAccents);
             const solids=zone.children.filter(mesh=>mesh.isMesh&&
                 mesh.userData.h4Collider&&mesh.scale.y>=300&&
                 (mesh.geometry===H4_MESHES.tower||
@@ -5215,7 +5268,8 @@
         });
         const h4Gfx11cIndustrialStats={
             stations:0,heroBatches:0,detailBatches:0,instances:0,
-            newColliders:0,materials:6,sculptedFamilies:3
+            newColliders:0,materials:6,sculptedFamilies:3,
+            crownGantryParts:0,ventStackParts:0,signalParts:0
         };
         let h4Gfx11cIndustryDetail=null;
         function h4Gfx11cBuildIndustryIdentities(zone){
@@ -5264,6 +5318,24 @@
                     [132,690+i*31,132],.12-i*.03);
                 entry(4,at+400,side+direction*180,255+(i%2)*70,
                     [870,46,90],(i%2?-.18:.18));
+                // NEXT-22D: large readable roof crowns and paired service spans.
+                // Everything is world decoration well outside the flight lanes.
+                for(const flank of [-1,1]){
+                    const roofY=-435+height+75+(flank+1)*33;
+                    entry(4,at+220+flank*82,side+flank*210,roofY,
+                        [280+family*35,32,115],flank*.12);
+                    entry(3,at+175+flank*115,side+flank*(145+family*28),
+                        roofY+145,[78+family*12,290,78+family*12],flank*.045);
+                    h4Gfx11cIndustrialStats.crownGantryParts++;
+                    h4Gfx11cIndustrialStats.ventStackParts++;
+                }
+                // Three small direction signals define a recognizable skyline rhythm.
+                for(let light=0;light<3;light++){
+                    entry(7,at+190+light*75,side+(light-1)*175,
+                        -435+height+90+(light%2)*40,
+                        [29,29,29],0,light===1?0xffac72:0x8bd7e6);
+                    h4Gfx11cIndustrialStats.signalParts++;
+                }
                 // High-contrast service rings break uninterrupted vertical walls.
                 for(let j=0;j<3;j++)
                     entry(5,at+210,side,
