@@ -1,0 +1,28 @@
+name: Map1 NEXT11C21S Quick Offline Playable HTML
+on:
+  push:
+    branches: [codex/map1-original-star-nebula-cohesion-21s]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-c21s-fast-offline-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install offline-asset bundle dependencies
+        run: npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+      - name: Build complete browser-playable single HTML from this exact branch
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload C21S full offline playable game and build manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21s-fast-playable-html
+          path: |
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: error
