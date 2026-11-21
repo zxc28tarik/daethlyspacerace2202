@@ -1271,3 +1271,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **KARAR:** PR #114 stacked DRAFT; açık kullanıcı izni olmadan main MERGE YOK. Native GPU 720p/1080p FPS, estetik kabulü ve yayıncı ilk 3/6 oynanabilir harita kapıları açık.
 
 **Günlük:** `2026-11-21 | C21R | special real Chromium PASS 8gate/88part, 1674 pixels, 116=116 draws, GL0 | 5.803.214 B offline | C21Q full78/78 PASS | C21R full smoke açık | PR114 DRAFT`.
+
+## 75) NEXT11C21S — Harita 1 özgün yıldız ve bulutsu renk bütünlüğü (21 Kasım 2026)
+- **GÖRSEL HEDEF:** C21R'nin gerçek yarış kamerasında hafif görünen 1.674 px/peak3 kapı tonunu takiben daha geniş arka plan görsel bütünlüğü. Yeni model, kutu, metal halka, yıldız parçacığı ve gövde parçası eklemeden eski **2600 yıldız + 38 bulutsu** RGB tonları pastel/soğuk-beyaz/mavi/viyole/amber dengesinde rafine edildi.
+- **UYGULAMA:** Orijinal `starGeo` içinde 2600 aynı `position` noktası, aynı 4x yıldız `Math.random` çağrısı ve 4 renk sınıfı korunur; palette `[0xf2f6ff,0x9ec6e5,0xd1b3d9,0xe8c39b]`, i-indeksine bağlı `.73/.89/1.0` luminans ayrımı ve `starField.userData.map1OriginalStarPaletteBins` audit. C21L `size=2.5/opacity=.78` sabit. C21K 38 orijinal sphere/konum/yarıçap/`opacity=.062` sabit, renk palette `[0x75315f,0xb75178,0xc77b54,0x345b91,0x4c3492]`. Fog/ışık/camera/Map4/fizik/AI/drawcalls aynı.
+- **KORUNAN:** Eski 49 mor kutu, 320 meteor, 97 bariyer, 8 enkaz kapısı/32 collider, 192 halka/10 batch, SB07 189 ve Map4 249 parça/6-36-200 fizik, 5 yol sektörü, oyun işlevi ve dağılım RNG sırası.
+- **QA:** [C21S görsel kararı](MAP1_NEXT11C21S_ORIGINAL_SPACE_COLOR.md), `tests/map1-next11c21s-space-color.cjs` 1600×900 GERÇEK oyun kamerasında sahneye obje taşımadan eski C21R palette / C21S renk palette A/B, `gl.readPixels`, drawcalls ve GPU memory, 0 GL error, yıldızların bin ve color buffer analizi, 38 sphere ve Map4 izolasyonu. Dedicated C21R/Q/P/O/N/M/L/K/J/I/H/G6 + C20O/P/Q/R+SB07 ve tam offline playable; tam Map1+Map4 smoke ayrı.
+- **QA KAPI:** İlk iki tarayıcı testi yalnız testte `THREE.Color` bileşen adı ve bulutsu metadata karşılaştırması varsayımından FAIL. `d8d9cc7` RGB erişim düzeltmesi, `60a11e2` ayrıntılı bulutsu hata raporu. Son CI başarısı olmadan `PASS` denmez. Önceki C21R full smoke [#44908124589](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44908124589) önceki bakışta ~53/78 devam ediyordu.
+- **GÜVENCE:** Yeni çizim nesnesi yok, `main` kullanıcının açık izni olmadan merge edilmez, PR stacked DRAFT. Native GPU FPS ve yayıncı en az 3/6 harita ayrı kabul kapıları.
+
+**Günlük:** `2026-11-21 | NEXT11C21S | orijinal 2600 yıldız+38 bulutsu pigment harmonisi | tam gameplay kamera QA/artefakt hazırlığı | full smoke açık | DRAFT/merge yok`.
