@@ -78,10 +78,10 @@ const out=path.join(__dirname,'next11c21s-evidence');fs.mkdirSync(out,{recursive
   assert.deepEqual(meta.nebulaPalette,
    [0x75315f,0xb75178,0xc77b54,0x345b91,0x4c3492]);
   assert.equal(meta.nebula.length,38);
-  assert(meta.nebula.every(n=>n.type==='Mesh'&&
+  const mismatchedNebula=meta.nebula.filter(n=>!(n.type==='Mesh'&&
     n.radius>=260&&n.radius<=680&&n.opacity===.062&&
-    n.geometrySegments===12&&
-    n.hex===meta.nebulaPalette[n.index%5]));
+    n.geometrySegments===12&&n.hex===meta.nebulaPalette[n.index%5]));
+  assert.deepEqual(mismatchedNebula,[],'All 38 original nebula geometry/opacity/color invariants');
 
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.activeMap===MAP_MODES.MAP1&&
