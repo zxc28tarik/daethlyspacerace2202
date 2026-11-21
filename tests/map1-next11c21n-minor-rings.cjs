@@ -111,7 +111,10 @@ const out=path.join(__dirname,'next11c21n-evidence');fs.mkdirSync(out,{recursive
    try {
     // Old baseline C21M: exact same guide geometry, 0x406dff and 0.30.
     guide.uniforms.uColor.value.setHex(0x406dff);
-    guide.uniforms.uOpacity.value=.30;guide.opacity=.30;
+    const oldPulse=.5+.5*Math.sin(state.raceTime*3.2);
+    const originalDynamicOpacity=.24+.12*oldPulse;
+    guide.uniforms.uOpacity.value=originalDynamicOpacity;
+    guide.opacity=originalDynamicOpacity;
     before=frame();
     guide.uniforms.uColor.value.copy(source);
     guide.uniforms.uOpacity.value=alpha;guide.opacity=previousOpacity;
@@ -181,7 +184,9 @@ const out=path.join(__dirname,'next11c21n-evidence');fs.mkdirSync(out,{recursive
     err:renderer.getContext().getError()};
   });
   assert.equal(returned.map,'map1');assert.equal(returned.guideVisible,true);
-  assert.deepEqual([returned.tint,returned.opacity],[0x557fc4,.26]);
+  assert.equal(returned.tint,0x557fc4);
+  assert(returned.opacity>=.24&&returned.opacity<=.32,
+   'Current pulsing opacity must stay in quiet C21N minor-ring range');
   assert.deepEqual(returned.fog,[0x0d0e21,.00044]);
   assert.equal(returned.err,0);assert.deepEqual(errors,[]);
   const report={pass:true,revision:'NEXT11C21N',initial,ab,map4,returned,errors,
