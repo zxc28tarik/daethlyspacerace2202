@@ -1050,6 +1050,19 @@
             MAP1_C21K_DISTANCE_GRADE.density
         );
 
+        // NEXT11C21L: restrained Map1-only existing-light hierarchy. No
+        // new 3D parts, spawn changes, collisions or gameplay side effects.
+        // Cooler purple rewards, restrained industrial amber warnings and
+        // smaller distant stars keep the original pickups readable.
+        const MAP1_C21L_LIGHT_BALANCE=Object.freeze({
+            starSize:2.5,starOpacity:.78,
+            barrierGlow:0xf4a667,barrierGlowOpacity:.74,
+            barrierLine:0xf1c58d,barrierLineOpacity:.74,
+            rewardRoughness:.48,rewardEmissive:.44,
+            rewardEdge:0xd7c9ff,rewardEdgeOpacity:.82,
+            rewardCore:0x95dcea,rewardCoreOpacity:.78
+        });
+
         const camera = new THREE.PerspectiveCamera(68, W / H, 0.5, 4500);
         const renderer = new THREE.WebGLRenderer({ canvas: gameCanvas, antialias: true });
         renderer.setSize(W, H);
@@ -1146,7 +1159,7 @@
         starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
         const starField = new THREE.Points(
             starGeo,
-            new THREE.PointsMaterial({ size: 3.2, vertexColors: true, transparent: true, opacity: 0.9 })
+            new THREE.PointsMaterial({ size: MAP1_C21L_LIGHT_BALANCE.starSize, vertexColors: true, transparent: true, opacity: MAP1_C21L_LIGHT_BALANCE.starOpacity })
         );
         scene.add(starField);
 
@@ -10024,11 +10037,12 @@
                 flatShading:true,map:courseHazardPaint
             });
             const obstacleGlow = new THREE.MeshBasicMaterial({
-                color:0xff9c53,side:THREE.DoubleSide,
-                transparent:true,opacity:.83,depthWrite:false
+                color:MAP1_C21L_LIGHT_BALANCE.barrierGlow,side:THREE.DoubleSide,
+                transparent:true,opacity:MAP1_C21L_LIGHT_BALANCE.barrierGlowOpacity,depthWrite:false
             });
             const obstacleLine = new THREE.LineBasicMaterial({
-                color:0xffd18a,transparent:true,opacity:.84
+                color:MAP1_C21L_LIGHT_BALANCE.barrierLine,transparent:true,
+                opacity:MAP1_C21L_LIGHT_BALANCE.barrierLineOpacity
             });
             obstacleBlueprints.forEach(([routeProgress, laneX, laneY, radius, type = 'BARRIER'], i) => {
                 const g = makeCourseLocalGroup(routeProgress, laneX, laneY);
@@ -10095,15 +10109,19 @@
             // No orbit/ring, floating crystal, extra particles or decals.
             // Three shared geometries for all 49 original pickups.
             const cubeMat=new THREE.MeshStandardMaterial({
-                color:0x583895, metalness:.18, roughness:.42,
-                emissive:0x28175e, emissiveIntensity:.50,
+                color:0x583895, metalness:.18,
+                roughness:MAP1_C21L_LIGHT_BALANCE.rewardRoughness,
+                emissive:0x28175e,
+                emissiveIntensity:MAP1_C21L_LIGHT_BALANCE.rewardEmissive,
                 transparent:true, opacity:.82, depthWrite:false
             });
             const cubeEdgeMat=new THREE.LineBasicMaterial({
-                color:0xdac3ff,transparent:true,opacity:.87
+                color:MAP1_C21L_LIGHT_BALANCE.rewardEdge,
+                transparent:true,opacity:MAP1_C21L_LIGHT_BALANCE.rewardEdgeOpacity
             });
             const coreMat=new THREE.MeshBasicMaterial({
-                color:0x83e4f2,transparent:true,opacity:.82,
+                color:MAP1_C21L_LIGHT_BALANCE.rewardCore,
+                transparent:true,opacity:MAP1_C21L_LIGHT_BALANCE.rewardCoreOpacity,
                 depthTest:false,depthWrite:false
             });
             const cubeGeo=new THREE.BoxGeometry(34,34,34);
