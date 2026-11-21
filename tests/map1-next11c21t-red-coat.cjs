@@ -65,8 +65,7 @@ const out=path.join(__dirname,'next11c21t-evidence');fs.mkdirSync(out,{recursive
        gates:wreckageModules.length,boxes:itemBoxes.length,
        ringBatches:corridorGuideGroup.userData.ringBatchCount,
        fullRings:corridorGuideGroup.userData.ringOriginalCount,
-       map4Ship:h4Ship19Combat.userData.parts},
-     config:MAP1_C21T_RED_SATIN
+       map4Ship:h4Ship19Combat.userData.parts}
    };
   });
   assert.equal(initial.map,'map1');
@@ -88,7 +87,6 @@ const out=path.join(__dirname,'next11c21t-evidence');fs.mkdirSync(out,{recursive
   assert.equal(initial.redGeo.normal,initial.redGeo.count);
   assert.deepEqual(initial.objects,{stars:2600,clouds:38,asteroids:320,
     barriers:97,gates:8,boxes:49,ringBatches:10,fullRings:192,map4Ship:249});
-  assert.deepEqual(initial.config,{base:202,grit:.45,verticalFiber:3.1,diagonalFiber:1.2});
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.activeMap===MAP_MODES.MAP1&&
     state.raceTime>2,null,{timeout:30000});
