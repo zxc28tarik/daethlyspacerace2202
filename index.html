@@ -1223,6 +1223,13 @@
                 depthWrite:false
             })
         };
+        // NEXT11C21P: more coherent natural rock facet relief in the
+        // EXISTING non-indexed vertex pigment, NOT an outline, geometry or
+        // physical bump. Static object-space face orientation avoids random
+        // spotty colors and reveals the same mineral faces in the chase camera.
+        const MAP1_C21P_METEOR_RELIEF=Object.freeze({
+            strength:.19,normalX:.25,normalY:.89,normalZ:.38
+        });
         // Stable per-face pigment: NO Math.random calls, so no change to
         // track placement, sizes, AI, damage or procedural race seeding.
         // Geometry positions are untouched. Every non-indexed triangle
@@ -1232,6 +1239,9 @@
             const colors=new Float32Array(positions.count*3);
             const floorTone={SMALL:.79,MEDIUM:.74,LARGE:.72}[sizeClass];
             const strata={SMALL:.06,MEDIUM:.10,LARGE:.13}[sizeClass];
+            const pointA=new THREE.Vector3(),pointB=new THREE.Vector3(),
+                pointC=new THREE.Vector3(),faceNormal=new THREE.Vector3(),
+                edgeAB=new THREE.Vector3(),edgeAC=new THREE.Vector3();
             const hash=(n)=>{
                 const x=Math.sin(n*12.9898+78.233)*43758.5453;
                 return x-Math.floor(x);
@@ -1240,7 +1250,21 @@
                 const p=vertex*3,face=vertex/3;
                 const mix=hash((meteorIndex+1)*59.3+face*1.83);
                 const mineral=hash((meteorIndex+1)*11.7+face*.37);
-                const tone=floorTone+.31*mix;
+                // Existing triangle coordinates only: the direction of a
+                // natural mineral face changes pigment but NOT its normal,
+                // size, position, material, collider, or rendering pass.
+                pointA.fromBufferAttribute(positions,vertex);
+                pointB.fromBufferAttribute(positions,vertex+1);
+                pointC.fromBufferAttribute(positions,vertex+2);
+                edgeAB.subVectors(pointB,pointA);
+                edgeAC.subVectors(pointC,pointA);
+                faceNormal.crossVectors(edgeAB,edgeAC).normalize();
+                const directional=Math.max(-1,Math.min(1,
+                    faceNormal.x*MAP1_C21P_METEOR_RELIEF.normalX+
+                    faceNormal.y*MAP1_C21P_METEOR_RELIEF.normalY+
+                    faceNormal.z*MAP1_C21P_METEOR_RELIEF.normalZ));
+                const faceRelief=1+MAP1_C21P_METEOR_RELIEF.strength*directional;
+                const tone=(floorTone+.31*mix)*faceRelief;
                 const streak=mineral>.83?strata:0;
                 const rust=sizeClass==='LARGE'?.042:0;
                 for(let k=vertex;k<Math.min(vertex+3,positions.count);k++){
@@ -1253,6 +1277,7 @@
             geometry.setAttribute('color',
                 new THREE.BufferAttribute(colors,3));
             geometry.userData.map1MineralSurface='C21H_FACET_TINT';
+            geometry.userData.map1DirectionalFacetRelief='NEXT11C21P';
             geometry.userData.sourceVertexPositionsUnchanged=true;
         }
         const driftTailMat = new THREE.LineBasicMaterial({ color: 0x63e9ff, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending, depthWrite: false });
