@@ -10258,17 +10258,44 @@
         }
         buildItemAndBarrierCourse();
 
+        // NEXT11C21R: solely a six-face pigment grade on the EXISTING
+        // 8 wreck gate panel/rib/antenna BoxGeometry objects. It keeps the
+        // actual opening, collider, C21I weathered paint, and 16 gate
+        // children exactly unchanged; no new meshes/lights/particles.
+        const MAP1_C21R_GATE_FACE_TONES=Object.freeze([
+            1.04,.86,1.08,.83,.98,.90
+        ]);
+        function tintOriginalGatePanelFaces(geometry){
+            const positions=geometry.getAttribute('position');
+            if(geometry.type!=='BoxGeometry'||positions.count!==24)
+                throw new Error('C21R requires the original 24-vertex gate box');
+            const color=new Float32Array(positions.count*3);
+            for(let face=0;face<6;face++){
+                const tone=MAP1_C21R_GATE_FACE_TONES[face];
+                for(let v=0;v<4;v++){
+                    const at=(face*4+v)*3;
+                    const vertical=v<2?1.012:.988;
+                    color[at]=tone*vertical*1.008;
+                    color[at+1]=tone*vertical;
+                    color[at+2]=tone*vertical*.988;
+                }
+            }
+            geometry.setAttribute('color',new THREE.BufferAttribute(color,3));
+            geometry.userData.map1OriginalWreckPanelFaces='NEXT11C21R';
+            geometry.userData.sourcePositionsUnchanged=true;
+            return geometry;
+        }
         function buildDerelictBulkheads() {
             // Same original solid gate panels and unchanged traversable
             // cutouts. Shared worn 64px paint gives the huge surfaces
             // nuanced tonality, not an additional obstacle/3D part.
             const hull = new THREE.MeshStandardMaterial({
                 color:0x788797,metalness:.51,roughness:.76,
-                flatShading:true,map:courseWreckPaint
+                flatShading:true,map:courseWreckPaint,vertexColors:true
             });
             const plating = new THREE.MeshStandardMaterial({
                 color:0x445364,metalness:.37,roughness:.79,
-                flatShading:true,map:courseWreckPaint
+                flatShading:true,map:courseWreckPaint,vertexColors:true
             });
             const accent = new THREE.MeshBasicMaterial({
                 color:0xffa666,transparent:true,opacity:.83
@@ -10294,15 +10321,15 @@
                 ];
                 const parts=[];
                 panels.forEach((a,j)=>{
-                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(a.w,a.h,depth),hull);
+                    const mesh = new THREE.Mesh(tintOriginalGatePanelFaces(new THREE.BoxGeometry(a.w,a.h,depth)),hull);
                     mesh.position.set(a.x,a.y,0);
                     g.add(mesh);
                     // Panellerin dışına çıkan çapraz zırh parçaları; geçidin içine uzanmaz.
-                    const plate = new THREE.Mesh(new THREE.BoxGeometry(a.w*0.82,a.h*0.73,14),plating);
+                    const plate = new THREE.Mesh(tintOriginalGatePanelFaces(new THREE.BoxGeometry(a.w*0.82,a.h*0.73,14)),plating);
                     plate.position.set(a.x,a.y,-depth/2-8);
                     g.add(plate);
                     if(j<2){
-                        const rib=new THREE.Mesh(new THREE.BoxGeometry(12,a.h*0.9,depth+12),plating);
+                        const rib=new THREE.Mesh(tintOriginalGatePanelFaces(new THREE.BoxGeometry(12,a.h*0.9,depth+12)),plating);
                         rib.position.set(a.x,a.y,0);g.add(rib);
                     }
                     const pos=makeCourseLocalGroup(distance,a.x,a.y).position;
@@ -10326,7 +10353,7 @@
                     g.add(warning);
                 }
                 // Köprü iskeleti/hasarlı anten silueti (kolidere dahil olmayan DIŞ süs).
-                const antenna=new THREE.Mesh(new THREE.BoxGeometry(14,48,125),plating);
+                const antenna=new THREE.Mesh(tintOriginalGatePanelFaces(new THREE.BoxGeometry(14,48,125)),plating);
                 antenna.position.set(-outer+26,0,10);antenna.rotation.z=0.21;
                 g.add(antenna);
                 wreckageModules.push({distance,mode,group:g,parts,opening:{x:ox,y:oy,hx,hy}});

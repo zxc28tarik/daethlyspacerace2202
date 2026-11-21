@@ -1,0 +1,56 @@
+name: Map1 NEXT11C21R Original Wreck Gate Faces
+on:
+  push:
+    branches: [codex/map1-original-wreck-gate-facet-depth-21r]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-original-wreck-gate-faces:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium and WebGL dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: C21R 8 original wreck gates, same camera WebGL A-B and Map4
+        run: |
+          node --check tests/map1-next11c21r-wreck-gate-facets.cjs
+          node tests/map1-next11c21r-wreck-gate-facets.cjs
+      - name: Prior C21Q/P/O/N/M/L/K/J/I/H/G6 original scene regressions
+        run: |
+          node tests/map1-next11c21q-barrier-core-depth.cjs
+          node tests/map1-next11c21p-meteor-facet-relief.cjs
+          node tests/map1-next11c21o-road-colors.cjs
+          node tests/map1-next11c21n-minor-rings.cjs
+          node tests/map1-next11c21m-box-facets.cjs
+          node tests/map1-next11c21l-light-balance.cjs
+          node tests/map1-next11c21k-distance-grade.cjs
+          node tests/map1-next11c21j-contact-cues.cjs
+          node tests/map1-next11c21i-barrier-wreck.cjs
+          node tests/map1-next11c21h-meteors.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: Original C20O/P/Q/R corridor and SB07 ship
+        run: |
+          node tests/map1-next11c20o-corridor-clarity.cjs
+          node tests/map1-next11c20p-distance-clarity.cjs
+          node tests/map1-next11c20q-guide-contrast.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+          node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Build actual full offline playable HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload original game HTML plus real before-after WebGL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21r-original-wreck-gate-playable
+          path: |
+            tests/next11c21r-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn
