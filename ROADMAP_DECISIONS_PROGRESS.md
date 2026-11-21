@@ -1148,3 +1148,13 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - Regresyon: C21J/I/H/G6 + SB07 + corridor. [C21K test notu](MAP1_NEXT11C21K_DISTANCE_COLOR.md); draft PR, main merge kullanıcı onayına bağlı.
 
 - C21K aynı paket görsel teyit: Ön plandaki eski 38 bulutsu opacity .09→.062; gökyüzünde üst üste binen büyük mor lekeler seyreltiliyor. Eski küre geometri/konum/sayı ve RNG aynı. A/B test eski ve yeni cloud opacity ile koşar.
+
+## 68) NEXT11C21L — Harita 1 orijinal ışık hiyerarşisi (21 Kasım 2026)
+- **KULLANICI KISITI:** Orijinal 49 mor kutu, 320 meteor, 97 bariyer, 8 enkaz, gemi ve mevcut oynanış korunacak. Atom halkası/kristal/metal kafes eklenmeyecek. Harita 4 ayrı.
+- **KOD GELİŞTİRME-PR:** 2600 orijinal yıldızın görsel boyutu 3.2→2.5, opacity .90→.78; mevcut 97 bariyerin turuncu işaretleri daha az parlayan endüstriyel amber; 49 mor kutuda yalnız roughness/emissive/kenar/core tonlaması. Eski mor kutu gövde rengi, tüm geometri, collision, ödül RNG/HYPER/SHIELD/ENERGY ve normal boost sabit. Ek drawcall/mesh/collider/particle/texture yok.
+- **KOD KAYNAĞI:** `MAP1_C21L_LIGHT_BALANCE`; [detay ve kabul](MAP1_NEXT11C21L_ORIGINAL_LIGHT_BALANCE.md).
+- **QA DOSYASI:** `tests/map1-next11c21l-light-balance.cjs`, dedicated `.github/workflows/map1-next11c21l-light-balance.yml`. Gerçek Chromium 1600×900 **eski C21K / yeni C21L** A/B, GL drawcall/Map4/Map1 geri dönüş + eski test suite + tek HTML artifact.
+- **DURUM:** Kod ve QA otomasyonu ayrı **stacked DRAFT** dalında; test sonuçları henüz ayrıca doğrulanmadı. Kullanıcı 7–8/10 estetik onayı, native GPU FPS/p95 ve 3 playable pitch kapısı açık. Ana dala kullanıcı izni olmadan merge yok.
+- **SONRAKİ:** C21L CI sonucunu gör, gerçek A/B fotoğrafı incele, gerekirse yalnız ışığı düzelt. C21M seçimi bunun ardından.
+
+**Günlük:** `2026-11-21 | NEXT11C21L | Map1 light hierarchy kod + browser QA hazır | dedicated PASS KONTROL EDİLECEK | stacked draft, MERGE YOK`.
