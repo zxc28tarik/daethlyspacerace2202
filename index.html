@@ -10056,11 +10056,51 @@
         }
         const courseHazardPaint=makeCourseHazardPaintMap(17,true);
         const courseWreckPaint=makeCourseHazardPaintMap(41,false);
+        // NEXT11C21Q: immutable original-barrier palette shared by the
+        // renderer and independent real-browser regression checks.
+        const MAP1_C21Q_BARRIER_CORE_DEPTH=Object.freeze({
+            base:.91,directional:.19,
+            lightX:.18,lightY:.78,lightZ:.56,
+            warmR:1.018,warmG:.996,warmB:.975
+        });
         function buildItemAndBarrierCourse() {
+            // NEXT11C21Q: existing 97 barrier core facets gain restrained
+            // directional paint depth. No new polygons, lamps, rings or colliders.
+            // The original shared C21I weathered paint and physical material
+            // are untouched except for reading colors on the existing vertices.
             const obstacleHull = new THREE.MeshStandardMaterial({
                 color:0x807b82,metalness:.48,roughness:.74,
-                flatShading:true,map:courseHazardPaint
+                flatShading:true,map:courseHazardPaint,vertexColors:true
             });
+            function tintOriginalBarrierCoreFaces(geometry){
+                const pos=geometry.getAttribute('position');
+                // THREE.PolyhedronGeometry detail 0 is non-indexed, three
+                // existing vertices per flat triangular face. No topology edit.
+                if(geometry.index||pos.count%3!==0)
+                    throw new Error('C21Q original unindexed barrier core required');
+                const rgb=new Float32Array(pos.count*3);
+                for(let v=0;v<pos.count;v+=3){
+                    const mx=(pos.getX(v)+pos.getX(v+1)+pos.getX(v+2))/3;
+                    const my=(pos.getY(v)+pos.getY(v+1)+pos.getY(v+2))/3;
+                    const mz=(pos.getZ(v)+pos.getZ(v+1)+pos.getZ(v+2))/3;
+                    const inv=1/Math.max(1e-6,Math.hypot(mx,my,mz));
+                    const facing=Math.max(-1,Math.min(1,inv*(
+                        mx*MAP1_C21Q_BARRIER_CORE_DEPTH.lightX+
+                        my*MAP1_C21Q_BARRIER_CORE_DEPTH.lightY+
+                        mz*MAP1_C21Q_BARRIER_CORE_DEPTH.lightZ
+                    )));
+                    const face=MAP1_C21Q_BARRIER_CORE_DEPTH.base+
+                        MAP1_C21Q_BARRIER_CORE_DEPTH.directional*facing;
+                    for(let j=v;j<v+3;j++){
+                        rgb[j*3]=face*MAP1_C21Q_BARRIER_CORE_DEPTH.warmR;
+                        rgb[j*3+1]=face*MAP1_C21Q_BARRIER_CORE_DEPTH.warmG;
+                        rgb[j*3+2]=face*MAP1_C21Q_BARRIER_CORE_DEPTH.warmB;
+                    }
+                }
+                geometry.setAttribute('color',new THREE.BufferAttribute(rgb,3));
+                geometry.userData.map1OriginalBarrierCoreDepth='NEXT11C21Q';
+                geometry.userData.originalCorePositionsUnchanged=true;
+            }
             const obstacleGlow = new THREE.MeshBasicMaterial({
                 color:MAP1_C21L_LIGHT_BALANCE.barrierGlow,side:THREE.DoubleSide,
                 transparent:true,opacity:MAP1_C21L_LIGHT_BALANCE.barrierGlowOpacity,depthWrite:false
@@ -10113,7 +10153,11 @@
                     g.add(fuselage, wingA, wingB, shardA, shardB, panel, new THREE.LineSegments(wire, warnLineMat));
                 } else {
                     // Koyu metal çekirdek + uyarıcı sarı/turuncu çerçeve: asteroidle karışmasın.
-                    const core = new THREE.Mesh(i % 2 === 0 ? new THREE.OctahedronGeometry(radius * 0.85, 0) : new THREE.IcosahedronGeometry(radius * 0.82, 0), obstacleHull);
+                    const coreGeometry=i % 2 === 0 ?
+                        new THREE.OctahedronGeometry(radius * 0.85, 0):
+                        new THREE.IcosahedronGeometry(radius * 0.82, 0);
+                    tintOriginalBarrierCoreFaces(coreGeometry);
+                    const core = new THREE.Mesh(coreGeometry,obstacleHull);
                     const front = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.02, 3.5, 7, 40), obstacleGlow);
                     const back = front.clone(); back.position.z = 10;
                     const spokes = new THREE.BufferGeometry().setFromPoints([
