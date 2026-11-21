@@ -1183,3 +1183,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Açık:** Kapsamlı Map1/Map4 smoke sonucu, kullanıcı gerçek ekranda estetik seçimi, native GPU 720/1080 FPS/p95, 3/6 yayıncı oynanabilirlik doğrulaması ve kullanıcı merge izni. PR #109 stacked DRAFT olarak kalacak.
 
 **Günlük:** `2026-11-21 | NEXT11C21M | orijinal 49 kutu yüz tonu C21M PASS / 112 draw / 4.847px fark / GL0 | offline build 5.795.992B | Genel smoke AÇIK | PR109 DRAFT`.
+
+## 70) NEXT11C21N — Harita 1 mevcut küçük halka ton uyumu (21 Kasım 2026)
+- **ÖNCEKİ ADIM TAM DOĞRULANDI:** C21M [full Map1/4 browser smoke #44850791645](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44850791645) **SUCCESS, 74/74 adım**, PR #109 DRAFT ve main merge yok.
+- **C21N GELİŞTİRME:** 153 mevcut non-critical koridor küçük halkası aynı `ShaderMaterial` üzerinde `0x406dff/.30 → 0x557fc4/.26`; 39 kritik ana halka, 16 uçuş yönlendirme rayı, 16 amber/kırmızı sınır uyarısı **birebir aynı**. 192 halka=10 çizim grubu, 16 ray=20 çizim grubu, 46 guide obje, 6960 segment; tüm koordinatlar ve shader fade korunuyor.
+- **MEVCUT MODELLER:** 49 orijinal mor ödül kutusu (C21M yüzey tonları dahil), 320 meteor, 97 bariyer, 8 enkaz, SB07 189 parça, Map4 249 parça sabit. 0 yeni halka/mesh/shader/drawcall/collider/particle/oynanış.
+- **QA:** [C21N kabul](MAP1_NEXT11C21N_ORIGINAL_CORRIDOR_GRADE.md), `tests/map1-next11c21n-minor-rings.cjs` Chromium/WebGL aynı kamera C21M/C21N karşılaştırma, eşit drawcall, Map4 izolasyonu. C21M/L/K/J/I/H/G6 + C20O/P/Q/R + SB07 dedicated suite ve tam 1/4 smoke + offline HTML. Bu kayıt yazıldığında **yeni CI sonucu henüz kesinleşmedi**; PASS denmeyecek.
+- **KARAR:** DRAFT stacked PR, main merge için kullanıcı açık onayı; 7–8/10 estetik ve native GPU/güncel pitch kabulü açık.
+
+**Günlük:** `2026-11-21 | NEXT11C21N | 153 küçük halka sadece mavi renk/parlaklık | C21M full 74/74 PASS | C21N CI BAŞLATILDI/SONUÇ AÇIK | MERGE YOK`.
