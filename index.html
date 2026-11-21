@@ -1736,11 +1736,13 @@
                 const idx=(y*256+x)*4;
                 const large=Math.sin(x*.037+seed)*Math.cos(y*.054-seed)*.17;
                 const layers=kind==='rock'?
-                    Math.sin(y*.19+Math.sin(x*.025)*2)*.10:
+                    (.075*Math.sin(y*.135+x*.031+Math.sin(x*.019)*1.5)+
+                    .045*Math.sin(y*.047-x*.082)+
+                    .022*Math.cos(x*.21+y*.11)): 
                     kind==='metal'?
                         (.045*Math.sin(x*.087+y*.014+seed*.21)+
                         .024*Math.sin(x*.31-y*.036)) :0;
-                const grain=(rand()-.5)*(kind==='rock'?.22:.10);
+                const grain=(rand()-.5)*(kind==='rock'?.15:.10);
                 const amount=Math.max(.4,Math.min(1.28,.90+large+layers+grain));
                 for(let c=0;c<3;c++)data.data[idx+c]=Math.min(255,rgb[c]*amount);
                 data.data[idx+3]=255;
@@ -1748,7 +1750,7 @@
             ctx.putImageData(data,0,0);
             for(let i=0;i<(kind==='rock'?115:70);i++){
                 const x=rand()*256,y=rand()*256;
-                ctx.strokeStyle=kind==='rock'?'rgba(34,21,17,.17)':'rgba(155,205,216,.13)';
+                ctx.strokeStyle=kind==='rock'?'rgba(41,29,24,.11)':'rgba(155,205,216,.13)';
                 ctx.lineWidth=kind==='rock'?1.5:.85;
                 ctx.beginPath();ctx.moveTo(x,y);
                 ctx.lineTo(x+(rand()-.5)*(kind==='rock'?85:40),
@@ -2158,8 +2160,8 @@
                 const broad=Math.sin(a*2.0+Math.cos(b*2.0)*.5)*
                     Math.cos(b*3.0-a)*.080;
                 const low=Math.sin(a*5.0+b*4.0)*Math.sin(b*4.0-a*3.0)*.038;
-                const fine=Math.sin(a*13.0-b*7.0)*.012+(rand()-.5)*.040;
-                const tone=.87+broad+low+fine;
+                const fine=Math.sin(a*13.0-b*7.0)*.010+(rand()-.5)*.026;
+                const tone=.90+broad*.82+low*.82+fine;
                 const offset=(y*n+x)*4;
                 data.data[offset]=Math.round(194*tone);
                 data.data[offset+1]=Math.round(182*tone);
