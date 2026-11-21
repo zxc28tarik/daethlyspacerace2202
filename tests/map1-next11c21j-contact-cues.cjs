@@ -102,6 +102,7 @@ const out=path.join(__dirname,'next11c21j-evidence');fs.mkdirSync(out,{recursive
   for(const kind of ['NEAR','ASTEROID','BARRIER','SHIELD']){
    const event=await page.evaluate(kind=>{
     map1ContactCue.at=-100;
+    if(kind==='NEAR')map1ContactCue.lastNearAt=-100;
     const before=JSON.stringify({
      score:state.score,energy:state.energy,
      radius:itemBoxes[0].radius,
@@ -129,7 +130,8 @@ const out=path.join(__dirname,'next11c21j-evidence');fs.mkdirSync(out,{recursive
       asteroidHits:state.asteroidHits,
       barrierHits:state.barrierHits})};
    },kind);
-   assert(event.result&&event.sidePaint>200&&event.unchanged);
+   assert(event.result&&event.sidePaint>200&&event.unchanged,
+    'Expected visible cue with no game state change: '+JSON.stringify(event));
    assert.equal(event.err,0);assert.equal(event.kind,kind);
    const filename='map1-'+kind.toLowerCase()+'-subtle-side-cue-1600x900.png';
    await page.screenshot({path:path.join(out,filename)});
@@ -145,7 +147,7 @@ const out=path.join(__dirname,'next11c21j-evidence');fs.mkdirSync(out,{recursive
    return {inactive,noObjects,amount:Object.assign({},map1ContactCue.count)};
   });
   assert(fading.inactive&&fading.noObjects);
-  assert.deepEqual(fading.amount,{NEAR:1,ASTEROID:1,BARRIER:1,SHIELD:1});
+  assert.deepEqual(fading.amount,{NEAR:2,ASTEROID:1,BARRIER:1,SHIELD:1});
 
   const map4=await page.evaluate(()=>{
    state.running=false;state.paused=false;
