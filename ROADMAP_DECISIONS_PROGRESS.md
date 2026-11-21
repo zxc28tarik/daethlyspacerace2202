@@ -1210,3 +1210,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **BAŞLANGIÇ DURUMU:** Son C21N dedicated PASS; C21N geniş smoke [#44902696598](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44902696598) son bakışta çalışıyordu. C21O testleri yeni iş; PASS iddia edilmez. `main` merge için kullanıcı onayı yok, PR DRAFT.
 
 **Günlük:** `2026-11-21 | NEXT11C21O | 5 mevcut yol sektörü renkleri rafine | geometrik/oynanış etki yok | native WebGL/CI açık | stacked DRAFT, merge yok`.
+
+### NEXT11C21O — Chromium/WebGL PASS, oynanabilir HTML (21 Kasım 2026)
+- **Dedicated gerçek Chromium/WebGL:** [C21O workflow #44903945431](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44903945431) **SUCCESS**. C21O kendi A/B, C21N/M/L/K/J/I/H/G6 regresyonları, C20O/P/Q/R koridor, SB07 ve tam offline HTML/artefakt **PASS**.
+- **Sayılar:** 5 orijinal yol sektörü, her birinde **414 gerçek yol yüzeyi vertex'i** (değişmedi). Eski/yeni **normal chase kamera** 63 değişen piksel, kontrollü yol yüzeyi yakın kamerası **726.302** değişen piksel, maksimum kanal farkı 39. **158/158 drawcalls**, GL error 0. Map4 6/36/200 çarpışma, 249 parça orijinal; kamera ve malzeme geri dönüş PASS.
+- **Görsel kabul şeffaflık:** Yarış kamerasında bu yüzey düşük kadraj ağırlığına sahip, dolayısıyla **63 piksel** farkla etki neredeyse fark edilmez. Yakından yol karakteri değişiyor; kullanıcıya büyük bir görsel sınıf atlaması olarak sunulmayacak. Gelecek adımda 3D yarış kadrajında yüksek görünürlüklü sahne bileşenlerine öncelik verilecek.
+- **Tek dosya offline HTML:** `dist/Uzay_Yarisi_Guncel_Oynanabilir.html` **5.797.398 byte**, SHA256 `9ed3de3b052f0ec4232653a6268ff08d262a4830dc3b369ece456ae7dccb6356`. [C21O playable HTML ZIP + oyun/yol eski/yeni A/B PNG](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44903945431/artifacts/14707571007).
+- **AÇIK:** Latest full Map1/Map4 browser smoke [#44904012376](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/44904012376) sonuç ayrı. Dedicated workflow final dokümantasyon commit'i dışındaki aynı `index.html` kodunu test etti. Native GPU FPS, kullanıcı görsel kabulü, yayıncı en az üç harita ve merge kullanıcı izni açık. PR #111 stacked **DRAFT**.
+
+**Günlük:** `2026-11-21 | NEXT11C21O | 5 orijinal yol sektörü pigment PASS, chase63px / road726302px / draws158=158 / GL0 | offline 5.797.398B | full smoke ayrı | PR111 DRAFT`.
