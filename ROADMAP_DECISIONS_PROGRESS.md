@@ -1132,3 +1132,10 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - C21G6 kutu + C21H meteorler aynen. Gerçek Chromium WebGL eski/yeni bariyer, gerçek yarış kamerası, Map4 fizik ve offline oynanabilir HTML testleri.
 - Tarihi C21G-G5 atom görünüm testlerinin C21G6/C21H/C21I kollarında koşmaması full smoke için düzeltildi. Uygulanan C21G6/C21H/C21I QA koşuyor.
 - [C21I detay](MAP1_NEXT11C21I_BARRIER_WRECK.md); draft, main merge için açık onay gerekir.
+
+## 66) NEXT11C21J — Map1 meteor ve bariyer temas/sıyırma uyarılarının görsel rafinesi
+- Eski 49 mor kutu, 320 meteor, bariyerler ve enkaz kapıları korunur. Yeni model/3D mesh/halka/yeni gameplay yok.
+- Sadece mevcut 2D fx canvas'ında sol/sağ konuma göre 0.3-0.36 saniyelik dar kenar işaretleri: amber sıyırma, turuncu meteorit, sarı bariyer, teal kalkan. Oyun sayıları/hız/çarpışma/ödül dağıtımı asla değişmez.
+- Var olan near miss +300/+5, çarpışma hasarı ve 3 vuruş engel sistemine yalnız görsel sinyal tetiklemesi eklenir. Map4 etkilenmez, restart sıfırlar.
+- Gerçek Chromium/WebGL 4 ekran görüntüsü, near-miss gerçek oyunu ve görselin sayısal etkisizliği; eski C21I/H/G6 regresyonları ve offline HTML: [C21J](MAP1_NEXT11C21J_CONTACT_CUES.md).
+- Stacked draft PR, main'e merge için açık kullanıcı onayı.
