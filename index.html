@@ -13404,6 +13404,42 @@
                 ];
                 return [1,1,1];
             };
+            // NEXT11C21U — silhouette clarification on the EXISTING
+            // silver-ceramic HULL vertex pigments only. 189 original
+            // parts/7 merged batches, UVs, geometry, original red and
+            // gunmetal colors, PBR materials, camera and lights unchanged.
+            // Original surface normals already know which facets are
+            // roof-lit versus lower/outer wing fairings. Grade these
+            // pigments rather than drawing extra edge outlines.
+            const MAP1_C21U_HULL_CONTOUR=Object.freeze({
+                roofLift:.050,sideDepth:.070,
+                outboardDepth:.055,shoulderDepth:.016,
+                minPigment:.795,maxPigment:1.080
+            });
+            const sb07HullContourTint=(rgb,x,ny)=>{
+                const outboard=pigmentClamp((Math.abs(x)-1.65)/5.6);
+                const smoothWing=outboard*outboard*(3-2*outboard);
+                const roof=pigmentClamp((ny+.12)/1.00);
+                const side=pigmentClamp((.72-ny)/1.45);
+                const shoulder=pigmentClamp((Math.abs(x)-1.9)/2.7)*
+                    (1-smoothWing);
+                const shade=MAP1_C21U_HULL_CONTOUR.sideDepth*side+
+                    MAP1_C21U_HULL_CONTOUR.outboardDepth*smoothWing+
+                    MAP1_C21U_HULL_CONTOUR.shoulderDepth*shoulder;
+                const lift=MAP1_C21U_HULL_CONTOUR.roofLift*roof*
+                    (1-.55*smoothWing);
+                const clamp=(n)=>Math.max(
+                    MAP1_C21U_HULL_CONTOUR.minPigment,
+                    Math.min(MAP1_C21U_HULL_CONTOUR.maxPigment,n)
+                );
+                // Slightly cooler, physically sensible roof contrast.
+                // Continuous ramps prevent seams through curved wings.
+                return [
+                    clamp(rgb[0]*(1+lift*.98-shade)),
+                    clamp(rgb[1]*(1+lift*.90-shade*.91)),
+                    clamp(rgb[2]*(1+lift*.76-shade*.82))
+                ];
+            };
             for(const key of balancedColorKeys)
                 mats[key].vertexColors=true;
             let balancedColorVertexCount=0;
@@ -13439,8 +13475,11 @@
                 if(balancedColorKeys.includes(key)){
                     const pigment=new Float32Array(count*3);
                     for(let i=0;i<count;i++){
-                        const tint=balancedTint(key,
+                        const original=balancedTint(key,
                             pos[i*3],pos[i*3+1],pos[i*3+2]);
+                        const tint=key==='HULL'?
+                            sb07HullContourTint(original,
+                                pos[i*3],normal[i*3+1]):original;
                         pigment[i*3]=tint[0];
                         pigment[i*3+1]=tint[1];
                         pigment[i*3+2]=tint[2];
@@ -13512,6 +13551,9 @@
             root.userData.noseStripeSkinClearance=.018;
             root.userData.flushedWingShrouds=2;
             root.userData.colorHierarchy='SB07_BALANCED';
+            root.userData.hullContourRevision='NEXT11C21U';
+            root.userData.hullContourNewObjects=0;
+            root.userData.hullContourVertexOnly=true;
             root.userData.raceRedFlowVersion='NEXT11C21C';
             root.userData.engineToneVersion='NEXT11C21D';
             root.userData.engineToneOriginalEnergy=true;
