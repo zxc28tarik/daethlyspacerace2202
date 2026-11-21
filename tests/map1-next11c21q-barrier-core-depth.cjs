@@ -200,12 +200,12 @@ const out=path.join(__dirname,'next11c21q-evidence');fs.mkdirSync(out,{recursive
    selectMap(MAP_MODES.MAP4);startGame();state.paused=true;
    renderer.render(scene,camera);
    return {map:state.activeMap,ship:h4Ship19Combat.userData.parts,
-    barriersVisible:staticObstacleGroup.visible,
+    barrierMeshesHidden:staticObstacles.filter(o=>o.type==='BARRIER').every(o=>!o.mesh.visible),
     physics:[h4CanyonColliders.length,h4IndustrialColliders.length,
      planetaryBuildingColliders.length],err:renderer.getContext().getError()};
   });
   assert.equal(map4.map,'map4');assert.equal(map4.ship,249);
-  assert.equal(map4.barriersVisible,false);
+  assert.equal(map4.barrierMeshesHidden,true);
   assert.deepEqual(map4.physics,[6,36,200]);assert.equal(map4.err,0);
   const back=await page.evaluate(()=>{
    state.running=false;state.paused=false;
