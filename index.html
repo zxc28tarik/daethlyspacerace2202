@@ -9287,8 +9287,46 @@
             g.computeVertexNormals();
             return g;
         }
+        // NEXT-22H: original fractured deck with a true structural opening.
+        // Cut-through geometry replaces the solid rectangular/wedge impression.
+        function h4Next22hFracturedDeckGeometry(){
+            const outline=new THREE.Shape();
+            outline.moveTo(-.55,-.44);
+            outline.lineTo(-.33,-.51);
+            outline.lineTo(-.12,-.43);
+            outline.lineTo(.14,-.49);
+            outline.lineTo(.49,-.31);
+            outline.lineTo(.43,-.13);
+            outline.lineTo(.56,.10);
+            outline.lineTo(.28,.32);
+            outline.lineTo(.08,.47);
+            outline.lineTo(-.19,.40);
+            outline.lineTo(-.48,.52);
+            outline.lineTo(-.42,.15);
+            outline.closePath();
+            // A real opening, not painted-on black. Its jagged edge is visible.
+            const gap=new THREE.Path();
+            gap.moveTo(-.17,-.14);
+            gap.lineTo(.07,-.28);
+            gap.lineTo(.27,-.09);
+            gap.lineTo(.18,.15);
+            gap.lineTo(-.10,.21);
+            gap.closePath();
+            outline.holes.push(gap);
+            const g=new THREE.ExtrudeGeometry(outline,{
+                depth:.105,steps:1,curveSegments:1,
+                bevelEnabled:true,bevelThickness:.009,
+                bevelSize:.012,bevelSegments:1
+            });
+            g.translate(0,0,-.0525);
+            // The opening lies on the deck's horizontal XZ plane.
+            g.rotateX(Math.PI*.5);
+            g.computeVertexNormals();
+            return g;
+        }
         const H4_NEXT22F_SCULPT=Object.freeze({
             shipRib:h4Next22fBrokenRibGeometry(),
+            fracturedDeck:h4Next22hFracturedDeckGeometry(),
             weatheredTrim:new THREE.BoxGeometry(1,1,1),
             warningHalo:new THREE.TorusGeometry(.50,.045,6,28)
         });
@@ -9303,9 +9341,18 @@
             color:0xb2b7b6,metalness:.38,roughness:.74,
             flatShading:true
         });
+        const H4_NEXT22H_DECK_MATERIAL=new THREE.MeshStandardMaterial({
+            name:'MAP4_NEXT22H_FRACTURED_SERVICE_METAL',
+            map:h4SurfaceMaps.darkSteel,
+            normalMap:h4MicroMaps.metal.normal,
+            normalScale:new THREE.Vector2(.12,.12),
+            roughnessMap:h4MicroMaps.metal.roughness,
+            color:0xa3afb1,metalness:.37,roughness:.79,
+            side:THREE.DoubleSide,flatShading:true
+        });
         const H4_NEXT22F_MAT=Object.freeze({
             deckEdge:new THREE.MeshBasicMaterial({
-                color:0xacc7c8,transparent:true,opacity:.34,
+                color:0x899da7,transparent:true,opacity:.26,
                 depthWrite:false,side:THREE.DoubleSide}),
             warningHalo:new THREE.MeshBasicMaterial({
                 color:0xf0a37f,transparent:true,opacity:.47,
@@ -9325,8 +9372,8 @@
             const specs=[
                 {name:'CARRIER_SPINE_RIBS',geometry:H4_NEXT22F_SCULPT.shipRib,
                     material:H4_NEXT22G_RIB_MATERIAL,count:28,type:'ribs'},
-                {name:'SHATTERED_SERVICE_DECKS',geometry:H4_GFX04_GEO.brokenPlate,
-                    material:H4_GFX04_MAT.armor,count:24,type:'brokenDecks'},
+                {name:'SHATTERED_SERVICE_DECKS',geometry:H4_NEXT22F_SCULPT.fracturedDeck,
+                    material:H4_NEXT22H_DECK_MATERIAL,count:24,type:'brokenDecks'},
                 {name:'DISTANT_WARNING_BEACONS',geometry:H4_GFX04_GEO.beacon,
                     material:H4_GFX04_MAT.ember,count:18,type:'warningLamps'},
                 {name:'SHATTERED_DECK_EDGES',geometry:H4_NEXT22F_SCULPT.weatheredTrim,
@@ -9346,29 +9393,37 @@
                 for(let i=0;i<spec.count;i++){
                     const sector=i%3;
                     const sign=i%2===0?-1:1;
-                    // Edge-set dressing protects centre shooting lanes.
+                    // Curated pocket composition, not evenly repeated clutter:
+                    // sparse central markers, dense west carrier wreckage,
+                    // ordered but damaged east defensive infrastructure.
+                    const pocketOffset=[-120,-50,85][sector];
                     const progress=MAP4_PHASES.introEnd+
-                        [380,550,745][sector]+Math.floor(i/3)*37;
-                    const side=sign*([900,1280,1120][sector]+(i%5)*96);
+                        [360,575,810][sector]+Math.floor(i/3)*35+
+                        (i%4-1.5)*pocketOffset*.22;
+                    const side=sector===0?
+                        sign*(850+(i%4)*105):
+                        sector===1?
+                        -(1210+(i%5)*117):
+                        1250+(i%5)*135;
                     const altitude=(family===2||family===4)?120+(i%4)*80:
                         (family===1||family===3)?-405+(i%3)*35:
                         -240+(i%4)*34;
                     dummy.position.copy(h4WorldPosition(progress,side,altitude));
                     dummy.quaternion.setFromUnitVectors(H4_UP,
                         getRaceFrameAtDistance(progress).up);
-                    dummy.rotateZ((i%5-2)*.10);
-                    dummy.rotateY((i%7-3)*.09);
+                    dummy.rotateZ((i%5-2)*.10+(sector===1?-.09:sector===2?.08:0));
+                    dummy.rotateY((i%7-3)*.09+(sector===1?-.13:sector===2?.10:0));
                     if(family===3)dummy.position.y+=25+(i%3)*12;
                     // Vertical plane is the orientation of the shared torus geometry.
                     if(family===4)dummy.rotateY((i%3-1)*.15);
                     if(family===0)dummy.scale.set(
                         180+(i%4)*38,225+(i%5)*38,62+(i%3)*16);
                     else if(family===1)dummy.scale.set(
-                        220+(i%4)*45,34+(i%3)*19,260+(i%5)*42);
+                        240+(i%4)*46,28+(i%3)*10,270+(i%5)*45);
                     else if(family===2)dummy.scale.set(
                         24+(i%3)*8,24+(i%3)*8,24+(i%3)*8);
                     else if(family===3)dummy.scale.set(
-                        210+(i%4)*42,5+(i%3)*2,240+(i%5)*39);
+                        200+(i%4)*42,4+(i%3)*1.5,220+(i%5)*39);
                     else dummy.scale.set(
                         100+(i%3)*22,100+(i%3)*22,18);
                     dummy.updateMatrix();
