@@ -1,0 +1,52 @@
+name: Map1 NEXT11C21N Subtle Original Corridor Rings
+on:
+  push:
+    branches: [codex/map1-minor-ring-cohesion-21n]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-original-minor-ring-balance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium, Three and offline build prerequisites
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: C21N native WebGL old/new original minor rings and Map4 isolation
+        run: |
+          node --check tests/map1-next11c21n-minor-rings.cjs
+          node tests/map1-next11c21n-minor-rings.cjs
+      - name: C21M/L/K/J/I/H/G6 original-asset history regressions
+        run: |
+          node tests/map1-next11c21m-box-facets.cjs
+          node tests/map1-next11c21l-light-balance.cjs
+          node tests/map1-next11c21k-distance-grade.cjs
+          node tests/map1-next11c21j-contact-cues.cjs
+          node tests/map1-next11c21i-barrier-wreck.cjs
+          node tests/map1-next11c21h-meteors.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: C20O/P/Q/R guide geometry and SB07 ship safety
+        run: |
+          node tests/map1-next11c20o-corridor-clarity.cjs
+          node tests/map1-next11c20p-distance-clarity.cjs
+          node tests/map1-next11c20q-guide-contrast.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+          node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Build current OFFLINE full playable HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload true A/B renders, QA report and playable HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21n-minor-ring-playable-webgl
+          path: |
+            tests/next11c21n-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn
