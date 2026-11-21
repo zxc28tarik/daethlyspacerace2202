@@ -42,7 +42,7 @@ fs.mkdirSync(out,{recursive:true});
     for(const p of metal){
       const geo=p.geometry,xyz=geo.getAttribute('position');
       const col=geo.getAttribute('color');
-      if(geo.type!=='BoxGeometry'||geo.index!==null||xyz.count!==24||
+      if(geo.type!=='BoxGeometry'||!geo.index||geo.index.count!==36||xyz.count!==24||
        col.count!==24||geo.userData.map1OriginalWreckPanelFaces!=='NEXT11C21R'||
        geo.userData.sourcePositionsUnchanged!==true||!p.material.vertexColors||
        p.material.map!==courseWreckPaint)preserved=false;
