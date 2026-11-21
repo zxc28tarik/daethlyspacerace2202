@@ -9217,8 +9217,76 @@
                 h4Gfx11bArenaStats.instances+=spec.count;
             }
             zone.add(group);
+            h4Next22eWarfrontDress(zone);
             h4Gfx11bArenaSkylineGroup=group;
             zone.userData.h4Gfx11bArenaBuilt=true;
+        }
+
+        // NEXT-22E: visually distinct battlefield silhouettes in three pooled batches.
+        // No collision boxes, enemies, route changes or per-frame allocations.
+        const h4Next22eStats={batches:0,instances:0,collidersAdded:0,
+            byType:{ribs:0,brokenDecks:0,warningLamps:0}};
+        function h4Next22eWarfrontDress(zone){
+            if(zone.userData.h4Next22eDressed)return;
+            const root=new THREE.Group();
+            root.name='MAP4_NEXT22E_WARFRONT_COMPOSITION';
+            root.userData.visualOnly=true;
+            root.userData.noCollider=true;
+            const specs=[
+                {name:'CARRIER_SPINE_RIBS',geometry:H4_GFX04_GEO.support,
+                    material:H4_GFX04_MAT.exposed,count:28,type:'ribs'},
+                {name:'SHATTERED_SERVICE_DECKS',geometry:H4_GFX04_GEO.brokenPlate,
+                    material:H4_GFX04_MAT.armor,count:24,type:'brokenDecks'},
+                {name:'DISTANT_WARNING_BEACONS',geometry:H4_GFX04_GEO.beacon,
+                    material:H4_GFX04_MAT.ember,count:18,type:'warningLamps'}
+            ];
+            const dummy=new THREE.Object3D();
+            for(let family=0;family<specs.length;family++){
+                const spec=specs[family];
+                const mesh=new THREE.InstancedMesh(
+                    spec.geometry,spec.material,spec.count);
+                mesh.name='MAP4_NEXT22E_'+spec.name;
+                mesh.userData.visualOnly=true;
+                mesh.userData.noCollider=true;
+                mesh.frustumCulled=false;
+                for(let i=0;i<spec.count;i++){
+                    const sector=i%3;
+                    const sign=i%2===0?-1:1;
+                    // Edge-set dressing protects centre shooting lanes.
+                    const progress=MAP4_PHASES.introEnd+
+                        [380,550,745][sector]+Math.floor(i/3)*37;
+                    const side=sign*([900,1280,1120][sector]+(i%5)*96);
+                    const altitude=family===2?120+(i%4)*80:
+                        family===1?-405+(i%3)*35:-240+(i%4)*34;
+                    dummy.position.copy(h4WorldPosition(progress,side,altitude));
+                    dummy.quaternion.setFromUnitVectors(H4_UP,
+                        getRaceFrameAtDistance(progress).up);
+                    dummy.rotateZ((i%5-2)*.10);
+                    dummy.rotateY((i%7-3)*.09);
+                    if(family===0)dummy.scale.set(
+                        24+(i%3)*7,215+(i%5)*44,25+(i%4)*7);
+                    else if(family===1)dummy.scale.set(
+                        220+(i%4)*45,34+(i%3)*19,260+(i%5)*42);
+                    else dummy.scale.set(24+(i%3)*8,24+(i%3)*8,24+(i%3)*8);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(i,dummy.matrix);
+                    const tint=family===0?
+                        [0x8696a0,0xb5a08f,0x77858c][i%3]:
+                        family===1?
+                        [0x8a8882,0x708b98,0x9d7565][i%3]:
+                        [0xffb571,0xff775c,0x89c5da][i%3];
+                    mesh.setColorAt(i,new THREE.Color(tint));
+                }
+                mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+                mesh.instanceMatrix.needsUpdate=true;
+                if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+                root.add(mesh);
+                h4Next22eStats.batches++;
+                h4Next22eStats.instances+=spec.count;
+                h4Next22eStats.byType[spec.type]+=spec.count;
+            }
+            zone.add(root);
+            zone.userData.h4Next22eDressed=true;
         }
 
         function h4BuildArenaWarfront(zone){
