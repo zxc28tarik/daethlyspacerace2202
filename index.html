@@ -10482,7 +10482,8 @@
         // Top-level immutable palette: shared with browser visual QA,
         // while the original geometry/shader creation remains unchanged.
         const MAP1_C21N_MINOR_RING_GRADE=Object.freeze({
-            tint:0x557fc4,opacity:.26,near:600,far:3000,floor:.08
+            tint:0x557fc4,opacity:.26,near:600,far:3000,floor:.08,
+            pulseBase:.24,pulseAmplitude:.08
         });
         function buildVisibleCorridor() {
             corridorGuideGroup.clear();
@@ -10777,7 +10778,10 @@
             m.railMaterial.uniforms.uProgress.value=state.routeProgress;
             // NEXT11C20O: avoid blue micro-ring washout while
             // preserving emphasized primary gate and crash-boundary cues.
-            m.ringMaterial.opacity = 0.24 + 0.12 * pulse;
+            // C21N: keep the original pulse and all critical guides,
+            // but cap only minor-ring animation at 0.32 instead of 0.36.
+            m.ringMaterial.opacity = MAP1_C21N_MINOR_RING_GRADE.pulseBase +
+                MAP1_C21N_MINOR_RING_GRADE.pulseAmplitude * pulse;
             m.ringMaterial.uniforms.uOpacity.value=m.ringMaterial.opacity;
             m.ringMaterial.uniforms.uProgress.value=state.routeProgress;
             m.majorRingMaterial.opacity = 0.70 + 0.22 * pulse;
