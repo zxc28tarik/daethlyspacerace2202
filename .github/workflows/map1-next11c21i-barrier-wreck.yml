@@ -1,0 +1,44 @@
+name: Map1 NEXT11C21I Original Barrier and Wreck Surfaces
+on:
+  push:
+    branches: [codex/map1-barrier-wreck-surface-21i]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-barrier-wreck-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium and offline HTML bundle tools
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Real Chromium/WebGL barrier and wreck visual-only QA
+        run: |
+          node --check tests/map1-next11c21i-barrier-wreck.cjs
+          node tests/map1-next11c21i-barrier-wreck.cjs
+      - name: Regression for original 320 meteors and 49 reward boxes
+        run: |
+          node tests/map1-next11c21h-meteors.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: Preserve original SB-07 and 304 corridor joints
+        run: |
+          node tests/map1-next11c20-sb07-zenit.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+      - name: Produce latest complete single-file OFFLINE playable HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload real WebGL images, evidence and playable HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c21i-original-barrier-wreck-playable
+          path: |
+            tests/next11c21i-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn

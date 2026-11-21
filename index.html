@@ -9882,17 +9882,80 @@
             group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(frame.right, frame.up, frame.tangent.clone().negate()));
             return group;
         }
+        // NEXT11C21I: original hazard geometry remains immutable. Two shared
+        // lightweight 64px procedural paint maps add believable wear without
+        // adding one triangle, draw call, RNG consumption or physics surface.
+        function makeCourseHazardPaintMap(seed,stripes){
+            const size=64,rgba=new Uint8Array(size*size*4);
+            const fract=x=>x-Math.floor(x);
+            const hash=(x,y)=>fract(Math.sin(
+                (x+seed*17.7)*127.1+(y+seed*.51)*311.7
+            )*43758.5453);
+            for(let y=0;y<size;y++){
+                for(let x=0;x<size;x++){
+                    const coarse=hash(x>>2,y>>2),fine=hash(x,y),
+                        scratch=(x%17===2||x%17===3)&&fine>.37,
+                        seam=(y%27===0||y%27===1)&&fine>.30;
+                    const grime=Math.max(.56,Math.min(1,
+                        .70+.20*coarse+.10*fine-
+                        (scratch?.19:0)-(seam?.13:0)
+                    ));
+                    const p=(y*size+x)*4;
+                    const warning=stripes && ((x+y*2+seed*3)%43)<3;
+                    const tone=grime*(warning?.92:1);
+                    rgba[p]=Math.round(255*tone);
+                    rgba[p+1]=Math.round(255*tone*(warning?.95:1));
+                    rgba[p+2]=Math.round(255*tone*(warning?.87:1));
+                    rgba[p+3]=255;
+                }
+            }
+            const texture=new THREE.DataTexture(
+                rgba,size,size,THREE.RGBAFormat,THREE.UnsignedByteType
+            );
+            texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+            texture.magFilter=THREE.LinearFilter;
+            texture.minFilter=THREE.LinearMipmapLinearFilter;
+            texture.generateMipmaps=true;
+            texture.anisotropy=4;
+            texture.needsUpdate=true;
+            texture.name=stripes?'MAP1_C21I_HAZARD_PAINT':
+                'MAP1_C21I_WEATHERED_PLATE';
+            texture.userData={visualOnly:true,noCollider:true,
+                c21i:true,shared:true,deterministic:true};
+            return texture;
+        }
+        const courseHazardPaint=makeCourseHazardPaintMap(17,true);
+        const courseWreckPaint=makeCourseHazardPaintMap(41,false);
         function buildItemAndBarrierCourse() {
-            const obstacleHull = new THREE.MeshStandardMaterial({ color: 0x493943, metalness: 0.72, roughness: 0.38, flatShading: true });
-            const obstacleGlow = new THREE.MeshBasicMaterial({ color: 0xff623e, side: THREE.DoubleSide });
-            const obstacleLine = new THREE.LineBasicMaterial({ color: 0xffc07a, transparent: true, opacity: 0.9 });
+            const obstacleHull = new THREE.MeshStandardMaterial({
+                color:0x807b82,metalness:.48,roughness:.74,
+                flatShading:true,map:courseHazardPaint
+            });
+            const obstacleGlow = new THREE.MeshBasicMaterial({
+                color:0xff9c53,side:THREE.DoubleSide,
+                transparent:true,opacity:.83,depthWrite:false
+            });
+            const obstacleLine = new THREE.LineBasicMaterial({
+                color:0xffd18a,transparent:true,opacity:.84
+            });
             obstacleBlueprints.forEach(([routeProgress, laneX, laneY, radius, type = 'BARRIER'], i) => {
                 const g = makeCourseLocalGroup(routeProgress, laneX, laneY);
                 if (type === 'WRECK') {
-                    const wreckHull = new THREE.MeshStandardMaterial({ color: 0x566172, metalness: 0.78, roughness: 0.46, flatShading: true });
-                    const wreckDark = new THREE.MeshStandardMaterial({ color: 0x29313f, metalness: 0.62, roughness: 0.72, flatShading: true });
-                    const glowPanelMat = new THREE.MeshBasicMaterial({ color: 0x6de3ff, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
-                    const warnLineMat = new THREE.LineBasicMaterial({ color: 0xff7b54, transparent: true, opacity: 0.92 });
+                    const wreckHull = new THREE.MeshStandardMaterial({
+                        color:0x81909f,metalness:.48,roughness:.76,
+                        flatShading:true,map:courseWreckPaint
+                    });
+                    const wreckDark = new THREE.MeshStandardMaterial({
+                        color:0x526070,metalness:.39,roughness:.80,
+                        flatShading:true,map:courseWreckPaint
+                    });
+                    const glowPanelMat = new THREE.MeshBasicMaterial({
+                        color:0x86d1ea,transparent:true,opacity:.73,
+                        side:THREE.DoubleSide
+                    });
+                    const warnLineMat = new THREE.LineBasicMaterial({
+                        color:0xffab70,transparent:true,opacity:.88
+                    });
                     const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.34, radius * 0.46, radius * 1.9, 7, 1), wreckHull);
                     fuselage.rotation.z = Math.PI * 0.5;
                     fuselage.rotation.y = (i % 3) * 0.38;
@@ -9986,10 +10049,23 @@
         buildItemAndBarrierCourse();
 
         function buildDerelictBulkheads() {
-            const hull = new THREE.MeshStandardMaterial({ color:0x526077, metalness:0.84, roughness:0.46, flatShading:true });
-            const plating = new THREE.MeshStandardMaterial({ color:0x283044, metalness:0.76, roughness:0.58, flatShading:true });
-            const accent = new THREE.MeshBasicMaterial({color:0xff9256,transparent:true,opacity:0.85});
-            const guidance = new THREE.LineBasicMaterial({color:0x79f5ff,transparent:true,opacity:0.95});
+            // Same original solid gate panels and unchanged traversable
+            // cutouts. Shared worn 64px paint gives the huge surfaces
+            // nuanced tonality, not an additional obstacle/3D part.
+            const hull = new THREE.MeshStandardMaterial({
+                color:0x788797,metalness:.51,roughness:.76,
+                flatShading:true,map:courseWreckPaint
+            });
+            const plating = new THREE.MeshStandardMaterial({
+                color:0x445364,metalness:.37,roughness:.79,
+                flatShading:true,map:courseWreckPaint
+            });
+            const accent = new THREE.MeshBasicMaterial({
+                color:0xffa666,transparent:true,opacity:.83
+            });
+            const guidance = new THREE.LineBasicMaterial({
+                color:0x8bd9e9,transparent:true,opacity:.83
+            });
             for (let i=0;i<chokepointPlan.length;i++) {
                 const [distance,mode] = chokepointPlan[i];
                 const localRadius=getCorridorRadiusAt(distance);

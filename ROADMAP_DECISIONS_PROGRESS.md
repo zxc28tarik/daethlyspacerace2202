@@ -1124,3 +1124,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - 320 mevcut meteor radius/vertex/rota/collision/movement/durability tamamen aynı. Üç sınıfa mineral tonlaması, düşük metalik yansıma, farklı yüz renkleri, doğal soluk konturlar eklendi; ek mesh veya RNG tüketimi yok.
 - Korunan: 49 mor orijinal kutu, ödül sistemi, SB-07 189, Map4 249, koridor.
 - Test: MAP1_NEXT11C21H_METEORS.md; gerçek WebGL eski-yeni aynı geometri karşılaştırması, 320 meteor ve physics/Map4, offline oynanabilir HTML. Dedicated ve full CI takip edilecek. PR stacked draft #103 üzerine. Sonraki etap C21I aynı engel modellerinin yüzey/kenar kalitesi.
+
+## 65) NEXT11C21I — bariyer/enkaz yüzeylerini iyileştir, eski modeli koru
+- Kullanıcı kısıtı: Eski mor kutu, meteor ve bariyer/enkaz modelleri **değişmez**, yalnız çizim/yüzey/malzeme geliştirilebilir.
+- 60+ orijinal BARRIER engelde aynı core + 2 torus + spoke geometrileri, r, 3 vuruş, rota/AI korunur. Koyu metal çekirdeğe ortak 64px deterministik yıpranma haritası, daha mat boyalı çelik, daha yumuşak ve net turuncu uyarı halkası.
+- 8 enkaz kapısı aynı 4 collider + 16 mesh/line/ warning geometri; 64px ikinci ortak paint haritasıyla hafif aşınma ve kontrollü renkler. Yeni geometri, mesh, particle, bloom, RNG yok.
+- C21G6 kutu + C21H meteorler aynen. Gerçek Chromium WebGL eski/yeni bariyer, gerçek yarış kamerası, Map4 fizik ve offline oynanabilir HTML testleri.
+- Tarihi C21G-G5 atom görünüm testlerinin C21G6/C21H/C21I kollarında koşmaması full smoke için düzeltildi. Uygulanan C21G6/C21H/C21I QA koşuyor.
+- [C21I detay](MAP1_NEXT11C21I_BARRIER_WRECK.md); draft, main merge için açık onay gerekir.
