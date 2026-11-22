@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Starblade Tekken 5 Overdrive</title>
+    <title>Deathly Space Race — Yarış ve Görev Seçimi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -216,6 +216,180 @@
             body.map4-composition .map4-flight-status {max-width:45vw;}
             body.map4-composition #planetary-zone-hud {max-width:48vw;}
         }
+
+        /* UIUX-01 — unified interface language; renderer, physics and gameplay untouched. */
+        :root {
+            --ui-bg:#0b1423; --ui-panel:#17273b; --ui-ink:#e9f5fa;
+            --ui-muted:#a1bbc9; --ui-cyan:#72c9dd; --ui-amber:#e4ab5d;
+            --ui-good:#79c9a7; --ui-danger:#f07780;
+            --ui-hairline:rgba(151,200,216,.22);
+        }
+        .ScreenOverlay {box-sizing:border-box;padding:20px 16px;overflow-y:auto;}
+        .ScreenOverlay > .ui-screen-shell {
+            box-sizing:border-box;width:min(100%,930px)!important;max-width:930px!important;
+            max-height:calc(100dvh - 40px);min-width:0;overflow:auto;
+            padding:clamp(20px,2.6vw,34px)!important;
+            border:1px solid rgba(138,193,213,.31)!important;border-radius:16px;
+            clip-path:none!important;color:var(--ui-ink);text-shadow:none;
+            background:linear-gradient(145deg,rgba(17,32,50,.97),rgba(6,16,30,.97))!important;
+            box-shadow:0 28px 90px rgba(0,0,0,.58),inset 0 1px 0 rgba(181,224,234,.08)!important;
+            scrollbar-color:rgba(119,191,215,.48) transparent;
+        }
+        .ui-topline {display:flex;align-items:center;justify-content:space-between;gap:12px;
+            padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--ui-hairline);
+            color:var(--ui-cyan);font:700 11px 'Share Tech Mono',monospace;letter-spacing:.18em;text-align:left;}
+        .ui-meta-code {color:#7697aa;font-weight:400;letter-spacing:.1em;white-space:nowrap;}
+        #start-screen > .ui-screen-shell {text-align:left;}
+        .ui-hero-title {font-size:clamp(29px,4.4vw,51px);font-weight:900;letter-spacing:.025em;line-height:1.04;
+            color:#f4f9fd;margin:0 0 8px;text-shadow:0 3px 22px rgba(15,45,70,.28);}
+        .ui-hero-title span {color:var(--ui-cyan);}
+        .ui-hero-description {font-family:'Share Tech Mono',monospace;font-size:clamp(13px,1.5vw,16px);
+            line-height:1.5;color:#b6ccda;margin:0 0 16px;letter-spacing:.012em;}
+        .ui-menu-summary {display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+            border:1px solid rgba(121,201,167,.24);background:rgba(67,120,109,.08);
+            padding:8px 12px;border-radius:7px;font:700 11px 'Share Tech Mono',monospace;
+            letter-spacing:.08em;color:#a5d9c7;margin-bottom:18px;width:fit-content;}
+        .ui-indicator {width:7px;height:7px;background:var(--ui-good);border-radius:50%;
+            box-shadow:0 0 9px rgba(121,201,167,.5);}
+        .ui-menu-divider{color:#678394;}
+        .ui-section-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;
+            margin:12px 0 9px;padding-bottom:8px;border-bottom:1px solid var(--ui-hairline);
+            font:700 12px 'Share Tech Mono',monospace;color:#e9f5fa;letter-spacing:.13em;}
+        .ui-section-heading small{font-size:10px;font-weight:400;color:#7798aa;letter-spacing:.06em;}
+        #map-selection {margin-bottom:10px;}
+        #map-selection [role="group"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+        #start-screen .map-choice-btn {display:flex;flex-direction:column;align-items:flex-start;gap:7px;
+            min-width:0;min-height:128px;padding:16px;border:1px solid rgba(149,190,205,.30);
+            border-radius:10px;clip-path:none;background:linear-gradient(115deg,rgba(21,43,62,.89),rgba(11,25,43,.96));
+            box-shadow:inset 0 1px 0 rgba(200,230,241,.035);color:var(--ui-ink);
+            transition:border-color .16s,background .16s,transform .16s;cursor:pointer;}
+        #start-screen .map-choice-btn:hover {border-color:rgba(146,217,233,.72);transform:translateY(-2px);}
+        #start-screen .map-choice-btn[aria-pressed="true"]{
+            border-color:var(--ui-cyan);background:linear-gradient(115deg,rgba(39,89,107,.65),rgba(13,33,52,.98));
+            box-shadow:inset 3px 0 0 var(--ui-cyan),0 7px 24px rgba(1,13,29,.23);}
+        #start-screen .map-choice-btn strong {font-family:'Orbitron',sans-serif;font-size:clamp(13px,1.7vw,19px);
+            line-height:1.2;letter-spacing:.03em;}
+        #start-screen .map-choice-btn:focus-visible,.cyber-btn:focus-visible,
+        #start-screen select:focus-visible{outline:3px solid #f2c16b;outline-offset:3px;}
+        .ui-map-index{font:700 11px 'Share Tech Mono',monospace;letter-spacing:.10em;color:#98b8c9;}
+        .ui-map-description{font:400 12px/1.45 'Share Tech Mono',monospace;color:#b7cdd8;}
+        .ui-map-status{margin-top:auto;font:700 11px 'Share Tech Mono',monospace;letter-spacing:.08em;color:var(--ui-good);}
+        .ui-map-status--wip{color:#e7bd7b;}
+        #map-selection-status {font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.45;
+            margin:10px 0 0!important;color:#9ebdce;}
+        #h4-quality-picker{display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+            background:rgba(15,30,45,.66);border:1px solid var(--ui-hairline);
+            border-radius:8px;padding:10px 12px;margin-top:9px!important;}
+        #h4-quality-picker.hidden{display:none!important;}
+        #h4-quality-select{font:700 12px 'Share Tech Mono',monospace;min-height:32px;}
+        .ui-briefing-heading{margin-top:15px;}
+        #start-screen .ui-instruction-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:9px;margin:0 0 15px!important;}
+        #start-screen .ui-instruction-grid.hidden{display:none!important;}
+        #start-screen .ui-instruction-grid > div {min-width:0;border:1px solid rgba(139,183,198,.17)!important;
+            background:rgba(5,18,32,.54)!important;border-radius:7px;
+            padding:12px 14px!important;font:400 12px/1.48 'Share Tech Mono',monospace;color:#b8cbd6;}
+        #start-screen .ui-instruction-grid > div strong,
+        #start-screen .ui-instruction-grid > div > div{font-size:12px;}
+        #start-screen .ui-instruction-grid > div p{margin:5px 0 0;color:#bacbd6;font-size:12px;line-height:1.46;}
+        .ui-launch-row{display:flex;align-items:center;justify-content:space-between;gap:16px;
+            border-top:1px solid var(--ui-hairline);padding-top:16px;margin-top:6px;}
+        .ui-launch-row > span{font:400 11px 'Share Tech Mono',monospace;color:#8da6b7;letter-spacing:.04em;}
+        .cyber-btn.ui-launch-btn,.ui-resume-btn{border:1px solid #a2dce8;
+            border-radius:7px;clip-path:none;padding:13px 22px!important;
+            background:linear-gradient(100deg,#2a6d83,#1a4c67);color:#fff;
+            font:800 clamp(12px,1.3vw,15px) 'Orbitron',sans-serif;
+            letter-spacing:.08em;text-shadow:none;box-shadow:0 6px 24px rgba(17,90,110,.22);}
+        .cyber-btn.ui-launch-btn:hover,.ui-resume-btn:hover{
+            background:linear-gradient(100deg,#3686a1,#246680);box-shadow:0 10px 30px rgba(28,122,153,.32);
+            transform:translateY(-1px) scale(1.005);}
+        .ui-results-shell{max-width:780px!important;text-align:left;}
+        #gameover-title{font:900 clamp(23px,3.6vw,38px)/1.16 'Orbitron',sans-serif;
+            letter-spacing:.035em;margin-bottom:12px!important;text-align:left;text-shadow:none!important;}
+        #race-summary-banner{font:700 13px/1.5 'Share Tech Mono',monospace;
+            padding:12px 14px;border:1px solid rgba(123,191,215,.24);border-radius:7px;
+            background:rgba(32,74,96,.15);color:#c6ebf3;text-align:left;margin-bottom:14px!important;}
+        #race-bonus-summary,#race-sector-splits,#race-telemetry-summary{
+            text-align:left;font:400 12px/1.5 'Share Tech Mono',monospace;
+            overflow-wrap:anywhere;margin:0 0 8px;color:#b2cbd7;}
+        #race-standings-container{border:1px solid var(--ui-hairline)!important;border-radius:9px;
+            background:rgba(4,15,28,.57)!important;padding:14px!important;max-height:38vh;overflow-y:auto;}
+        #race-standings-head{font-size:11px;color:#92b4c6;}
+        #race-standings-list{font-size:12px;}
+        #gameover-screen .cyber-btn{border-radius:7px;text-shadow:none;min-height:42px;}
+        #gameover-screen .ui-screen-shell > div:last-child {justify-content:flex-start;}
+        .ui-pause-shell{max-width:700px!important;}
+        .ui-pause-title{font:900 clamp(24px,3vw,32px) 'Orbitron',sans-serif;color:#eef8f9!important;margin:6px 0 8px!important;}
+        .ui-pause-description{font-size:13px;color:#a5c1d0;margin-bottom:14px!important;}
+        #flight-help-screen .ui-section-heading{margin-bottom:15px;}
+        #flight-help-screen .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+        #flight-help-screen .grid > div{min-width:0;border:1px solid rgba(135,177,196,.14);
+            background:rgba(4,19,34,.58);border-radius:6px;padding:9px 11px;
+            font-size:12px;line-height:1.44;color:#c1d1dc;}
+        #flight-help-screen .grid > div strong{color:var(--ui-cyan);}
+        #flight-help-screen #h4-power-help{grid-column:span 2;border-color:rgba(228,171,93,.29);}
+        body[data-ui-mode="map4"] #ui-map1-pause-note{display:none!important;}
+        #ui-map1-pause-note{font:400 12px/1.5 'Share Tech Mono',monospace;color:#e0b97e;}
+        .ui-resume-btn{width:100%;min-height:48px;}
+        /* In-game: preserve 3D scene. Strengthen readability, soften unused ornament. */
+        #h4-hud-root .hud-box{border-radius:7px;clip-path:none;border-width:1px;
+            box-shadow:0 6px 22px rgba(0,0,0,.18),inset 0 1px 0 rgba(230,250,255,.06);}
+        #h4-hud-root .map4-flight-status{font-variant-numeric:tabular-nums;}
+        body.map4-composition .map4-flight-status{
+            width:min(390px,30vw)!important;max-width:390px!important;
+            padding:10px 12px!important;border-color:rgba(130,190,206,.45);
+            background:rgba(7,19,33,.85);font-size:12px!important;line-height:1.38!important;}
+        body.map4-composition .map4-flight-status #race-hud-details,
+        body.map4-composition .map4-flight-status .text-\[11px\] {font-size:11px!important;line-height:1.42!important;}
+        body.map4-composition .map4-bottom-panel{
+            width:min(290px,25vw)!important;padding:11px 13px!important;
+            border-color:rgba(131,184,205,.36);background:rgba(7,19,33,.83)!important;}
+        body.map4-composition .map4-bottom-panel .text-\[10px\],
+        body.map4-composition .map4-bottom-panel .text-\[11px\]{font-size:10px!important;line-height:1.42!important;}
+        body.map4-composition #hunter-competition-hud{
+            width:min(355px,30vw)!important;max-width:355px!important;
+            top:85px!important;right:16px!important;padding:10px 12px!important;
+            border-color:rgba(214,172,114,.48);background:rgba(12,24,36,.88)!important;}
+        body.map4-composition #hunter-competition-scores{font-size:11px!important;line-height:1.3!important;max-height:86px;}
+        body.map4-composition #planetary-zone-hud{width:min(330px,36vw)!important;max-width:330px!important;
+            padding:8px 12px!important;background:rgba(9,22,37,.81)!important;}
+        body.map4-composition #planetary-zone-name{font-size:13px!important;}
+        body.map4-composition #planetary-zone-hud .text-\[10px\]{font-size:10px!important;line-height:1.3!important;}
+        body.map4-composition #pause-hint{display:none;}
+        body.map4-composition #bonus-status,body.map4-composition #item-status{display:none;}
+        /* At 720p and below, let modal scroll instead of cropping the launch/results actions. */
+        @media(max-width:920px){
+            #start-screen .ui-instruction-grid{gap:8px;}
+            #start-screen .ui-instruction-grid > div{padding:10px 11px!important;}
+            body.map4-composition .map4-flight-status{width:40vw!important;font-size:11px!important;}
+            body.map4-composition #hunter-competition-hud{width:34vw!important;max-width:34vw!important;}
+            body.map4-composition #planetary-zone-hud{max-width:38vw!important;}
+            body.map4-composition .map4-bottom-panel{width:30vw!important;}
+        }
+        @media(max-width:640px){
+            .ScreenOverlay{padding:10px;}
+            .ScreenOverlay > .ui-screen-shell{max-height:calc(100dvh - 20px);
+                padding:17px!important;border-radius:10px;}
+            .ui-topline{font-size:10px;letter-spacing:.07em;}
+            .ui-meta-code{display:none;}
+            #map-selection [role="group"]{grid-template-columns:1fr;gap:8px;}
+            #start-screen .map-choice-btn{min-height:100px;padding:12px;}
+            #start-screen .ui-instruction-grid{grid-template-columns:1fr;}
+            .ui-launch-row{flex-direction:column;align-items:stretch;gap:10px;}
+            .ui-launch-row > span{text-align:center;}
+            .ui-launch-btn{width:100%;}
+            #flight-help-screen .grid{grid-template-columns:1fr;}
+            #flight-help-screen #h4-power-help{grid-column:auto;}
+            #h4-hud-root .map4-bottom-panel{padding:6px!important;}
+            body.map4-composition .map4-flight-status{width:50vw!important;max-width:50vw!important;padding:6px!important;}
+            body.map4-composition #hunter-competition-hud{top:118px!important;right:6px!important;
+                width:43vw!important;max-width:43vw!important;padding:6px!important;}
+            body.map4-composition #planetary-zone-hud{top:8px!important;width:48vw!important;max-width:48vw!important;}
+            body.map4-composition .map4-bottom-panel{width:39vw!important;max-width:39vw!important;padding:7px!important;}
+        }
+        @media(prefers-reduced-motion:reduce){
+            .map-choice-btn,.cyber-btn,.ScreenOverlay .hud-box{transition:none!important;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -382,26 +556,27 @@
     </div>
 
     <div id="start-screen" class="ScreenOverlay">
-        <div class="hud-box max-w-2xl w-full mx-4 p-8 text-center relative">
-            <div class="text-xs tracking-[0.4em] text-cyan-400 uppercase mb-1">NAMCO TEKKEN 5 TRIBUTE // ALL-RANGE EDITION</div>
-            <h1 class="text-4xl sm:text-6xl font-black text-white tracking-wider mb-2" style="text-shadow: 0 0 25px #00f3ff, 0 0 50px #0088ff;">
-                STARBLADE
-            </h1>
-            <div class="text-sm sm:text-base font-bold text-emerald-400 tracking-[0.35em] uppercase mb-6 pb-4 border-b border-cyan-500/30">
-                OVERDRIVE: CORRIDOR COMBAT RACING
-            </div>
+        <div class="hud-box ui-screen-shell ui-start-shell max-w-2xl w-full mx-4 p-8 text-center relative">
+            <div class="ui-topline"><span>UÇUŞ KONTROL MERKEZİ</span><span class="ui-meta-code">SEZON 00 / PROTOTİP</span></div>
+            <h1 class="ui-hero-title">DEATHLY <span>SPACE RACE</span></h1>
+            <p class="ui-hero-description">Yüksek hızda yarış. Tehlikeli rotaları aş. Gezegen atmosferinde savaş.</p>
+            <div class="ui-menu-summary"><span class="ui-indicator"></span> 2 OYNANABİLİR GÖREV <span class="ui-menu-divider">/</span> 6 HARİTALIK PLAN</div>
 
             <!-- H4-01: select a map without allowing an unfinished mode to start Map 1. -->
-            <div id="map-selection" class="mb-5 font-['Share_Tech_Mono'] text-left">
-                <div class="text-xs text-cyan-300 font-bold tracking-widest mb-2">HARİTA SEÇİMİ</div>
+            <div id="map-selection" class="ui-map-selection mb-5 font-['Share_Tech_Mono'] text-left">
+                <div class="ui-section-heading"><span>GÖREV SEÇİMİ</span><small>01 / OPERASYONLAR</small></div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-label="Oyun haritası seçimi">
                     <button type="button" id="map-choice-1" class="map-choice-btn" aria-pressed="true">
-                        <strong class="block text-sm text-white">HARİTA 1 · SAF HIZ YARIŞI</strong>
-                        <span class="block text-xs text-emerald-300 mt-1">OYNANABİLİR · TAMAMLANDI</span>
+                        <span class="ui-map-index">01 / UZAY KORİDORU</span>
+                        <strong class="block text-sm text-white">SAF HIZ YARIŞI</strong>
+                        <span class="ui-map-description">6 pilot · meteorlar · ödüller · birincilik mücadelesi</span>
+                        <span class="ui-map-status">OYNA · HAZIR</span>
                     </button>
                     <button type="button" id="map-choice-4" class="map-choice-btn" aria-pressed="false">
-                        <strong class="block text-sm text-white">HARİTA 4 · GEZEGEN GEÇİŞİ VE SAVAŞ</strong>
-                        <span class="block text-xs text-emerald-300 mt-1">OYNANABİLİR · GELİŞTİRİLİYOR</span>
+                        <span class="ui-map-index">04 / GEZEGEN OPERASYONU</span>
+                        <strong class="block text-sm text-white">GEÇİŞ VE SAVAŞ</strong>
+                        <span class="ui-map-description">4 safha · avcılar · sanayi bölgesi · yörünge</span>
+                        <span class="ui-map-status ui-map-status--wip">OYNA · GELİŞTİRİLİYOR</span>
                     </button>
                 </div>
                 <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
@@ -416,7 +591,8 @@
                 </div>
             </div>
 
-            <div id="map1-instructions" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+            <div class="ui-section-heading ui-briefing-heading"><span>GÖREV BRİFİNGİ</span><small>KURALLAR / KONTROLLER</small></div>
+            <div id="map1-instructions" class="ui-instruction-grid grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> DEV GÖRÜNMEZ UZAY KORİDORU</div>
                     <p class="text-slate-300">Neon sınırları olan bir uzay koridorunda yarışın. <strong>Fare</strong> gemiyi yönlendirir; <strong>A/D veya ←/→</strong> yatay, <strong>↑/↓</strong> dikey manevrayı destekler. <strong>W yön tuşu değil, boost tuşudur.</strong> <strong>P/H</strong> ile duraklatıp kontrolleri görün.</p>
@@ -439,7 +615,7 @@
                 </div>
             </div>
 
-            <div id="map4-instructions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+            <div id="map4-instructions" class="ui-instruction-grid hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
                     <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
                     <p class="text-slate-300">1. Vadide <strong>güvenli orta / hızlı batı / avcı doğu</strong> rotasını seç. 2. 60 saniye üç savaş cephesinde avcı vur. 3. <strong>Sanayi:</strong> alçak batı boru hattı +%12 hız fakat dar, yukarıdaki hat güvenli, doğu tesisleri avcı dolu; köprü ve borulara gerçekten çarpabilirsin. 4. Savaşarak uzaya yüksel.</p>
@@ -457,15 +633,16 @@
                     <p class="text-slate-300">Fareyle nişan al; F / sol tık ile avcı lazeri (silah enerjisi harcar). 1 denge, 2 motor, 3 silah, 4 kalkan gücü. SHIFT/W boost, S fren, X boost sonrası drift, ALT bakış, Q/E tonoz, C kamera, P/H duraklat.</p>
                 </div>
             </div>
-            <button id="start-btn" class="cyber-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">
-                LAUNCH GEOSWORD
-            </button>
+            <div class="ui-launch-row"><span>FARE + KLAVYE / P: YARDIM</span>
+                <button id="start-btn" class="cyber-btn ui-launch-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">GÖREVE BAŞLA</button>
+            </div>
         </div>
     </div>
 
     <!-- OYUN SONU EKRANI -->
     <div id="gameover-screen" class="ScreenOverlay hidden">
-        <div class="hud-box max-w-2xl w-full mx-4 p-6 sm:p-8 text-center">
+        <div class="hud-box ui-screen-shell ui-results-shell max-w-2xl w-full mx-4 p-6 sm:p-8 text-center">
+            <div class="ui-topline"><span>GÖREV SONU / SONUÇ RAPORU</span><span class="ui-meta-code">UÇUŞ TELEMETRİSİ</span></div>
             <h2 id="gameover-title" class="text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2" style="text-shadow: 0 0 20px #ff0044;">
                 SHIELD CRITICAL // DOWN
             </h2>
@@ -511,9 +688,11 @@
 
     <!-- AI-35: pause safely while reading actual controls; never cover the game-over overlay. -->
     <div id="flight-help-screen" class="ScreenOverlay hidden">
-        <div class="hud-box max-w-xl w-full mx-4 p-5 sm:p-7 text-left font-['Share_Tech_Mono']">
-            <h2 class="text-xl text-emerald-300 font-bold mb-1">YARIŞ DURAKLATILDI</h2>
-            <p class="text-xs text-cyan-200 mb-4">Oyun zamanı ve gemi hareketleri bu ekranda durur.</p>
+        <div class="hud-box ui-screen-shell ui-pause-shell max-w-xl w-full mx-4 p-5 sm:p-7 text-left font-['Share_Tech_Mono']">
+            <div class="ui-topline"><span>UÇUŞ KONTROLÜ / PAUSE</span><span class="ui-meta-code">SİSTEM BEKLEMEDE</span></div>
+            <h2 class="ui-pause-title text-xl text-emerald-300 font-bold mb-1">OYUN DURAKLATILDI</h2>
+            <p class="ui-pause-description text-xs text-cyan-200 mb-4">Süre ve uçuş hareketleri durduruldu. Kontroller aşağıda.</p>
+            <div class="ui-section-heading"><span>KONTROL REHBERİ</span><small>KLAVYE / FARE</small></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-200 mb-5">
                 <div><strong class="text-cyan-300">FARE</strong> — serbest yönlendirme</div>
                 <div><strong class="text-cyan-300">A / D, ← / →</strong> — sağ / sol</div>
@@ -526,8 +705,8 @@
                 <div><strong class="text-cyan-300">P / H / ESC</strong> — devam et</div>
                 <div id="h4-power-help" class="hidden sm:col-span-2 text-amber-200"><strong>HARİTA 4:</strong> 1 dengeli · 2 motor · 3 silah · 4 kalkan. X boost sonrası kısa drift, ALT bakış. Lazer silah kapasitöründen enerji harcar; kalkan sadece kalkan odağında, hasarsız süre sonunda yavaş yenilenir.</div>
             </div>
-            <p class="text-xs text-amber-200 mb-4">Mor kutu lazeri 12 saniyeliğine açar. Kenara sürtünme kalkan ve hız kaybettirir.</p>
-            <button id="resume-btn" class="cyber-btn px-6 py-3 font-bold uppercase">YARIŞA DEVAM ET</button>
+            <p id="ui-map1-pause-note" class="text-xs text-amber-200 mb-4">Harita 1: Mor kutu lazeri 12 saniyeliğine açar. Koridor sınırına sürtünmek kalkan ve hız kaybettirir.</p>
+            <button id="resume-btn" class="cyber-btn ui-resume-btn px-6 py-3 font-bold uppercase">UÇUŞA DEVAM ET</button>
         </div>
     </div>
 
@@ -18272,6 +18451,7 @@
             if (mapId !== MAP_MODES.MAP1 && mapId !== MAP_MODES.MAP4) return;
             if (state.running) return; // A running race can never switch maps.
             state.activeMap = mapId;
+            document.body.dataset.uiMode = mapId; // UI presentation only; no gameplay change.
             applyPlanetaryEnvironment();
             const ready = MAP_AVAILABLE[mapId] === true;
             document.getElementById('map-choice-1').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP1));
@@ -18284,8 +18464,8 @@
             document.getElementById('h4-power-help').classList.toggle('hidden',!isMap4);
             document.getElementById('h4-quality-picker').classList.toggle('hidden',!isMap4);
             h4Gfx10SetProfile(h4Gfx10ProfileName);
-            launch.textContent = ready ? (isMap4?'HARİTA 4 · AVCI YARIŞINI BAŞLAT':'HARİTA 1 · YARIŞI BAŞLAT') :
-                'HARİTA 4 · GELİŞTİRİLİYOR';
+            launch.textContent = ready ? (isMap4?'GEZEGEN GÖREVİNİ BAŞLAT':'YARIŞI BAŞLAT') :
+                'GÖREV HAZIR DEĞİL';
             document.getElementById('h4-power-panel').classList.toggle('hidden',!isMap4);
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
