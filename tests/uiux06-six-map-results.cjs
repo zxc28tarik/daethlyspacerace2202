@@ -42,6 +42,7 @@ function bbox(d){return {left:d.left,top:d.top,right:d.right,bottom:d.bottom};}
     assert.equal(await page.locator('#map-choice-'+map.slice(3)).getAttribute('aria-disabled'),'true');
    }
    const info=await page.evaluate(()=>{
+    const bbox=d=>({left:d.left,top:d.top,right:d.right,bottom:d.bottom});
     const buttons=[...document.querySelectorAll('#map-selection .map-choice-btn')];
     const shell=document.querySelector('#start-screen .ui-screen-shell');
     const r=document.querySelector('#map-selection .ui-six-map-grid').getBoundingClientRect();
@@ -149,6 +150,7 @@ function bbox(d){return {left:d.left,top:d.top,right:d.right,bottom:d.bottom};}
     .find(e=>e.isPlayer).validFinish),false);
    // Results responsive and CTA still navigable.
    const geometry=await page.evaluate(()=>{
+    const bbox=d=>({left:d.left,top:d.top,right:d.right,bottom:d.bottom});
     const shell=document.querySelector('#gameover-screen .ui-results-shell');
     const metrics=document.querySelector('#ui-result-quick-metrics').getBoundingClientRect();
     const buttons=[...document.querySelectorAll('#gameover-screen button')]
