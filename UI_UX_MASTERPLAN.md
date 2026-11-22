@@ -30,7 +30,7 @@ Hız yarışı + gezegensel hava savaşı için profesyonel, tek bakışta anla�
 | UIUX-02 | Harita 1 yarış HUD'u: hız/sıra/mesafe; item/boost/kalkan birincil, combo/telemetri ikincil | Dört viewport canlı WebGL, ödül HUD, Map4 dönüş; önceki UIUX-01 ve Map1/Map4 smoke | **YAPILDI-PR / TAM CI PASS / insan estetik ve native GPU FPS açık** |
 | UIUX-03 | Harita 4 dört faza göre değişen görev HUD'u: vadi rota, arena avcı skoru, endüstri engel+rota, yörünge irtifa | Kaynağı mevcut görev kuralları, dört faz/4 viewport WebGL, öncül HUD ve gameplay regresyonu | **YAPILDI-PR / TAM CI PASS; estetik ve native GPU FPS açık** |
 | UIUX-04 | Görev brifingi: 10 saniyede okunur hedef/denetim, gerektiğinde ayrıntılı rehber; ilk tur onboarding | 2 görev brifingi, açılır tüm rehber, oyun saatiyle mini ipuçları, 4 viewport WebGL ve geri uyumluluk | **YAPILDI-PR / TAM CI PASS; insan estetik ve GPU FPS açık** |
-| UIUX-05 | Pause seçenekleri: ses, görüntü profilleri, erişilebilirlik, kontroller; gerçek state ve kalıcı tercih | Ana ses GainNode, grafik profili, HUD yazısı, kontrast, hareket ve yerel kayıt/sıfırlama; 4 viewport Chromium+regresyon | **KODLANDI-PR / CI KONTROLÜ DEVAM EDİYOR** |
+| UIUX-05 | Pause seçenekleri: ses, görüntü profilleri, erişilebilirlik, kontroller; gerçek state ve kalıcı tercih | Ana ses GainNode, grafik profili, HUD yazısı, kontrast, hareket, kalıcılık ve sıfırlama; 4 viewport Chromium+oynanış regresyonu | **YAPILDI-PR / TAM CI PASS; insan estetik ve native GPU FPS açık** |
 | UIUX-06 | Skor sonuç ekranı: Map1 yarış split/gap ve Map4 avcı skoruna özgü hiyerarşi; 6 haritalı seçici 1+4 açık, diğerleri kilitli | DNF ve retry/selector tüm durumlarda çalışır | BEKLİYOR |
 | UIUX-07 | Ekran kadrajı, çözünürlük/ölçek, kontrast, klavye ve runtime regresyonu; 8–12 dakikalık yayıncı capture akışı | Gerçek Chrome WebGL screenshot + kritik fonksiyon testi, insan onayı ve native GPU FPS ayrı | BEKLİYOR |
 
@@ -107,4 +107,12 @@ HTML/CSS değişiklikleri mevcut DOM id'lerini, oyunun arayüzü beslediği iç 
 - `localStorage` içinde sürümlü, tür doğrulamalı 5 tercih; bozuk/depolama kapalı durumlarında güvenli varsayılanlar veya geçici ayar bildirimi; tercihler yenilemede geri yüklenir. Ses cihazına erişim yalnız oyun başlatıldığında, kullanıcı etkileşimiyle sağlanır.
 - **Görsel:** Büyük HUD yazısı yalnız önemli metinler, yüksek kontrast yalnız HUD/önbrifing panelleri, azaltılmış hareket yalnız UI animasyonlarına uygulanır. Dünya, kamera, kontroller ve çarpışmalar etkilenmez.
 - **Test:** [GitHub Actions UIUX05 gerçek Chromium/WebGL](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45044155836) 1600×900 / 1366×768 / 1280×720 / 390×844; tüm ayarlar+storage reload+reset+F7+Map1 izolasyonu+pause/resume ve önceki UIUX01–04/Map1/Map4 gameplay smoke (nihai durum izleniyor).
-- **Kalite kapıları:** otomatik CI nihai sonucu bekliyor; kullanıcı görsel/kullanılabilirlik onayı ve native GPU FPS ayrı.
+- **Kalite kapıları:** otomatik CI tam PASS; kullanıcı görsel/kullanılabilirlik onayı ve native GPU FPS ayrı.
+
+
+### UIUX-05 final otomatik kabul — 22.11.2026
+- [GitHub Actions run #45044155836](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45044155836) **SUCCESS**: canlı Chromium/WebGL UIUX-05 (1600×900, 1366×768, 1280×720, 390×844), UIUX-04/03/02/01 regresyonları, orijinal Map1/Map4 tarayıcı smoke ve ekran arşivi; **bütün adımlar PASS**.
+- Dört viewport test çıktısı: ses master bus `audioBus=true`, kalıcı depolama/yeniden yükleme `persistence=true`, LOW Harita 4 piksel ölçeği `0.67`, `pauseHeld=true`, `reset=true`, `f7Sync=true`, `map1Safe=true` — dört çözünürlükte ayrı ayrı doğrulandı.
+- [UIUX05 gerçek ekran görüntüleri](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45044155836/artifacts/14763486457): varsayılan ve değiştirilmiş duraklatma ayarları, sıfırlama ve önceki UIUX-04 kadrajları.
+- **Önemli kapsam:** Testte Chrome/SwiftShader WebGL kullanıldı; gerçek GPU FPS/performans ve insan estetik kabulü yerine geçmez. Mevcut oyun dosyası değiştirilmiş ama taslak PR'dadır; `main` birleştirilmedi.
+- **Sonraki paket UIUX-06:** mod bazlı yarış/avcı sonuç ekranları, 6 haritalı seçici (1 ve 4 oynanabilir; diğerleri açıkça kilitli).
