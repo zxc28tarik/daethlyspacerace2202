@@ -1333,3 +1333,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **DRAFT/MAIN:** PR #117 stacked DRAFT; izinsiz `main` merge YOK.
 
 **Günlük:** `2026-11-21 | C21U WebGL isolated PASS 14,363 pixels delta>=3 / peak19; 10,476 HULL colored verts; 114=114 draw, GL0, Map4 PASS | full offline HTML verified | historical/full smoke in progress`.
+
+
+## 22 Kasım 2026 — UIUX-01: Oyuncu ekranları / HUD yenilemesi
+- **Yeni master plan:** [UI_UX_MASTERPLAN.md](UI_UX_MASTERPLAN.md); UIUX-01–07 uygulama sırası.
+- **YAPILDI-PR / CI PASS:** #131 stacked draft (base #130), ana dala birleştirilmedi. Menü/görev seçimi, görev bilgilendirme kartları, Harita 4 HUD bilgi hiyerarşisi, duraklatma harita bağlamı, sonuç ekranı, farklı çözünürlük kuralları.
+- **Kanıt:** [run 45035030729](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45035030729) — HTML JS parse, 21 gerçek 3 çözünürlüklü Chromium PNG, iki harita HUD/pause/restart/sonuç ve Map1/Map4 gameplay smoke **PASS**.
+- **Korunanlar:** Map1 onaylı dünya/canvas modeli ve bonuslar, Map4 hedefler, fizik, AI, gemi, skor, rota ve tüm mevcut DOM ID/handler'lar.
+- **Açık kapılar:** insan sanatsal onayı, 1280×720 ayrıntılı kadraj, native GPU FPS; UIUX-02 yarış HUD öncelikleri, UIUX-03 faza duyarlı Map4 HUD, kalan UIUX-04–07.
+- **Not:** Oyun başlığı arayüzde şimdilik *Deathly Space Race* çalışma adı; ticari ad için nihai onay verilmiş sayılmaz.
