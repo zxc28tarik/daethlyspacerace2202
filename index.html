@@ -9217,6 +9217,56 @@
             defenseTower:h4Next22jDefenseTowerGeometry(),
             fracturedWing:h4Next22jFracturedOuterWingGeometry()
         });
+        // NEXT-22L: battlefield distance carrier wreck with a punched-through
+        // reactor cavity and a broken, asymmetrical aft wing.
+        // Only GFX11B's 16 distant carrier shells use this new shared model.
+        function h4Next22lCarrierSilhouetteGeometry(){
+            const shape=new THREE.Shape();
+            shape.moveTo(-.58,-.38);
+            shape.lineTo(-.47,-.18);
+            shape.lineTo(-.56,.17);
+            shape.lineTo(-.36,.37);
+            shape.lineTo(-.22,.32);
+            shape.lineTo(-.13,.49);
+            shape.lineTo(.03,.36);
+            shape.lineTo(.21,.43);
+            shape.lineTo(.41,.20);
+            shape.lineTo(.56,.15);
+            shape.lineTo(.42,-.12);
+            shape.lineTo(.49,-.29);
+            shape.lineTo(.23,-.32);
+            shape.lineTo(.12,-.18);
+            shape.lineTo(-.09,-.36);
+            shape.lineTo(-.32,-.29);
+            shape.lineTo(-.49,-.49);
+            shape.closePath();
+            const cavity=new THREE.Path();
+            cavity.moveTo(-.11,-.06);
+            cavity.lineTo(-.04,.19);
+            cavity.lineTo(.15,.17);
+            cavity.lineTo(.26,.02);
+            cavity.lineTo(.08,-.13);
+            cavity.closePath();
+            shape.holes.push(cavity);
+            const geo=new THREE.ExtrudeGeometry(shape,{
+                depth:.24,steps:1,curveSegments:1,
+                bevelEnabled:true,bevelSize:.012,
+                bevelThickness:.014,bevelSegments:1
+            });
+            geo.translate(0,0,-.12);
+            geo.computeVertexNormals();
+            return geo;
+        }
+        const H4_NEXT22L_CARRIER_GEO=h4Next22lCarrierSilhouetteGeometry();
+        const H4_NEXT22L_CARRIER_MAT=new THREE.MeshStandardMaterial({
+            name:'MAP4_NEXT22L_HOLLOW_DAMAGED_CARRIER_STEEL',
+            map:h4SurfaceMaps.darkSteel,
+            normalMap:h4MicroMaps.metal.normal,
+            normalScale:new THREE.Vector2(.13,.13),
+            roughnessMap:h4MicroMaps.metal.roughness,
+            color:0xa8ada9,roughness:.79,metalness:.33,
+            flatShading:true,side:THREE.DoubleSide
+        });
         const h4Gfx11bArenaStats={batches:0,instances:0,addedColliders:0,
             expectedInstances:74,visualOnly:true};
         let h4Gfx11bArenaSkylineGroup=null;
@@ -9228,8 +9278,8 @@
             group.name='MAP4_GFX11B_ARENA_SKYLINE';
             group.userData.visualOnly=true;
             const specs=[
-                {name:'FRACTURED_CARRIERS',count:16,geo:H4_GFX04_GEO.fracturedCarrier,
-                    mat:H4_GFX04_MAT.armor},
+                {name:'FRACTURED_CARRIERS',count:16,geo:H4_NEXT22L_CARRIER_GEO,
+                    mat:H4_NEXT22L_CARRIER_MAT},
                 {name:'BATTERED_DEFENSE_SPIRES',count:26,geo:H4_NEXT22J_SKYLINE_GEO.defenseTower,
                     mat:H4_GFX04_MAT.defense},
                 {name:'SHATTERED_OUTER_WINGS',count:22,geo:H4_NEXT22J_SKYLINE_GEO.fracturedWing,
