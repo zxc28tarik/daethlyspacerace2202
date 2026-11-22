@@ -30,7 +30,7 @@ Hız yarışı + gezegensel hava savaşı için profesyonel, tek bakışta anla�
 | UIUX-02 | Harita 1 yarış HUD'u: hız/sıra/mesafe; item/boost/kalkan birincil, combo/telemetri ikincil | Dört viewport canlı WebGL, ödül HUD, Map4 dönüş; önceki UIUX-01 ve Map1/Map4 smoke | **YAPILDI-PR / TAM CI PASS / insan estetik ve native GPU FPS açık** |
 | UIUX-03 | Harita 4 dört faza göre değişen görev HUD'u: vadi rota, arena avcı skoru, endüstri engel+rota, yörünge irtifa | Kaynağı mevcut görev kuralları, dört faz/4 viewport WebGL, öncül HUD ve gameplay regresyonu | **YAPILDI-PR / TAM CI PASS; estetik ve native GPU FPS açık** |
 | UIUX-04 | Görev brifingi: 10 saniyede okunur hedef/denetim, gerektiğinde ayrıntılı rehber; ilk tur onboarding | 2 görev brifingi, açılır tüm rehber, oyun saatiyle mini ipuçları, 4 viewport WebGL ve geri uyumluluk | **YAPILDI-PR / TAM CI PASS; insan estetik ve GPU FPS açık** |
-| UIUX-05 | Pause seçenekleri: ses, görüntü profilleri, erişilebilirlik, kontroller; gerçek state ve kalıcı tercih | Hiçbir buton sahte değil, pause state bozulmaz | BEKLİYOR |
+| UIUX-05 | Pause seçenekleri: ses, görüntü profilleri, erişilebilirlik, kontroller; gerçek state ve kalıcı tercih | Ana ses GainNode, grafik profili, HUD yazısı, kontrast, hareket ve yerel kayıt/sıfırlama; 4 viewport Chromium+regresyon | **KODLANDI-PR / CI KONTROLÜ DEVAM EDİYOR** |
 | UIUX-06 | Skor sonuç ekranı: Map1 yarış split/gap ve Map4 avcı skoruna özgü hiyerarşi; 6 haritalı seçici 1+4 açık, diğerleri kilitli | DNF ve retry/selector tüm durumlarda çalışır | BEKLİYOR |
 | UIUX-07 | Ekran kadrajı, çözünürlük/ölçek, kontrast, klavye ve runtime regresyonu; 8–12 dakikalık yayıncı capture akışı | Gerçek Chrome WebGL screenshot + kritik fonksiyon testi, insan onayı ve native GPU FPS ayrı | BEKLİYOR |
 
@@ -97,3 +97,14 @@ HTML/CSS değişiklikleri mevcut DOM id'lerini, oyunun arayüzü beslediği iç 
 - İlk testte pause → resume sonrasında `state.paused` değişimini hemen okuyup sonraki çizim karesini beklemeyen test kontrolü düzeltilmiştir; oyun mantığına/tuşlara müdahale olmadan son test çalışması PASS.
 - Map4 arena/sanayi/yörünge **ipucu gösterimi** ve önceki HUD testlerinde sentetik faz durumu kullanıldı; bütün 4 etap baştan sona oynanmış gibi gösterilmez.
 - **Açık:** insan sanatsal/kullanılabilirlik onayı ve fiziksel GPU üzerinde FPS. `main` birleştirilmedi. Sonraki hedef **UIUX-05**: çalışan ses/grafik/erişilebilirlik ayarları.
+
+
+## UIUX-05 uygulama kaydı — 22.11.2026
+- [Taslak PR #135](https://github.com/zxc28tarik/daethlyspacerace2202/pull/135), önceki PR #134 temel alınarak açıldı. `main` merge edilmedi.
+- Duraklatma içine klavye/erişilebilirlik destekli yerli `details` ayar paneli eklendi: master ses %0–100, Harita 4 HIGH/BALANCED/LOW kalite, HUD yazı normal/büyük, yüksek kontrast, arayüz geçiş hareketlerini azalt ve varsayılana sıfırla.
+- **Ses gerçek:** Mevcut WebAudio osilatör, efekt gain ve buffer ses yolları ortak `masterGain` çıkışına bağlandı; tek cihaz çıkışıyla motor/laser/hit/explosion/EMP topluca ses ayarına uyar. Osilatör sayısı/savaş fiziği değişmez.
+- **Grafik gerçek:** Aynı `h4Gfx10SetProfile` fonksiyonu, pause kalite menüsü, ana menü seçicisi ve F7 arasında senkron. Yalnız Harita 4 render budget değiştirilir; Harita 1 performans/oynanış tercihleri korunur.
+- `localStorage` içinde sürümlü, tür doğrulamalı 5 tercih; bozuk/depolama kapalı durumlarında güvenli varsayılanlar veya geçici ayar bildirimi; tercihler yenilemede geri yüklenir. Ses cihazına erişim yalnız oyun başlatıldığında, kullanıcı etkileşimiyle sağlanır.
+- **Görsel:** Büyük HUD yazısı yalnız önemli metinler, yüksek kontrast yalnız HUD/önbrifing panelleri, azaltılmış hareket yalnız UI animasyonlarına uygulanır. Dünya, kamera, kontroller ve çarpışmalar etkilenmez.
+- **Test:** [GitHub Actions UIUX05 gerçek Chromium/WebGL](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45044155836) 1600×900 / 1366×768 / 1280×720 / 390×844; tüm ayarlar+storage reload+reset+F7+Map1 izolasyonu+pause/resume ve önceki UIUX01–04/Map1/Map4 gameplay smoke (nihai durum izleniyor).
+- **Kalite kapıları:** otomatik CI nihai sonucu bekliyor; kullanıcı görsel/kullanılabilirlik onayı ve native GPU FPS ayrı.
