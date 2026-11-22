@@ -3026,8 +3026,10 @@
         const MAP4_CITY_ARENA=Object.freeze({
             centerProgress:(MAP4_PHASES.introEnd+MAP4_PHASES.arenaEnd)/2,
             centerY:150,radius:1850,craftMargin:55,minAltitude:-315,
-            warningFraction:.84,forwardCruise:.49,forwardThrottle:1.02,
-            reverseThrottle:-.82,rivalPatrol:.56
+            // Arena speed is separate from the high-speed canyon race.
+            // Keep fighters controllable while aiming between city buildings.
+            warningFraction:.84,forwardCruise:.14,forwardThrottle:.32,
+            reverseThrottle:-.26,rivalPatrol:.21
         });
         function map4CityArenaActive(){
             return state.activeMap===MAP_MODES.MAP4 && state.map4ArenaStarted &&
@@ -3246,7 +3248,7 @@
             h4RefreshArenaHunters();
             state.lastHunterHudTick=-1; // Show arena scoring immediately.
             showCenterAnnouncement('ŞEHİR İÇİ HAVA SAVAŞI',
-                '60 SN · BİNALAR ARASINDA SERBEST UÇ · W / S İLERİ GERİ');
+                '60 SN · W/S İLERİ GERİ · A/D YAN · ↑/↓ YÜKSEKLİK');
         }
         function map4UpdatePhase(dt) {
             if(state.activeMap!==MAP_MODES.MAP4||!state.running)return;
@@ -17742,12 +17744,22 @@
                 // 2. Serbest yanal ve dikey uçuş (Harita 4 ikinci aşamada ileri hareket kilitli)
                 const h4FreeLook=state.activeMap===MAP_MODES.MAP4 &&
                     (keys['AltLeft']||keys['AltRight']);
-                moveX = h4FreeLook?0:normMouseX * 850;
-                moveY = h4FreeLook?0:-normMouseY * 750;
-                if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 800;
-                if (keys['KeyD'] || keys['ArrowRight']) moveX += 800;
-                if (keys['ArrowUp']) moveY += 690;
-                if (keys['ArrowDown']) moveY -= 690;
+                if(map4CityArenaActive()){
+                    // CITY02: the mouse aims, not continuously strafes the craft.
+                    // Previously mouse at the screen edge silently pushed the
+                    // fighter into an invisible wall every frame.
+                    moveX=(keys['KeyD']||keys['ArrowRight']?205:0)-
+                        (keys['KeyA']||keys['ArrowLeft']?205:0);
+                    moveY=(keys['ArrowUp']?175:0)-
+                        (keys['ArrowDown']?175:0);
+                }else{
+                    moveX=h4FreeLook?0:normMouseX*850;
+                    moveY=h4FreeLook?0:-normMouseY*750;
+                    if(keys['KeyA']||keys['ArrowLeft'])moveX-=800;
+                    if(keys['KeyD']||keys['ArrowRight'])moveX+=800;
+                    if(keys['ArrowUp'])moveY+=690;
+                    if(keys['ArrowDown'])moveY-=690;
+                }
                 // A paid, short post-boost vectoring window: more steering,
                 // never collision immunity, teleportation or reverse flight.
                 if(state.activeMap===MAP_MODES.MAP4&&state.h4Power.driftTimer>0){
@@ -19393,10 +19405,10 @@
                 'SANAYİ ÇIKIŞINA','GEREKLİ İRTİFA'];
             const throttle=document.getElementById('ui-flight-throttle-hint');
             if(throttle)throttle.textContent=phase===2?
-                'W İLERİ · S GERİ · SHIFT BOOST':'SHIFT / W BOOST · S FREN';
+                'W/S İLERİ GERİ · A/D YAN · SHIFT BOOST':'SHIFT / W BOOST · S FREN';
             const shortcuts=document.getElementById('ui-static-control-hint');
             if(shortcuts)shortcuts.textContent=phase===2?
-                'A/D ↔ · ↑/↓ ↕ · W İLERİ · S GERİ · SHIFT BOOST · F LAZER':
+                'W/S İLERİ GERİ · A/D YAN · ↑/↓ İRTİFA · F LAZER':
                 'A/D ↔ · ↑/↓ ↕ · SHIFT/W BOOST · F/SOL TIK LAZER · P YARDIM';
             const goalLabel=document.getElementById('ui-map4-goal-label');
             const goalValue=document.getElementById('ui-map4-goal-value');
@@ -19435,7 +19447,7 @@
                 context='AVCI PUANI '+Math.round(state.hunterScore);
                 const edge=state.cityBoundaryFraction||0;
                 instruction=(edge>MAP4_CITY_ARENA.warningFraction?
-                    'KÜRE SINIRINA YAKIN · İÇERİ DÖN · ':'W İLERİ / S GERİ · ')+
+                    'KÜRE SINIRINA YAKIN · İÇERİ DÖN · ':'W/S İLERİ GERİ · A/D YAN · ')+
                     pocket.name+' · NORMAL +1 / ELİT +3';
             } else if(phase===3){
                 const remaining=Math.max(0,MAP4_PHASES.industryEnd-state.routeProgress);
