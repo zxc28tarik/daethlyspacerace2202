@@ -83,7 +83,7 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
     currentPlayer:map4CityArenaDistance(state)};
   });
   assert(sphere.clamped,'sphere must constrain real 3d route space');
-  assert(sphere.currentPlayer<MAP4_CITY_ARENA.radius);
+  assert(sphere.currentPlayer<sphere.rad,'player must remain inside sphere');
   await page.screenshot({path:path.join(evidence,'02-city-after-movement.png')});
   // Test near/far lock policy without fake game kills. Retain render objects
   // after measuring; the actual lock finder must refuse all far targets.
