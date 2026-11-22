@@ -767,7 +767,9 @@ const assert = require('node:assert/strict');
         updatePlanetaryWorld();
         const point=h4WorldLandmarks.find(x=>x.zone===i&&x.group.visible);
         return {regionVisible:planetaryWorldRegions[i].visible,
-          landmarkVisible:!!point,
+          landmarkVisible:!!point||(i===1&&!!h4City02DistrictGroup?.visible),
+          obsoleteCityLandmarkHidden:i!==1||
+            h4WorldLandmarks.filter(x=>x.zone===1).every(x=>!x.group.visible),
           label:document.getElementById('planetary-landmark-name').textContent};
       });
       state.routeProgress=initialProgress;
@@ -975,9 +977,12 @@ const assert = require('node:assert/strict');
 
     assert(content.meshes>=55 && content.meshes<200,'bounded additional geometry');
     assert(content.zones.every(z=>z.regionVisible&&z.landmarkVisible),
-      'visible landmarks throughout all four sectors');
-    assert(content.zones.every(z=>z.label.includes('YAKIN NOKTA')),
-      'nearby landmark names on HUD');
+      'real navigable landmark or city district in each of four sectors');
+    assert(content.zones[1].obsoleteCityLandmarkHidden,
+      'superseded arena warfront landmarks must not render over city');
+    assert(content.zones.every((z,i)=>i===1?
+        z.label.includes('ŞEHİR'):z.label.includes('YAKIN NOKTA')),
+      'nearby real urban district or landmark names on HUD');
     assert.equal(planetary.worldVisible,true,'planet landscape visible');
     assert.equal(planetary.corridorVisible,false,'neon race tube hidden');
     assert.equal(planetary.starsVisible,false,'old stars hidden');
