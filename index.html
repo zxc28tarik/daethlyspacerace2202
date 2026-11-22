@@ -1297,6 +1297,10 @@
     <div id="gameover-screen" class="ScreenOverlay hidden">
         <div class="hud-box ui-screen-shell ui-results-shell max-w-2xl w-full mx-4 p-6 sm:p-8 text-center">
             <div class="ui-topline"><span>GÖREV SONU / SONUÇ RAPORU</span><span class="ui-meta-code">UÇUŞ TELEMETRİSİ</span></div>
+            <div class="ui-results-context">
+                <span id="ui-result-mode">01 / SAF HIZ YARIŞI</span>
+                <span id="ui-result-outcome" class="ui-result-outcome">GÖREV TAMAMLANDI</span>
+            </div>
             <h2 id="gameover-title" class="text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2" style="text-shadow: 0 0 20px #ff0044;">
                 SHIELD CRITICAL // DOWN
             </h2>
@@ -1304,10 +1308,18 @@
                 PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
             </div>
 
+            <div id="ui-result-quick-metrics" class="ui-result-quick-metrics" role="group" aria-label="Görev sonucunun temel değerleri">
+                <div class="ui-result-metric"><span id="ui-result-metric-1-label">SIRALAMA</span><strong id="ui-result-metric-1-value">—</strong></div>
+                <div class="ui-result-metric"><span id="ui-result-metric-2-label">SÜRE</span><strong id="ui-result-metric-2-value">—</strong></div>
+                <div class="ui-result-metric"><span id="ui-result-metric-3-label">LİDER FARKI</span><strong id="ui-result-metric-3-value">—</strong></div>
+                <div class="ui-result-metric"><span id="ui-result-metric-4-label">ÖDÜL</span><strong id="ui-result-metric-4-value">—</strong></div>
+            </div>
+            <p id="ui-result-criteria" class="ui-result-criteria">Sıralama: geçerli varış ve yarış süresi</p>
             <div id="race-bonus-summary" class="mb-2 text-xs text-fuchsia-300 font-['Share_Tech_Mono'] tracking-wide">NEAR MISSES 0 • SECTOR TIMES</div>
             <div id="race-sector-splits" class="mb-2 text-[11px] text-cyan-200 font-['Share_Tech_Mono'] tracking-wide"></div>
             <div id="race-telemetry-summary" class="mb-3 text-[11px] text-amber-200 font-['Share_Tech_Mono'] tracking-wide"></div>
             <!-- 6 Yarışçılı Sonuç Tablosu -->
+            <div class="ui-results-table-label"><span id="ui-results-table-title">YARIŞ SONUCU · 6 PİLOT</span><small id="ui-results-table-legend">SIRALAMA / PİLOT / SÜRE</small></div>
             <div id="race-standings-container" class="bg-slate-900/85 border border-cyan-500/40 p-3 sm:p-4 mb-5 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div id="race-standings-head" class="grid grid-cols-12 text-cyan-400/80 border-b border-cyan-500/30 pb-1.5 mb-2 font-bold text-left">
                     <div class="col-span-2">POS</div>
