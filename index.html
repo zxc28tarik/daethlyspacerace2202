@@ -1167,18 +1167,42 @@
             <!-- H4-01: select a map without allowing an unfinished mode to start Map 1. -->
             <div id="map-selection" class="ui-map-selection mb-5 font-['Share_Tech_Mono'] text-left">
                 <div class="ui-section-heading"><span>GÖREV SEÇİMİ</span><small>01 / OPERASYONLAR</small></div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-label="Oyun haritası seçimi">
-                    <button type="button" id="map-choice-1" class="map-choice-btn" aria-pressed="true">
+                <div class="ui-six-map-grid" role="group" aria-label="Altı görev haritasından oynanabilir olanı seç">
+                    <button type="button" id="map-choice-1" data-ui-map="map1" class="map-choice-btn" aria-pressed="true">
                         <span class="ui-map-index">01 / UZAY KORİDORU</span>
-                        <strong class="block text-sm text-white">SAF HIZ YARIŞI</strong>
-                        <span class="ui-map-description">6 pilot · meteorlar · ödüller · birincilik mücadelesi</span>
+                        <strong>SAF HIZ YARIŞI</strong>
+                        <span class="ui-map-description">6 pilot · meteorlar · mor ödüller</span>
                         <span class="ui-map-status">OYNA · HAZIR</span>
                     </button>
-                    <button type="button" id="map-choice-4" class="map-choice-btn" aria-pressed="false">
+                    <button type="button" id="map-choice-2" class="map-choice-btn ui-map-locked" data-ui-map="map2" disabled aria-disabled="true">
+                        <span class="ui-map-index">02 / PLANLANAN HARİTA</span>
+                        <strong>GÖREV 02</strong>
+                        <span class="ui-map-description">Oynanabilir içerik henüz uygulanmadı</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
+                    </button>
+                    <button type="button" id="map-choice-3" class="map-choice-btn ui-map-locked" data-ui-map="map3" disabled aria-disabled="true">
+                        <span class="ui-map-index">03 / ANA ÜS</span>
+                        <strong>ÜS İMHA YARIŞI</strong>
+                        <span class="ui-map-description">Ana üsse ilk ulaş ve yok et</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
+                    </button>
+                    <button type="button" id="map-choice-4" data-ui-map="map4" class="map-choice-btn" aria-pressed="false">
                         <span class="ui-map-index">04 / GEZEGEN OPERASYONU</span>
-                        <strong class="block text-sm text-white">GEÇİŞ VE SAVAŞ</strong>
-                        <span class="ui-map-description">4 safha · avcılar · sanayi bölgesi · yörünge</span>
-                        <span class="ui-map-status ui-map-status--wip">OYNA · GELİŞTİRİLİYOR</span>
+                        <strong>GEÇİŞ VE SAVAŞ</strong>
+                        <span class="ui-map-description">4 safha · avcılar · sanayi · yörünge</span>
+                        <span class="ui-map-status ui-map-status--wip">OYNA · PROTOTİP</span>
+                    </button>
+                    <button type="button" id="map-choice-5" class="map-choice-btn ui-map-locked" data-ui-map="map5" disabled aria-disabled="true">
+                        <span class="ui-map-index">05 / PLANLANAN HARİTA</span>
+                        <strong>GÖREV 05</strong>
+                        <span class="ui-map-description">Oynanabilir içerik henüz uygulanmadı</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
+                    </button>
+                    <button type="button" id="map-choice-6" class="map-choice-btn ui-map-locked" data-ui-map="map6" disabled aria-disabled="true">
+                        <span class="ui-map-index">06 / HAYATTA KALMA</span>
+                        <strong>10 TUR / 3 CAN</strong>
+                        <span class="ui-map-description">Sıralı başlayan turlarda ayakta kal</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
                     </button>
                 </div>
                 <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
