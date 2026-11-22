@@ -26,7 +26,7 @@ Hız yarışı + gezegensel hava savaşı için profesyonel, tek bakışta anla�
 ## Uygulama paketleri
 | Paket | Kapsam | Kabul | Durum |
 | --- | --- | --- | --- |
-| UIUX-01 | Ana menü, harita kartları, kontrol metin hiyerarşisi, duraklatma ve sonuç ekranı için ortak stil; HUD okunurluğu, Map4 özel yerleşim | Kaybolan ID/düğme yok; Map1/Map4 açılış, pause, restart, sonuç, harita seçimi; 1600x900/1366x768/1280x720 taşma kontrolü | UYGULANIYOR |
+| UIUX-01 | Ana menü, harita kartları, kontrol metin hiyerarşisi, duraklatma ve sonuç ekranı için ortak stil; HUD okunurluğu, Map4 özel yerleşim | Oynanabilir iki harita, pause, sonuç ve mod geçişi; 1600×900, 1366×768, 390×844 + ekran görüntüleri | **YAPILDI-PR / CI PASS; insan estetik onayı AÇIK** |
 | UIUX-02 | Harita 1 yarış HUD'u: hız/sıra/mesafe; item/boost/kalkan birincil, combo/telemetri ikincil | Mevcut yarış datası, sayaç, etkileşim korunur | BEKLİYOR |
 | UIUX-03 | Harita 4 dört faza göre değişen görev HUD'u: vadi rota, arena avcı skoru, endüstri engel+rota, yörünge irtifa | 60 sn arena, 300 sn DNF, 850 irtifa ile birebir veri, görünürlük regresyonu | BEKLİYOR |
 | UIUX-04 | Görev brifingi: 10 saniyede okunur hedef/denetim, gerektiğinde ayrıntılı rehber; ilk tur onboarding | İlk başlayan oyuncu kuralları anlayabilir, kontrol atamalarına dokunulmaz | BEKLİYOR |
@@ -48,3 +48,11 @@ HTML/CSS değişiklikleri mevcut DOM id'lerini, oyunun arayüzü beslediği iç 
 - Her paket bir stacked DRAFT PR; PR #130'u bozma, main'i otomatik birleştirme.
 - Harita 1 sahne kodu ve ödül kutuları kesinlikle değişmez.
 - Sonuçları tamamlandı ilan etmeden önce CI sonucunu kaydet; ispat yoksa DOĞRULAMA durumunda bırak.
+
+## UIUX-01 kabul kaydı — 22.11.2026
+- İş kolu `codex/uiux-01-screen-hud-system`, [taslak PR #131](https://github.com/zxc28tarik/daethlyspacerace2202/pull/131); stacked base PR #130; `main` birleştirilmedi.
+- [GitHub Actions run #45035030729](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45035030729): **SUCCESS**. JavaScript parse, yeni `tests/uiux01-screen-regression.cjs`, eski `tests/map4-browser-smoke.cjs` tamamen geçti.
+- UI testinde 3 çözünürlük × 7 kadraj = **21 gerçek Chromium/WebGL PNG** üretildi; artefakt [uiux01-screen-evidence](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45035030729/artifacts/14759151824). Grafik iyileştirmelerinin sanatsal onayı ayrıca açık.
+- 1600×900 / 1366×768 / 390×844 menu/H1-H4 HUD/pause/sonuç, ekranda menü içi taşma, harita seçimi, restart ve sonuç ekranı doğrulandı.
+- Testin ilk çalışmasında kök `scrollWidth` eski `#shield-ring` dekorunun bilerek 4vw ekran dışına taşmasını kapsıyordu. HUD FX korunarak, test yalnız gerçek menü yüzeyinin taşmasına odaklandı.
+- Mevcut bu paket 1280×720 ekran kaydını içermez; bu çözünürlük ve gerçek GPU FPS/UI sanatsal onayı sonraki UIUX-07 kabulünde yapılacak.
