@@ -73,9 +73,9 @@ async function setRange(page,id,value){
     !document.getElementById('flight-help-screen').classList.contains('hidden'),
     null,{timeout:12000});
    assert.equal(await page.locator('#ui-settings-panel').isVisible(),true);
-   assert.equal(await page.locator('#ui-settings-panel').evaluate(e=>e.open),false);
+   // UIUX08: the approved side-by-side pause menu shows settings immediately.
+   assert.equal(await page.locator('#ui-settings-panel').evaluate(e=>e.open),true);
    const pausedTime=await page.evaluate(()=>state.raceTime);
-   await page.locator('#ui-settings-panel summary').click();
    assert.equal(await page.locator('#ui-settings-panel').evaluate(e=>e.open),true);
    for(const id of ['#ui-setting-volume','#ui-setting-graphics','#ui-setting-hud-text',
     '#ui-setting-contrast','#ui-setting-reduced-motion','#ui-settings-reset'])
@@ -147,7 +147,7 @@ async function setRange(page,id,value){
    await page.keyboard.press('p');
    await page.waitForFunction(()=>state.paused,null,{timeout:12000});
    assert.equal(await page.locator('#ui-setting-graphics').inputValue(),'BALANCED');
-   await page.locator('#ui-settings-panel summary').click();
+   assert.equal(await page.locator('#ui-settings-panel').evaluate(e=>e.open),true);
    // A functional reset must update audio graph, graphics, HUD, and stored values.
    await page.locator('#ui-settings-reset').click();
    const reset=await page.evaluate(()=>({
