@@ -1342,3 +1342,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Korunanlar:** Map1 onaylı dünya/canvas modeli ve bonuslar, Map4 hedefler, fizik, AI, gemi, skor, rota ve tüm mevcut DOM ID/handler'lar.
 - **Açık kapılar:** insan sanatsal onayı, 1280×720 ayrıntılı kadraj, native GPU FPS; UIUX-02 yarış HUD öncelikleri, UIUX-03 faza duyarlı Map4 HUD, kalan UIUX-04–07.
 - **Not:** Oyun başlığı arayüzde şimdilik *Deathly Space Race* çalışma adı; ticari ad için nihai onay verilmiş sayılmaz.
+
+
+## 22 Kasım 2026 — UIUX-02: Harita 1 yarış HUD
+- **GELİŞTİRME-PR:** [#132](https://github.com/zxc28tarik/daethlyspacerace2202/pull/132), stacked base #131; `main` merge yok.
+- **Yapıldı (kod):** yarış sırası, mesafe, zaman ve hız için yeniden tasarlanan ana HUD; aktif ödül ve bonusu belirginleştirme; kalkan/enerji ve lazeri alt köşelere ayırma; combo/radar/statik kontrol satırı görsel gürültüsünü düşürme.
+- **Kontrol:** 1600×900 / 1366×768 / 1280×720 / 390×844 gerçek Chromium Map1, aktif ödül ve Map4 dönüş testi PASS. UIUX-01 menü/pause/sonuç ve orijinal iki harita oynanış smoke **PASS**. [Run #45036308389](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45036308389) SUCCESS, [ekran arşivi](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45036308389/artifacts/14760420068).
+- **Oyun motoru korunur:** Map1 onaylı 3D model, 49 kutu, rakip AI, hız, lazer ve yarış istatistikleri; Map4 dünyası, çarpışmaları ve 60sn/300sn/850 irtifa.
+- **Açık:** insan sanatsal onayı, native GPU FPS. **Kod ve otomatik CI: YAPILDI-PR / PASS**. Sonraki UIUX-03 Harita 4 faz HUD'u.

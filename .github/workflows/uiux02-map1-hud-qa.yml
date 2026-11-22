@@ -1,0 +1,45 @@
+name: UIUX02 Map1 race HUD acceptance
+on:
+  push:
+    branches: [codex/uiux-02-map1-race-hud]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  uiux02-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Check embedded JS parses
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(Boolean);
+          if(!scripts.length)throw Error('No embedded JS');
+          scripts.forEach(src=>new vm.Script(src));
+          console.log('PASS: embedded JS parse');
+          NODE
+      - name: Four viewport live Map1 HUD and Map4 scene checks
+        run: node tests/uiux02-map1-race-hud.cjs
+      - name: UIUX01 menu pause results regression
+        run: node tests/uiux01-screen-regression.cjs
+      - name: Original Map1 and Map4 gameplay regression
+        run: node tests/map4-browser-smoke.cjs
+      - name: Archive UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uiux02-webgl-evidence
+          path: |
+            tests/uiux02-evidence/*.png
+            tests/uiux01-evidence/*.png
+          if-no-files-found: warn
