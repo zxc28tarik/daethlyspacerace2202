@@ -1367,3 +1367,12 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Doğrulama:** [UIUX04 kabul workflow](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45039216610), 4 viewport WebGL + UIUX-03/02/01 + Map1/4 gerçek smoke (nihai sonuç bekleniyor).
 - **UIUX-03 kapanış:** [UIUX03 run #45038335370](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45038335370) SUCCESS, dört aşama ve önceki regresyonlar PASS. Aşama 2–4 HUD sentetik durum testleri, tam bölüm oynanış kanıtı değildir.
 - **Doğrulama:** [run #45039381784](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45039381784) SUCCESS; UIUX04 + UIUX03/02/01 + Map1/Map4 smoke adımlarının tamamı PASS. [Gerçek Chromium görsel arşivi](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45039381784/artifacts/14761228232). **Açık:** kullanıcı tarafından görsel ve anlaşılabilirlik onayı, gerçek GPU FPS; sonraki UIUX-05 çalışır ayar seçenekleri.
+
+
+## 22 Kasım 2026 — UIUX-05: çalışan ayarlar paneli
+- **Kod ve arayüz uygulandı:** [Taslak PR #135](https://github.com/zxc28tarik/daethlyspacerace2202/pull/135), PR #134 tabanlı; `main` merge yok.
+- **Gerçek seçenekler:** Ana ses düzeyi 0–100 tüm motor ve efektleri ortak WebAudio GainNode üzerinden etkiler. Harita 4 HIGH/BALANCED/LOW mevcut grafik motoru ile; F7/menü/pause senkron. HUD büyük yazı, yüksek kontrast, arayüz geçişlerini azaltma ve tüm ayarları sıfırlama.
+- **Kalıcı tercih:** Sürümlü `localStorage`; geçersiz değerlerde varsayılanlar, depolama kapalıysa geçici kullanım bildirimi; HTML dosyası yeniden yüklendiğinde ayarlar geri okunur.
+- **Korunan hedefler:** Map1 49 mor kutu, fizik, gemiler, AI, mevcut harita/görev tasarımları, Map4 60sn arena/300sn limit/850m yörünge ve var olan kontrol kısayolları.
+- **Gerçek browser kalite kapısı:** [UIUX05 CI run #45044155836](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45044155836) başlatıldı; 4 viewport + ses grafı ve kalıcılık kabulü + önceki UIUX-04/03/02/01 ve Map1/4 smoke; nihai sonuç bekleniyor.
+- **Açık:** nihai test sonucu, estetik/kullanılabilirlik onayı ve gerçek GPU FPS. Sonraki UIUX-06 sonuç ekranlarının mod bazlı iyileştirilmesi ve 6 harita seçici.
