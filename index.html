@@ -9220,6 +9220,8 @@
         const h4Gfx11bArenaStats={batches:0,instances:0,addedColliders:0,
             expectedInstances:74,visualOnly:true};
         let h4Gfx11bArenaSkylineGroup=null;
+        let h4Next22kArenaWreckGroup=null;
+        const h4Next22kPhaseVisibility={updates:0,culledOutsideArena:0,lastVisible:false};
         function h4Gfx11bBuildArenaSkyline(zone){
             if(zone.userData.h4Gfx11bArenaBuilt)return;
             const group=new THREE.Group();
@@ -9511,6 +9513,7 @@
                 h4Next22eStats.byType[spec.type]+=spec.count;
             }
             zone.add(root);
+            h4Next22kArenaWreckGroup=root;
             zone.userData.h4Next22eDressed=true;
         }
 
@@ -10096,12 +10099,20 @@
                     planetaryWorldRegions[i].userData.gfx04IndustrialVisuals.visible=
                         state.map4Phase!==2;
             }
-            // NEXT11B: reveal the distinct warfront skyline on the approach
-            // and during the 60s arena; NEVER leak it into later factory flight.
+            // NEXT22K: BOTH independently mounted arena art groups must obey
+            // the same phase envelope. Previously the 112-piece wreck group
+            // was not linked and leaked into visible neighboring industry.
+            // This changes render visibility only, not colliders or gameplay.
+            const arenaVisualActive=state.map4Phase===2 ||
+                (state.map4Phase===1 && state.routeProgress>11200);
             if(h4Gfx11bArenaSkylineGroup)
-                h4Gfx11bArenaSkylineGroup.visible=
-                    state.map4Phase===2 ||
-                    (state.map4Phase===1 && state.routeProgress>11200);
+                h4Gfx11bArenaSkylineGroup.visible=arenaVisualActive;
+            if(h4Next22kArenaWreckGroup){
+                h4Next22kArenaWreckGroup.visible=arenaVisualActive;
+                if(!arenaVisualActive)h4Next22kPhaseVisibility.culledOutsideArena++;
+            }
+            h4Next22kPhaseVisibility.lastVisible=arenaVisualActive;
+            h4Next22kPhaseVisibility.updates++;
             // Cull distant compositions inside active regions to limit draw calls.
             h4Gfx06eUpdateFineDetail();
             h4Gfx07UpdateLighting();
