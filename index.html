@@ -9267,6 +9267,30 @@
             color:0xa8ada9,roughness:.79,metalness:.33,
             flatShading:true,side:THREE.DoubleSide
         });
+        // NEXT-22M: curated material hierarchy. Metallic wrecks are matte and
+        // dusty, defensive structures retain lighter cool steel, and broken
+        // wings remain dark without becoming featureless silhouettes.
+        // Reuses existing texture atlases, no extra lights or draw batches.
+        const H4_NEXT22M_MATERIALS=Object.freeze({
+            defense:new THREE.MeshStandardMaterial({
+                name:'MAP4_NEXT22M_DEFENSE_COOL_STEEL',
+                map:h4SurfaceMaps.steel,
+                normalMap:h4MicroMaps.metal.normal,
+                normalScale:new THREE.Vector2(.18,.18),
+                roughnessMap:h4MicroMaps.metal.roughness,
+                color:0x99b3c0,roughness:.70,metalness:.36,
+                flatShading:true
+            }),
+            brokenWing:new THREE.MeshStandardMaterial({
+                name:'MAP4_NEXT22M_FRACTURED_WING_CHAR_STEEL',
+                map:h4SurfaceMaps.darkSteel,
+                normalMap:h4MicroMaps.metal.normal,
+                normalScale:new THREE.Vector2(.17,.17),
+                roughnessMap:h4MicroMaps.metal.roughness,
+                color:0x89979b,roughness:.89,metalness:.21,
+                flatShading:true,side:THREE.DoubleSide
+            })
+        });
         const h4Gfx11bArenaStats={batches:0,instances:0,addedColliders:0,
             expectedInstances:74,visualOnly:true};
         let h4Gfx11bArenaSkylineGroup=null;
@@ -9281,9 +9305,9 @@
                 {name:'FRACTURED_CARRIERS',count:16,geo:H4_NEXT22L_CARRIER_GEO,
                     mat:H4_NEXT22L_CARRIER_MAT},
                 {name:'BATTERED_DEFENSE_SPIRES',count:26,geo:H4_NEXT22J_SKYLINE_GEO.defenseTower,
-                    mat:H4_GFX04_MAT.defense},
+                    mat:H4_NEXT22M_MATERIALS.defense},
                 {name:'SHATTERED_OUTER_WINGS',count:22,geo:H4_NEXT22J_SKYLINE_GEO.fracturedWing,
-                    mat:H4_GFX04_MAT.soot},
+                    mat:H4_NEXT22M_MATERIALS.brokenWing},
                 {name:'POCKET_SIGNAL_FIRES',count:10,geo:H4_GFX04_GEO.beacon,
                     mat:H4_GFX04_MAT.ember}
             ];
@@ -9342,10 +9366,10 @@
                     const tone=spec.name==='POCKET_SIGNAL_FIRES'?
                         (i%3===0?0xffb065:i%3===1?0xe87b51:0x91cfe6):
                         spec.name==='BATTERED_DEFENSE_SPIRES'?
-                        (i%4===0?0x7e8992:i%4===1?0x8e775f:0x647487):
+                        (i%4===0?0xa0afb4:i%4===1?0xa09b8d:0x8da4b1):
                         spec.name==='FRACTURED_CARRIERS'?
                         (i%3===0?0xb9a69b:i%3===1?0x6c8291:0x8d8c89):
-                        (i%2?0x7c7270:0x647f8e);
+                        (i%2?0x8d8785:0x7e929d);
                     batch.setColorAt(i,new THREE.Color(tone));
                 }
                 batch.instanceMatrix.setUsage(THREE.StaticDrawUsage);
