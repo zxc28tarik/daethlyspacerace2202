@@ -1249,22 +1249,81 @@
                 <div id="h4-power-help" class="hidden sm:col-span-2 text-amber-200"><strong>HARİTA 4:</strong> 1 dengeli · 2 motor · 3 silah · 4 kalkan. X boost sonrası kısa drift, ALT bakış. Lazer silah kapasitöründen enerji harcar; kalkan sadece kalkan odağında, hasarsız süre sonunda yavaş yenilenir.</div>
             </div>
             <p id="ui-map1-pause-note" class="text-xs text-amber-200 mb-4">Harita 1: Mor kutu lazeri 12 saniyeliğine açar. Koridor sınırına sürtünmek kalkan ve hız kaybettirir.</p>
+            <details id="ui-settings-panel" class="ui-settings-panel">
+                <summary class="ui-settings-toggle"><span>⚙ SES · GÖRÜNTÜ · OKUNABİLİRLİK</span><span class="ui-settings-toggle-state" aria-hidden="true">AYARLAR</span></summary>
+                <div class="ui-settings-content">
+                    <div class="ui-setting-row"><div class="ui-setting-label"><label for="ui-setting-volume">ANA SES DÜZEYİ</label><small>Motor, lazer, hasar ve efektler</small></div>
+                        <div class="ui-setting-control ui-setting-volume"><input id="ui-setting-volume" type="range" min="0" max="100" step="5" value="100"><output id="ui-setting-volume-output" for="ui-setting-volume">100%</output></div></div>
+                    <div class="ui-setting-row"><div class="ui-setting-label"><label for="ui-setting-graphics">GÖRÜNTÜ KALİTESİ</label><small>Harita 4 · F7 ile aynı profil</small></div>
+                        <div class="ui-setting-control"><select id="ui-setting-graphics"><option value="HIGH">Yüksek</option><option value="BALANCED">Dengeli</option><option value="LOW">Performans</option></select></div></div>
+                    <div class="ui-setting-row"><div class="ui-setting-label"><label for="ui-setting-hud-text">HUD YAZI BOYUTU</label><small>Önemli gösterge metinleri</small></div>
+                        <div class="ui-setting-control"><select id="ui-setting-hud-text"><option value="NORMAL">Normal</option><option value="LARGE">Büyük</option></select></div></div>
+                    <div class="ui-setting-row"><div class="ui-setting-label"><label for="ui-setting-contrast">YÜKSEK KONTRAST</label><small>HUD panel ve yazı ayrımı</small></div>
+                        <div class="ui-setting-control"><input id="ui-setting-contrast" type="checkbox"></div></div>
+                    <div class="ui-setting-row"><div class="ui-setting-label"><label for="ui-setting-reduced-motion">ARAYÜZ HAREKETİNİ AZALT</label><small>Geçiş animasyonları · uçuş fiziği değişmez</small></div>
+                        <div class="ui-setting-control"><input id="ui-setting-reduced-motion" type="checkbox"></div></div>
+                    <div class="ui-settings-actions"><span id="ui-settings-save-status" role="status">Tercihler</span><button id="ui-settings-reset" type="button">VARSAYILANLARA DÖN</button></div>
+                </div>
+            </details>
             <button id="resume-btn" class="cyber-btn ui-resume-btn px-6 py-3 font-bold uppercase">UÇUŞA DEVAM ET</button>
         </div>
     </div>
 
     <script>
+        /* UIUX-05: versioned preferences, safe even when file:// storage is blocked. */
+        const UI_SETTINGS_KEY='deathly-space-race.uiux05.v1';
+        const UI_SETTINGS_DEFAULTS=Object.freeze({
+            masterVolume:100,graphics:'HIGH',hudText:'NORMAL',
+            highContrast:false,reducedMotion:false
+        });
+        function uiLoadSettings(){
+            let saved=null;
+            try{saved=JSON.parse(localStorage.getItem(UI_SETTINGS_KEY)||'null');}
+            catch(_err){saved=null;}
+            const prefs={...UI_SETTINGS_DEFAULTS};
+            if(!saved||typeof saved!=='object')return prefs;
+            if(Number.isFinite(saved.masterVolume)&&saved.masterVolume>=0&&saved.masterVolume<=100)
+                prefs.masterVolume=Math.round(saved.masterVolume/5)*5;
+            if(['HIGH','BALANCED','LOW'].includes(saved.graphics))prefs.graphics=saved.graphics;
+            if(['NORMAL','LARGE'].includes(saved.hudText))prefs.hudText=saved.hudText;
+            if(typeof saved.highContrast==='boolean')prefs.highContrast=saved.highContrast;
+            if(typeof saved.reducedMotion==='boolean')prefs.reducedMotion=saved.reducedMotion;
+            return prefs;
+        }
+        const uiSettings=uiLoadSettings();
+        let uiStorageAvailable=null;
+        function uiSaveSettings(){
+            try{localStorage.setItem(UI_SETTINGS_KEY,JSON.stringify(uiSettings));uiStorageAvailable=true;}
+            catch(_err){uiStorageAvailable=false;}
+            const status=document.getElementById('ui-settings-save-status');
+            if(status)status.textContent=uiStorageAvailable?
+                'Tercihler bu tarayıcıya kaydedildi':'Depolama kapalı · geçici ayarlar';
+            return uiStorageAvailable;
+        }
         class OverdriveSound {
             constructor() {
                 this.ctx = null;
                 this.engineOsc = null;
                 this.engineGain = null;
+                this.masterGain=null;
+                this.masterVolume=uiSettings.masterVolume;
+            }
+            setVolume(level){
+                const n=Number(level);
+                this.masterVolume=Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):100;
+                if(this.ctx&&this.masterGain)this.masterGain.gain.setTargetAtTime(
+                    this.masterVolume/100,this.ctx.currentTime,.02);
             }
             init() {
                 if (!this.ctx) {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 }
                 if (this.ctx.state === 'suspended') this.ctx.resume();
+                if(!this.masterGain){
+                    this.masterGain=this.ctx.createGain();
+                    this.masterGain.gain.value=this.masterVolume/100;
+                    this.masterGain.connect(this.ctx.destination);
+                }
                 if (!this.engineOsc) {
                     // Tek sefer kurulan düşük seviyeli motor sesi; restart'ta osilatör birikmez.
                     this.engineOsc = this.ctx.createOscillator();
@@ -1273,7 +1332,7 @@
                     this.engineOsc.frequency.value = 95;
                     this.engineGain.gain.value = 0;
                     this.engineOsc.connect(this.engineGain);
-                    this.engineGain.connect(this.ctx.destination);
+                    this.engineGain.connect(this.masterGain);
                     this.engineOsc.start();
                 }
             }
@@ -1295,7 +1354,7 @@
                 gain.gain.setValueAtTime(0.11, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.masterGain);
                 osc.start(now);
                 osc.stop(now + 0.13);
             }
@@ -1310,7 +1369,7 @@
                 gain.gain.setValueAtTime(0.06, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.masterGain);
                 osc.start(now);
                 osc.stop(now + 0.09);
             }
@@ -1325,7 +1384,7 @@
                 gain.gain.setValueAtTime(0.14, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.masterGain);
                 osc.start(now);
                 osc.stop(now + 0.08);
             }
@@ -1353,7 +1412,7 @@
 
                 noise.connect(filter);
                 filter.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.masterGain);
                 noise.start(now);
             }
             playEMP() {
@@ -1368,7 +1427,7 @@
                 gain.gain.setValueAtTime(0.25, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
                 osc.connect(gain);
-                gain.connect(this.ctx.destination);
+                gain.connect(this.masterGain);
                 osc.start(now);
                 osc.stop(now + 0.55);
             }
@@ -1798,7 +1857,7 @@
             LOW:Object.freeze({resolutionScale:.67,lodRange:.68,detailRange:.66,fxCap:.50,localLights:false})
         });
         const H4_GFX10_ORDER=Object.freeze(['HIGH','BALANCED','LOW']);
-        let h4Gfx10ProfileName='HIGH';
+        let h4Gfx10ProfileName=uiSettings.graphics;
         const h4Gfx10Stats={preset:'HIGH',pixelRatio:Math.min(window.devicePixelRatio||1,2),
             samples:0,frameP95Ms:null,frameMedianMs:null,renderCalls:0,
             triangles:0,geometries:0,textures:0,profileChanges:0,
@@ -1808,6 +1867,9 @@
         function h4Gfx10SetProfile(preset){
             if(!Object.prototype.hasOwnProperty.call(H4_GFX10_PROFILES,preset))return false;
             h4Gfx10ProfileName=preset;
+            if(uiSettings.graphics!==preset){uiSettings.graphics=preset;uiSaveSettings();}
+            const pauseQuality=document.getElementById('ui-setting-graphics');
+            if(pauseQuality)pauseQuality.value=preset;
             h4Gfx10Stats.preset=preset;
             h4Gfx10Stats.profileChanges++;
             const isMap4=state.activeMap===MAP_MODES.MAP4;
