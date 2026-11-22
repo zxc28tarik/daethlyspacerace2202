@@ -17817,6 +17817,13 @@
             if(state.activeMap===MAP_MODES.MAP4 &&
                 state.h4Power.driftTimer>0)
                 targetRoll*=1.24;
+            if(map4CityArenaActive()){
+                // CITY02: raw mouse steering previously caused a >120-degree
+                // auto-bank and the chase camera followed it. The whole city
+                // appeared sideways like a wall. Keep agile ship banking
+                // WITHOUT rotating the city and terrain into a vertical wall.
+                targetRoll=THREE.MathUtils.clamp(targetRoll,-.28,.28);
+            }
             if (!state.finished && state.barrelRollTimer > 0) {
                 state.barrelRollTimer -= dt;
                 targetRoll += state.barrelRollDir * (1 - state.barrelRollTimer / 0.55) * Math.PI * 2;
@@ -17855,7 +17862,8 @@
                     (state.currentSpeed-RACE_SPEEDS.NORMAL)/
                     (RACE_SPEEDS.BOOST-RACE_SPEEDS.NORMAL),0,1);
                 const holdingBoost=!!(
-                    keys['ShiftLeft']||keys['ShiftRight']||keys['KeyW'])
+                    keys['ShiftLeft']||keys['ShiftRight']||
+                    (!map4CityArenaActive()&&keys['KeyW']))
                     &&state.energy>4;
                 const blend=Math.max(speedExtra,holdingBoost?.48:0);
                 h4Ship19CameraGoal.set(
@@ -17872,11 +17880,12 @@
                 const safeCameraPos=h4Chase?
                     h4Gfx09SafeChase(desiredCamPos,routeFrame):desiredCamPos;
                 camera.position.copy(safeCameraPos);
-                camera.quaternion.slerp(playerRig.quaternion,
-                    Math.min(1,9*dt));
+                camera.quaternion.slerp(map4CityArenaActive()?
+                    routeQuat:playerRig.quaternion,Math.min(1,9*dt));
             } else {
                 camera.position.copy(state.pos);
-                camera.quaternion.copy(playerRig.quaternion);
+                camera.quaternion.copy(map4CityArenaActive()?
+                    routeQuat:playerRig.quaternion);
                 if(state.activeMap===MAP_MODES.MAP4)
                     h4Gfx09CameraInfo.occluded=false;
             }
