@@ -11772,7 +11772,11 @@
             // was not linked and leaked into visible neighboring industry.
             // This changes render visibility only, not colliders or gameplay.
             const arenaVisualActive=state.map4Phase===2 ||
-                (state.map4Phase===1 && state.routeProgress>11200);
+                (state.map4Phase===1 && state.routeProgress>11200) ||
+                // The city must not blink away at second 60 while pilots are
+                // still physically inside its buildings.
+                (state.map4Phase===3 && state.routeProgress<
+                    MAP4_PHASES.arenaEnd+1700);
             if(h4Gfx11bArenaSkylineGroup)
                 h4Gfx11bArenaSkylineGroup.visible=arenaVisualActive;
             if(h4Next22kArenaWreckGroup){
@@ -16297,10 +16301,11 @@
                 const from=shot.mesh.position.clone();
                 shot.mesh.position.addScaledVector(shot.dir,shot.speed*dt);
                 shot.life -= dt;
-                const hit=findHunterLaserImpact(from,shot.mesh.position);
+                const blocked=h4CitySegmentBlocked(from,shot.mesh.position);
+                const hit=blocked?null:findHunterLaserImpact(from,shot.mesh.position);
                 if (hit) damageHunterTarget(hit.target, MAP4_HUNTERS.laserDamage,
                     shot.ownerId, hit.point);
-                if (hit || shot.life<=0) {
+                if (hit || blocked || shot.life<=0) {
                     scene.remove(shot.mesh);
                     hunterRivalShots.splice(i,1);
                 }
@@ -17864,10 +17869,16 @@
                 let hit = false;
                 // Kareler arasında hızla ilerleyen ışının tüm segmentini test et.
                 if (state.activeMap === MAP_MODES.MAP4) {
-                    const impact = findHunterLaserImpact(laserFrom, l.mesh.position);
-                    if (impact) {
-                        hit = true;
-                        damageHunterTarget(impact.target, MAP4_HUNTERS.laserDamage, 'PLAYER', impact.point);
+                    if(h4CitySegmentBlocked(laserFrom,l.mesh.position)){
+                        // Actual cover blocks a projectile; no firing through towers.
+                        hit=true;
+                        createLaserImpactPulse(l.mesh.position,false,1);
+                    }else{
+                        const impact = findHunterLaserImpact(laserFrom, l.mesh.position);
+                        if (impact) {
+                            hit = true;
+                            damageHunterTarget(impact.target, MAP4_HUNTERS.laserDamage, 'PLAYER', impact.point);
+                        }
                     }
                 } else if (!state.combatEnabled) {
                     const impact = findObstacleLaserImpact(laserFrom,l.mesh.position);
