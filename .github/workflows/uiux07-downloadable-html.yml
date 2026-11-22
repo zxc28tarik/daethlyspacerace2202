@@ -1,0 +1,45 @@
+name: UIUX07 Downloadable Offline Single HTML
+on:
+  push:
+    branches: [codex/uiux-07-final-framing-publisher-qa]
+    paths:
+      - .github/workflows/uiux07-downloadable-html.yml
+      - index.html
+      - assets/**
+      - tools/**
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-download:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install offline build toolchain
+        run: npm install --no-save three@0.128.0 tailwindcss@3.4.17
+      - name: Build one browser-openable HTML with no CDN requirement
+        run: |
+          node tools/build-gfx01-bundle.cjs
+          test -s dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+          node - <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('dist/Uzay_Yarisi_Guncel_Oynanabilir.html','utf8');
+          const manifest=JSON.parse(fs.readFileSync('dist/gfx01-build-manifest.json','utf8'));
+          if(!html.includes('UIUX-07 — final editorial readability'))throw Error('UIUX07 UI missing');
+          if(!html.includes('id="map-choice-6"'))throw Error('Six map selection missing');
+          for(const k of ['embeddedThree','embeddedGLTFLoader','embeddedAssets','embeddedTailwind'])
+            if(manifest.offline[k]!==true)throw Error('Offline dependency missing '+k);
+          console.log('PASS offline UIUX07 '+manifest.bundleBytes+' bytes');
+          NODE
+          cp dist/Uzay_Yarisi_Guncel_Oynanabilir.html dist/DEATHLY_SPACE_RACE_UIUX07_OYNANABILIR.html
+      - name: Upload downloadable game HTML (ZIP container)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deathly-Space-Race-UIUX07-Oynanabilir-HTML
+          path: dist/DEATHLY_SPACE_RACE_UIUX07_OYNANABILIR.html
+          if-no-files-found: error
+          retention-days: 30
