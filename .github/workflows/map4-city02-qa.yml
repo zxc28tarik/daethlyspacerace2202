@@ -1,0 +1,52 @@
+name: MAP4 CITY02 real urban entry and no-wall browser QA
+on:
+  push:
+    branches: [codex/map4-city02-real-urban-entry-flight]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-urban-arena:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned Chromium WebGL toolchain
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Parse embedded game and city tests
+        run: |
+          node --check tests/map4-city02-real-entry-scene.cjs
+          node --check tests/map4-city01-sphere-hunters.cjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const s=fs.readFileSync('index.html','utf8');
+          for(const x of s.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
+            if(x[1].trim())new vm.Script(x[1]);
+          for(const t of ['MAP4_CITY02_REAL_URBAN_DISTRICT',
+            'H4_CITY02_PHYSICAL_BUILDING_','MAP4_CITY_ARENA',
+            'H4_CITY02_INSTANCED_STREET_WINDOWS'])
+            if(!s.includes(t))throw Error('Missing city contract '+t);
+          console.log('PASS embedded script syntax');
+          NODE
+      - name: City entry, road visibility, no giant wall and true WebGL flight
+        run: node tests/map4-city02-real-entry-scene.cjs
+      - name: Physical sphere, fighter scale and near-lock regression
+        run: node tests/map4-city01-sphere-hunters.cjs
+      - name: Existing Map4 stage and HUD regression
+        run: node tests/uiux03-map4-phase-hud.cjs
+      - name: Map1 and Map4 combined gameplay regression
+        run: node tests/map4-browser-smoke.cjs
+      - name: Upload direct Chromium frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAP4-CITY02-Actual-Urban-Flight-Frames
+          path: |
+            tests/map4-city02-evidence/*.png
+            tests/map4-city02-evidence/*.json
+          if-no-files-found: warn
