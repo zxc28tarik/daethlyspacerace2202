@@ -953,6 +953,144 @@
             body[data-ui-hud-text="LARGE"] #ui-flight-metrics-panel .ui-race-kpi strong{
                 font-size:clamp(12px,3.6vw,16px)!important;}
         }
+
+        /* UIUX-06: truthful six-map selection, two real launchable modes. */
+        #map-selection .ui-six-map-grid{
+            display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+            gap:8px;align-items:stretch;}
+        #start-screen .ui-six-map-grid .map-choice-btn{
+            box-sizing:border-box;min-width:0;min-height:104px;padding:10px 11px;
+            gap:5px;border-radius:7px;}
+        #start-screen .ui-six-map-grid .map-choice-btn strong{
+            font:800 clamp(11px,1.25vw,14px)/1.22 'Orbitron',sans-serif;
+            color:#edf8fb;letter-spacing:0;}
+        #start-screen .ui-six-map-grid .ui-map-index{
+            font-size:9px;letter-spacing:.045em;}
+        #start-screen .ui-six-map-grid .ui-map-description{
+            font:400 10px/1.37 'Share Tech Mono',monospace;}
+        #start-screen .ui-six-map-grid .ui-map-status{
+            font-size:9px;letter-spacing:.045em;}
+        #start-screen .ui-six-map-grid .ui-map-locked{
+            cursor:not-allowed;opacity:.64;
+            border-color:rgba(116,142,160,.20);
+            background:linear-gradient(120deg,rgba(15,29,43,.78),rgba(9,20,32,.90));
+            box-shadow:none;color:#a4b4c2;}
+        #start-screen .ui-six-map-grid .ui-map-locked strong{color:#b5c3d0;}
+        #start-screen .ui-six-map-grid .ui-map-locked .ui-map-description{color:#8396a7;}
+        #start-screen .ui-six-map-grid .ui-map-locked:hover{
+            transform:none;border-color:rgba(116,142,160,.20);
+            background:linear-gradient(120deg,rgba(15,29,43,.78),rgba(9,20,32,.90));}
+        #start-screen .ui-six-map-grid .ui-map-status--locked{color:#b8a07a;}
+        #start-screen .ui-six-map-grid .map-choice-btn[aria-pressed="true"]{
+            border-color:#8ed5e2;box-shadow:inset 3px 0 0 #7cc9d7,
+                0 4px 14px rgba(7,37,56,.25);}
+        #map-selection-status{
+            margin-top:7px!important;margin-bottom:2px!important;
+            font-size:11px!important;line-height:1.3!important;}
+        /* Results: data-dependent layout; original standings IDs/algorithms preserved. */
+        #gameover-screen .ui-results-shell{
+            max-width:790px!important;box-sizing:border-box;
+            border-top:2px solid rgba(137,203,221,.62)!important;
+            padding:clamp(15px,2.2vw,27px)!important;}
+        #gameover-screen[data-ui-result-map="map4"] .ui-results-shell{
+            border-top-color:rgba(226,180,110,.79)!important;}
+        #gameover-screen[data-ui-result-status="dnf"] .ui-results-shell{
+            border-top-color:rgba(225,120,110,.82)!important;}
+        .ui-results-context{
+            display:flex;flex-wrap:wrap;justify-content:space-between;
+            align-items:center;gap:7px;margin:10px 0 6px;
+            color:#97c6d3;font:700 11px 'Share Tech Mono',monospace;
+            letter-spacing:.09em;}
+        #gameover-screen[data-ui-result-map="map4"] #ui-result-mode{color:#d8bd8f;}
+        .ui-result-outcome{
+            padding:5px 8px;border-radius:4px;
+            border:1px solid rgba(118,189,169,.40);
+            background:rgba(66,111,99,.17);color:#b2dec7;
+            font-size:10px;letter-spacing:.045em;}
+        #gameover-screen[data-ui-result-status="dnf"] .ui-result-outcome{
+            color:#f2b5a7;background:rgba(117,52,56,.19);
+            border-color:rgba(232,133,129,.44);}
+        #gameover-screen[data-ui-result-status="finish"] .ui-result-outcome{
+            color:#b6dcf0;border-color:rgba(125,179,211,.42);
+            background:rgba(51,94,126,.19);}
+        #gameover-title{font-size:clamp(22px,2.7vw,29px)!important;
+            line-height:1.22!important;margin:0 0 9px!important;}
+        #race-summary-banner{padding:10px 12px!important;
+            margin:0 0 12px!important;font-size:11px!important;
+            letter-spacing:.03em!important;line-height:1.42!important;}
+        #gameover-screen[data-ui-result-map="map4"] #race-summary-banner{
+            border-color:rgba(228,173,97,.39)!important;
+            background:rgba(107,76,39,.16)!important;}
+        .ui-result-quick-metrics{
+            display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;
+            margin:0 0 8px;}
+        .ui-result-metric{
+            display:flex;flex-direction:column;justify-content:center;
+            gap:4px;min-width:0;padding:11px 10px;
+            background:rgba(6,22,36,.84);
+            border:1px solid rgba(138,186,205,.25);border-radius:7px;}
+        .ui-result-metric span{
+            font:700 10px/1.27 'Share Tech Mono',monospace;
+            color:#98b6c5;letter-spacing:.06em;}
+        .ui-result-metric strong{
+            min-width:0;overflow-wrap:anywhere;
+            color:#eff9fb;font:800 clamp(14px,1.8vw,22px)/1.15 'Orbitron',sans-serif;
+            font-variant-numeric:tabular-nums;}
+        #gameover-screen[data-ui-result-map="map4"] .ui-result-metric strong{color:#eed09b;}
+        #gameover-screen[data-ui-result-status="dnf"] #ui-result-metric-1-value{color:#eca99f;}
+        .ui-result-criteria{margin:0 0 12px!important;color:#8fc8cc;
+            font:700 10px/1.5 'Share Tech Mono',monospace;}
+        #gameover-screen[data-ui-result-map="map4"] .ui-result-criteria{color:#d2ba92;}
+        #race-bonus-summary,#race-sector-splits,#race-telemetry-summary{
+            font-size:11px!important;line-height:1.46!important;margin-bottom:6px!important;}
+        .ui-results-table-label{
+            display:flex;justify-content:space-between;align-items:center;gap:9px;
+            margin:14px 0 6px;color:#d7e9ef;
+            font:700 11px/1.3 'Share Tech Mono',monospace;
+            letter-spacing:.055em;}
+        .ui-results-table-label small{
+            color:#8faebe;font:400 9px/1.3 'Share Tech Mono',monospace;
+            text-align:right;letter-spacing:0;}
+        #race-standings-container{
+            box-sizing:border-box;
+            margin:0 0 13px!important;padding:10px!important;
+            max-height:32vh;overflow-y:auto;}
+        #race-standings-list>div{min-height:28px;}
+        #gameover-screen .ui-screen-shell>div:last-child{
+            position:sticky;bottom:-1px;z-index:2;
+            display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+            padding:10px 2px 2px!important;
+            background:linear-gradient(0deg,rgba(7,19,34,.98),rgba(7,19,34,.88));
+            border-top:1px solid rgba(126,171,192,.28);}
+        #gameover-screen #restart-btn{
+            border:1px solid #8bcddc;border-radius:6px;
+            background:linear-gradient(105deg,#205a70,#143f57);
+            color:#edf8fc;min-width:170px;}
+        #gameover-screen #menu-btn{
+            border:1px solid rgba(144,184,200,.44);border-radius:6px;
+            background:rgba(20,42,56,.8);color:#d1e2ed;}
+        @media(max-width:1100px){
+            #map-selection .ui-six-map-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+            #start-screen .ui-six-map-grid .map-choice-btn{
+                min-height:93px;padding:9px;gap:4px;}
+        }
+        @media(max-width:640px){
+            #map-selection .ui-six-map-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+            #start-screen .ui-six-map-grid .map-choice-btn{min-height:102px;padding:8px;}
+            #start-screen .ui-six-map-grid .map-choice-btn strong{font-size:11px;}
+            #start-screen .ui-six-map-grid .ui-map-description{font-size:9px;line-height:1.3;}
+            #start-screen .ui-six-map-grid .ui-map-status{font-size:8px;}
+            .ui-result-quick-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}
+            .ui-result-metric{padding:9px;min-height:55px;}
+            .ui-result-metric strong{font-size:17px;}
+            #race-standings-container{max-height:24vh;}
+            #gameover-screen #restart-btn,#gameover-screen #menu-btn{
+                min-width:0;flex:1 1 130px;min-height:43px;}
+        }
+        @media(max-width:340px){
+            #map-selection .ui-six-map-grid{grid-template-columns:1fr;}
+            #start-screen .ui-six-map-grid .map-choice-btn{min-height:80px;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -1167,18 +1305,42 @@
             <!-- H4-01: select a map without allowing an unfinished mode to start Map 1. -->
             <div id="map-selection" class="ui-map-selection mb-5 font-['Share_Tech_Mono'] text-left">
                 <div class="ui-section-heading"><span>GÖREV SEÇİMİ</span><small>01 / OPERASYONLAR</small></div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-label="Oyun haritası seçimi">
-                    <button type="button" id="map-choice-1" class="map-choice-btn" aria-pressed="true">
+                <div class="ui-six-map-grid" role="group" aria-label="Altı görev haritasından oynanabilir olanı seç">
+                    <button type="button" id="map-choice-1" data-ui-map="map1" class="map-choice-btn" aria-pressed="true">
                         <span class="ui-map-index">01 / UZAY KORİDORU</span>
-                        <strong class="block text-sm text-white">SAF HIZ YARIŞI</strong>
-                        <span class="ui-map-description">6 pilot · meteorlar · ödüller · birincilik mücadelesi</span>
+                        <strong>SAF HIZ YARIŞI</strong>
+                        <span class="ui-map-description">6 pilot · meteorlar · mor ödüller</span>
                         <span class="ui-map-status">OYNA · HAZIR</span>
                     </button>
-                    <button type="button" id="map-choice-4" class="map-choice-btn" aria-pressed="false">
+                    <button type="button" id="map-choice-2" class="map-choice-btn ui-map-locked" data-ui-map="map2" disabled aria-disabled="true">
+                        <span class="ui-map-index">02 / PLANLANAN HARİTA</span>
+                        <strong>GÖREV 02</strong>
+                        <span class="ui-map-description">Oynanabilir içerik henüz uygulanmadı</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
+                    </button>
+                    <button type="button" id="map-choice-3" class="map-choice-btn ui-map-locked" data-ui-map="map3" disabled aria-disabled="true">
+                        <span class="ui-map-index">03 / ANA ÜS</span>
+                        <strong>ÜS İMHA YARIŞI</strong>
+                        <span class="ui-map-description">Ana üsse ilk ulaş ve yok et</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
+                    </button>
+                    <button type="button" id="map-choice-4" data-ui-map="map4" class="map-choice-btn" aria-pressed="false">
                         <span class="ui-map-index">04 / GEZEGEN OPERASYONU</span>
-                        <strong class="block text-sm text-white">GEÇİŞ VE SAVAŞ</strong>
-                        <span class="ui-map-description">4 safha · avcılar · sanayi bölgesi · yörünge</span>
-                        <span class="ui-map-status ui-map-status--wip">OYNA · GELİŞTİRİLİYOR</span>
+                        <strong>GEÇİŞ VE SAVAŞ</strong>
+                        <span class="ui-map-description">4 safha · avcılar · sanayi · yörünge</span>
+                        <span class="ui-map-status ui-map-status--wip">OYNA · PROTOTİP</span>
+                    </button>
+                    <button type="button" id="map-choice-5" class="map-choice-btn ui-map-locked" data-ui-map="map5" disabled aria-disabled="true">
+                        <span class="ui-map-index">05 / PLANLANAN HARİTA</span>
+                        <strong>GÖREV 05</strong>
+                        <span class="ui-map-description">Oynanabilir içerik henüz uygulanmadı</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
+                    </button>
+                    <button type="button" id="map-choice-6" class="map-choice-btn ui-map-locked" data-ui-map="map6" disabled aria-disabled="true">
+                        <span class="ui-map-index">06 / HAYATTA KALMA</span>
+                        <strong>10 TUR / 3 CAN</strong>
+                        <span class="ui-map-description">Sıralı başlayan turlarda ayakta kal</span>
+                        <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
                     </button>
                 </div>
                 <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
@@ -1273,6 +1435,10 @@
     <div id="gameover-screen" class="ScreenOverlay hidden">
         <div class="hud-box ui-screen-shell ui-results-shell max-w-2xl w-full mx-4 p-6 sm:p-8 text-center">
             <div class="ui-topline"><span>GÖREV SONU / SONUÇ RAPORU</span><span class="ui-meta-code">UÇUŞ TELEMETRİSİ</span></div>
+            <div class="ui-results-context">
+                <span id="ui-result-mode">01 / SAF HIZ YARIŞI</span>
+                <span id="ui-result-outcome" class="ui-result-outcome">GÖREV TAMAMLANDI</span>
+            </div>
             <h2 id="gameover-title" class="text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2" style="text-shadow: 0 0 20px #ff0044;">
                 SHIELD CRITICAL // DOWN
             </h2>
@@ -1280,10 +1446,18 @@
                 PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
             </div>
 
+            <div id="ui-result-quick-metrics" class="ui-result-quick-metrics" role="group" aria-label="Görev sonucunun temel değerleri">
+                <div class="ui-result-metric"><span id="ui-result-metric-1-label">SIRALAMA</span><strong id="ui-result-metric-1-value">—</strong></div>
+                <div class="ui-result-metric"><span id="ui-result-metric-2-label">SÜRE</span><strong id="ui-result-metric-2-value">—</strong></div>
+                <div class="ui-result-metric"><span id="ui-result-metric-3-label">LİDER FARKI</span><strong id="ui-result-metric-3-value">—</strong></div>
+                <div class="ui-result-metric"><span id="ui-result-metric-4-label">ÖDÜL</span><strong id="ui-result-metric-4-value">—</strong></div>
+            </div>
+            <p id="ui-result-criteria" class="ui-result-criteria">Sıralama: geçerli varış ve yarış süresi</p>
             <div id="race-bonus-summary" class="mb-2 text-xs text-fuchsia-300 font-['Share_Tech_Mono'] tracking-wide">NEAR MISSES 0 • SECTOR TIMES</div>
             <div id="race-sector-splits" class="mb-2 text-[11px] text-cyan-200 font-['Share_Tech_Mono'] tracking-wide"></div>
             <div id="race-telemetry-summary" class="mb-3 text-[11px] text-amber-200 font-['Share_Tech_Mono'] tracking-wide"></div>
             <!-- 6 Yarışçılı Sonuç Tablosu -->
+            <div class="ui-results-table-label"><span id="ui-results-table-title">YARIŞ SONUCU · 6 PİLOT</span><small id="ui-results-table-legend">SIRALAMA / PİLOT / SÜRE</small></div>
             <div id="race-standings-container" class="bg-slate-900/85 border border-cyan-500/40 p-3 sm:p-4 mb-5 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div id="race-standings-head" class="grid grid-cols-12 text-cyan-400/80 border-b border-cyan-500/30 pb-1.5 mb-2 font-bold text-left">
                     <div class="col-span-2">POS</div>
@@ -1636,6 +1810,40 @@
             endGame(true);
             return true;
         }
+
+        /* UIUX-06: all metric text is derived from existing authoritative results.
+           Nothing here changes ranks, validity, rewards, times or game state. */
+        function uiSetResultOverview(mapId,status,metrics) {
+            const screen=document.getElementById('gameover-screen');
+            if(!['map1','map4'].includes(mapId))return false;
+            if(!['win','finish','dnf'].includes(status))return false;
+            if(!Array.isArray(metrics)||metrics.length!==4)return false;
+            screen.dataset.uiResultMap=mapId;
+            screen.dataset.uiResultStatus=status;
+            document.getElementById('ui-result-mode').textContent=mapId==='map4'?
+                '04 / GEZEGEN · AVCI YARIŞI':'01 / KORİDOR · HIZ YARIŞI';
+            document.getElementById('ui-result-outcome').textContent=
+                status==='win'?'BİRİNCİLİK':status==='dnf'?
+                'GÖREV TAMAMLANAMADI':'GEÇERLİ VARIŞ';
+            for(let i=0;i<4;i++) {
+                const [label,value]=metrics[i];
+                document.getElementById('ui-result-metric-'+(i+1)+'-label').textContent=String(label);
+                document.getElementById('ui-result-metric-'+(i+1)+'-value').textContent=String(value);
+            }
+            document.getElementById('ui-result-criteria').textContent=mapId==='map4'?
+                'SIRALAMA · önce 300 sn içinde geçerli çıkış, sonra avcı puanı, eşitlikte gerçek süre':
+                'SIRALAMA · geçerli bitişte en kısa yarış süresi; DNF için derece uydurulmaz';
+            document.getElementById('ui-results-table-title').textContent=mapId==='map4'?
+                'AVCI İMHA YARIŞI · 6 PİLOT':'KORİDOR YARIŞI · 6 PİLOT';
+            document.getElementById('ui-results-table-legend').textContent=mapId==='map4'?
+                'PUAN / İMHA / GERÇEK VARIŞ':'PİLOT / PROFİL / SÜRE';
+            window.deathlyResultsUiTelemetry={
+                map:mapId,status,
+                metrics:metrics.map(([label,value])=>({label:String(label),value:String(value)}))
+            };
+            return true;
+        }
+
         function renderHunterRaceResults(standings) {
             const rank=standings.findIndex(row=>row.isPlayer)+1;
             const player=standings.find(row=>row.isPlayer);
@@ -1643,9 +1851,9 @@
             const title=document.getElementById('gameover-title');
             const success=player.validFinish && rank===1;
             const failure=!player.validFinish;
-            title.textContent = failure ? 'HARİTA 4 // DNF · 5 DAKİKA SINIRI'
-                : success ? 'HARİTA 4 // AVCI YARISI ZAFERI!'
-                : 'HARİTA 4 // SIRALAMA ' + rank + ' / 6';
+            title.textContent = failure ? 'HARİTA 4 // GÖREV TAMAMLANAMADI · DNF'
+                : success ? 'HARİTA 4 // AVCI YARIŞI ZAFERİ'
+                : 'HARİTA 4 // SIRALAMA ' + rank + ' / ' + standings.length;
             title.className='text-2xl sm:text-4xl font-black tracking-widest uppercase mb-2 '+
                 (failure?'text-red-500':success?'text-emerald-400':'text-cyan-300');
             title.style.textShadow='0 0 20px '+(failure?'#ff0044':success?'#00ff88':'#00f3ff');
@@ -1688,6 +1896,16 @@
                 list.appendChild(row);
             });
             document.getElementById('combat-stats-box').classList.add('hidden');
+            const hunterTime=player.validFinish?
+                formatRaceTime(player.finishTime):
+                (player.finished&&Number.isFinite(player.finishTime)?
+                    'GEÇ VARIŞ':'DNF');
+            uiSetResultOverview('map4',failure?'dnf':success?'win':'finish',[
+                ['SIRALAMA',player.validFinish?rank+' / '+standings.length:'DNF'],
+                ['AVCI PUANI',player.score.toLocaleString('tr-TR')],
+                ['AVCI İMHA',String(player.kills)],
+                ['GERÇEK VARIŞ',hunterTime]
+            ]);
             window.starbladeHunterFinal={
                 realTimeLimit:MAP4_RACE_RULES.realTimeLimit,
                 scoreRules:{normal:MAP4_RACE_RULES.normalHunterPoints,elite:MAP4_RACE_RULES.eliteHunterPoints},
@@ -19258,15 +19476,15 @@
 
             const titleEl = document.getElementById('gameover-title');
             if (state.playerDNF || !completedRoute || !state.finished) {
-                titleEl.textContent = 'SHIELD CRITICAL // DNF (ELIMINATED)';
+                titleEl.textContent = 'HARİTA 1 // YARIŞ TAMAMLANAMADI · DNF';
                 titleEl.className = 'text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2';
                 titleEl.style.textShadow = '0 0 20px #ff0044';
             } else if (playerRank === 1) {
-                titleEl.textContent = 'VICTORY // 1ST PLACE CHAMPION!';
+                titleEl.textContent = 'HARİTA 1 // BİRİNCİLİK ZAFERİ';
                 titleEl.className = 'text-2xl sm:text-4xl font-black text-emerald-400 tracking-widest uppercase mb-2';
                 titleEl.style.textShadow = '0 0 20px #00ff88';
             } else {
-                titleEl.textContent = `RACE COMPLETED // FINISHED POS ${playerRank} / ${state.totalRacers}`;
+                titleEl.textContent = `HARİTA 1 // SIRALAMA ${playerRank} / ${state.totalRacers}`;
                 titleEl.className = 'text-2xl sm:text-4xl font-black text-cyan-300 tracking-widest uppercase mb-2';
                 titleEl.style.textShadow = '0 0 20px #00f3ff';
             }
@@ -19334,6 +19552,21 @@
                 else combatStatsBox.classList.add('hidden');
             }
 
+            const validRaceFinish=state.finished&&!state.playerDNF&&
+                completedRoute&&Number.isFinite(state.finishTime);
+            const validLeader=validRaceFinish&&leader&&leader.finished&&
+                Number.isFinite(leader.finishTime);
+            const leaderGap=validLeader?
+                (playerRank===1?'+0,00 sn':
+                    '+'+Math.max(0,state.finishTime-leader.finishTime).toFixed(2).replace('.',',')+' sn'):
+                '—';
+            uiSetResultOverview('map1',!validRaceFinish?'dnf':
+                playerRank===1?'win':'finish',[
+                ['SIRALAMA',validRaceFinish?playerRank+' / '+state.totalRacers:'DNF'],
+                ['YARIŞ SÜRESİ',validRaceFinish?formatRaceTime(state.finishTime):'—'],
+                ['LİDER FARKI',leaderGap],
+                ['ÖDÜL KUTUSU',String(state.powerUpsCollected)]
+            ]);
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('final-score').textContent = state.score.toLocaleString('en-US');
             document.getElementById('final-kills').textContent = state.kills;

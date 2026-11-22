@@ -31,7 +31,7 @@ Hız yarışı + gezegensel hava savaşı için profesyonel, tek bakışta anla�
 | UIUX-03 | Harita 4 dört faza göre değişen görev HUD'u: vadi rota, arena avcı skoru, endüstri engel+rota, yörünge irtifa | Kaynağı mevcut görev kuralları, dört faz/4 viewport WebGL, öncül HUD ve gameplay regresyonu | **YAPILDI-PR / TAM CI PASS; estetik ve native GPU FPS açık** |
 | UIUX-04 | Görev brifingi: 10 saniyede okunur hedef/denetim, gerektiğinde ayrıntılı rehber; ilk tur onboarding | 2 görev brifingi, açılır tüm rehber, oyun saatiyle mini ipuçları, 4 viewport WebGL ve geri uyumluluk | **YAPILDI-PR / TAM CI PASS; insan estetik ve GPU FPS açık** |
 | UIUX-05 | Pause seçenekleri: ses, görüntü profilleri, erişilebilirlik, kontroller; gerçek state ve kalıcı tercih | Ana ses GainNode, grafik profili, HUD yazısı, kontrast, hareket, kalıcılık ve sıfırlama; 4 viewport Chromium+oynanış regresyonu | **YAPILDI-PR / TAM CI PASS; insan estetik ve native GPU FPS açık** |
-| UIUX-06 | Skor sonuç ekranı: Map1 yarış split/gap ve Map4 avcı skoruna özgü hiyerarşi; 6 haritalı seçici 1+4 açık, diğerleri kilitli | DNF ve retry/selector tüm durumlarda çalışır | BEKLİYOR |
+| UIUX-06 | Harita 1 yarış süresi/leader farkı, Harita 4 avcı skoru/gerçek varış sonuç hiyerarşisi ve 6 kartlı görev seçici | 2 oynanabilir + 4 kilitli slot, DNF/valid/late/win ve retry/menu, dört Chromium viewport + önceki regresyon | **YAPILDI-PR / TAM CI PASS; insan estetik ve native GPU FPS açık** |
 | UIUX-07 | Ekran kadrajı, çözünürlük/ölçek, kontrast, klavye ve runtime regresyonu; 8–12 dakikalık yayıncı capture akışı | Gerçek Chrome WebGL screenshot + kritik fonksiyon testi, insan onayı ve native GPU FPS ayrı | BEKLİYOR |
 
 ## UIUX-01 uygulama sınırı
@@ -116,3 +116,22 @@ HTML/CSS değişiklikleri mevcut DOM id'lerini, oyunun arayüzü beslediği iç 
 - [UIUX05 gerçek ekran görüntüleri](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45044155836/artifacts/14763486457): varsayılan ve değiştirilmiş duraklatma ayarları, sıfırlama ve önceki UIUX-04 kadrajları.
 - **Önemli kapsam:** Testte Chrome/SwiftShader WebGL kullanıldı; gerçek GPU FPS/performans ve insan estetik kabulü yerine geçmez. Mevcut oyun dosyası değiştirilmiş ama taslak PR'dadır; `main` birleştirilmedi.
 - **Sonraki paket UIUX-06:** mod bazlı yarış/avcı sonuç ekranları, 6 haritalı seçici (1 ve 4 oynanabilir; diğerleri açıkça kilitli).
+
+
+## UIUX-06 uygulama kaydı — 22.11.2026
+- [Taslak PR #136](https://github.com/zxc28tarik/daethlyspacerace2202/pull/136), stacked base PR #135; ana dala birleştirme yok.
+- **Altı kartlı gerçek seçici:** Harita 1 ve 4 mevcut `MAP_AVAILABLE` ile oynanabilir; 2, 3, 5, 6 yerli HTML `disabled` ve `aria-disabled` ile kilitli. Harita 3'te önce üsse ulaşma/üs yıkma, Harita 6'da 10 tur/3 can niyeti doğru; Harita 2/5 için kanıtlanmamış görev tanımı yok.
+- **Harita 1 sonuçları:** gerçek sıra/DNF, bitiş süresi, geçerli lider farkı, toplanan kutu ve önceki sektör/laser/çarpışma verilerinin ayrı hiyerarşisi.
+- **Harita 4 sonuçları:** geçerli sıra/DNF, imha puanı, avcı imha sayısı, gerçekten yetişilmiş/geç varış ayrımı, mevcut normal+elit skor tablosu ve gerçek süre; 300 sn yarış geçerliliği ve hesaplama algoritmasına dokunulmadı.
+- **Korunan arayüz:** sonuç ekranının orijinal DOM kimlikleri, tekrar oyna/harita seçimi tuşları, map seçimi, oyun fizik/AI/3D dünya/gemi ödülleri ve ayar paneli aynı.
+- **Düzen:** masaüstü 3×2, orta/mobil 2 sütunlu altı kart; sonuç üst bilgisi/4 metrik/telemetri/6 pilot ve sabit alt CTA; mobil taşma ve görünürlük testi.
+- **Doğrulama:** [UIUX06 GitHub Actions](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45047917896), gerçek Chromium/WebGL dört çözünürlükte iki görev başlatılır. Win/finish/DNF/late sonuç vakaları **sentetik oyun sonuç durumu** üzerinden test edilir; tam parkurun gerçek bitişini ispatlamaz. Önceki UIUX05/04/03/02/01 ve Map1/Map4 gameplay smoke ayrıca çalıştırılır.
+- **Açık:** insan estetik onayı ve native GPU FPS. Otomatik CI tam PASS. İlk yayıncı pitch için en az 3 oynanabilir harita hedefi hâlâ açık: mevcut oynanabilir 2 haritadır.
+
+
+### UIUX-06 final otomatik kabul — 22.11.2026
+- [GitHub Actions run #45047917896](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45047917896) **SUCCESS**: JS parse, yeni UIUX06 altı harita + Map1/Map4 DNF/finisher/win/late acceptance, UIUX05 ayarlar, UIUX04 onboarding, UIUX03 faz HUD, UIUX02 yarış HUD, UIUX01 menü/pause/sonuç ve orijinal Map1+Map4 oynanış smoke; **tüm adımlar PASS**.
+- [Gerçek Chromium/WebGL ekran görüntüleri](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45047917896/artifacts/14765201522): 6 haritalı seçici, 2 oynanabilir / 4 kilitli görünümü; Map1 DNF / 2. sıra / galibiyet; Map4 DNF / galibiyet / 300sn geç varış; eski ayarlar. **Sonuç testleri sentetik skor/zaman durumlarıyla uygulanır**.
+- Dört viewport ayrı log: desktop 1600×900, laptop 1280×720, compact 760×720, mobile 390×844: hepsinde kilitli=4, oynanabilir=2, sonuç yatay taşma=0, menü taşma=0. Tarayıcıda gerçek başlangıç ve navigation kullanıldı.
+- **Yayım sınırı:** draft PR #136, `main` merge edilmedi; insan görsel kabulü + fiziksel GPU FPS ve ilk yayıncı için asgari 3 oynanabilir harita şartı açık.
+- Sonraki adım **UIUX-07**: son kadraj, kontrast/ölçek, klavye erişilebilirliği, screenshot ve publisher capture QA; sahici 8–12 dk dikey demo için gereken en az 3 oynanabilir harita ayrı içerik iş kalemidir.
