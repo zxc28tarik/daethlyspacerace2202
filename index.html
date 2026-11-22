@@ -1598,7 +1598,7 @@
 
                 <div class="flex justify-between items-center text-xs font-bold tracking-wider text-cyan-300 mb-1">
                     <span><span id="energy-caption">ENERGY (BOOST / LAZER)</span> <span id="energy-text" class="text-white">100 / 100</span></span>
-                    <span class="text-[10px] text-cyan-200/80">SHIFT / W BOOST · S FREN</span>
+                    <span id="ui-flight-throttle-hint" class="text-[10px] text-cyan-200/80">SHIFT / W BOOST · S FREN</span>
                 </div>
                 <div class="w-full h-2.5 bg-slate-900/90 border border-cyan-400/50 p-0.5">
                     <div id="energy-bar" class="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-white transition-all duration-100" style="width: 100%;"></div>
@@ -19269,6 +19269,12 @@
         const uiMap4MissionCache={phase:0,tick:-1};
         function updateMap4MissionHUD(force=false) {
             if(state.activeMap!==MAP_MODES.MAP4){
+                // Map4's W/S city remapping never leaks into Map1 help text.
+                const throttle=document.getElementById('ui-flight-throttle-hint');
+                if(throttle)throttle.textContent='SHIFT / W BOOST · S FREN';
+                const shortcuts=document.getElementById('ui-static-control-hint');
+                if(shortcuts)shortcuts.textContent=
+                    'A/D ↔ · ↑/↓ ↕ · SHIFT/W BOOST · F/SOL TIK LAZER · P YARDIM';
                 delete document.body.dataset.uiPhase;
                 uiMap4MissionCache.phase=0; uiMap4MissionCache.tick=-1;
                 return;
@@ -19283,6 +19289,13 @@
                 '03 / 04 · SANAYİ GEÇİŞİ','04 / 04 · YÖRÜNGE ÇIKIŞI'];
             const phases=['','VADİ ÇIKIŞINA','ARENA KAPISI AÇILANA',
                 'SANAYİ ÇIKIŞINA','GEREKLİ İRTİFA'];
+            const throttle=document.getElementById('ui-flight-throttle-hint');
+            if(throttle)throttle.textContent=phase===2?
+                'W İLERİ · S GERİ · SHIFT BOOST':'SHIFT / W BOOST · S FREN';
+            const shortcuts=document.getElementById('ui-static-control-hint');
+            if(shortcuts)shortcuts.textContent=phase===2?
+                'A/D ↔ · ↑/↓ ↕ · W İLERİ · S GERİ · SHIFT BOOST · F LAZER':
+                'A/D ↔ · ↑/↓ ↕ · SHIFT/W BOOST · F/SOL TIK LAZER · P YARDIM';
             const goalLabel=document.getElementById('ui-map4-goal-label');
             const goalValue=document.getElementById('ui-map4-goal-value');
             const goalContext=document.getElementById('ui-map4-goal-context');
@@ -19391,7 +19404,7 @@
                 title:'AVCILARI VUR. YÖRÜNGEYE ÇIK.',
                 objective:'Vadiden geç, 60 saniye arenada savaş, sanayiyi aş ve irtifa kazan.',
                 stats:[['60 SN','ŞEHİR ARENASI'],['300 SN','TOPLAM LİMİT'],['850 M','ÇIKIŞ İRTİFASI']],
-                controls:['W/S · İLERİ/GERİ','FARE · NİŞAN','SHIFT · BOOST'],
+                controls:['VADİ: W BOOST / S FREN','ŞEHİR: W İLERİ / S GERİ','SHIFT · BOOST'],
                 pause:'HARİTA 4 · 60 SN ARENA · 300 SN TOPLAM · 850 M HEDEF · 1–4 GÜÇ MODU'
             }
         });
