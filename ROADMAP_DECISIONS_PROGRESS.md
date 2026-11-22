@@ -1347,6 +1347,6 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 ## 22 Kasım 2026 — UIUX-02: Harita 1 yarış HUD
 - **GELİŞTİRME-PR:** [#132](https://github.com/zxc28tarik/daethlyspacerace2202/pull/132), stacked base #131; `main` merge yok.
 - **Yapıldı (kod):** yarış sırası, mesafe, zaman ve hız için yeniden tasarlanan ana HUD; aktif ödül ve bonusu belirginleştirme; kalkan/enerji ve lazeri alt köşelere ayırma; combo/radar/statik kontrol satırı görsel gürültüsünü düşürme.
-- **Kontrol:** 1600×900 / 1366×768 / 1280×720 / 390×844 gerçek Chromium Map1, aktif ödül ve Map4 dönüş testi PASS (workflow #45036308389 içinde). UIUX-01 tam menü/pause/regresyon ve orijinal iki harita oynanış smoke sonuçları ayrıca izlenir.
+- **Kontrol:** 1600×900 / 1366×768 / 1280×720 / 390×844 gerçek Chromium Map1, aktif ödül ve Map4 dönüş testi PASS. UIUX-01 menü/pause/sonuç ve orijinal iki harita oynanış smoke **PASS**. [Run #45036308389](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45036308389) SUCCESS, [ekran arşivi](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45036308389/artifacts/14760420068).
 - **Oyun motoru korunur:** Map1 onaylı 3D model, 49 kutu, rakip AI, hız, lazer ve yarış istatistikleri; Map4 dünyası, çarpışmaları ve 60sn/300sn/850 irtifa.
-- **Açık:** final workflow sonucu, insan sanatsal onayı, native GPU FPS. Sonraki UIUX-03 Harita 4 faz HUD'u.
+- **Açık:** insan sanatsal onayı, native GPU FPS. **Kod ve otomatik CI: YAPILDI-PR / PASS**. Sonraki UIUX-03 Harita 4 faz HUD'u.
