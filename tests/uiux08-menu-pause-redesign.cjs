@@ -56,6 +56,18 @@ async function noOverflow(page,selector,label){
    const menu=await noOverflow(page,'#start-screen .ui-start-shell','map selection');
    const grid=await noOverflow(page,'#map-selection .ui-six-map-grid','six cards');
    assert(await page.locator('#start-btn').isEnabled());
+   if(v.width>860&&v.height<=790){
+    const framing=await page.evaluate(()=>{
+     const r=id=>{const x=document.querySelector(id).getBoundingClientRect();
+      return {top:x.top,bottom:x.bottom,height:x.height};};
+     return {briefing:r('#ui-quick-briefing'),launch:r('#start-btn'),
+      shell:r('#start-screen .ui-start-shell')};
+    });
+    assert(framing.briefing.bottom<=framing.launch.top-2,
+     '720p launch overlaps the mission briefing '+JSON.stringify(framing));
+    assert(framing.briefing.top>=0&&framing.briefing.bottom<=v.height,
+     '720p briefing must remain in view '+JSON.stringify(framing));
+   }
    await shot(page,v.name,'01-map1-cards');
    await page.locator('#ui-side-map4').focus();await page.keyboard.press('Enter');
    assert.equal(await page.locator('#map-choice-4').getAttribute('aria-pressed'),'true');
