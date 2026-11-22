@@ -123,6 +123,10 @@ const htmlUrl=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
    await page.screenshot({path:path.join(OUT,viewport.name+'-06-map4-pause.png')});
    await page.keyboard.press('p');
    await page.waitForFunction(()=>!state.paused,null,{timeout:15000});
+   // Pause toggles instantly but the game loop re-renders the coach next frame.
+   await page.waitForFunction(()=>
+     !document.getElementById('ui-first-flight').classList.contains('hidden'),
+     null,{timeout:15000});
    assert.equal(await page.locator('#ui-first-flight').isVisible(),true);
    const stages=await page.evaluate(()=>{
     const result={};
