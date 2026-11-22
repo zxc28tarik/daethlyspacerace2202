@@ -1350,3 +1350,11 @@ Bu kutular **bütün proje için evrensel final kapılarıdır**, GFX00 gibi dah
 - **Kontrol:** 1600×900 / 1366×768 / 1280×720 / 390×844 gerçek Chromium Map1, aktif ödül ve Map4 dönüş testi PASS. UIUX-01 menü/pause/sonuç ve orijinal iki harita oynanış smoke **PASS**. [Run #45036308389](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45036308389) SUCCESS, [ekran arşivi](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45036308389/artifacts/14760420068).
 - **Oyun motoru korunur:** Map1 onaylı 3D model, 49 kutu, rakip AI, hız, lazer ve yarış istatistikleri; Map4 dünyası, çarpışmaları ve 60sn/300sn/850 irtifa.
 - **Açık:** insan sanatsal onayı, native GPU FPS. **Kod ve otomatik CI: YAPILDI-PR / PASS**. Sonraki UIUX-03 Harita 4 faz HUD'u.
+
+
+## 22 Kasım 2026 — UIUX-03: Harita 4 dört etaplı canlı HUD
+- **Kodlandı:** [Taslak PR #133](https://github.com/zxc28tarik/daethlyspacerace2202/pull/133), base #132; `main` birleştirilmedi.
+- **Görev aşamaları:** 1 Vadi (rota/hız/çıkış), 2 Arena (60 sn, avcı imha/puan), 3 Sanayi (rota/çıkış/tehlike), 4 Yörünge (850 m irtifa ve çıkış mesafesi); dört kademe görev çubuğu, dinamik bilgi yoğunluğu ve son 25 sn uyarısı.
+- **Oyun kuralları korunur:** `MAP4_PHASES`, 300sn bitiş limiti, 850m irtifa koşulu, 49 adet orijinal Harita 1 kutusu, iki harita dünyası, kamera, AI, çarpışmalar, skor.
+- **Kalite kapısı:** [UIUX-03 Chromium/WebGL workflow](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45037998839) başlatıldı; nihai sonuç bekleniyor. Faz 2/3/4 HUD test görselleri **sentetik UI durumlarıdır**, yeni gerçek etap sahneleri değildir.
+- **Açık:** CI sonucu, gerçek dört etap oynanış gözlemi/estetik kabul, native GPU FPS. Sonraki paket UIUX-04 görev brifingi ve onboarding.
