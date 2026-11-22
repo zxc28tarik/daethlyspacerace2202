@@ -737,6 +737,134 @@
             body[data-ui-mode="map4"] #hunter-competition-scores{font-size:8px!important;max-height:45px;}
             body[data-ui-mode="map4"] .map4-bottom-panel{padding:6px!important;}
         }
+
+        /* UIUX-04 — 10-second, map-specific preflight briefing; long rules optional. */
+        #start-screen .ui-quick-briefing{
+            position:relative;overflow:hidden;text-align:left;
+            padding:16px 18px 14px;margin:9px 0 11px;
+            border:1px solid rgba(116,190,208,.38);border-left:3px solid var(--ui-cyan);
+            border-radius:10px;background:
+                linear-gradient(115deg,rgba(29,64,82,.44),rgba(9,25,43,.85));
+            box-shadow:inset 0 1px 0 rgba(215,248,255,.04);}
+        #start-screen .ui-brief-top{
+            display:flex;align-items:center;justify-content:space-between;gap:8px;
+            color:#9ccee1;font:700 10px 'Share Tech Mono',monospace;letter-spacing:.08em;}
+        #ui-quick-mission-type{color:#91b0c1;white-space:nowrap;font-size:10px;}
+        #ui-quick-mission-title{
+            font:900 clamp(17px,2vw,24px)/1.22 'Orbitron',sans-serif;
+            letter-spacing:.015em;color:#f0f9fb;margin:7px 0 5px;}
+        #ui-quick-mission-objective{
+            font:400 12px/1.45 'Share Tech Mono',monospace;
+            color:#c0d5df;margin:0 0 12px;}
+        #start-screen .ui-brief-stat-grid{
+            display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+            gap:7px;}
+        #start-screen .ui-brief-stat{
+            display:flex;flex-direction:column;gap:2px;min-width:0;
+            padding:9px 10px;border:1px solid rgba(119,171,192,.20);
+            border-radius:5px;background:rgba(4,15,28,.46);}
+        #start-screen .ui-brief-stat strong{
+            color:#f0e1b9;font:800 clamp(12px,1.3vw,16px)/1.25 'Orbitron',sans-serif;}
+        #start-screen .ui-brief-stat span{
+            color:#9caebe;font:700 9px/1.35 'Share Tech Mono',monospace;
+            letter-spacing:.04em;}
+        #start-screen .ui-quick-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+        #start-screen .ui-quick-controls span{
+            background:rgba(77,140,153,.12);border:1px solid rgba(104,174,198,.31);
+            padding:5px 8px;border-radius:4px;color:#bfe2ed;
+            font:700 10px/1.35 'Share Tech Mono',monospace;}
+        body[data-ui-mode="map4"] #start-screen .ui-quick-briefing{
+            border-left-color:#dfb77b;border-color:rgba(215,174,104,.38);}
+        body[data-ui-mode="map4"] #start-screen .ui-brief-stat strong{color:#efce9d;}
+        #start-screen .ui-guide-detail{display:block;margin:0 0 7px;min-width:0;}
+        #start-screen .ui-guide-detail.hidden{display:none!important;}
+        #start-screen .ui-guide-detail>summary{list-style:none;cursor:pointer;}
+        #start-screen .ui-guide-detail>summary::-webkit-details-marker{display:none;}
+        #start-screen .ui-guide-summary{
+            display:flex;align-items:center;justify-content:space-between;gap:10px;
+            padding:10px 13px;color:#accbd9;background:rgba(4,19,34,.67);
+            font:700 11px/1.4 'Share Tech Mono',monospace;
+            border:1px solid rgba(138,188,202,.23);border-radius:6px;}
+        #start-screen .ui-guide-summary:hover{border-color:rgba(125,191,210,.62);
+            background:rgba(20,47,65,.70);}
+        #start-screen .ui-guide-summary:focus-visible{
+            outline:2px solid #e8c078;outline-offset:3px;}
+        #start-screen .ui-guide-chevron{display:inline-flex;align-items:center;
+            justify-content:center;flex:0 0 20px;width:20px;height:20px;
+            border:1px solid rgba(142,195,208,.33);border-radius:4px;
+            color:#a9d7e4;font-size:17px;line-height:1;}
+        #start-screen .ui-guide-detail[open] .ui-guide-chevron{font-size:0;}
+        #start-screen .ui-guide-detail[open] .ui-guide-chevron::after{content:'−';font-size:17px;}
+        #start-screen .ui-guide-detail>.ui-instruction-grid{
+            display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+            margin:10px 0 15px!important;}
+        /* Keep briefing and launch readable on 720p; full rules scroll only if expanded. */
+        #start-screen .ui-launch-row{
+            position:sticky;bottom:-1px;z-index:2;
+            margin-top:8px;padding:12px 3px 3px;
+            background:linear-gradient(to bottom,rgba(7,19,34,.88),rgba(7,19,34,.99));
+            border-top:1px solid rgba(140,189,207,.26);}
+        #ui-help-map-context{
+            padding:7px 10px;margin:0 0 12px;
+            border-left:2px solid #d8ae74;background:rgba(80,56,35,.15);
+            color:#e2cead;font:700 11px/1.48 'Share Tech Mono',monospace;}
+        .ui-first-flight{
+            box-sizing:border-box;position:fixed;z-index:46;
+            left:clamp(10px,1.6vw,25px);top:clamp(230px,34vh,350px);
+            width:min(276px,29vw);pointer-events:auto;
+            padding:11px 12px;border-radius:9px;
+            border:1px solid rgba(137,198,214,.46);
+            border-left:3px solid #74c7d9;background:rgba(7,22,38,.92);
+            box-shadow:0 9px 30px rgba(0,0,0,.30);
+            color:#d7e9f0;font-family:'Share Tech Mono',monospace;}
+        .ui-first-flight.hidden{display:none!important;}
+        body[data-ui-mode="map4"] .ui-first-flight{border-left-color:#d7aa71;}
+        .ui-first-flight-head{display:flex;align-items:center;
+            justify-content:space-between;gap:8px;margin:0 0 6px;
+            color:#8fc3d2;font:700 10px 'Share Tech Mono',monospace;
+            letter-spacing:.07em;}
+        .ui-first-flight-head button{
+            display:flex;justify-content:center;align-items:center;
+            border:1px solid rgba(146,188,205,.3);
+            border-radius:5px;min-width:25px;min-height:25px;padding:0;
+            color:#c0d6de;background:rgba(16,38,54,.75);font-size:18px;cursor:pointer;}
+        .ui-first-flight-head button:hover{color:#fff;border-color:#e6c38a;}
+        .ui-first-flight-head button:focus-visible{outline:2px solid #e6c38a;outline-offset:2px;}
+        #ui-first-flight-title{display:block;font:800 12px/1.35 'Orbitron',sans-serif;
+            color:#edf7fa;margin-bottom:6px;}
+        #ui-first-flight-text{font:400 12px/1.5 'Share Tech Mono',monospace;
+            color:#b9d0dc;margin:0 0 9px;}
+        .ui-first-flight-foot{display:flex;align-items:center;
+            justify-content:space-between;gap:8px;}
+        #ui-first-flight-hint{font:700 9px 'Share Tech Mono',monospace;
+            color:#91b1c3;white-space:nowrap;}
+        .ui-first-flight-track{height:4px;flex:1;min-width:30px;max-width:80px;
+            border-radius:3px;overflow:hidden;background:rgba(80,115,140,.5);}
+        #ui-first-flight-progress{display:block;height:100%;width:0%;
+            background:#85d2d8;transition:width .2s linear;}
+        @media(max-width:760px){
+            #start-screen .ui-brief-stat-grid{gap:5px;}
+            #start-screen .ui-quick-briefing{padding:11px;margin:8px 0 8px;}
+            #start-screen .ui-brief-stat{padding:7px 8px;}
+            #start-screen .ui-guide-detail>.ui-instruction-grid{grid-template-columns:1fr;}
+            .ui-first-flight{top:42vh;width:min(222px,47vw);padding:8px 9px;}
+            #ui-first-flight-title{font-size:11px;}
+            #ui-first-flight-text{font-size:10px;line-height:1.36;}
+            #ui-first-flight-hint{font-size:8px;}
+        }
+        @media(max-width:480px){
+            #start-screen .ui-quick-briefing{margin:7px 0;padding:10px;}
+            #ui-quick-mission-title{font-size:17px;}
+            #ui-quick-mission-objective{font-size:11px;}
+            #start-screen .ui-brief-top{font-size:9px;}
+            #start-screen .ui-brief-stat strong{font-size:11px;letter-spacing:0;}
+            #start-screen .ui-brief-stat span{font-size:9px;}
+            #start-screen .ui-quick-controls span{font-size:9px;}
+            .ui-first-flight{top:47vh;left:8px;width:min(190px,51vw);}
+        }
+        @media(prefers-reduced-motion:reduce){
+            .ui-first-flight-track span,.ui-guide-detail,.ui-guide-chevron{transition:none!important;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -930,6 +1058,17 @@
         </div>
     </div>
 
+    <!-- UIUX-04 — optional first-flight coaching, never blocks the flight center. -->
+    <aside id="ui-first-flight" class="ui-first-flight hidden" aria-label="İlk uçuş yönlendirmesi" aria-live="polite">
+        <div class="ui-first-flight-head">
+            <span id="ui-first-flight-step">UÇUŞ REHBERİ · 1/3</span>
+            <button id="ui-first-flight-dismiss" type="button" aria-label="Uçuş rehberini kapat" title="Rehberi kapat">×</button>
+        </div>
+        <strong id="ui-first-flight-title">KONTROLLER</strong>
+        <p id="ui-first-flight-text">Fareyle yönlendir. A / D veya yön tuşlarıyla manevra yap.</p>
+        <div class="ui-first-flight-foot"><span id="ui-first-flight-hint">P / H · TÜM KONTROLLER</span><div class="ui-first-flight-track"><span id="ui-first-flight-progress"></span></div></div>
+    </aside>
+
     <div id="start-screen" class="ScreenOverlay">
         <div class="hud-box ui-screen-shell ui-start-shell max-w-2xl w-full mx-4 p-8 text-center relative">
             <div class="ui-topline"><span>UÇUŞ KONTROL MERKEZİ</span><span class="ui-meta-code">SEZON 00 / PROTOTİP</span></div>
@@ -966,8 +1105,30 @@
                 </div>
             </div>
 
-            <div class="ui-section-heading ui-briefing-heading"><span>GÖREV BRİFİNGİ</span><small>KURALLAR / KONTROLLER</small></div>
-            <div id="map1-instructions" class="ui-instruction-grid grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+            <!-- UIUX-04 — short 10-second briefing, with full existing rules on demand. -->
+            <section id="ui-quick-briefing" class="ui-quick-briefing" aria-labelledby="ui-quick-mission-title">
+                <div class="ui-brief-top">
+                    <span id="ui-quick-mission-code">GÖREV 01 · HIZ YARIŞI</span>
+                    <span id="ui-quick-mission-type">YARIŞ / 50 KM</span>
+                </div>
+                <h2 id="ui-quick-mission-title">6 PİLOT. BİRİNCİLİĞİ AL.</h2>
+                <p id="ui-quick-mission-objective">Koridorun sonuna ulaş. Beş rakibini geride bırak.</p>
+                <div class="ui-brief-stat-grid" aria-label="Görevin üç temel kuralı">
+                    <div class="ui-brief-stat"><strong id="ui-quick-stat-1-value">50 KM</strong><span id="ui-quick-stat-1-label">PARKUR</span></div>
+                    <div class="ui-brief-stat"><strong id="ui-quick-stat-2-value">5 RAKİP</strong><span id="ui-quick-stat-2-label">HEPSİNİ GEÇ</span></div>
+                    <div class="ui-brief-stat"><strong id="ui-quick-stat-3-value">MOR KUTU</strong><span id="ui-quick-stat-3-label">ÖDÜL / LAZER</span></div>
+                </div>
+                <div id="ui-quick-controls" class="ui-quick-controls">
+                    <span>FARE / A-D · YÖN</span>
+                    <span>SHIFT / W · BOOST</span>
+                    <span>S · FREN</span>
+                </div>
+            </section>
+            <details id="map1-instructions" class="ui-guide-detail">
+                <summary class="ui-guide-summary">
+                    <span>AYRINTILI KURALLAR VE TÜM KONTROLLER</span><span class="ui-guide-chevron" aria-hidden="true">+</span>
+                </summary>
+                <div class="ui-instruction-grid grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> DEV GÖRÜNMEZ UZAY KORİDORU</div>
                     <p class="text-slate-300">Neon sınırları olan bir uzay koridorunda yarışın. <strong>Fare</strong> gemiyi yönlendirir; <strong>A/D veya ←/→</strong> yatay, <strong>↑/↓</strong> dikey manevrayı destekler. <strong>W yön tuşu değil, boost tuşudur.</strong> <strong>P/H</strong> ile duraklatıp kontrolleri görün.</p>
@@ -988,9 +1149,14 @@
                     <div class="text-pink-400 font-bold mb-1">>> KAMERA GEÇİŞİ (C TUŞU)</div>
                     <p class="text-slate-300">İstediğiniz an <strong>C</strong> tuşuna basarak klasik <strong>İkiz Taret Kokpit</strong> görünümü ile <strong>3. Şahıs GeoSword Gemisi</strong> görünümü arasında geçiş yapın.</p>
                 </div>
-            </div>
+                </div>
+            </details>
 
-            <div id="map4-instructions" class="ui-instruction-grid hidden grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
+            <details id="map4-instructions" class="ui-guide-detail hidden">
+                <summary class="ui-guide-summary">
+                    <span>4 AŞAMANIN KURALLARI VE TÜM KONTROLLER</span><span class="ui-guide-chevron" aria-hidden="true">+</span>
+                </summary>
+                <div class="ui-instruction-grid grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
                     <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
                     <p class="text-slate-300">1. Vadide <strong>güvenli orta / hızlı batı / avcı doğu</strong> rotasını seç. 2. 60 saniye üç savaş cephesinde avcı vur. 3. <strong>Sanayi:</strong> alçak batı boru hattı +%12 hız fakat dar, yukarıdaki hat güvenli, doğu tesisleri avcı dolu; köprü ve borulara gerçekten çarpabilirsin. 4. Savaşarak uzaya yüksel.</p>
@@ -1007,7 +1173,8 @@
                     <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
                     <p class="text-slate-300">Fareyle nişan al; F / sol tık ile avcı lazeri (silah enerjisi harcar). 1 denge, 2 motor, 3 silah, 4 kalkan gücü. SHIFT/W boost, S fren, X boost sonrası drift, ALT bakış, Q/E tonoz, C kamera, P/H duraklat.</p>
                 </div>
-            </div>
+                </div>
+            </details>
             <div class="ui-launch-row"><span>FARE + KLAVYE / P: YARDIM</span>
                 <button id="start-btn" class="cyber-btn ui-launch-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">GÖREVE BAŞLA</button>
             </div>
@@ -1067,6 +1234,7 @@
             <div class="ui-topline"><span>UÇUŞ KONTROLÜ / PAUSE</span><span class="ui-meta-code">SİSTEM BEKLEMEDE</span></div>
             <h2 class="ui-pause-title text-xl text-emerald-300 font-bold mb-1">OYUN DURAKLATILDI</h2>
             <p class="ui-pause-description text-xs text-cyan-200 mb-4">Süre ve uçuş hareketleri durduruldu. Kontroller aşağıda.</p>
+            <p id="ui-help-map-context" class="ui-help-map-context">HARİTA 1 · MOR KUTULAR LAZERİ AÇAR · SHIFT / W BOOST</p>
             <div class="ui-section-heading"><span>KONTROL REHBERİ</span><small>KLAVYE / FARE</small></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-200 mb-5">
                 <div><strong class="text-cyan-300">FARE</strong> — serbest yönlendirme</div>
@@ -18160,6 +18328,7 @@
             if (!state.running || state.finished || state.playerDNF) return;
             state.paused = !!paused;
             document.getElementById('flight-help-screen').classList.toggle('hidden', !state.paused);
+            if(state.paused)uiFirstFlightHide();
             state.isFiring = false;
             Object.keys(keys).forEach(k => { keys[k] = false; });
             if (state.paused) sound.updateEngine(0, false);
@@ -18281,8 +18450,152 @@
             };
         }
 
+
+        /* UIUX-04: concise briefing data is display-only; control bindings stay original. */
+        const uiQuickBriefings=Object.freeze({
+            map1:{
+                code:'GÖREV 01 · HIZ YARIŞI',type:'YARIŞ / 50 KM',
+                title:'6 PİLOT. BİRİNCİLİĞİ AL.',
+                objective:'Koridorun sonuna ulaş. Beş rakibini geride bırak.',
+                stats:[['50 KM','PARKUR'],['5 RAKİP','HEPSİNİ GEÇ'],['MOR KUTU','ÖDÜL / LAZER']],
+                controls:['FARE / A-D · YÖN','SHIFT / W · BOOST','S · FREN'],
+                pause:'HARİTA 1 · MOR KUTU LAZERİ AÇAR · BOOST SHIFT/W · F / SOL TIK'
+            },
+            map4:{
+                code:'GÖREV 04 · GEZEGEN',type:'4 ETAP / SAVAŞ',
+                title:'AVCILARI VUR. YÖRÜNGEYE ÇIK.',
+                objective:'Vadiden geç, 60 saniye arenada savaş, sanayiyi aş ve irtifa kazan.',
+                stats:[['60 SN','KİLİTLİ ARENA'],['300 SN','TOPLAM LİMİT'],['850 M','ÇIKIŞ İRTİFASI']],
+                controls:['FARE · NİŞAN','F / SOL TIK · ATEŞ','1–4 · GÜÇ MODU'],
+                pause:'HARİTA 4 · 60 SN ARENA · 300 SN TOPLAM · 850 M HEDEF · 1–4 GÜÇ MODU'
+            }
+        });
+        function uiUpdateQuickBriefing(mapId){
+            const brief=uiQuickBriefings[mapId];
+            if(!brief)return;
+            document.getElementById('ui-quick-mission-code').textContent=brief.code;
+            document.getElementById('ui-quick-mission-type').textContent=brief.type;
+            document.getElementById('ui-quick-mission-title').textContent=brief.title;
+            document.getElementById('ui-quick-mission-objective').textContent=brief.objective;
+            brief.stats.forEach(([value,label],i)=>{
+                document.getElementById('ui-quick-stat-'+(i+1)+'-value').textContent=value;
+                document.getElementById('ui-quick-stat-'+(i+1)+'-label').textContent=label;
+            });
+            const controls=document.getElementById('ui-quick-controls');
+            controls.replaceChildren();
+            for(const label of brief.controls){
+                const span=document.createElement('span');span.textContent=label;
+                controls.appendChild(span);
+            }
+            document.getElementById('ui-help-map-context').textContent=brief.pause;
+            document.getElementById('map1-instructions').open=false;
+            document.getElementById('map4-instructions').open=false;
+        }
+
+        /* First-flight guidance: driven ONLY by in-game time and existing map phases.
+           The coach never writes speed, energy, position, mission time or key state. */
+        const uiFirstFlight={
+            seen:new Set(),map:null,active:false,dismissedThisRun:false,
+            initial:false,startedAt:0,endsAt:0,phase:1,shownPhase:new Set(),
+            displayedStep:-1,displayedPhase:-1
+        };
+        const uiFirstFlightSteps={
+            map1:[
+                ['YÖNÜ KONTROL ET','Fareyle yön ver. A / D veya yön tuşlarıyla şeridini değiştir.'],
+                ['HIZINI YÖNET','SHIFT / W boost tüketir. S frendir; enerjiyi düz bölümlerde koru.'],
+                ['MOR ÖDÜLLERİ TOPLA','Mor kutular ödül sağlar; lazer açıldıktan sonra F / sol tık kullan.']
+            ],
+            map4:[
+                ['VADİDE ROTANI SEÇ','Batı hızlı, orta güvenli, doğu avcı hedefleriyle dolu.'],
+                ['AVCILARA NİŞAN AL','Fare ile nişan al, F / sol tık ile ateş et. Silah gücüne dikkat.'],
+                ['GÜCÜ YÖNET','1 denge · 2 motor · 3 silah · 4 kalkan. SHIFT / W boost.']
+            ]
+        };
+        const uiMap4PhaseHints={
+            2:['AVCI ARENASI','İlerleme 60 saniye kilitli. F / sol tık ile avcı vur; elit +3 puan.'],
+            3:['SANAYİ GEÇİŞİ','Alt hat hızlı ama dar. Üst hat güvenli; boru ve köprülerden kaçın.'],
+            4:['YÖRÜNGE ÇIKIŞI','↑ ile 850 m irtifaya yüksel, ardından bitişe ulaş. 300 sn limit.']
+        };
+        function uiFirstFlightHide(){
+            document.getElementById('ui-first-flight').classList.add('hidden');
+        }
+        function uiFirstFlightBegin(){
+            const ui=uiFirstFlight;
+            ui.map=state.activeMap;
+            ui.initial=!ui.seen.has(ui.map);
+            ui.active=ui.initial;
+            ui.startedAt=state.raceTime;
+            ui.endsAt=ui.initial?state.raceTime+9:0;
+            ui.phase=1;ui.shownPhase=new Set([1]);
+            ui.dismissedThisRun=!ui.initial;
+            ui.displayedStep=-1;ui.displayedPhase=-1;
+            if(ui.active)uiFirstFlightUpdate(true);
+            else uiFirstFlightHide();
+        }
+        function uiFirstFlightDismiss(){
+            const ui=uiFirstFlight;
+            ui.dismissedThisRun=true;ui.active=false;
+            if(ui.map)ui.seen.add(ui.map);
+            uiFirstFlightHide();
+        }
+        function uiFirstFlightUpdate(force=false){
+            const ui=uiFirstFlight;
+            if(!state.running||state.finished||state.playerDNF||
+                    state.paused||ui.dismissedThisRun||ui.map!==state.activeMap){
+                uiFirstFlightHide();return;
+            }
+            const now=state.raceTime;
+            const phase=state.activeMap===MAP_MODES.MAP4?
+                Math.max(1,Math.min(4,state.map4Phase||1)):1;
+            if(ui.active && now>=ui.endsAt){
+                ui.active=false;
+                if(ui.initial){
+                    ui.initial=false;
+                    ui.seen.add(ui.map);
+                }
+            }
+            if(!ui.active && ui.map===MAP_MODES.MAP4 && phase>1 &&
+                    !ui.shownPhase.has(phase)){
+                ui.active=true;ui.initial=false;ui.phase=phase;
+                ui.shownPhase.add(phase);ui.startedAt=now;ui.endsAt=now+4.5;
+                ui.displayedStep=-1;ui.displayedPhase=-1;
+            }
+            if(!ui.active){uiFirstFlightHide();return;}
+            const element=document.getElementById('ui-first-flight');
+            element.classList.remove('hidden');
+            const step=ui.initial?
+                Math.max(0,Math.min(2,Math.floor((now-ui.startedAt)/3))):0;
+            if(force||step!==ui.displayedStep||phase!==ui.displayedPhase){
+                let title,description;
+                if(ui.initial)[title,description]=uiFirstFlightSteps[ui.map][step];
+                else [title,description]=uiMap4PhaseHints[phase]||['GÖREV','HEDEFE İLERLE'];
+                document.getElementById('ui-first-flight-title').textContent=title;
+                document.getElementById('ui-first-flight-text').textContent=description;
+                document.getElementById('ui-first-flight-step').textContent=
+                    ui.initial?'İLK UÇUŞ · '+(step+1)+'/3':
+                    'GÖREV AŞAMASI · '+phase+'/4';
+                ui.displayedStep=step;ui.displayedPhase=phase;
+            }
+            const ratio=Math.max(0,Math.min(1,
+                (now-ui.startedAt)/Math.max(.1,ui.endsAt-ui.startedAt)));
+            document.getElementById('ui-first-flight-progress').style.width=
+                (ratio*100).toFixed(1)+'%';
+            // Read-only test mirror; no effect on game state.
+            window.deathlyFirstFlightTelemetry={
+                map:ui.map,phase,initial:ui.initial,step,
+                active:ui.active,endsAt:ui.endsAt,now,
+                seen:[...ui.seen],dismissed:ui.dismissedThisRun
+            };
+        }
+        const uiFirstFlightDismissButton=document.getElementById('ui-first-flight-dismiss');
+        uiFirstFlightDismissButton.addEventListener('mousedown',e=>e.stopPropagation());
+        uiFirstFlightDismissButton.addEventListener('pointerdown',e=>e.stopPropagation());
+        uiFirstFlightDismissButton.addEventListener('click',e=>{
+            e.preventDefault();e.stopPropagation();uiFirstFlightDismiss();
+        });
         function updateHUD(incomingDanger) {
             updateMap4MissionHUD();
+            uiFirstFlightUpdate();
             document.getElementById('score-text').textContent = state.score.toLocaleString('en-US').padStart(7, '0');
             document.getElementById('obstacle-kills').textContent = state.obstaclesDestroyed;
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
@@ -18753,6 +19066,7 @@
             showCenterAnnouncement(state.activeMap===MAP_MODES.MAP4 ?
                 "GEZEGEN GÖREVİ · 4–5 DAKİKA" : "CORRIDOR RACE ENGAGED",
                 state.activeMap===MAP_MODES.MAP4 ? "BÖLÜM 1 · KAYALIK VADİLER" : "STAGE 1: NEBULA FRONT");
+            uiFirstFlightBegin();
         }
 
         function endGame(completedRoute = false) {
@@ -18762,6 +19076,7 @@
             state.isFiring = false;
             document.getElementById('flight-help-screen').classList.add('hidden');
             document.getElementById('race-warning').classList.add('hidden');
+            uiFirstFlightHide();
             cancelCenterAnnouncement();
             state.running = false;
             sound.updateEngine(0, false);
@@ -18949,6 +19264,7 @@
             const isMap4=mapId===MAP_MODES.MAP4;
             document.getElementById('map1-instructions').classList.toggle('hidden',isMap4);
             document.getElementById('map4-instructions').classList.toggle('hidden',!isMap4);
+            uiUpdateQuickBriefing(mapId);
             document.getElementById('h4-power-help').classList.toggle('hidden',!isMap4);
             document.getElementById('h4-quality-picker').classList.toggle('hidden',!isMap4);
             h4Gfx10SetProfile(h4Gfx10ProfileName);
@@ -18978,6 +19294,7 @@
             Object.keys(keys).forEach(k=>{keys[k]=false;});
             document.getElementById('hunter-competition-hud').classList.add('hidden');
             document.getElementById('flight-help-screen').classList.add('hidden');
+            uiFirstFlightHide();
             document.getElementById('gameover-screen').classList.add('hidden');
             document.getElementById('start-screen').classList.remove('hidden');
             selectMap(state.activeMap);

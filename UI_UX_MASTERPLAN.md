@@ -28,8 +28,8 @@ Hız yarışı + gezegensel hava savaşı için profesyonel, tek bakışta anla�
 | --- | --- | --- | --- |
 | UIUX-01 | Ana menü, harita kartları, kontrol metin hiyerarşisi, duraklatma ve sonuç ekranı için ortak stil; HUD okunurluğu, Map4 özel yerleşim | Oynanabilir iki harita, pause, sonuç ve mod geçişi; 1600×900, 1366×768, 390×844 + ekran görüntüleri | **YAPILDI-PR / CI PASS; insan estetik onayı AÇIK** |
 | UIUX-02 | Harita 1 yarış HUD'u: hız/sıra/mesafe; item/boost/kalkan birincil, combo/telemetri ikincil | Dört viewport canlı WebGL, ödül HUD, Map4 dönüş; önceki UIUX-01 ve Map1/Map4 smoke | **YAPILDI-PR / TAM CI PASS / insan estetik ve native GPU FPS açık** |
-| UIUX-03 | Harita 4 dört faza göre değişen görev HUD'u: vadi rota, arena avcı skoru, endüstri engel+rota, yörünge irtifa | Kaynağı mevcut görev kuralları, dört faz/4 viewport WebGL, öncül HUD ve gameplay regresyonu | **KODLANDI-PR / CI KONTROLÜ DEVAM EDİYOR** |
-| UIUX-04 | Görev brifingi: 10 saniyede okunur hedef/denetim, gerektiğinde ayrıntılı rehber; ilk tur onboarding | İlk başlayan oyuncu kuralları anlayabilir, kontrol atamalarına dokunulmaz | BEKLİYOR |
+| UIUX-03 | Harita 4 dört faza göre değişen görev HUD'u: vadi rota, arena avcı skoru, endüstri engel+rota, yörünge irtifa | Kaynağı mevcut görev kuralları, dört faz/4 viewport WebGL, öncül HUD ve gameplay regresyonu | **YAPILDI-PR / TAM CI PASS; estetik ve native GPU FPS açık** |
+| UIUX-04 | Görev brifingi: 10 saniyede okunur hedef/denetim, gerektiğinde ayrıntılı rehber; ilk tur onboarding | 2 görev brifingi, açılır tüm rehber, oyun saatiyle mini ipuçları, 4 viewport WebGL ve geri uyumluluk | **YAPILDI-PR / TAM CI PASS; insan estetik ve GPU FPS açık** |
 | UIUX-05 | Pause seçenekleri: ses, görüntü profilleri, erişilebilirlik, kontroller; gerçek state ve kalıcı tercih | Hiçbir buton sahte değil, pause state bozulmaz | BEKLİYOR |
 | UIUX-06 | Skor sonuç ekranı: Map1 yarış split/gap ve Map4 avcı skoruna özgü hiyerarşi; 6 haritalı seçici 1+4 açık, diğerleri kilitli | DNF ve retry/selector tüm durumlarda çalışır | BEKLİYOR |
 | UIUX-07 | Ekran kadrajı, çözünürlük/ölçek, kontrast, klavye ve runtime regresyonu; 8–12 dakikalık yayıncı capture akışı | Gerçek Chrome WebGL screenshot + kritik fonksiyon testi, insan onayı ve native GPU FPS ayrı | BEKLİYOR |
@@ -78,4 +78,22 @@ HTML/CSS değişiklikleri mevcut DOM id'lerini, oyunun arayüzü beslediği iç 
 - Mevcut `planetary-zone-hud` ve `hunter-competition-hud` içine yeni yardımcı göstergeler; ilk 25 saniyelik değil, **son 25 saniyelik toplam süre** ve görev sınırı risk uyarıları. Ayrı Map4 düzen kuralları; Map1 HUD değişmedi.
 - `updateMap4MissionHUD`: yalnızca DOM / `body.dataset.uiPhase` / salt okunur debug telemetrisi. 60 saniye, 300 saniye ve 850 metre rakamları oyun sabitlerinden okunur; fizik, hız, skor, avcı kuralları, harita grafikleri veya çarpışma koduna dokunulmadı.
 - Test: [UIUX-03 GitHub Actions](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45037998839), `tests/uiux03-map4-phase-hud.cjs` ile 4 viewport/4 faz; **faz 2–4 HUD durumları test içinde sentetik oluşturulur ve gerçek oynanış görüntüsü oldukları iddia edilmez**.
-- Kontrol kapısı: CI nihai sonucuna göre güncellenecek; insan estetik onayı ve native GPU FPS açık.
+- Kontrol kapısı: [Run #45038335370](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45038335370) **SUCCESS**, sentetik dört faz UI ve önceki bütün oyun smoke testleri PASS; insan estetik onayı ve native GPU FPS açık.
+
+
+## UIUX-04 uygulama kaydı — 22.11.2026
+- [Taslak PR #134](https://github.com/zxc28tarik/daethlyspacerace2202/pull/134), stacked base PR #133; `main` birleştirilmedi.
+- İki görev için **10 saniyelik brifing**: Map1 50 km / 5 rakip / mor kutu; Map4 60sn arena / 300sn limit / 850m yükseliş ve oynanışa uygun kontrol etiketleri.
+- Önceki tüm kural metni korunur; `map1-instructions` / `map4-instructions` yerli `<details>` açılır içerik (ID ve seçim davranışı korunur), odak klavyeyle mümkündür. Tek satır temel kontroller ve kısa görev hedefi varsayılan görünüm.
+- Oyunun ilk turunda **üç adet üç saniyelik ipucu**, sonra Map4 arena/sanayi/yörüngeye ilk geçişte 4,5 saniyelik kısa bilgi; `P/H` kontrollerine yönlendirme. Rehber kapatılabilir, pause esnasında gizlenir, oyun zamanı üzerinden işlenir, oyun mekaniğine veya tuş eşlemelerine dokunmaz.
+- Ekran tasarımı dört çözünürlük ve 720p menü için sıkıştırıldı; varsayılan uzun rehberler gizlenebilir. Model, puanlama, çarpışma, kontroller, grafik ve arena süreleri aynı.
+- Kanıt: [UIUX-04 Chromium/WebGL kabul iş akışı](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45039216610) (**SUCCESS, tüm adımlar PASS**): 4 viewport, iki brifing, native details, ilk uçuş 3 adım, Map4 faz bilgileri, pause/resume, restart, dismiss ve UIUX-01..03 + gameplay smoke.
+- Açık kalite kapıları: gerçek oyuncu tarafından anlaşılabilirlik, görsel estetik ve native GPU FPS.
+
+
+### UIUX-04 final otomatik kabul — 22.11.2026
+- [GitHub Actions run #45039381784](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45039381784) **SUCCESS**; HTML inline JS parse, 4 viewport canlı UIUX04 brifing + ilk uçuş/onboarding, önceki UIUX-03 dört etap, UIUX-02 Harita 1 HUD, UIUX-01 menü/pause/sonuç ve eski Map1/4 tam smoke regresyonları **tamamı PASS**.
+- [Gerçek Chromium/WebGL ekran görüntüsü arşivi](https://github.com/zxc28tarik/daethlyspacerace2202/actions/runs/45039381784/artifacts/14761228232), UIUX04 + UIUX03 kadrajları (menü kısa brifing, açılmış ayrıntı, ilk uçuş, pause, etap ipuçları).
+- İlk testte pause → resume sonrasında `state.paused` değişimini hemen okuyup sonraki çizim karesini beklemeyen test kontrolü düzeltilmiştir; oyun mantığına/tuşlara müdahale olmadan son test çalışması PASS.
+- Map4 arena/sanayi/yörünge **ipucu gösterimi** ve önceki HUD testlerinde sentetik faz durumu kullanıldı; bütün 4 etap baştan sona oynanmış gibi gösterilmez.
+- **Açık:** insan sanatsal/kullanılabilirlik onayı ve fiziksel GPU üzerinde FPS. `main` birleştirilmedi. Sonraki hedef **UIUX-05**: çalışan ses/grafik/erişilebilirlik ayarları.

@@ -1,0 +1,49 @@
+name: UIUX04 briefing and first-flight onboarding acceptance
+on:
+  push:
+    branches: [codex/uiux-04-briefing-first-flight]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  uiux04-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Parse HTML inline JS
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          const chunks=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(Boolean);
+          if(!chunks.length)throw Error('Missing embedded JS');
+          chunks.forEach(src=>new vm.Script(src));
+          console.log('PASS HTML JavaScript');
+          NODE
+      - name: Live Map1/Map4 briefing and interactive first-flight acceptance
+        run: node tests/uiux04-briefing-first-flight.cjs
+      - name: Four Map4 mission phases regression
+        run: node tests/uiux03-map4-phase-hud.cjs
+      - name: Map1 focused race HUD regression
+        run: node tests/uiux02-map1-race-hud.cjs
+      - name: Menu, pause, results regression
+        run: node tests/uiux01-screen-regression.cjs
+      - name: Original Map1 and Map4 gameplay regression
+        run: node tests/map4-browser-smoke.cjs
+      - name: Upload visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uiux04-onboarding-webgl-evidence
+          path: |
+            tests/uiux04-evidence/*.png
+            tests/uiux03-evidence/*.png
+          if-no-files-found: warn
