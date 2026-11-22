@@ -1803,7 +1803,7 @@
                 <div class="ui-instruction-grid grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
                     <div class="text-amber-300 font-bold mb-1">>> 4 AŞAMALI · 4–5 DAKİKA</div>
-                    <p class="text-slate-300">1. Vadide <strong>güvenli orta / hızlı batı / avcı doğu</strong> rotasını seç. 2. 60 saniye üç savaş cephesinde avcı vur. 3. <strong>Sanayi:</strong> alçak batı boru hattı +%12 hız fakat dar, yukarıdaki hat güvenli, doğu tesisleri avcı dolu; köprü ve borulara gerçekten çarpabilirsin. 4. Savaşarak uzaya yüksel.</p>
+                    <p class="text-slate-300">1. Vadide <strong>güvenli orta / hızlı batı / avcı doğu</strong> rotasını seç. 2. Şehrin görünmez küresel sınırı içinde W ileri / S geri, yön tuşlarıyla üç boyutlu manevra yap; 60 saniye avcılarla çarpış. 3. <strong>Sanayi:</strong> alçak batı boru hattı +%12 hız fakat dar, yukarıdaki hat güvenli, doğu tesisleri avcı dolu; köprü ve borulara gerçekten çarpabilirsin. 4. Savaşarak uzaya yüksel.</p>
                 </div>
                 <div class="bg-slate-900/80 border border-cyan-500/40 p-3.5 rounded">
                     <div class="text-cyan-300 font-bold mb-1">>> 6 PİLOT / ORTAK AVCI HEDEFLERİ</div>
@@ -1815,7 +1815,7 @@
                 </div>
                 <div class="bg-slate-900/80 border border-fuchsia-500/40 p-3.5 rounded">
                     <div class="text-fuchsia-300 font-bold mb-1">>> KONTROLLER</div>
-                    <p class="text-slate-300">Fareyle nişan al; F / sol tık ile avcı lazeri (silah enerjisi harcar). 1 denge, 2 motor, 3 silah, 4 kalkan gücü. SHIFT/W boost, S fren, X boost sonrası drift, ALT bakış, Q/E tonoz, C kamera, P/H duraklat.</p>
+                    <p class="text-slate-300">Fareyle nişan al; F / sol tık ile avcı lazeri (silah enerjisi harcar). 1 denge, 2 motor, 3 silah, 4 kalkan gücü. şehirde W ileri / S geri ve SHIFT boost; diğer aşamalarda SHIFT/W boost ve S fren, X boost sonrası drift, ALT bakış, Q/E tonoz, C kamera, P/H duraklat.</p>
                 </div>
                 </div>
             </details>
@@ -1913,7 +1913,7 @@
                 <div><strong class="text-cyan-300">Q / E</strong> — barrel roll</div>
                 <div><strong class="text-cyan-300">C</strong> — kamerayı değiştir</div>
                 <div><strong class="text-cyan-300">P / H / ESC</strong> — devam et</div>
-                <div id="h4-power-help" class="hidden sm:col-span-2 text-amber-200"><strong>HARİTA 4:</strong> 1 dengeli · 2 motor · 3 silah · 4 kalkan. X boost sonrası kısa drift, ALT bakış. Lazer silah kapasitöründen enerji harcar; kalkan sadece kalkan odağında, hasarsız süre sonunda yavaş yenilenir.</div>
+                <div id="h4-power-help" class="hidden sm:col-span-2 text-amber-200"><strong>HARİTA 4:</strong> Şehir arenasında W ileri / S geri, SHIFT boost; 1 dengeli · 2 motor · 3 silah · 4 kalkan. X boost sonrası kısa drift, ALT bakış. Lazer silah kapasitöründen enerji harcar; kalkan sadece kalkan odağında, hasarsız süre sonunda yavaş yenilenir.</div>
             </div>
             </details>
                 <p id="ui-map1-pause-note" class="text-xs text-amber-200 mb-4">Harita 1: Mor kutu lazeri 12 saniyeliğine açar. Koridor sınırına sürtünmek kalkan ve hız kaybettirir.</p>
@@ -2946,7 +2946,7 @@
         // Geometry is native Three.js, with bounded static allocations (no frame-by-frame creation).
         const PLANETARY_REGIONS = Object.freeze([
             {from:0,to:12500,name:'KAYALIK VADİLER',type:'canyon',ground:0x886044,sky:0xa6725c},
-            {from:12500,to:14000,name:'AÇIK SAVAŞ OVASI',type:'battlefield',ground:0x725648,sky:0x96736a},
+            {from:12500,to:14000,name:'SAVAŞ ŞEHRİ',type:'battlefield',ground:0x725648,sky:0x96736a},
             {from:14000,to:34000,name:'ENDÜSTRİ BÖLGESİ',type:'industrial',ground:0x494c51,sky:0x647484},
             {from:34000,to:50001,name:'ASKERÎ ÜS VE YÖRÜNGE ÇIKIŞI',type:'fortress',ground:0x57434c,sky:0x735b72}
         ]);
@@ -3021,6 +3021,38 @@
             arenaSeconds:60, orbitAltitude:850,
             introSpeed:0.36, industrialSpeed:0.29, ascentSpeed:0.19
         });
+        // H4-CITY01: a genuinely navigable three-dimensional city volume.
+        // The centre follows the route frame; the boundary is invisible in the world.
+        const MAP4_CITY_ARENA=Object.freeze({
+            centerProgress:(MAP4_PHASES.introEnd+MAP4_PHASES.arenaEnd)/2,
+            centerY:150,radius:1850,craftMargin:55,
+            warningFraction:.84,forwardCruise:.31,forwardThrottle:.83,
+            reverseThrottle:-.62,rivalPatrol:.56
+        });
+        function map4CityArenaActive(){
+            return state.activeMap===MAP_MODES.MAP4 && state.map4ArenaStarted &&
+                state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds;
+        }
+        function map4CityArenaDistance(ship,progress=ship.routeProgress){
+            return Math.hypot(progress-MAP4_CITY_ARENA.centerProgress,
+                ship.laneX,ship.laneY-MAP4_CITY_ARENA.centerY);
+        }
+        function map4ConstrainCityArena(ship,nextProgress){
+            if(!ship)return nextProgress;
+            const a=MAP4_CITY_ARENA;
+            const limit=a.radius-a.craftMargin-(ship===state?0:Math.max(0,(ship.radius||12)-12));
+            const dz=nextProgress-a.centerProgress,dx=ship.laneX,dy=ship.laneY-a.centerY;
+            const distance=Math.hypot(dz,dx,dy);
+            ship.cityBoundaryFraction=Math.min(1,distance/limit);
+            if(distance<=limit)return nextProgress;
+            const ratio=limit/Math.max(.0001,distance);
+            ship.laneX=dx*ratio;
+            ship.laneY=a.centerY+dy*ratio;
+            if(ship!==state)ship.arenaDirection=-(ship.arenaDirection||1);
+            else ship.currentSpeed*=.86;
+            ship.cityBoundaryFraction=1;
+            return a.centerProgress+dz*ratio;
+        }
         function map4PhaseFromProgress(progress){
             if(progress<MAP4_PHASES.introEnd)return 1;
             if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds)return 2;
@@ -3157,15 +3189,24 @@
         }
         function map4SpeedFactor(progress) {
             if(state.activeMap!==MAP_MODES.MAP4)return 1;
-            if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds &&
-                    progress>=MAP4_PHASES.introEnd-0.001)return 0;
+            // The old 60-second position freeze made the arena look like hovering.
+            if(map4CityArenaActive())return .6;
             if(progress<MAP4_PHASES.introEnd)return MAP4_PHASES.introSpeed;
             if(progress<MAP4_PHASES.industryEnd)return MAP4_PHASES.industrialSpeed;
             return MAP4_PHASES.ascentSpeed;
         }
         function map4Advance(progress,speed,dt,ship=null) {
             if(state.activeMap!==MAP_MODES.MAP4)return progress+speed*dt;
-            if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds) {
+            if(map4CityArenaActive()){
+                const rate=ship===state ?
+                    keys['KeyS']?MAP4_CITY_ARENA.reverseThrottle:
+                    keys['KeyW']?MAP4_CITY_ARENA.forwardThrottle:
+                        MAP4_CITY_ARENA.forwardCruise:
+                    (ship&&ship.arenaDirection||1)*MAP4_CITY_ARENA.rivalPatrol;
+                return map4ConstrainCityArena(ship,progress+speed*rate*dt);
+            }
+            if(state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds){
+                // The valley still hands off at the original arena entrance.
                 const routeBonus=ship?h4CanyonSpeedMultiplier(progress,ship.laneX):1;
                 return Math.min(MAP4_PHASES.introEnd,
                     progress+speed*MAP4_PHASES.introSpeed*routeBonus*dt);
@@ -3195,8 +3236,8 @@
             }
             h4RefreshArenaHunters();
             state.lastHunterHudTick=-1; // Show arena scoring immediately.
-            showCenterAnnouncement('İLERLEME KİLİTLENDİ',
-                '60 SANİYE · ORTA / ENKAZ / ELİT SAVUNMA');
+            showCenterAnnouncement('ŞEHİR ARENASI · SERBEST UÇUŞ',
+                '60 SN · W İLERİ / S GERİ · GÖRÜNMEZ KÜRE SINIRI');
         }
         function map4UpdatePhase(dt) {
             if(state.activeMap!==MAP_MODES.MAP4||!state.running)return;
@@ -3208,7 +3249,7 @@
                     state.map4ArenaElapsed+dt);
                 if(state.map4ArenaElapsed>=MAP4_PHASES.arenaSeconds){
                     state.map4Phase=3;
-                    showCenterAnnouncement('GEÇİŞ SERBEST','ENDÜSTRİ BÖLGESİNE ULAŞ');
+                    showCenterAnnouncement('ŞEHİR ÇIKIŞI AÇILDI','SANAYİ BÖLGESİNE DOĞRU İLERLE');
                 }
                 return;
             }
@@ -9946,7 +9987,7 @@
         }
 
         function updatePlanetaryBuildingContacts(previousPlayer,previousRivals) {
-            if(state.activeMap!==MAP_MODES.MAP4 || state.map4Phase!==3)return;
+            if(state.activeMap!==MAP_MODES.MAP4 || (state.map4Phase!==2 && state.map4Phase!==3))return;
             const check=(ship,previous,isPlayer)=>{
                 if(!previous || ship.finished || ship.dnf ||
                     (isPlayer && state.playerDNF))return;
@@ -9954,7 +9995,9 @@
                 const current={routeProgress:ship.routeProgress,laneX:ship.laneX,laneY:ship.laneY};
                 const lower=Math.min(previous.routeProgress,ship.routeProgress)-25;
                 const upper=Math.max(previous.routeProgress,ship.routeProgress)+25;
-                for(const c of planetaryBuildingColliders.concat(h4IndustrialColliders)){
+                const activeColliders=state.map4Phase===2 ?
+                    h4CityArenaColliders : planetaryBuildingColliders.concat(h4IndustrialColliders);
+                for(const c of activeColliders){
                     if(c.progress+c.halfDepth<lower || c.progress-c.halfDepth>upper)continue;
                     if(!h4SegmentBoxHit(previous,current,c,isPlayer?12:(ship.radius||13)))continue;
                     ship.map4ImpactCooldown=state.raceTime+0.9;
@@ -10272,8 +10315,8 @@
             h4SceneryGroups.push({near,far,regionIndex});
         }
 
-        // W04: Three tactically distinct air-combat pockets inside the 60-second
-        // forward-locked arena. The 8 shared fighters still require REAL hits.
+        // H4-CITY01: three combat pockets within the 60-second navigable city sphere.
+        // The 8 shared fighters still require REAL physical projectile hits.
         // Slots 3 and 7 are elites assigned to the dangerous defense wing.
         const H4_ARENA_POCKETS=Object.freeze([
             {id:'CENTER',name:'ACIK MERKEZ',side:0,altitude:120,
@@ -11096,6 +11139,51 @@
             zone.userData.h4Next22eDressed=true;
         }
 
+        // H4-CITY01: urban buildings with *matching* physical collider volumes.
+        // No new map or external assets; structures share the existing building kit.
+        const h4CityArenaColliders=[];
+        const h4CityArenaBuildings=[];
+        function h4BuildArenaCity(zone){
+            if(h4CityArenaBuildings.length)return;
+            const sides=[-1420,-1060,-690,690,1060,1420];
+            for(let row=0;row<6;row++)for(let col=0;col<sides.length;col++){
+                const index=row*sides.length+col;
+                const progress=MAP4_PHASES.introEnd+175+row*222+(col%2)*23;
+                const side=sides[col]+((row%2)?-1:1)*(col%2?27:-27);
+                const height=260+((row*67+col*47)%600);
+                const width=112+(index*19)%105,depth=124+(index*29)%95;
+                const altitude=-440+height/2;
+                const geometry=(index%4===0)?H4_MESHES.tower:H4_MESHES.structure;
+                const material=(index%3===0)?H4_MATERIALS.steel:H4_MATERIALS.wall;
+                const building=h4PlaceStructure(zone,progress,side,altitude,
+                    geometry,material,[width,height,depth]);
+                building.name='H4_CITY01_PHYSICAL_BUILDING_'+index;
+                const hitbox={progress,side,altitude,
+                    halfSide:width*.5,halfUp:height*.5,halfDepth:depth*.5};
+                building.userData.h4Collider=hitbox;
+                building.userData.h4CityPhysical=true;
+                h4CityArenaColliders.push(hitbox);
+                h4CityArenaBuildings.push(building);
+                if(index%5===0){
+                    const roof=h4PlaceStructure(zone,progress,side,altitude+height*.5+12,
+                        H4_MESHES.beacon,H4_MATERIALS.marker,[19,19,19]);
+                    roof.userData.h4CityRoofLight=true;
+                }
+            }
+        }
+        function h4CitySegmentBlocked(from,to){
+            if(!map4CityArenaActive()||!h4CityArenaColliders.length)return false;
+            // Local route/right/up projection is a consistent approximation for
+            // the short 1.5 km urban section; projectile collision remains swept.
+            const frame=getRaceFrameAtDistance(MAP4_CITY_ARENA.centerProgress);
+            const project=w=>{
+                const delta=w.clone().sub(frame.center);
+                return {routeProgress:MAP4_CITY_ARENA.centerProgress+delta.dot(frame.tangent),
+                    laneX:delta.dot(frame.right),laneY:delta.dot(frame.up)};
+            };
+            const a=project(from),b=project(to);
+            return h4CityArenaColliders.some(c=>h4SegmentBoxHit(a,b,c,0));
+        }
         function h4BuildArenaWarfront(zone){
             if(h4ArenaWarfrontGroups.length)return;
             // Each pocket has its own readable silhouettes, ground-level cover
@@ -11562,6 +11650,7 @@
                 h4AddAtmosphericField(zone,zoneIndex,def);
                 if(zoneIndex===0)h4PopulateCanyonRoutes(zone);
                 if(zoneIndex===1){
+                    h4BuildArenaCity(zone);
                     h4BuildArenaWarfront(zone);
                     h4BuildGfx04DAtmosphere(zone);
                     // Old W01 and VQ02 crash/defense/wreck silhouettes overlap
@@ -11665,7 +11754,7 @@
             // Only render the active area and neighboring visible chunks.
             const first=PLANETARY_REGIONS.findIndex(z=>state.routeProgress < z.to);
             const idx=first>=0?first:PLANETARY_REGIONS.length-1;
-            const sector=PLANETARY_REGIONS[idx];
+            const sector=state.map4Phase===2?PLANETARY_REGIONS[1]:PLANETARY_REGIONS[idx];
             const distanceRemaining=Math.max(0,
                 RACE_ROUTE_NOMINAL_DISTANCE-state.routeProgress);
             for(let i=0;i<planetaryWorldRegions.length;i++){
@@ -11748,23 +11837,31 @@
             if(landmarkLine) landmarkLine.textContent=nextLandmark ?
                 'YAKIN NOKTA: '+nextLandmark.name : 'BÖLGE TARAMASI · HEDEFE İLERLE';
             const profile=map4BoundaryProfile(state.routeProgress);
-            const radial=Math.hypot(state.laneX,state.laneY);
-            const phaseWidth=Math.round(profile.maxRadius*2);
+            const cityActive=map4CityArenaActive();
+            const radial=cityActive?map4CityArenaDistance(state):
+                Math.hypot(state.laneX,state.laneY);
+            const safeRadius=cityActive?
+                MAP4_CITY_ARENA.radius-MAP4_CITY_ARENA.craftMargin:profile.safeRadius;
+            const phaseWidth=Math.round(cityActive?
+                MAP4_CITY_ARENA.radius*2:profile.maxRadius*2);
             const airStatus=document.getElementById('planetary-airspace-status');
             if(airStatus){
-                const status=state.boundaryLevel===0?'SERBEST UÇUŞ':
+                const cityWarn=cityActive&&radial>safeRadius*MAP4_CITY_ARENA.warningFraction;
+                const status=cityActive?
+                    (cityWarn?'ŞEHİR KÜRESİ SINIRI · YÖN DEĞİŞTİR':'ŞEHİRDE SERBEST UÇUŞ'):
+                    state.boundaryLevel===0?'SERBEST UÇUŞ':
                     state.boundaryLevel===1?'GÖREV SAHASI UYARISI':
                     state.boundaryLevel===2?'DIŞ KUŞAK · HAFİF HIZ BASKISI':
                     state.boundaryLevel===3?'GÖREV SINIRINA YAKIN':'GERİ DÖN · SINIR';
                 airStatus.textContent=status+' · SAHA ÇAPI '+(phaseWidth/1000).toFixed(1)+
-                    ' km · KALAN '+Math.round(Math.max(0,profile.safeRadius-radial))+' m';
+                    ' km · KALAN '+Math.round(Math.max(0,safeRadius-radial))+' m';
                 airStatus.className='text-[10px] mt-1 '+
                     (state.boundaryLevel>=3?'text-rose-300':
                      state.boundaryLevel>=1?'text-amber-200':'text-emerald-200');
             }
             document.getElementById('planetary-zone-name').textContent=sector.name;
             const phase=state.map4Phase;
-            const stageLabels=['','1/4 · VADİDEN GEÇİŞ','2/4 · SERBEST AVCI SAVAŞI',
+            const stageLabels=['','1/4 · VADİDEN GEÇİŞ','2/4 · ŞEHİR KÜRESİNDE SERBEST SAVAŞ',
                 '3/4 · ENDÜSTRİ ENGELLERİ','4/4 · UZAYA YÜKSELİŞ'];
             document.getElementById('planetary-destination').textContent=
                 phase===2 ? stageLabels[2]+' · KALAN '+
@@ -15857,6 +15954,10 @@
             count: 8, basicHp: 24, eliteHp: 48, laserDamage: 12,
             spawnMinAhead: 600, spawnMaxAhead: 1750, respawnDelay: 1.6
         });
+        const MAP4_HUNTER_TARGETING=Object.freeze({
+            maxLockDistance:760, maxAutoAimPixels:52, projectileRange:980,
+            visualScale:1.7, projectileSpeed:2050
+        });
         const hunterTargets = [];
         const hunterCounters = { spawned: 0, destroyed: 0, escaped: 0 };
 
@@ -15968,10 +16069,13 @@
             for (let i = 0; i < MAP4_HUNTERS.count; i++) {
                 const elite = i % 4 === 3;
                 const mesh = createEnemyFighterMesh(elite, false);
+                // Scale visuals *and* true projectile collision together.
+                mesh.scale.multiplyScalar(MAP4_HUNTER_TARGETING.visualScale);
                 const target = {
                     id: 'H4-HUNTER-' + (i + 1),
                     mesh, isElite: elite, maxHp: elite ? MAP4_HUNTERS.eliteHp : MAP4_HUNTERS.basicHp,
-                    hp: 0, radius: elite ? 21 : 16, alive: false, respawnTimer: 0,
+                    hp: 0, radius: (elite ? 21 : 16)*MAP4_HUNTER_TARGETING.visualScale,
+                    alive: false, respawnTimer: 0,
                     routeProgress: 0, laneX: 0, laneY: 0, baseLaneX: 0, baseLaneY: 0,
                     weavePhase: 0, moveSpeed: 0, weaveSpeed: 0
                 };
@@ -16092,6 +16196,7 @@
             let earliest = null;
             for (const target of hunterTargets) {
                 if (!target.alive || target.mesh.visible === false) continue;
+                if(h4CitySegmentBlocked(from,target.mesh.position))continue;
                 const swept = sweptLaserSphere(from, to, target.mesh.position, target.radius + 2);
                 if (swept && (!earliest || swept.t < earliest.t)) {
                     earliest = {target, point: swept.point, t: swept.t};
@@ -16106,8 +16211,8 @@
         // cannot harm players or other racers. No instant/phantom kill awards.
         const hunterRivalShots = [];
         const MAP4_RIVAL_GUN = Object.freeze({
-            cooldown: 0.15, projectileSpeed: 2050, projectileLifetime: 1.15,
-            range: 2000, coneLateral: 860, maxProjectiles: 100
+            cooldown: 0.15, projectileSpeed: 2050, projectileLifetime: .50,
+            range: 910, coneLateral: 640, maxProjectiles: 100
         });
         function clearHunterRivalShots() {
             hunterRivalShots.forEach(shot => scene.remove(shot.mesh));
@@ -16124,6 +16229,8 @@
                 const lateral = Math.hypot(hunter.laneX - racer.laneX, hunter.laneY - racer.laneY);
                 if (lateral > MAP4_RIVAL_GUN.coneLateral) continue;
                 const toHunter = hunter.mesh.position.clone().sub(racer.mesh.position);
+                if(toHunter.length()>MAP4_RIVAL_GUN.range)continue;
+                if(h4CitySegmentBlocked(racer.mesh.position,hunter.mesh.position))continue;
                 if (toHunter.dot(frame.tangent) < 10) continue;
                 // Favor the nearby target that is closer to our line of flight.
                 // Small per-pilot preference spreads engagements across shared targets.
@@ -16511,9 +16618,15 @@
 
             // Nişangah veya Kilitli Hedef Yönünü Hesapla
             let aimWorldPoint;
-            if (state.lockedTarget && state.lockedTarget.mesh) {
-                // Do not aim using a stale spread-copy: read moving obstacle's live state.
-                const liveLock = state.lockedTarget.source || state.lockedTarget;
+            const liveLock = state.lockedTarget &&
+                (state.lockedTarget.source || state.lockedTarget);
+            const lockValid=!!liveLock && !!liveLock.mesh &&
+                (state.activeMap!==MAP_MODES.MAP4 ||
+                    (liveLock.alive && state.pos.distanceTo(liveLock.mesh.position)<=
+                        MAP4_HUNTER_TARGETING.maxLockDistance &&
+                        !h4CitySegmentBlocked(state.pos,liveLock.mesh.position)));
+            if (lockValid) {
+                // Read live target only while physically in lock range.
                 aimWorldPoint = state.activeMap === MAP_MODES.MAP4
                     ? predictHunterAimPoint(liveLock, state.pos)
                     : state.combatEnabled ? liveLock.mesh.position.clone() : predictObstacleAimPoint(liveLock);
@@ -16547,7 +16660,9 @@
                     mesh: laserMesh,
                     dir,
                     speed: state.combatEnabled || state.activeMap === MAP_MODES.MAP4 ? 2050 : 4550,
-                    life: state.combatEnabled || state.activeMap === MAP_MODES.MAP4 ? 1.15 : 0.54
+                    life: state.activeMap===MAP_MODES.MAP4?
+                        MAP4_HUNTER_TARGETING.projectileRange/MAP4_HUNTER_TARGETING.projectileSpeed:
+                        state.combatEnabled?1.15:0.54
                 });
             });
 
@@ -17487,8 +17602,10 @@
             const normMouseY = (state.mouseY / H) * 2 - 1;
 
             if (!state.finished && !state.playerDNF) {
-                const boosting = (keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyW']) && state.energy > 4;
-                const braking = keys['KeyS'];
+                const cityActive=map4CityArenaActive();
+                const boosting = (keys['ShiftLeft'] || keys['ShiftRight'] ||
+                    (!cityActive && keys['KeyW'])) && state.energy > 4;
+                const braking = !cityActive && keys['KeyS']; // S reverses in the city sphere.
                 const itemTurbo = state.itemTurboTimer > 0;
                 const h4PowerActive=state.activeMap===MAP_MODES.MAP4;
 
@@ -18830,7 +18947,9 @@
             let bestTarget = null;
             const laserReady = state.combatEnabled || state.activeMap === MAP_MODES.MAP4 || state.obstacleLaserTimer > 0;
             const previousSource = state.lockedTarget && (state.lockedTarget.source || state.lockedTarget);
-            let bestDist = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? 125 : OBSTACLE_LOCK_MAX_PX;
+            let bestDist = state.activeMap===MAP_MODES.MAP4?
+                MAP4_HUNTER_TARGETING.maxAutoAimPixels:
+                state.combatEnabled?125:OBSTACLE_LOCK_MAX_PX;
             if (!state.combatEnabled && previousSource && isLaserDestructible(previousSource)) {
                 // A small retention margin prevents target blinking at crosshair edges.
                 bestDist += 18;
@@ -18849,6 +18968,11 @@
             for (const c of candidates) {
                 if (!c.mesh || c.mesh.visible === false) continue;
                 const aimPos = (state.combatEnabled || state.activeMap === MAP_MODES.MAP4) ? c.mesh.position : predictObstacleAimPoint(c);
+                if(state.activeMap===MAP_MODES.MAP4){
+                    if(!c.alive || state.pos.distanceTo(aimPos)>MAP4_HUNTER_TARGETING.maxLockDistance)
+                        continue;
+                    if(h4CitySegmentBlocked(state.pos,aimPos))continue;
+                }
                 const scr = worldToScreen(aimPos);
                 if (!scr.visible || scr.x < 0 || scr.x > W || scr.y < 0 || scr.y > H) continue;
                 const d = Math.hypot(scr.x - state.mouseX, scr.y - state.mouseY);
@@ -19183,7 +19307,10 @@
                 value=formatRaceTime(remaining);
                 const pocket=h4ArenaPocketForLane(state.laneX);
                 context='AVCI PUANI '+Math.round(state.hunterScore);
-                instruction='İLERLEME KİLİTLİ · '+pocket.name+' · NORMAL +1 / ELİT +3';
+                const edge=state.cityBoundaryFraction||0;
+                instruction=(edge>MAP4_CITY_ARENA.warningFraction?
+                    'KÜRE SINIRINA YAKIN · İÇERİ DÖN · ':'W İLERİ / S GERİ · ')+
+                    pocket.name+' · NORMAL +1 / ELİT +3';
             } else if(phase===3){
                 const remaining=Math.max(0,MAP4_PHASES.industryEnd-state.routeProgress);
                 fraction=100*(1-remaining/(MAP4_PHASES.industryEnd-MAP4_PHASES.introEnd));
@@ -19252,8 +19379,8 @@
                 code:'GÖREV 04 · GEZEGEN',type:'4 ETAP / SAVAŞ',
                 title:'AVCILARI VUR. YÖRÜNGEYE ÇIK.',
                 objective:'Vadiden geç, 60 saniye arenada savaş, sanayiyi aş ve irtifa kazan.',
-                stats:[['60 SN','KİLİTLİ ARENA'],['300 SN','TOPLAM LİMİT'],['850 M','ÇIKIŞ İRTİFASI']],
-                controls:['FARE · NİŞAN','F / SOL TIK · ATEŞ','1–4 · GÜÇ MODU'],
+                stats:[['60 SN','ŞEHİR ARENASI'],['300 SN','TOPLAM LİMİT'],['850 M','ÇIKIŞ İRTİFASI']],
+                controls:['W/S · İLERİ/GERİ','FARE · NİŞAN','SHIFT · BOOST'],
                 pause:'HARİTA 4 · 60 SN ARENA · 300 SN TOPLAM · 850 M HEDEF · 1–4 GÜÇ MODU'
             }
         });
