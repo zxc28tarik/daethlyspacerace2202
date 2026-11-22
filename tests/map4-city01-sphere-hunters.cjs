@@ -84,6 +84,18 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
   });
   assert(sphere.clamped,'sphere must constrain real 3d route space');
   assert(sphere.currentPlayer<sphere.rad,'player must remain inside sphere');
+  const underground=await page.evaluate(()=>{
+   const mock={routeProgress:MAP4_CITY_ARENA.centerProgress,
+     laneX:0,laneY:-2500,currentSpeed:175,arenaDirection:1};
+   const next=map4ConstrainCityArena(mock,MAP4_CITY_ARENA.centerProgress);
+   return {altitude:mock.laneY,floor:MAP4_CITY_ARENA.minAltitude,
+     sphereDistance:map4CityArenaDistance(mock,next),
+     radius:MAP4_CITY_ARENA.radius};
+  });
+  assert(underground.altitude>=underground.floor,
+   'arena must prevent underground city flight');
+  assert(underground.sphereDistance<=underground.radius,
+   'city floor may not push the craft outside the arena sphere');
   await page.screenshot({path:path.join(evidence,'02-city-after-movement.png')});
   // Test near/far lock policy without fake game kills. Retain render objects
   // after measuring; the actual lock finder must refuse all far targets.
