@@ -1,0 +1,60 @@
+name: NEXT22K arena visual phase-boundary QA
+on:
+  push:
+    branches: [codex/map4-arena-phase-visibility-22k]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map4-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Check HTML embedded JS parses
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'), vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+            .map(m=>m[1]).filter(Boolean);
+          if (!scripts.length) throw Error('No inline JS found');
+          scripts.forEach(code=>new vm.Script(code));
+          console.log('PASS: '+scripts.length+' inline JS scripts parse');
+          NODE
+      - name: Map 1 and Map 4 Chromium smoke
+        run: node tests/map4-browser-smoke.cjs
+      - name: Industrial original identities regression
+        run: node tests/map4-gfx11c-industrial-identity.cjs
+      - name: Industrial collider route regression
+        run: node tests/map4-gfx11c14-collider-lane-survey.cjs
+      - name: Industrial visual frame regression
+        run: node tests/map4-gfx11c6-silhouette-depth.cjs
+      - name: NEXT22E actual WebGL arena asset and collider proof
+        run: node tests/map4-next22e-warfront.cjs
+      - name: NEXT22F real camera A-B warfront WebGL proof
+        run: node tests/map4-next22f-warfront-visual.cjs
+      - name: NEXT22G four-view WebGL A-B arena grade and phase isolation
+        run: node tests/map4-next22g-arena-grade.cjs
+      - name: NEXT22H genuine pierced deck and three-pocket WebGL visibility
+        run: node tests/map4-next22h-sculpted-decks.cjs
+      - name: NEXT22I actual hole-raycast, trim and signal alignment WebGL proof
+        run: node tests/map4-next22i-alignment.cjs
+      - name: NEXT22J three actual chase-camera warfront silhouettes and 74 instance lane proof
+        run: node tests/map4-next22j-chase-arena.cjs
+      - name: NEXT22K stage-boundary WebGL visibility and leak proof
+        run: node tests/map4-next22k-arena-phase-boundary.cjs
+      - name: Archive browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next22k-browser-qa
+          path: tests/map4-*.png
+          if-no-files-found: ignore
