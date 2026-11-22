@@ -101,8 +101,35 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
   await page.keyboard.up('s');
   const reversed=await page.evaluate(()=>state.routeProgress);
   assert(reversed<movement.progress-20);
+  // Real regression for the user's "hung on a wall" report: after reaching
+  // the invisible sphere, hands-free patrol must move back INTO the city,
+  // never multiply speed toward zero for the rest of the 60-second fight.
+  const wallRecovery=await page.evaluate(()=>{
+   const old={progress:state.routeProgress,laneX:state.laneX,laneY:state.laneY,
+     autoDir:state.arenaAutoDirection,speed:state.currentSpeed};
+   const a=MAP4_CITY_ARENA;
+   state.routeProgress=a.centerProgress+a.radius-a.craftMargin-1;
+   state.laneX=0;state.laneY=a.centerY;
+   state.arenaAutoDirection=1;
+   const boundary=map4Advance(state.routeProgress,RACE_SPEEDS.NORMAL,.2,state);
+   const reboundDirection=state.arenaAutoDirection;
+   state.routeProgress=boundary;
+   const inward=map4Advance(boundary,RACE_SPEEDS.NORMAL,.2,state);
+   const preservedSpeed=state.currentSpeed;
+   state.routeProgress=old.progress;state.laneX=old.laneX;
+   state.laneY=old.laneY;state.currentSpeed=old.speed;
+   state.arenaAutoDirection=old.autoDir;
+   return {boundary,inward,reboundDirection,preservedSpeed,
+     expectedMax:a.centerProgress+a.radius-a.craftMargin};
+  });
+  assert.equal(wallRecovery.reboundDirection,-1);
+  assert(wallRecovery.boundary<=wallRecovery.expectedMax+.01);
+  assert(wallRecovery.inward<wallRecovery.boundary-3,
+    'hands-free arena flight must move away from sphere instead of hanging');
+  assert(wallRecovery.preservedSpeed>20,
+    'sphere contact must not collapse ship speed to zero');
   assert.deepEqual(jsErrors,[]);
-  const data={scene,begin,movement,reversed,errors:jsErrors};
+  const data={scene,begin,movement,reversed,wallRecovery,errors:jsErrors};
   fs.writeFileSync(path.join(dir,'report.json'),JSON.stringify(data,null,2));
   console.log('PASS MAP4 CITY02 '+JSON.stringify(data));
   await page.close();
