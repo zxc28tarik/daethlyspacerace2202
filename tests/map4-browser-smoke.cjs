@@ -1154,15 +1154,35 @@ const assert = require('node:assert/strict');
     assert(nominal.intro+nominal.arena+nominal.industry+nominal.ascent>240 &&
       nominal.intro+nominal.arena+nominal.industry+nominal.ascent<300,
       'normal map duration 4–5 minutes');
-    // Enter zone two, check every pilot is held in the battle area.
+    // MAP4-CITY01: the 60-second arena is a free-flying urban sphere,
+    // not the old fixed-progress waiting plane.
     await page.evaluate(()=>{state.routeProgress=MAP4_PHASES.introEnd-2;});
     await page.waitForFunction(()=>state.map4Phase===2,null,{timeout:14000});
-    const anchor=await page.evaluate(()=>state.routeProgress);
+    const arenaBefore=await page.evaluate(()=>({
+      progress:state.routeProgress,
+      rivals:racers.filter(r=>!r.finished&&!r.dnf)
+        .map(r=>({id:r.name,progress:r.routeProgress}))
+    }));
     await page.waitForTimeout(300);
-    assert(Math.abs((await page.evaluate(()=>state.routeProgress))-anchor)<0.01,
-      'no forward progress during arena');
-    assert.equal(await page.evaluate(()=>racers.every(r=>r.routeProgress===MAP4_PHASES.introEnd
-      || r.finished || r.dnf)),true,'five AI pilots held in arena');
+    const arenaMotion=await page.evaluate(()=>({
+      progress:state.routeProgress,
+      active:map4CityArenaActive(),
+      rivals:racers.filter(r=>!r.finished&&!r.dnf).map(r=>({
+        id:r.name,progress:r.routeProgress,
+        inside:map4CityArenaDistance(r)<=MAP4_CITY_ARENA.radius+1
+      })),
+      playerInside:map4CityArenaDistance(state)<=MAP4_CITY_ARENA.radius+1
+    }));
+    assert.equal(arenaMotion.active,true,'city sphere should remain active');
+    assert(arenaMotion.progress>arenaBefore.progress+1,
+      'city arena must allow forward travel rather than hovering');
+    assert(arenaMotion.playerInside,'player stays inside invisible city sphere');
+    assert(arenaMotion.rivals.every(r=>r.inside),
+      'other pilots are constrained inside the spherical city zone');
+    assert(arenaMotion.rivals.some(r=>{
+      const before=arenaBefore.rivals.find(x=>x.id===r.id);
+      return before&&Math.abs(r.progress-before.progress)>.1;
+    }),'city combat rivals fly and patrol instead of holding at one coordinate');
 
     // GFX-04: three substantial, non-generic warfront compositions must
     // replace old repeated boxes without touching hunter/collision systems.
@@ -1191,8 +1211,8 @@ const assert = require('node:assert/strict');
         factoryColliders:h4IndustrialColliders.length,
         physicalCityColliders:planetaryBuildingColliders.length};
     });
-    // The next phase's refinery must not crowd the entire battlefield
-    // during the mandatory 60-second stand-still fight.
+    // The next phase's refinery must not crowd the playable city sphere
+    // during the mandatory 60-second free-flight battle.
     const industrialDuringArena=await page.evaluate(()=>{
       updatePlanetaryWorld();
       const zone=planetaryWorldRegions[2];
