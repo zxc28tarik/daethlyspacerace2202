@@ -392,7 +392,14 @@
         }
 
         /* UIUX-02 — focused Map1 race instrument cluster; map4 styles stay intact. */
-        body[data-ui-mode="map1"] #h4-hud-root {padding:clamp(9px,1.4vw,20px)!important;gap:0;}
+        body[data-ui-mode="map1"] #h4-hud-root {
+            position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
+            justify-content:space-between;pointer-events:none;
+            box-sizing:border-box;padding:clamp(9px,1.4vw,20px)!important;gap:0;}
+        body[data-ui-mode="map1"] #ui-flight-top-row{
+            display:flex;justify-content:space-between;align-items:flex-start;}
+        body[data-ui-mode="map1"] #ui-hud-bottom-row{
+            display:flex;justify-content:space-between;align-items:flex-end;}
         body[data-ui-mode="map1"] #ui-flight-top-row{gap:14px;align-items:flex-start;}
         body[data-ui-mode="map1"] #ui-flight-metrics-panel {
             box-sizing:border-box;width:min(555px,47vw);max-width:555px;min-width:0;
