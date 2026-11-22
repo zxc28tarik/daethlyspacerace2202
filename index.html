@@ -1431,6 +1431,44 @@
             #flight-help-screen .ui-pause-actions button{animation:none;transition:none;}
         }
 
+    
+        /* UIUX-08B — 720p editorial fit. Do not hide briefing information or alter gameplay. */
+        @media (min-width:861px) and (max-height:790px) {
+            #start-screen .ui-start-shell{padding:11px 16px!important;}
+            #start-screen .ui-topline{padding-bottom:4px;margin:0 0 4px;}
+            #start-screen .ui-hero-title{font-size:clamp(28px,2.9vw,38px);margin:0 0 2px;}
+            #start-screen .ui-hero-description{font-size:10px;margin:0 0 3px;}
+            #start-screen .ui-menu-summary{padding:4px 9px;margin:0 0 6px;}
+            #start-screen .ui-map-picker-title{font-size:13px;margin:0 0 5px;padding-bottom:5px;}
+            #map-selection .ui-six-map-grid{gap:7px;}
+            #start-screen .ui-six-map-grid .map-choice-btn{min-height:124px;padding:6px;gap:3px;}
+            #start-screen .ui-map-scene{height:45px;}
+            #start-screen .ui-six-map-grid .map-choice-btn strong{font-size:11px;}
+            #start-screen .ui-six-map-grid .ui-map-description{font-size:10px;line-height:1.15;}
+            #start-screen .ui-six-map-grid .ui-map-status{min-height:18px;padding:3px 4px 2px;font-size:10px;}
+            #start-screen #map-selection-status{font-size:10px;margin:3px 0 0!important;}
+            #start-screen #ui-quick-briefing{margin:3px 0!important;padding:6px 9px!important;}
+            #start-screen #ui-quick-mission-title{font-size:14px;margin:1px 0 3px;}
+            #start-screen #ui-quick-mission-objective{font-size:10px;margin:2px 0 4px;}
+            #start-screen .ui-brief-stat{padding:3px 6px;}
+            #start-screen .ui-brief-stat strong{font-size:11px;}
+            #start-screen .ui-brief-stat span{font-size:9px;}
+            #start-screen .ui-quick-controls{margin:4px 0;gap:4px;}
+            #start-screen .ui-guide-detail{margin:0 0 3px;}
+            #start-screen .ui-launch-row{padding:5px 0 1px;margin:0;}
+            #start-screen .ui-launch-btn{min-height:39px;font-size:12px;padding:8px 14px!important;}
+            #ui-menu-rail{padding:8px;gap:6px;}
+            #ui-menu-rail .ui-menu-nav-action{min-height:45px;padding:8px;}
+            #ui-menu-rail .ui-menu-rail-status{padding:7px;margin-top:5px;}
+            #ui-menu-rail .ui-menu-rail-status strong{font-size:13px;}
+            #ui-menu-rail .ui-menu-rail-foot{padding-top:5px;font-size:8px;}
+        }
+        /* Keep paused game context visible behind the opaque action panels. */
+        #flight-help-screen{
+            background:linear-gradient(125deg,rgba(1,8,22,.59),rgba(6,19,37,.69));
+            backdrop-filter:blur(5px);
+        }
+
     </style>
 </head>
 <body class="w-screen h-screen relative">
