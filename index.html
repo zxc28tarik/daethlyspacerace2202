@@ -3025,7 +3025,7 @@
         // The centre follows the route frame; the boundary is invisible in the world.
         const MAP4_CITY_ARENA=Object.freeze({
             centerProgress:(MAP4_PHASES.introEnd+MAP4_PHASES.arenaEnd)/2,
-            centerY:150,radius:1850,craftMargin:55,
+            centerY:150,radius:1850,craftMargin:55,minAltitude:-315,
             warningFraction:.84,forwardCruise:.31,forwardThrottle:.83,
             reverseThrottle:-.62,rivalPatrol:.56
         });
@@ -3040,6 +3040,9 @@
         function map4ConstrainCityArena(ship,nextProgress){
             if(!ship)return nextProgress;
             const a=MAP4_CITY_ARENA;
+            // Flying under the city ground is not a legitimate escape route.
+            // Terrain is at roughly -440: preserve clearance above its surface.
+            ship.laneY=Math.max(a.minAltitude,ship.laneY);
             const limit=a.radius-a.craftMargin-(ship===state?0:Math.max(0,(ship.radius||12)-12));
             const dz=nextProgress-a.centerProgress,dx=ship.laneX,dy=ship.laneY-a.centerY;
             const distance=Math.hypot(dz,dx,dy);
