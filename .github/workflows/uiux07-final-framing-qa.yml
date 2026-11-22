@@ -1,0 +1,59 @@
+name: UIUX07 final framing keyboard and publisher capture acceptance
+on:
+  push:
+    branches: [codex/uiux-07-final-framing-publisher-qa]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  uiux07-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned WebGL browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Check embedded JavaScript and new test syntax
+        run: |
+          node --check tests/uiux07-final-framing.cjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          const chunks=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+            .map(m=>m[1]).filter(Boolean);
+          if(!chunks.length)throw Error('No inline JavaScript');
+          for(const src of chunks)new vm.Script(src);
+          if(!html.includes('UIUX-07 — final editorial readability'))throw Error('Missing visual QA CSS');
+          console.log('PASS UIUX07 HTML / JS parse');
+          NODE
+      - name: Final framing readability focus and real DNF in five Chromium WebGL viewports
+        run: node tests/uiux07-final-framing.cjs
+      - name: UIUX06 six-map results regression
+        run: node tests/uiux06-six-map-results.cjs
+      - name: UIUX05 audio graphics accessibility regression
+        run: node tests/uiux05-live-settings.cjs
+      - name: UIUX04 onboarding regression
+        run: node tests/uiux04-briefing-first-flight.cjs
+      - name: UIUX03 Map4 four-phase HUD regression
+        run: node tests/uiux03-map4-phase-hud.cjs
+      - name: UIUX02 Map1 race HUD regression
+        run: node tests/uiux02-map1-race-hud.cjs
+      - name: UIUX01 menu pause results regression
+        run: node tests/uiux01-screen-regression.cjs
+      - name: Original Map1 Map4 gameplay smoke
+        run: node tests/map4-browser-smoke.cjs
+      - name: Archive five-viewport capture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uiux07-final-framing-webgl
+          path: |
+            tests/uiux07-evidence/*.png
+            tests/uiux07-evidence/*.json
+            tests/uiux06-evidence/*.png
+          if-no-files-found: warn

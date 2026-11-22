@@ -32,7 +32,7 @@ Hız yarışı + gezegensel hava savaşı için profesyonel, tek bakışta anla�
 | UIUX-04 | Görev brifingi: 10 saniyede okunur hedef/denetim, gerektiğinde ayrıntılı rehber; ilk tur onboarding | 2 görev brifingi, açılır tüm rehber, oyun saatiyle mini ipuçları, 4 viewport WebGL ve geri uyumluluk | **YAPILDI-PR / TAM CI PASS; insan estetik ve GPU FPS açık** |
 | UIUX-05 | Pause seçenekleri: ses, görüntü profilleri, erişilebilirlik, kontroller; gerçek state ve kalıcı tercih | Ana ses GainNode, grafik profili, HUD yazısı, kontrast, hareket, kalıcılık ve sıfırlama; 4 viewport Chromium+oynanış regresyonu | **YAPILDI-PR / TAM CI PASS; insan estetik ve native GPU FPS açık** |
 | UIUX-06 | Harita 1 yarış süresi/leader farkı, Harita 4 avcı skoru/gerçek varış sonuç hiyerarşisi ve 6 kartlı görev seçici | 2 oynanabilir + 4 kilitli slot, DNF/valid/late/win ve retry/menu, dört Chromium viewport + önceki regresyon | **YAPILDI-PR / TAM CI PASS; insan estetik ve native GPU FPS açık** |
-| UIUX-07 | Ekran kadrajı, çözünürlük/ölçek, kontrast, klavye ve runtime regresyonu; 8–12 dakikalık yayıncı capture akışı | Gerçek Chrome WebGL screenshot + kritik fonksiyon testi, insan onayı ve native GPU FPS ayrı | BEKLİYOR |
+| UIUX-07 | Ekran kadrajı, çözünürlük/ölçek, kontrast, klavye ve runtime regresyonu; 8–12 dakikalık yayıncı capture akışı | Gerçek Chrome WebGL screenshot + kritik fonksiyon testi, insan onayı ve native GPU FPS ayrı | **KODLANDI / CI DOĞRULANIYOR; insan görsel onayı AÇIK** |
 
 ## UIUX-01 uygulama sınırı
 HTML/CSS değişiklikleri mevcut DOM id'lerini, oyunun arayüzü beslediği iç span'leri, map seçim düğmelerini, pause/resume ve restart handler'larını silmeyecek. İlk paket yalnız arayüz görünümü ve doğru bilgi bağlamını düzeltecek; Map1 onaylı 3D sahne ve tüm grafikler aynen kalacak. Şüpheli büyük oynanış değişikliği yapılmayacak.
@@ -135,3 +135,12 @@ HTML/CSS değişiklikleri mevcut DOM id'lerini, oyunun arayüzü beslediği iç 
 - Dört viewport ayrı log: desktop 1600×900, laptop 1280×720, compact 760×720, mobile 390×844: hepsinde kilitli=4, oynanabilir=2, sonuç yatay taşma=0, menü taşma=0. Tarayıcıda gerçek başlangıç ve navigation kullanıldı.
 - **Yayım sınırı:** draft PR #136, `main` merge edilmedi; insan görsel kabulü + fiziksel GPU FPS ve ilk yayıncı için asgari 3 oynanabilir harita şartı açık.
 - Sonraki adım **UIUX-07**: son kadraj, kontrast/ölçek, klavye erişilebilirliği, screenshot ve publisher capture QA; sahici 8–12 dk dikey demo için gereken en az 3 oynanabilir harita ayrı içerik iş kalemidir.
+
+
+## UIUX-07 geliştirme kaydı — 22.11.2026
+- Yeni iş kolu `codex/uiux-07-final-framing-publisher-qa` PR #136 üstünden dallandı; `main` değişmedi.
+- `index.html`: altı harita kartında kilitli metin kontrastı, küçük/orta ekran yazı boyutu, sonuç özet metrikleri ve klavye odak çerçeveleri rafine edildi. Fizik, görsel modeller, shader, ödül sistemi, AI, oyun kuralları ve skor kodu korunur.
+- `tests/uiux07-final-framing.cjs`: 1600×900, 1366×768, 1280×720, 760×720, 390×844; her birinde sekiz ekran, gerçek H1/H4 WebGL başlatma, pause, ayar, klavye Enter seçimi, gerçek DNF, tekrar oyna, menüye dönüş.
+- `.github/workflows/uiux07-final-framing-qa.yml`: yeni test ve UIUX01–06 + Map1/Map4 oynanış regresyonlarının tümü, ekran arşivi. **GitHub Actions sonucu doğrulanana dek PASS ilan edilmeyecek.**
+- `UIUX07_PUBLISHER_CAPTURE_ACCEPTANCE.md`: 8–12 dakika koşullu yayıncı kayıt taslağı; üçüncü oynanabilir görev hâlâ eksik, sentetik faz HUD kadrajları sahici oynanış diye sunulmayacak.
+- Ayrı açık kapılar: sanatsal/görsel insan kabulü; üçüncü oynanabilir harita; bütün etapları gerçekten oynayan kayıt; native GPU FPS kullanıcı isteği gereği ertelendi.

@@ -1091,6 +1091,34 @@
             #map-selection .ui-six-map-grid{grid-template-columns:1fr;}
             #start-screen .ui-six-map-grid .map-choice-btn{min-height:80px;}
         }
+    
+        /* UIUX-07 — final editorial readability and focus visibility.
+           UI-only overrides. Approved ship, stages, renderer and mechanics remain unchanged. */
+        #start-screen .ui-six-map-grid .ui-map-index{font-size:10px;}
+        #start-screen .ui-six-map-grid .ui-map-description{font-size:11px;line-height:1.42;}
+        #start-screen .ui-six-map-grid .ui-map-status{font-size:10px;}
+        #start-screen .ui-six-map-grid .ui-map-locked{opacity:.84;}
+        #start-screen .ui-six-map-grid .ui-map-locked .ui-map-description{color:#adc0cf;}
+        #start-screen .ui-six-map-grid .ui-map-locked .ui-map-status{color:#e3c690;}
+        #start-screen .ui-six-map-grid .ui-map-locked .ui-map-index{color:#b8c7d1;}
+        #gameover-screen .ui-result-metric span{font-size:11px;color:#b6ccd7;}
+        #gameover-screen .ui-results-table-label small{font-size:10px;color:#a9c3d0;}
+        #gameover-screen .ui-result-criteria{font-size:11px;}
+        #gameover-screen #race-standings-head{color:#b1cbd8;}
+        #start-screen summary:focus-visible,
+        #gameover-screen button:focus-visible,
+        #flight-help-screen button:focus-visible,
+        #flight-help-screen summary:focus-visible,
+        #flight-help-screen select:focus-visible,
+        #flight-help-screen input:focus-visible{
+            outline:3px solid #ffd07e!important;outline-offset:2px;
+        }
+        @media(max-width:640px){
+            #start-screen .ui-six-map-grid .ui-map-index{font-size:10px;}
+            #start-screen .ui-six-map-grid .ui-map-description{font-size:10px;line-height:1.35;}
+            #start-screen .ui-six-map-grid .ui-map-status{font-size:10px;}
+            #start-screen .ui-six-map-grid .map-choice-btn{min-height:108px;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
