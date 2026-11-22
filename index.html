@@ -3026,8 +3026,8 @@
         const MAP4_CITY_ARENA=Object.freeze({
             centerProgress:(MAP4_PHASES.introEnd+MAP4_PHASES.arenaEnd)/2,
             centerY:150,radius:1850,craftMargin:55,minAltitude:-315,
-            warningFraction:.84,forwardCruise:.31,forwardThrottle:.83,
-            reverseThrottle:-.62,rivalPatrol:.56
+            warningFraction:.84,forwardCruise:.49,forwardThrottle:1.02,
+            reverseThrottle:-.82,rivalPatrol:.56
         });
         function map4CityArenaActive(){
             return state.activeMap===MAP_MODES.MAP4 && state.map4ArenaStarted &&
@@ -3239,8 +3239,8 @@
             }
             h4RefreshArenaHunters();
             state.lastHunterHudTick=-1; // Show arena scoring immediately.
-            showCenterAnnouncement('ŞEHİR ARENASI · SERBEST UÇUŞ',
-                '60 SN · W İLERİ / S GERİ · GÖRÜNMEZ KÜRE SINIRI');
+            showCenterAnnouncement('ŞEHİR İÇİ HAVA SAVAŞI',
+                '60 SN · BİNALAR ARASINDA SERBEST UÇ · W / S İLERİ GERİ');
         }
         function map4UpdatePhase(dt) {
             if(state.activeMap!==MAP_MODES.MAP4||!state.running)return;
@@ -11142,37 +11142,107 @@
             zone.userData.h4Next22eDressed=true;
         }
 
-        // H4-CITY01: urban buildings with *matching* physical collider volumes.
-        // No new map or external assets; structures share the existing building kit.
+        // H4-CITY02: replace the old floating wreck wall with an accessible
+        // urban district. All building positions use the SAME route frame as
+        // ships, so the main avenue is physically navigable on entry.
         const h4CityArenaColliders=[];
         const h4CityArenaBuildings=[];
+        let h4City02DistrictGroup=null;
+        const H4_CITY02_BOX=new THREE.BoxGeometry(1,1,1);
+        const H4_CITY02_MATERIALS=[
+            0x526778,0x748390,0x3b5767,0x8a8789,0x425c70,0x73767f
+        ].map(color=>new THREE.MeshStandardMaterial({
+            color,metalness:.36,roughness:.72,flatShading:true}));
+        const H4_CITY02_ROOF=new THREE.MeshStandardMaterial({
+            color:0x263b4e,metalness:.53,roughness:.57});
+        const H4_CITY02_ROAD=new THREE.MeshStandardMaterial({
+            color:0x26313d,metalness:.08,roughness:.94});
+        const H4_CITY02_WINDOW=new THREE.MeshBasicMaterial({
+            color:0x79d2e6,transparent:true,opacity:.74,
+            depthWrite:false,side:THREE.DoubleSide});
+        const H4_CITY02_STREETLIGHT=new THREE.MeshBasicMaterial({
+            color:0x66daf4});
         function h4BuildArenaCity(zone){
             if(h4CityArenaBuildings.length)return;
-            const sides=[-1420,-1060,-690,690,1060,1420];
-            for(let row=0;row<6;row++)for(let col=0;col<sides.length;col++){
-                const index=row*sides.length+col;
-                const progress=MAP4_PHASES.introEnd+175+row*222+(col%2)*23;
-                const side=sides[col]+((row%2)?-1:1)*(col%2?27:-27);
-                const height=260+((row*67+col*47)%600);
-                const width=112+(index*19)%105,depth=124+(index*29)%95;
-                const altitude=-440+height/2;
-                const geometry=(index%4===0)?H4_MESHES.tower:H4_MESHES.structure;
-                const material=(index%3===0)?H4_MATERIALS.steel:H4_MATERIALS.wall;
-                const building=h4PlaceStructure(zone,progress,side,altitude,
-                    geometry,material,[width,height,depth]);
-                building.name='H4_CITY01_PHYSICAL_BUILDING_'+index;
-                const hitbox={progress,side,altitude,
-                    halfSide:width*.5,halfUp:height*.5,halfDepth:depth*.5};
-                building.userData.h4Collider=hitbox;
-                building.userData.h4CityPhysical=true;
-                h4CityArenaColliders.push(hitbox);
-                h4CityArenaBuildings.push(building);
-                if(index%5===0){
-                    const roof=h4PlaceStructure(zone,progress,side,altitude+height*.5+12,
-                        H4_MESHES.beacon,H4_MATERIALS.marker,[19,19,19]);
-                    roof.userData.h4CityRoofLight=true;
+            const district=new THREE.Group();
+            district.name='MAP4_CITY02_REAL_URBAN_DISTRICT';
+            district.userData.h4CityDistrict=true;
+            district.userData.realCollision=true;
+            zone.add(district);
+            h4City02DistrictGroup=district;
+            // Segmented road follows the curved planetary route; unlike one
+            // giant plane it cannot turn into a vertical wall at a bend.
+            for(let row=0;row<10;row++){
+                const progress=MAP4_PHASES.introEnd+55+row*200;
+                const avenue=h4PlaceStructure(district,progress,0,-436,
+                    H4_CITY02_BOX,H4_CITY02_ROAD,[680,7,205]);
+                avenue.name='H4_CITY02_DRIVABLE_MAIN_AVENUE_'+row;
+                avenue.userData.visualOnly=true;
+                if(row===2||row===5||row===8){
+                    const cross=h4PlaceStructure(district,progress,0,-433,
+                        H4_CITY02_BOX,H4_CITY02_ROAD,[2740,5,80]);
+                    cross.name='H4_CITY02_CROSS_STREET_'+row;
+                    cross.userData.visualOnly=true;
                 }
             }
+            // The 600m+ central corridor is open. Towers are close enough to
+            // frame the player, with transversal gaps for genuine dogfighting.
+            const columns=[-1300,-925,-510,510,925,1300];
+            const windows=[];
+            for(let row=0;row<9;row++)for(let col=0;col<columns.length;col++){
+                const index=row*columns.length+col;
+                const progress=MAP4_PHASES.introEnd+130+row*197+(col%2)*17;
+                const side=columns[col]+(row%2?26:-26);
+                const width=146+(index*23)%77;
+                const depth=135+(index*31)%72;
+                const height=365+(row*79+col*103)%660;
+                const altitude=-440+height*.5;
+                const base=h4PlaceStructure(district,progress,side,altitude,
+                    H4_CITY02_BOX,H4_CITY02_MATERIALS[index%H4_CITY02_MATERIALS.length],
+                    [width,height,depth]);
+                base.name='H4_CITY02_PHYSICAL_BUILDING_'+index;
+                const collider={progress,side,altitude,
+                    halfSide:width*.5,halfUp:height*.5,halfDepth:depth*.5};
+                base.userData.h4Collider=collider;
+                base.userData.h4CityPhysical=true;
+                h4CityArenaColliders.push(collider);
+                h4CityArenaBuildings.push(base);
+                const crown=h4PlaceStructure(district,progress,side,
+                    -440+height+13,H4_CITY02_BOX,H4_CITY02_ROOF,
+                    [width*.78,23,depth*.83]);
+                crown.name='H4_CITY02_TOWER_CROWN_'+index;
+                crown.userData.visualOnly=true;
+                if(index%7===0){
+                    const light=h4PlaceStructure(district,progress,side,
+                        -440+height+32,H4_CITY02_BOX,H4_CITY02_STREETLIGHT,
+                        [22,5,22]);
+                    light.userData.visualOnly=true;
+                }
+                // Emissive windows, all buildings batched into one draw call.
+                // Lighted inner facades make the navigable city street legible.
+                const face=side>0?side-width*.5-1.8:side+width*.5+1.8;
+                for(let y=0;y<3;y++)for(let z=-1;z<=1;z++){
+                    const floor=-440+height*(.25+.22*y);
+                    windows.push({progress:progress+z*depth*.26,
+                        face,y:floor,seed:index+y*17+z});
+                }
+            }
+            const batch=new THREE.InstancedMesh(H4_CITY02_BOX,
+                H4_CITY02_WINDOW,windows.length);
+            const dummy=new THREE.Object3D();
+            windows.forEach((w,i)=>{
+                const frame=getRaceFrameAtDistance(w.progress);
+                dummy.position.copy(h4WorldPosition(w.progress,w.face,w.y));
+                dummy.quaternion.setFromUnitVectors(H4_UP,frame.up);
+                dummy.scale.set(3.5,15+(w.seed%3)*5,19);
+                dummy.updateMatrix();
+                batch.setMatrixAt(i,dummy.matrix);
+            });
+            batch.instanceMatrix.needsUpdate=true;
+            batch.frustumCulled=false;
+            batch.name='H4_CITY02_INSTANCED_STREET_WINDOWS';
+            batch.userData.visualOnly=true;
+            district.add(batch);
         }
         function h4CitySegmentBlocked(from,to){
             if(!map4CityArenaActive()||!h4CityArenaColliders.length)return false;
@@ -11774,26 +11844,31 @@
             // the same phase envelope. Previously the 112-piece wreck group
             // was not linked and leaked into visible neighboring industry.
             // This changes render visibility only, not colliders or gameplay.
-            const arenaVisualActive=state.map4Phase===2 ||
-                (state.map4Phase===1 && state.routeProgress>11200) ||
-                // The city must not blink away at second 60 while pilots are
-                // still physically inside its buildings.
-                (state.map4Phase===3 && state.routeProgress<
-                    MAP4_PHASES.arenaEnd+1700);
+            // CITY02: the huge crashed-carrier/warfront scenery from the old
+            // static arena was directly in front of the camera like a wall.
+            // Replace it VISUALLY with actual city streets, not its collision
+            // or telemetry objects. Never make a giant invisible wall.
+            const arenaVisualActive=false;
+            for(const oldFront of h4ArenaWarfrontGroups)
+                oldFront.visible=false;
             if(h4Gfx11bArenaSkylineGroup)
-                h4Gfx11bArenaSkylineGroup.visible=arenaVisualActive;
+                h4Gfx11bArenaSkylineGroup.visible=false;
             if(h4Next22kArenaWreckGroup){
-                h4Next22kArenaWreckGroup.visible=arenaVisualActive;
-                if(!arenaVisualActive)h4Next22kPhaseVisibility.culledOutsideArena++;
+                h4Next22kArenaWreckGroup.visible=false;
+                h4Next22kPhaseVisibility.culledOutsideArena++;
             }
-            h4Next22kPhaseVisibility.lastVisible=arenaVisualActive;
+            h4Next22kPhaseVisibility.lastVisible=false;
+            if(h4City02DistrictGroup)h4City02DistrictGroup.visible=true;
             h4Next22kPhaseVisibility.updates++;
             // Cull distant compositions inside active regions to limit draw calls.
             h4Gfx06eUpdateFineDetail();
+            if(h4Gfx04DState.smoke)h4Gfx04DState.smoke.visible=
+                state.map4Phase!==2 && state.map4Phase!==1;
             h4Gfx07UpdateLighting();
             let nextLandmark=null;
             for(const point of h4WorldLandmarks) {
-                point.group.visible=point.at>=state.routeProgress-3200 &&
+                point.group.visible=point.zone!==1 &&
+                    point.at>=state.routeProgress-3200 &&
                     point.at<=state.routeProgress+7200;
                 if(point.at>=state.routeProgress-400 && point.at<=state.routeProgress+3100 &&
                     (!nextLandmark || point.at<nextLandmark.at)) nextLandmark=point;
@@ -11802,9 +11877,10 @@
                 // Parent region culling already handles the long-distance budget.
                 // Keep far skyline visible, but hide near clutter if region is distant.
                 const region=PLANETARY_REGIONS[scenery.regionIndex];
-                scenery.near.visible=region.to>state.routeProgress-2300 &&
+                scenery.near.visible=scenery.regionIndex!==1 &&
+                    region.to>state.routeProgress-2300 &&
                     region.from<state.routeProgress+5200;
-                scenery.far.visible=true;
+                scenery.far.visible=scenery.regionIndex!==1;
             }
             h4Gfx06dUpdateLod();
             h4Gfx11cUpdateIndustryDetail();
