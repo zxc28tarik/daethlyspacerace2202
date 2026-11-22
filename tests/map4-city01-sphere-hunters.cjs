@@ -57,7 +57,7 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
   assert.equal(start.collidersWithMeshes,48);
   assert(start.geometry.every(h=>Math.abs(h.scale/h.nominalScale-1.7)<1e-6));
   assert(start.geometry.every(h=>h.radius>=27.2));
-  assert(start.mission.includes('W İLERİ / S GERİ'));
+  assert(start.mission.includes('W/S İLERİ GERİ') && start.mission.includes('A/D YAN'));
   assert.match(start.name,/ŞEHR/);
   await page.screenshot({path:path.join(evidence,'01-city-free-flight.png')});
   const before=await page.evaluate(()=>state.routeProgress);
