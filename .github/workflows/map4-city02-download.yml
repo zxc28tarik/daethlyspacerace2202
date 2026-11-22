@@ -1,0 +1,44 @@
+name: MAP4 CITY02 Complete Playable Offline Game HTML
+on:
+  push:
+    branches: [codex/map4-city02-real-urban-entry-flight]
+    paths:
+      - .github/workflows/map4-city02-download.yml
+      - index.html
+      - assets/**
+      - tools/**
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-game:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install offline HTML bundler dependencies
+        run: npm install --no-save three@0.128.0 tailwindcss@3.4.17
+      - name: Produce complete two-playable-map single offline HTML
+        run: |
+          node tools/build-gfx01-bundle.cjs
+          node - <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('dist/Uzay_Yarisi_Guncel_Oynanabilir.html','utf8');
+          const m=JSON.parse(fs.readFileSync('dist/gfx01-build-manifest.json','utf8'));
+          for(const t of ['MAP4_CITY02_REAL_URBAN_DISTRICT','H4_CITY02_PHYSICAL_BUILDING_',
+            'MAP4_CITY_ARENA','ui-menu-rail','map-choice-1','map-choice-4'])
+            if(!s.includes(t))throw Error('Missing integrated game feature '+t);
+          for(const t of ['embeddedThree','embeddedGLTFLoader','embeddedAssets','embeddedTailwind'])
+            if(!m.offline[t])throw Error('Not fully offline: '+t);
+          console.log('PASS self-contained game '+m.bundleBytes);
+          NODE
+          cp dist/Uzay_Yarisi_Guncel_Oynanabilir.html dist/DEATHLY_SPACE_RACE_MAP4_CITY02_FULL_GAME.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Deathly-Space-Race-City02-Complete-Playable-Game
+          path: dist/DEATHLY_SPACE_RACE_MAP4_CITY02_FULL_GAME.html
+          retention-days: 30
+          if-no-files-found: error
