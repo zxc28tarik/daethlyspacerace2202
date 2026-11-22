@@ -19433,6 +19433,79 @@
             if(state.running||state.activeMap!==MAP_MODES.MAP4)return;
             h4Gfx10SetProfile(event.target.value);
         });
+
+        /* UIUX-05 actual settings controllers: every control has a real consumer. */
+        function uiApplyDisplaySettings(){
+            document.body.dataset.uiHudText=uiSettings.hudText;
+            document.body.classList.toggle('ui-high-contrast',uiSettings.highContrast);
+            document.body.classList.toggle('ui-reduced-motion',uiSettings.reducedMotion);
+        }
+        function uiRefreshSettingsControls(){
+            document.getElementById('ui-setting-volume').value=String(uiSettings.masterVolume);
+            document.getElementById('ui-setting-volume-output').textContent=uiSettings.masterVolume+'%';
+            document.getElementById('ui-setting-graphics').value=uiSettings.graphics;
+            document.getElementById('ui-setting-hud-text').value=uiSettings.hudText;
+            document.getElementById('ui-setting-contrast').checked=uiSettings.highContrast;
+            document.getElementById('ui-setting-reduced-motion').checked=uiSettings.reducedMotion;
+            document.getElementById('ui-settings-save-status').textContent=
+                uiStorageAvailable===false?'Depolama kapalı · geçici ayarlar':
+                uiStorageAvailable===true?'Tercihler bu tarayıcıya kaydedildi':
+                'Değişiklikler otomatik kaydedilir';
+        }
+        function uiChangeSetting(key,value){
+            if(!Object.prototype.hasOwnProperty.call(UI_SETTINGS_DEFAULTS,key))return false;
+            switch(key){
+                case 'masterVolume':{
+                    const n=Number(value);
+                    if(!Number.isFinite(n))return false;
+                    uiSettings.masterVolume=Math.max(0,Math.min(100,Math.round(n/5)*5));
+                    sound.setVolume(uiSettings.masterVolume);
+                    break;
+                }
+                case 'graphics':
+                    if(!H4_GFX10_ORDER.includes(value))return false;
+                    h4Gfx10SetProfile(value);
+                    break;
+                case 'hudText':
+                    if(!['NORMAL','LARGE'].includes(value))return false;
+                    uiSettings.hudText=value;
+                    break;
+                case 'highContrast':
+                case 'reducedMotion':
+                    if(typeof value!=='boolean')return false;
+                    uiSettings[key]=value;
+                    break;
+                default:return false;
+            }
+            uiApplyDisplaySettings();
+            uiSaveSettings();
+            uiRefreshSettingsControls();
+            return true;
+        }
+        document.getElementById('ui-setting-volume').addEventListener('input',event=>{
+            uiChangeSetting('masterVolume',event.target.value);
+        });
+        document.getElementById('ui-setting-graphics').addEventListener('change',event=>{
+            uiChangeSetting('graphics',event.target.value);
+        });
+        document.getElementById('ui-setting-hud-text').addEventListener('change',event=>{
+            uiChangeSetting('hudText',event.target.value);
+        });
+        document.getElementById('ui-setting-contrast').addEventListener('change',event=>{
+            uiChangeSetting('highContrast',event.target.checked);
+        });
+        document.getElementById('ui-setting-reduced-motion').addEventListener('change',event=>{
+            uiChangeSetting('reducedMotion',event.target.checked);
+        });
+        document.getElementById('ui-settings-reset').addEventListener('click',()=>{
+            Object.assign(uiSettings,UI_SETTINGS_DEFAULTS);
+            sound.setVolume(uiSettings.masterVolume);
+            h4Gfx10SetProfile(uiSettings.graphics);
+            uiApplyDisplaySettings();
+            uiSaveSettings();uiRefreshSettingsControls();
+        });
+        uiApplyDisplaySettings();
+        uiRefreshSettingsControls();
         selectMap(MAP_MODES.MAP1);
         // Return from either results screen to the chooser without launching a race.
         function returnToMapSelection() {
