@@ -28,10 +28,10 @@ jobs:
           scripts.forEach(code=>new vm.Script(code));
           console.log('PASS: '+scripts.length+' embedded scripts');
           NODE
-      - name: Existing Map1 and Map4 gameplay smoke
-        run: node tests/map4-browser-smoke.cjs
       - name: New UIUX-01 3 viewport screenshots and functional checks
         run: node tests/uiux01-screen-regression.cjs
+      - name: Existing Map1 and Map4 gameplay smoke
+        run: node tests/map4-browser-smoke.cjs
       - name: Archive UI screenshots
         if: always()
         uses: actions/upload-artifact@v4
