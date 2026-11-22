@@ -1810,6 +1810,40 @@
             endGame(true);
             return true;
         }
+
+        /* UIUX-06: all metric text is derived from existing authoritative results.
+           Nothing here changes ranks, validity, rewards, times or game state. */
+        function uiSetResultOverview(mapId,status,metrics) {
+            const screen=document.getElementById('gameover-screen');
+            if(!['map1','map4'].includes(mapId))return false;
+            if(!['win','finish','dnf'].includes(status))return false;
+            if(!Array.isArray(metrics)||metrics.length!==4)return false;
+            screen.dataset.uiResultMap=mapId;
+            screen.dataset.uiResultStatus=status;
+            document.getElementById('ui-result-mode').textContent=mapId==='map4'?
+                '04 / GEZEGEN · AVCI YARIŞI':'01 / KORİDOR · HIZ YARIŞI';
+            document.getElementById('ui-result-outcome').textContent=
+                status==='win'?'BİRİNCİLİK':status==='dnf'?
+                'GÖREV TAMAMLANAMADI':'GEÇERLİ VARIŞ';
+            for(let i=0;i<4;i++) {
+                const [label,value]=metrics[i];
+                document.getElementById('ui-result-metric-'+(i+1)+'-label').textContent=String(label);
+                document.getElementById('ui-result-metric-'+(i+1)+'-value').textContent=String(value);
+            }
+            document.getElementById('ui-result-criteria').textContent=mapId==='map4'?
+                'SIRALAMA · önce 300 sn içinde geçerli çıkış, sonra avcı puanı, eşitlikte gerçek süre':
+                'SIRALAMA · geçerli bitişte en kısa yarış süresi; DNF için derece uydurulmaz';
+            document.getElementById('ui-results-table-title').textContent=mapId==='map4'?
+                'AVCI İMHA YARIŞI · 6 PİLOT':'KORİDOR YARIŞI · 6 PİLOT';
+            document.getElementById('ui-results-table-legend').textContent=mapId==='map4'?
+                'PUAN / İMHA / GERÇEK VARIŞ':'PİLOT / PROFİL / SÜRE';
+            window.deathlyResultsUiTelemetry={
+                map:mapId,status,
+                metrics:metrics.map(([label,value])=>({label:String(label),value:String(value)}))
+            };
+            return true;
+        }
+
         function renderHunterRaceResults(standings) {
             const rank=standings.findIndex(row=>row.isPlayer)+1;
             const player=standings.find(row=>row.isPlayer);
@@ -1817,9 +1851,9 @@
             const title=document.getElementById('gameover-title');
             const success=player.validFinish && rank===1;
             const failure=!player.validFinish;
-            title.textContent = failure ? 'HARİTA 4 // DNF · 5 DAKİKA SINIRI'
-                : success ? 'HARİTA 4 // AVCI YARISI ZAFERI!'
-                : 'HARİTA 4 // SIRALAMA ' + rank + ' / 6';
+            title.textContent = failure ? 'HARİTA 4 // GÖREV TAMAMLANAMADI · DNF'
+                : success ? 'HARİTA 4 // AVCI YARIŞI ZAFERİ'
+                : 'HARİTA 4 // SIRALAMA ' + rank + ' / ' + standings.length;
             title.className='text-2xl sm:text-4xl font-black tracking-widest uppercase mb-2 '+
                 (failure?'text-red-500':success?'text-emerald-400':'text-cyan-300');
             title.style.textShadow='0 0 20px '+(failure?'#ff0044':success?'#00ff88':'#00f3ff');
@@ -1862,6 +1896,16 @@
                 list.appendChild(row);
             });
             document.getElementById('combat-stats-box').classList.add('hidden');
+            const hunterTime=player.validFinish?
+                formatRaceTime(player.finishTime):
+                (player.finished&&Number.isFinite(player.finishTime)?
+                    'GEÇ VARIŞ':'DNF');
+            uiSetResultOverview('map4',failure?'dnf':success?'win':'finish',[
+                ['SIRALAMA',player.validFinish?rank+' / '+standings.length:'DNF'],
+                ['AVCI PUANI',player.score.toLocaleString('tr-TR')],
+                ['AVCI İMHA',String(player.kills)],
+                ['GERÇEK VARIŞ',hunterTime]
+            ]);
             window.starbladeHunterFinal={
                 realTimeLimit:MAP4_RACE_RULES.realTimeLimit,
                 scoreRules:{normal:MAP4_RACE_RULES.normalHunterPoints,elite:MAP4_RACE_RULES.eliteHunterPoints},
@@ -19432,15 +19476,15 @@
 
             const titleEl = document.getElementById('gameover-title');
             if (state.playerDNF || !completedRoute || !state.finished) {
-                titleEl.textContent = 'SHIELD CRITICAL // DNF (ELIMINATED)';
+                titleEl.textContent = 'HARİTA 1 // YARIŞ TAMAMLANAMADI · DNF';
                 titleEl.className = 'text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2';
                 titleEl.style.textShadow = '0 0 20px #ff0044';
             } else if (playerRank === 1) {
-                titleEl.textContent = 'VICTORY // 1ST PLACE CHAMPION!';
+                titleEl.textContent = 'HARİTA 1 // BİRİNCİLİK ZAFERİ';
                 titleEl.className = 'text-2xl sm:text-4xl font-black text-emerald-400 tracking-widest uppercase mb-2';
                 titleEl.style.textShadow = '0 0 20px #00ff88';
             } else {
-                titleEl.textContent = `RACE COMPLETED // FINISHED POS ${playerRank} / ${state.totalRacers}`;
+                titleEl.textContent = `HARİTA 1 // SIRALAMA ${playerRank} / ${state.totalRacers}`;
                 titleEl.className = 'text-2xl sm:text-4xl font-black text-cyan-300 tracking-widest uppercase mb-2';
                 titleEl.style.textShadow = '0 0 20px #00f3ff';
             }
@@ -19508,6 +19552,21 @@
                 else combatStatsBox.classList.add('hidden');
             }
 
+            const validRaceFinish=state.finished&&!state.playerDNF&&
+                completedRoute&&Number.isFinite(state.finishTime);
+            const validLeader=validRaceFinish&&leader&&leader.finished&&
+                Number.isFinite(leader.finishTime);
+            const leaderGap=validLeader?
+                (playerRank===1?'+0,00 sn':
+                    '+'+Math.max(0,state.finishTime-leader.finishTime).toFixed(2).replace('.',',')+' sn'):
+                '—';
+            uiSetResultOverview('map1',!validRaceFinish?'dnf':
+                playerRank===1?'win':'finish',[
+                ['SIRALAMA',validRaceFinish?playerRank+' / '+state.totalRacers:'DNF'],
+                ['YARIŞ SÜRESİ',validRaceFinish?formatRaceTime(state.finishTime):'—'],
+                ['LİDER FARKI',leaderGap],
+                ['ÖDÜL KUTUSU',String(state.powerUpsCollected)]
+            ]);
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('final-score').textContent = state.score.toLocaleString('en-US');
             document.getElementById('final-kills').textContent = state.kills;
