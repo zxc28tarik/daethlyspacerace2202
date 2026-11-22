@@ -11173,9 +11173,9 @@
             // Segmented road follows the curved planetary route; unlike one
             // giant plane it cannot turn into a vertical wall at a bend.
             for(let row=0;row<10;row++){
-                const progress=MAP4_PHASES.introEnd+55+row*200;
+                const progress=MAP4_PHASES.introEnd+55+row*148;
                 const avenue=h4PlaceStructure(district,progress,0,-436,
-                    H4_CITY02_BOX,H4_CITY02_ROAD,[680,7,205]);
+                    H4_CITY02_BOX,H4_CITY02_ROAD,[680,7,155]);
                 avenue.name='H4_CITY02_DRIVABLE_MAIN_AVENUE_'+row;
                 avenue.userData.visualOnly=true;
                 if(row===2||row===5||row===8){
@@ -11191,7 +11191,7 @@
             const windows=[];
             for(let row=0;row<9;row++)for(let col=0;col<columns.length;col++){
                 const index=row*columns.length+col;
-                const progress=MAP4_PHASES.introEnd+130+row*197+(col%2)*17;
+                const progress=MAP4_PHASES.introEnd+135+row*165+(col%2)*12;
                 const side=columns[col]+(row%2?26:-26);
                 const width=146+(index*23)%77;
                 const depth=135+(index*31)%72;
