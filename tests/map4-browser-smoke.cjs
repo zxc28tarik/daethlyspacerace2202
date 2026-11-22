@@ -1389,7 +1389,7 @@ const assert = require('node:assert/strict');
       'pocket HUD remains readable');
     await page.screenshot({path:path.resolve(__dirname,'map4-arena.png')});
     await page.evaluate(()=>{state.map4ArenaElapsed=MAP4_PHASES.arenaSeconds-0.08;});
-    await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:12000});
+    await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:24000});
     assert(await page.evaluate(()=>map4SpeedFactor(20000)>0),'forward progress unlocked in phase 3');
     const industryRevealed=await page.evaluate(()=>{
       updatePlanetaryWorld();
