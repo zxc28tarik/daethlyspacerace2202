@@ -9174,6 +9174,49 @@
         // during the 60-second arena. Never reactivate gfx04IndustrialVisuals.
         // Native jagged carrier, battered defensive tower and wing geometry
         // is drawn in four shared instanced batches, all visual only.
+        // NEXT-22J: reusable original mechanical silhouettes in four old
+        // batches; replace anonymous cylinder pylons and identical wings.
+        function h4Next22jDefenseTowerGeometry(){
+            const profile=[
+                [0,-.50],[.32,-.50],[.34,-.41],[.24,-.35],
+                [.205,-.16],[.255,-.10],[.23,-.035],
+                [.18,.04],[.18,.23],[.27,.29],
+                [.29,.355],[.20,.385],[.14,.46],[0,.46]
+            ];
+            const points=profile.map(([r,y])=>new THREE.Vector2(r,y));
+            const geo=new THREE.LatheGeometry(points,10,0,Math.PI*2);
+            geo.computeVertexNormals();
+            return geo;
+        }
+        function h4Next22jFracturedOuterWingGeometry(){
+            const p=new THREE.Shape();
+            p.moveTo(-.54,-.13);
+            p.lineTo(-.41,.15);
+            p.lineTo(-.21,.37);
+            p.lineTo(-.13,.23);
+            p.lineTo(.055,.37);
+            p.lineTo(.20,.21);
+            p.lineTo(.49,.13);
+            p.lineTo(.54,-.25);
+            p.lineTo(.34,-.34);
+            p.lineTo(.17,-.21);
+            p.lineTo(-.05,-.38);
+            p.lineTo(-.28,-.25);
+            p.lineTo(-.43,-.33);
+            p.closePath();
+            const g=new THREE.ExtrudeGeometry(p,{
+                depth:.12,steps:1,curveSegments:1,
+                bevelEnabled:true,bevelSize:.011,
+                bevelThickness:.012,bevelSegments:1
+            });
+            g.translate(0,0,-.06);
+            g.computeVertexNormals();
+            return g;
+        }
+        const H4_NEXT22J_SKYLINE_GEO=Object.freeze({
+            defenseTower:h4Next22jDefenseTowerGeometry(),
+            fracturedWing:h4Next22jFracturedOuterWingGeometry()
+        });
         const h4Gfx11bArenaStats={batches:0,instances:0,addedColliders:0,
             expectedInstances:74,visualOnly:true};
         let h4Gfx11bArenaSkylineGroup=null;
@@ -9185,9 +9228,9 @@
             const specs=[
                 {name:'FRACTURED_CARRIERS',count:16,geo:H4_GFX04_GEO.fracturedCarrier,
                     mat:H4_GFX04_MAT.armor},
-                {name:'BATTERED_DEFENSE_SPIRES',count:26,geo:H4_GFX04_GEO.cannon,
+                {name:'BATTERED_DEFENSE_SPIRES',count:26,geo:H4_NEXT22J_SKYLINE_GEO.defenseTower,
                     mat:H4_GFX04_MAT.defense},
-                {name:'SHATTERED_OUTER_WINGS',count:22,geo:H4_GFX04_GEO.brokenPlate,
+                {name:'SHATTERED_OUTER_WINGS',count:22,geo:H4_NEXT22J_SKYLINE_GEO.fracturedWing,
                     mat:H4_GFX04_MAT.soot},
                 {name:'POCKET_SIGNAL_FIRES',count:10,geo:H4_GFX04_GEO.beacon,
                     mat:H4_GFX04_MAT.ember}
@@ -9202,27 +9245,34 @@
                 for(let i=0;i<spec.count;i++){
                     const sign=i%2?-1:1;
                     let progress,side,alt,width,height,depth;
+                    // Previous silhouette rows reached beyond arenaEnd=14000.
+                    // Every old instance now occupies the actual combat phase.
+                    const pocket=i%3; // centre, west wreck, east battery
+                    const pocketSide=pocket===0?
+                        sign*(710+(i*53)%370):
+                        pocket===1?-(1300+(i*73)%520):
+                        1320+(i*71)%520;
                     if(spec.name==='FRACTURED_CARRIERS'){
-                        progress=13840+(i%8)*103+(Math.floor(i/8)*60);
-                        side=sign*(690+(i*151)%1100);
+                        progress=12740+(i%8)*119+Math.floor(i/8)*53;
+                        side=pocketSide;
                         alt=-305+(i%4)*50;
                         width=480+(i%3)*130;height=320+(i%4)*75;
                         depth=420+(i%3)*90;
                     }else if(spec.name==='BATTERED_DEFENSE_SPIRES'){
-                        progress=13680+(i%13)*96;
-                        side=sign*(390+(i*137)%1450);
+                        progress=12690+(i%13)*83+Math.floor(i/13)*41;
+                        side=pocketSide;
                         height=420+(i*67)%510;
                         alt=-430+height*.50;
-                        width=88+(i%4)*24;depth=100+(i%3)*32;
+                        width=180+(i%4)*26;depth=165+(i%3)*25;
                     }else if(spec.name==='SHATTERED_OUTER_WINGS'){
-                        progress=13720+(i%11)*90;
-                        side=sign*(510+(i*151)%1370);
+                        progress=12780+(i%11)*88+Math.floor(i/11)*47;
+                        side=pocketSide;
                         alt=-365+(i%3)*90;
                         width=410+(i%4)*80;height=95+(i%3)*35;
                         depth=530+(i%4)*75;
                     }else{
-                        progress=13900+(i%5)*165;
-                        side=sign*(460+(i*149)%1130);
+                        progress=12850+(i%5)*140+Math.floor(i/5)*29;
+                        side=pocketSide;
                         alt=190+(i%3)*110;
                         width=35;height=35;depth=35;
                     }
