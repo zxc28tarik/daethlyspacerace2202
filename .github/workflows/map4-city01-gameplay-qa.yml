@@ -1,0 +1,47 @@
+name: MAP4 CITY01 spherical arena and target range QA
+on:
+  push:
+    branches: [codex/map4-city-sphere-fighter-scale-lock]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  city-arena:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned WebGL Playwright dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Parse game and test JS; ensure map1 not changed
+        run: |
+          node --check tests/map4-city01-sphere-hunters.cjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const h=fs.readFileSync('index.html','utf8');
+          for(const m of h.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
+            if(m[1].trim())new vm.Script(m[1]);
+          for(const term of ['MAP4_CITY_ARENA','h4CityArenaColliders','maxLockDistance:760',
+            'projectileRange:980','MAP4_PHASES.arenaSeconds','MAP4_CITY01_PHYSICAL_BUILDING_'])
+             if(!h.includes(term))throw Error('Missing gameplay feature '+term);
+          if(!h.includes("MAP4_HUNTERS = Object.freeze({"))throw Error('Missing hunters');
+          console.log('PASS parse and city feature contract');
+          NODE
+      - name: Real Map4 WebGL city flight, enemy scale, locking and sphere test
+        run: node tests/map4-city01-sphere-hunters.cjs
+      - name: UIUX03 Map4 phase HUD regression
+        run: node tests/uiux03-map4-phase-hud.cjs
+      - name: Original Map1 and Map4 gameplay/browser smoke regression
+        run: node tests/map4-browser-smoke.cjs
+      - name: Upload city gameplay capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAP4-CITY01-real-browser-evidence
+          path: tests/map4-city01-evidence/*
+          if-no-files-found: warn
