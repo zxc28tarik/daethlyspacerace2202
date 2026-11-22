@@ -526,6 +526,15 @@
                 margin:0 auto;text-align:center;z-index:2;}
         }
 
+        /* Production HUD layout must also work if Tailwind CDN is offline. */
+        body[data-ui-mode="map4"] #h4-hud-root{
+            box-sizing:border-box;position:absolute;inset:0;z-index:40;
+            display:flex;flex-direction:column;justify-content:space-between;
+            padding:clamp(9px,1.4vw,20px);pointer-events:none;}
+        body[data-ui-mode="map4"] #ui-flight-top-row{
+            display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+        body[data-ui-mode="map4"] #ui-hud-bottom-row{
+            display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
         /* UIUX-03: one authoritative Map4 mission HUD, four phase-specific priorities.
            All original game telemetry and collision/mission rules remain untouched. */
         body[data-ui-mode="map4"] #planetary-zone-hud{
@@ -18220,7 +18229,7 @@
                 instruction='İLERLEME KİLİTLİ · '+pocket.name+' · NORMAL +1 / ELİT +3';
             } else if(phase===3){
                 const remaining=Math.max(0,MAP4_PHASES.industryEnd-state.routeProgress);
-                fraction=100*(1-remaining/(MAP4_PHASES.industryEnd-MAP4_PHASES.arenaEnd));
+                fraction=100*(1-remaining/(MAP4_PHASES.industryEnd-MAP4_PHASES.introEnd));
                 value=meters(remaining);
                 const route=h4IndustrialRoute(state.routeProgress,state.laneX,state.laneY);
                 context=route==='FAST_LOW'?'ALT BORU · HIZ +%12':
