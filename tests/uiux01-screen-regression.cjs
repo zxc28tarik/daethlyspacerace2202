@@ -53,7 +53,7 @@ const modes=[{width:1600,height:900,label:'desktop'},{width:1366,height:768,labe
    assert.equal(await page.locator('#start-screen').isVisible(),false);
    assert.equal(await page.locator('#shield-text').isVisible(),true);
    await page.screenshot({path:path.join(out,config.label+'-map4-hud.png')});
-   await page.keyboard.press('KeyP');
+   await page.keyboard.press('p');
    assert.equal(await page.locator('#flight-help-screen').isVisible(),true);
    assert.equal(await page.locator('#ui-map1-pause-note').isVisible(),false,'map1 hint not shown in map4');
    await page.screenshot({path:path.join(out,config.label+'-map4-pause.png')});
@@ -71,7 +71,7 @@ const modes=[{width:1600,height:900,label:'desktop'},{width:1366,height:768,labe
    await page.locator('#start-btn').click();
    await page.waitForFunction(()=>state.running&&state.activeMap==='map1'&&state.raceTime>.05,null,{timeout:30000});
    await page.screenshot({path:path.join(out,config.label+'-map1-hud.png')});
-   await page.keyboard.press('KeyP');
+   await page.keyboard.press('p');
    assert.equal(await page.locator('#ui-map1-pause-note').isVisible(),true);
    await page.locator('#resume-btn').click();
    await page.evaluate(()=>endGame(false));
