@@ -19073,7 +19073,11 @@
             if (!state.running || state.finished || state.playerDNF) return;
             state.paused = !!paused;
             document.getElementById('flight-help-screen').classList.toggle('hidden', !state.paused);
-            if(state.paused)uiFirstFlightHide();
+            if(state.paused){
+                uiFirstFlightHide();
+                // Settings are visible on the right of the new split pause screen.
+                document.getElementById('ui-settings-panel').open=true;
+            }
             state.isFiring = false;
             Object.keys(keys).forEach(k => { keys[k] = false; });
             if (state.paused) sound.updateEngine(0, false);
@@ -20019,6 +20023,9 @@
             const ready = MAP_AVAILABLE[mapId] === true;
             document.getElementById('map-choice-1').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP1));
             document.getElementById('map-choice-4').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP4));
+            // UIUX-08: side navigation mirrors the real, available map selection.
+            document.getElementById('ui-side-map1').setAttribute('aria-pressed',String(mapId===MAP_MODES.MAP1));
+            document.getElementById('ui-side-map4').setAttribute('aria-pressed',String(mapId===MAP_MODES.MAP4));
             const launch = document.getElementById('start-btn');
             launch.disabled = !ready;
             const isMap4=mapId===MAP_MODES.MAP4;
@@ -20039,6 +20046,15 @@
         }
         document.getElementById('map-choice-1').addEventListener('click', () => selectMap(MAP_MODES.MAP1));
         document.getElementById('map-choice-4').addEventListener('click', () => selectMap(MAP_MODES.MAP4));
+        document.getElementById('ui-side-map1').addEventListener('click',()=>selectMap(MAP_MODES.MAP1));
+        document.getElementById('ui-side-map4').addEventListener('click',()=>selectMap(MAP_MODES.MAP4));
+        document.getElementById('ui-side-guide').addEventListener('click',()=>{
+            const guide=document.getElementById(state.activeMap===MAP_MODES.MAP4?
+                'map4-instructions':'map1-instructions');
+            guide.open=!guide.open;
+            guide.scrollIntoView({block:'nearest',behavior:'instant'});
+            guide.querySelector('summary')?.focus({preventScroll:true});
+        });
         document.getElementById('h4-quality-select').addEventListener('change',event=>{
             if(state.running||state.activeMap!==MAP_MODES.MAP4)return;
             h4Gfx10SetProfile(event.target.value);
@@ -20137,6 +20153,37 @@
         document.getElementById('start-btn').addEventListener('click', startGame);
         document.getElementById('restart-btn').addEventListener('click', startGame);
         document.getElementById('resume-btn').addEventListener('click', () => setFlightPaused(false));
+        // UIUX-08: pause actions use the existing simulation and reset functions.
+        document.getElementById('ui-pause-restart').addEventListener('click',()=>{
+            if(state.running&&state.paused)startGame();
+        });
+        document.getElementById('ui-pause-return').addEventListener('click',()=>{
+            if(!state.running||!state.paused)return;
+            endGame(false); // A manually abandoned run is a real DNF, not a fictional finish.
+            returnToMapSelection();
+        });
+        document.getElementById('ui-pause-open-settings').addEventListener('click',()=>{
+            if(!state.paused)return;
+            const panel=document.getElementById('ui-settings-panel');
+            panel.open=true;
+            panel.querySelector('summary').focus({preventScroll:true});
+            panel.scrollIntoView({block:'nearest'});
+        });
+        for(const tab of document.querySelectorAll('.ui-pause-options-tab')){
+            tab.addEventListener('click',()=>{
+                if(!state.paused)return;
+                const id=tab.dataset.target,control=document.getElementById(id);
+                if(!control)return;
+                document.querySelectorAll('.ui-pause-options-tab').forEach(button=>{
+                    button.setAttribute('aria-pressed',String(button===tab));
+                });
+                if(id==='ui-pause-controls-guide')control.open=true;
+                else document.getElementById('ui-settings-panel').open=true;
+                control.scrollIntoView({block:'nearest'});
+                (control.tagName==='DETAILS'?control.querySelector('summary'):control)
+                    ?.focus({preventScroll:true});
+            });
+        }
         window.addEventListener('blur', () => {
             state.isFiring = false;
             Object.keys(keys).forEach(k => { keys[k] = false; });
