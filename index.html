@@ -11156,9 +11156,9 @@
         let h4City02DistrictGroup=null;
         const H4_CITY02_BOX=new THREE.BoxGeometry(1,1,1);
         const H4_CITY02_MATERIALS=[
-            0x526778,0x748390,0x3b5767,0x8a8789,0x425c70,0x73767f
+            0x283e53,0x3c5261,0x223c4f,0x424c5a,0x26384c,0x3b4855
         ].map(color=>new THREE.MeshStandardMaterial({
-            color,metalness:.36,roughness:.72,flatShading:true}));
+            color,metalness:.24,roughness:.82,flatShading:true}));
         const H4_CITY02_ROOF=new THREE.MeshStandardMaterial({
             color:0x263b4e,metalness:.53,roughness:.57});
         const H4_CITY02_ROAD=new THREE.MeshStandardMaterial({
@@ -11181,7 +11181,7 @@
             for(let row=0;row<10;row++){
                 const progress=MAP4_PHASES.introEnd+55+row*148;
                 const avenue=h4PlaceStructure(district,progress,0,-436,
-                    H4_CITY02_BOX,H4_CITY02_ROAD,[680,7,155]);
+                    H4_CITY02_BOX,H4_CITY02_ROAD,[1060,7,155]);
                 avenue.name='H4_CITY02_DRIVABLE_MAIN_AVENUE_'+row;
                 avenue.userData.visualOnly=true;
                 if(row===2||row===5||row===8){
@@ -11193,15 +11193,18 @@
             }
             // The 600m+ central corridor is open. Towers are close enough to
             // frame the player, with transversal gaps for genuine dogfighting.
-            const columns=[-1300,-925,-510,510,925,1300];
+            const columns=[-1390,-1010,-650,650,1010,1390];
             const windows=[];
             for(let row=0;row<9;row++)for(let col=0;col<columns.length;col++){
+                // Open real side streets: no tower blocks across the two
+                // inner corners of the three east/west intersections.
+                if((row===2||row===5||row===8)&&(col===2||col===3))continue;
                 const index=row*columns.length+col;
                 const progress=MAP4_PHASES.introEnd+135+row*165+(col%2)*12;
-                const side=columns[col]+(row%2?26:-26);
-                const width=146+(index*23)%77;
-                const depth=135+(index*31)%72;
-                const height=365+(row*79+col*103)%660;
+                const side=columns[col]+(row%2?23:-23);
+                const width=120+(index*17)%64;
+                const depth=108+(index*21)%53;
+                const height=280+(row*59+col*69)%480;
                 const altitude=-440+height*.5;
                 const base=h4PlaceStructure(district,progress,side,altitude,
                     H4_CITY02_BOX,H4_CITY02_MATERIALS[index%H4_CITY02_MATERIALS.length],
@@ -11972,7 +11975,8 @@
             }
             // Respect upper-atmosphere/space visuals: never overwrite phase-4
             // altitude palette with the ground sector's constant sky color.
-            if(phase!==4) scene.background.setHex(sector.sky);
+            if(phase!==4)scene.background.setHex(
+                phase===2?0x596875:sector.sky);
         }
         // AI-20: Dairesel boost/enerji toplama halkaları, checkpoint ve tehlike
         // çemberleri kaldırıldı. Sektör ve tehlike verileri görsel halkalara bağlı değil.
