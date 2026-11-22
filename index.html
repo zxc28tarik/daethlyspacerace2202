@@ -11923,8 +11923,12 @@
                     route==='MAIN'?'ORTA · GÜVENLİ ANA HAT':'SERBEST UÇUŞ';
             }
             const landmarkLine=document.getElementById('planetary-landmark-name');
-            if(landmarkLine) landmarkLine.textContent=nextLandmark ?
-                'YAKIN NOKTA: '+nextLandmark.name : 'BÖLGE TARAMASI · HEDEFE İLERLE';
+            if(landmarkLine)landmarkLine.textContent=
+                state.routeProgress>=MAP4_PHASES.introEnd &&
+                    state.routeProgress<MAP4_PHASES.arenaEnd?
+                    'ŞEHİR: ANA CADDE / YAN SOKAKLAR · SERBEST UÇ':
+                    nextLandmark?'YAKIN NOKTA: '+nextLandmark.name:
+                    'BÖLGE TARAMASI · HEDEFE İLERLE';
             const profile=map4BoundaryProfile(state.routeProgress);
             const cityActive=map4CityArenaActive();
             const radial=cityActive?map4CityArenaDistance(state):
