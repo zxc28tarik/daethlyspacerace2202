@@ -139,6 +139,9 @@ async function launch(page,map){
    });
    assert.equal(focus.style,'solid','keyboard focus must be visible');
    assert(parseFloat(focus.width)>=2,'keyboard focus must be strong');
+   assert.equal(await page.locator('#ui-settings-panel').evaluate(e=>e.open),true);
+   await page.keyboard.press('Enter');
+   assert.equal(await page.locator('#ui-settings-panel').evaluate(e=>e.open),false);
    await page.keyboard.press('Enter');
    assert.equal(await page.locator('#ui-settings-panel').evaluate(e=>e.open),true);
    await page.locator('#ui-setting-hud-text').selectOption('LARGE');
