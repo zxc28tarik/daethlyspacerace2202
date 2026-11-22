@@ -163,6 +163,10 @@ const {pathToFileURL}=require('node:url');
     'map4-next22m-'+label+'-new-grade.png')});
    assert.equal(oldGrade,newGrade,'Material pass added unexpected draw calls');
    assert(!oldPNG.equals(newPNG),'Material grade invisible from '+label);
+   await page.evaluate(()=>{
+    const g=planetaryWorldRegions[1].getObjectByName('MAP4_GFX11B_ARENA_SKYLINE');
+    g.visible=false;renderer.render(scene,camera);
+   });
    const before=await page.screenshot({path:path.join(__dirname,
     'map4-next22m-'+label+'-chase-before.png')});
    const after=await page.evaluate(()=>{
