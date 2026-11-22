@@ -109,6 +109,19 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
   assert.equal(scene.cameraInBuilding,false);
   assert(scene.horizonAlignment>.85,
    'city view must retain a natural horizon: no sideways wall camera roll');
+  // Idle mouse position must not involuntarily push the ship into a wall.
+  const laneAtIdle=await page.evaluate(()=>state.laneX);
+  await page.waitForTimeout(350);
+  const laneAfterIdle=await page.evaluate(()=>state.laneX);
+  assert(Math.abs(laneAfterIdle-laneAtIdle)<2,
+   'mouse aiming must not continuously strafe the ship into a sphere wall');
+  // Actual independent keyboard strafe and altitude motion in city:
+  const lateralStart=await page.evaluate(()=>state.laneX);
+  await page.keyboard.down('d');
+  await page.waitForFunction(x=>state.laneX>x+24,lateralStart,{timeout:6000});
+  await page.keyboard.up('d');
+  const lateralAfter=await page.evaluate(()=>state.laneX);
+  assert(lateralAfter>lateralStart+24);
   await page.screenshot({path:path.join(dir,'01-real-city-entrance.png')});
   const begin=await page.evaluate(()=>({
    pos:state.pos.toArray(),progress:state.routeProgress}));
