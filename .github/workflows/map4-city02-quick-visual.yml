@@ -1,4 +1,4 @@
-name: MAP4 CITY02 Urban Street Camera Acceptance
+name: MAP4 CITY02 Horizon-Level Real Camera Acceptance
 on:
   push:
     branches: [codex/map4-city02-real-urban-entry-flight]
