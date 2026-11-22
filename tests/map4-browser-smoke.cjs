@@ -1154,15 +1154,53 @@ const assert = require('node:assert/strict');
     assert(nominal.intro+nominal.arena+nominal.industry+nominal.ascent>240 &&
       nominal.intro+nominal.arena+nominal.industry+nominal.ascent<300,
       'normal map duration 4–5 minutes');
-    // Enter zone two, check every pilot is held in the battle area.
+    // MAP4-CITY01: the 60-second arena is a free-flying urban sphere,
+    // not the old fixed-progress waiting plane.
     await page.evaluate(()=>{state.routeProgress=MAP4_PHASES.introEnd-2;});
     await page.waitForFunction(()=>state.map4Phase===2,null,{timeout:14000});
-    const anchor=await page.evaluate(()=>state.routeProgress);
+    const arenaBefore=await page.evaluate(()=>({
+      progress:state.routeProgress,
+      rivals:racers.filter(r=>!r.finished&&!r.dnf)
+        .map(r=>({id:r.name,progress:r.routeProgress}))
+    }));
     await page.waitForTimeout(300);
-    assert(Math.abs((await page.evaluate(()=>state.routeProgress))-anchor)<0.01,
-      'no forward progress during arena');
-    assert.equal(await page.evaluate(()=>racers.every(r=>r.routeProgress===MAP4_PHASES.introEnd
-      || r.finished || r.dnf)),true,'five AI pilots held in arena');
+    const arenaMotion=await page.evaluate(()=>({
+      progress:state.routeProgress,
+      active:map4CityArenaActive(),
+      rivals:racers.filter(r=>!r.finished&&!r.dnf).map(r=>({
+        id:r.name,progress:r.routeProgress,
+        inside:map4CityArenaDistance(r)<=MAP4_CITY_ARENA.radius+1
+      })),
+      playerInside:map4CityArenaDistance(state)<=MAP4_CITY_ARENA.radius+1
+    }));
+    assert.equal(arenaMotion.active,true,'city sphere should remain active');
+    // Prior subtests sometimes leave the live pilot damaged or near a building.
+    // Verify the real arena propulsion deterministically from a safe local
+    // position; the separate MAP4-CITY01 Chromium test performs actual W/S flight.
+    const forwardEngine=await page.evaluate(()=>{
+      const prior={p:state.routeProgress,x:state.laneX,y:state.laneY};
+      state.routeProgress=MAP4_CITY_ARENA.centerProgress;
+      state.laneX=0;state.laneY=MAP4_CITY_ARENA.centerY;
+      const next=map4Advance(state.routeProgress,RACE_SPEEDS.NORMAL,.3,state);
+      state.routeProgress=prior.p;state.laneX=prior.x;state.laneY=prior.y;
+      return {distance:next-MAP4_CITY_ARENA.centerProgress,
+        active:map4CityArenaActive()};
+    });
+    assert(forwardEngine.active && forwardEngine.distance>10,
+      'arena propulsion must move the pilot instead of fixing progress');
+    assert(arenaMotion.playerInside,'player stays inside invisible city sphere');
+    assert(arenaMotion.rivals.every(r=>r.inside),
+      'other pilots are constrained inside the spherical city zone');
+    // A crashed/finished rival must not make this test nondeterministic;
+    // patrol navigation itself must advance a healthy AI flight model.
+    const aiPropulsion=await page.evaluate(()=>{
+      const mock={routeProgress:MAP4_CITY_ARENA.centerProgress,
+        laneX:0,laneY:MAP4_CITY_ARENA.centerY,
+        radius:12,arenaDirection:1};
+      return map4Advance(mock.routeProgress,RACE_SPEEDS.NORMAL,.3,mock)-
+        MAP4_CITY_ARENA.centerProgress;
+    });
+    assert(aiPropulsion>10,'AI arena patrol must advance inside the city sphere');
 
     // GFX-04: three substantial, non-generic warfront compositions must
     // replace old repeated boxes without touching hunter/collision systems.
@@ -1191,8 +1229,8 @@ const assert = require('node:assert/strict');
         factoryColliders:h4IndustrialColliders.length,
         physicalCityColliders:planetaryBuildingColliders.length};
     });
-    // The next phase's refinery must not crowd the entire battlefield
-    // during the mandatory 60-second stand-still fight.
+    // The next phase's refinery must not crowd the playable city sphere
+    // during the mandatory 60-second free-flight battle.
     const industrialDuringArena=await page.evaluate(()=>{
       updatePlanetaryWorld();
       const zone=planetaryWorldRegions[2];
