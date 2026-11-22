@@ -1330,42 +1330,58 @@
             <p class="ui-hero-description">Yüksek hızda yarış. Tehlikeli rotaları aş. Gezegen atmosferinde savaş.</p>
             <div class="ui-menu-summary"><span class="ui-indicator"></span> 2 OYNANABİLİR GÖREV <span class="ui-menu-divider">/</span> 6 HARİTALIK PLAN</div>
 
+
+            <nav id="ui-menu-rail" class="ui-menu-rail" aria-label="Oyun menüsü">
+                <div class="ui-menu-rail-caption">OPERASYON PANELİ <span>01—06</span></div>
+                <button type="button" id="ui-side-map1" class="ui-menu-nav-action" aria-pressed="true"><span class="ui-menu-nav-icon" aria-hidden="true">✦</span><span>HIZ YARIŞI<small>HARİTA 01 · OYNANABİLİR</small></span></button>
+                <button type="button" id="ui-side-map4" class="ui-menu-nav-action" aria-pressed="false"><span class="ui-menu-nav-icon" aria-hidden="true">◎</span><span>AVCI GÖREVİ<small>HARİTA 04 · OYNANABİLİR</small></span></button>
+                <button type="button" id="ui-side-guide" class="ui-menu-nav-action"><span class="ui-menu-nav-icon" aria-hidden="true">≡</span><span>GÖREV REHBERİ<small>KONTROLLER VE KURALLAR</small></span></button>
+                <div class="ui-menu-rail-status"><span class="ui-menu-rail-lamp" aria-hidden="true"></span><div>GÖREV DURUMU<strong>2 <em>/ 6</em> HARİTA AKTİF</strong></div></div>
+                <div class="ui-menu-rail-foot">DEATHLY / SPACE RACE <span>PROTOTİP</span></div>
+            </nav>
+
             <!-- H4-01: select a map without allowing an unfinished mode to start Map 1. -->
             <div id="map-selection" class="ui-map-selection mb-5 font-['Share_Tech_Mono'] text-left">
-                <div class="ui-section-heading"><span>GÖREV SEÇİMİ</span><small>01 / OPERASYONLAR</small></div>
+                <div class="ui-section-heading ui-map-picker-title"><span>HARİTA SEÇİMİ</span><small>6 HARİTA · 2 OYNANABİLİR</small></div>
                 <div class="ui-six-map-grid" role="group" aria-label="Altı görev haritasından oynanabilir olanı seç">
                     <button type="button" id="map-choice-1" data-ui-map="map1" class="map-choice-btn" aria-pressed="true">
                         <span class="ui-map-index">01 / UZAY KORİDORU</span>
+                        <span class="ui-map-scene ui-map-scene--race" aria-hidden="true"><svg viewBox="0 0 300 105" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="u8race" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#0a1027"/><stop offset=".58" stop-color="#1b4270"/><stop offset="1" stop-color="#090e22"/></linearGradient></defs><rect width="300" height="105" fill="url(#u8race)"/><g fill="#dcf9ff" opacity=".52"><circle cx="22" cy="15" r=".8"/><circle cx="66" cy="40" r=".6"/><circle cx="244" cy="16" r="1"/><circle cx="274" cy="64" r=".7"/><circle cx="136" cy="13" r=".5"/></g><circle cx="240" cy="-8" r="62" fill="#2b5681" opacity=".39"/><ellipse cx="174" cy="66" rx="44" ry="44" fill="none" stroke="#44e1fd" stroke-width="5" opacity=".9"/><ellipse cx="174" cy="66" rx="29" ry="29" fill="none" stroke="#c3effe" stroke-width="1" opacity=".75"/><path d="M0 110 171 64 300 110" fill="#0b192e" stroke="#36c8ff" stroke-width="3"/><path d="m100 105 68-41m109 41-103-41" stroke="#c9eaff" opacity=".65" stroke-width="1.3"/><path d="m76 93 22-6m-65 16 21-6m201-11 16 7" stroke="#32bafa" stroke-width="3"/><path d="m118 58 19 3-20 4-8 10-4-11-20-6 21 1 10-7Z" fill="#eefaff" opacity=".85"/></svg></span>
                         <strong>SAF HIZ YARIŞI</strong>
                         <span class="ui-map-description">6 pilot · meteorlar · mor ödüller</span>
                         <span class="ui-map-status">OYNA · HAZIR</span>
                     </button>
                     <button type="button" id="map-choice-2" class="map-choice-btn ui-map-locked" data-ui-map="map2" disabled aria-disabled="true">
                         <span class="ui-map-index">02 / PLANLANAN HARİTA</span>
+                        <span class="ui-map-scene ui-map-scene--unreleased ui-map-scene--mission2" aria-hidden="true"><span class="ui-scenery-orbit"></span><span class="ui-scenery-horizon"></span></span>
                         <strong>GÖREV 02</strong>
                         <span class="ui-map-description">Oynanabilir içerik henüz uygulanmadı</span>
                         <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
                     </button>
                     <button type="button" id="map-choice-3" class="map-choice-btn ui-map-locked" data-ui-map="map3" disabled aria-disabled="true">
                         <span class="ui-map-index">03 / ANA ÜS</span>
+                        <span class="ui-map-scene ui-map-scene--unreleased ui-map-scene--base" aria-hidden="true"><span class="ui-scenery-orbit"></span><span class="ui-scenery-horizon"></span></span>
                         <strong>ÜS İMHA YARIŞI</strong>
                         <span class="ui-map-description">Ana üsse ilk ulaş ve yok et</span>
                         <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
                     </button>
                     <button type="button" id="map-choice-4" data-ui-map="map4" class="map-choice-btn" aria-pressed="false">
                         <span class="ui-map-index">04 / GEZEGEN OPERASYONU</span>
+                        <span class="ui-map-scene ui-map-scene--hunt" aria-hidden="true"><svg viewBox="0 0 300 105" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="u8hunt" x1="0" x2=".8" y1="0" y2="1"><stop stop-color="#30264a"/><stop offset=".45" stop-color="#c38272"/><stop offset="1" stop-color="#30223b"/></linearGradient></defs><rect width="300" height="105" fill="url(#u8hunt)"/><circle cx="233" cy="22" r="34" fill="#eeb29b" opacity=".66"/><path d="M0 84 38 51 70 69 115 38 164 75 208 49 261 69 300 38V105H0Z" fill="#554553"/><path d="m0 91 52-19 30 9 47-24 53 32 35-24 83 18v22H0Z" fill="#272b3e"/><g fill="#142032"><path d="M228 73v-30h6v30m-14 0V31h8v42m9 0V21h6v52m2 0V41h8v32" /><path d="M192 77V62h10V49h6v28"/></g><path d="m50 48 22-4 14 4-14 1-3 4-7-3-15 2Z" fill="#b9f2fc"/><path d="m112 33 15-3 11 3-11 1-4 4-5-4-12 2Z" fill="#e7fbff"/><path d="M0 100h300" stroke="#ffb97d" stroke-width="1" opacity=".8"/><g fill="#ffe8d2" opacity=".7"><circle cx="18" cy="18" r=".7"/><circle cx="102" cy="12" r=".8"/><circle cx="260" cy="56" r=".7"/></g></svg></span>
                         <strong>GEÇİŞ VE SAVAŞ</strong>
                         <span class="ui-map-description">4 safha · avcılar · sanayi · yörünge</span>
                         <span class="ui-map-status ui-map-status--wip">OYNA · PROTOTİP</span>
                     </button>
                     <button type="button" id="map-choice-5" class="map-choice-btn ui-map-locked" data-ui-map="map5" disabled aria-disabled="true">
                         <span class="ui-map-index">05 / PLANLANAN HARİTA</span>
+                        <span class="ui-map-scene ui-map-scene--unreleased ui-map-scene--mission5" aria-hidden="true"><span class="ui-scenery-orbit"></span><span class="ui-scenery-horizon"></span></span>
                         <strong>GÖREV 05</strong>
                         <span class="ui-map-description">Oynanabilir içerik henüz uygulanmadı</span>
                         <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
                     </button>
                     <button type="button" id="map-choice-6" class="map-choice-btn ui-map-locked" data-ui-map="map6" disabled aria-disabled="true">
                         <span class="ui-map-index">06 / HAYATTA KALMA</span>
+                        <span class="ui-map-scene ui-map-scene--unreleased ui-map-scene--survival" aria-hidden="true"><span class="ui-scenery-orbit"></span><span class="ui-scenery-horizon"></span></span>
                         <strong>10 TUR / 3 CAN</strong>
                         <span class="ui-map-description">Sıralı başlayan turlarda ayakta kal</span>
                         <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
@@ -1521,10 +1537,21 @@
     <!-- AI-35: pause safely while reading actual controls; never cover the game-over overlay. -->
     <div id="flight-help-screen" class="ScreenOverlay hidden">
         <div class="hud-box ui-screen-shell ui-pause-shell max-w-xl w-full mx-4 p-5 sm:p-7 text-left font-['Share_Tech_Mono']">
+            <div class="ui-pause-intro">
             <div class="ui-topline"><span>UÇUŞ KONTROLÜ / PAUSE</span><span class="ui-meta-code">SİSTEM BEKLEMEDE</span></div>
             <h2 class="ui-pause-title text-xl text-emerald-300 font-bold mb-1">OYUN DURAKLATILDI</h2>
-            <p class="ui-pause-description text-xs text-cyan-200 mb-4">Süre ve uçuş hareketleri durduruldu. Kontroller aşağıda.</p>
+            <p class="ui-pause-description text-xs text-cyan-200 mb-4">Uçuş duraklatıldı · görev saati ve fizik beklemede.</p>
+            </div>
+            <div class="ui-pause-left">
+                <nav class="ui-pause-actions" aria-label="Duraklatma menüsü">
+                    <button id="resume-btn" class="cyber-btn ui-resume-btn px-6 py-3 font-bold uppercase"><span aria-hidden="true">▶</span> UÇUŞA DEVAM ET</button>
+                    <button type="button" id="ui-pause-restart" class="ui-pause-action"><span aria-hidden="true">↻</span> YENİDEN BAŞLAT</button>
+                    <button type="button" id="ui-pause-open-settings" class="ui-pause-action"><span aria-hidden="true">⚙</span> AYARLAR</button>
+                    <button type="button" id="ui-pause-return" class="ui-pause-action"><span aria-hidden="true">⌂</span> HARİTA SEÇİMİ</button>
+                </nav>
             <p id="ui-help-map-context" class="ui-help-map-context">HARİTA 1 · MOR KUTULAR LAZERİ AÇAR · SHIFT / W BOOST</p>
+                <details id="ui-pause-controls-guide" class="ui-pause-controls-guide">
+                    <summary>⌨ TÜM KONTROLLERİ GÖSTER</summary>
             <div class="ui-section-heading"><span>KONTROL REHBERİ</span><small>KLAVYE / FARE</small></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-200 mb-5">
                 <div><strong class="text-cyan-300">FARE</strong> — serbest yönlendirme</div>
@@ -1538,8 +1565,18 @@
                 <div><strong class="text-cyan-300">P / H / ESC</strong> — devam et</div>
                 <div id="h4-power-help" class="hidden sm:col-span-2 text-amber-200"><strong>HARİTA 4:</strong> 1 dengeli · 2 motor · 3 silah · 4 kalkan. X boost sonrası kısa drift, ALT bakış. Lazer silah kapasitöründen enerji harcar; kalkan sadece kalkan odağında, hasarsız süre sonunda yavaş yenilenir.</div>
             </div>
-            <p id="ui-map1-pause-note" class="text-xs text-amber-200 mb-4">Harita 1: Mor kutu lazeri 12 saniyeliğine açar. Koridor sınırına sürtünmek kalkan ve hız kaybettirir.</p>
-            <details id="ui-settings-panel" class="ui-settings-panel">
+            </details>
+                <p id="ui-map1-pause-note" class="text-xs text-amber-200 mb-4">Harita 1: Mor kutu lazeri 12 saniyeliğine açar. Koridor sınırına sürtünmek kalkan ve hız kaybettirir.</p>
+            </div>
+            <div class="ui-pause-right">
+                <div class="ui-pause-options-header"><strong>⚙ AYARLAR</strong><span>TERCİHLER OTOMATİK KAYDEDİLİR</span></div>
+                <div class="ui-pause-options-tabs" role="group" aria-label="Ayar bölümlerine git">
+                    <button type="button" class="ui-pause-options-tab" data-target="ui-setting-volume" aria-pressed="true">SES</button>
+                    <button type="button" class="ui-pause-options-tab" data-target="ui-setting-graphics" aria-pressed="false">GRAFİK</button>
+                    <button type="button" class="ui-pause-options-tab" data-target="ui-setting-hud-text" aria-pressed="false">ERİŞİLEBİLİRLİK</button>
+                    <button type="button" class="ui-pause-options-tab" data-target="ui-pause-controls-guide" aria-pressed="false">KONTROLLER</button>
+                </div>
+            <details id="ui-settings-panel" class="ui-settings-panel" open>
                 <summary class="ui-settings-toggle"><span>⚙ SES · GÖRÜNTÜ · OKUNABİLİRLİK</span><span class="ui-settings-toggle-state" aria-hidden="true">AYARLAR</span></summary>
                 <div class="ui-settings-content">
                     <div class="ui-setting-row"><div class="ui-setting-label"><label for="ui-setting-volume">ANA SES DÜZEYİ</label><small>Motor, lazer, hasar ve efektler</small></div>
@@ -1555,7 +1592,7 @@
                     <div class="ui-settings-actions"><span id="ui-settings-save-status" role="status">Tercihler</span><button id="ui-settings-reset" type="button">VARSAYILANLARA DÖN</button></div>
                 </div>
             </details>
-            <button id="resume-btn" class="cyber-btn ui-resume-btn px-6 py-3 font-bold uppercase">UÇUŞA DEVAM ET</button>
+            </div>
         </div>
     </div>
 
