@@ -27,7 +27,7 @@ jobs:
           for(const m of h.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
             if(m[1].trim())new vm.Script(m[1]);
           for(const term of ['MAP4_CITY_ARENA','h4CityArenaColliders','maxLockDistance:760',
-            'projectileRange:980','MAP4_PHASES.arenaSeconds','MAP4_CITY01_PHYSICAL_BUILDING_'])
+            'projectileRange:980','MAP4_PHASES.arenaSeconds','H4_CITY01_PHYSICAL_BUILDING_'])
              if(!h.includes(term))throw Error('Missing gameplay feature '+term);
           if(!h.includes("MAP4_HUNTERS = Object.freeze({"))throw Error('Missing hunters');
           console.log('PASS parse and city feature contract');
