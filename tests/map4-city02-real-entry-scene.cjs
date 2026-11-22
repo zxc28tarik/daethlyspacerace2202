@@ -48,6 +48,30 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
    const roadTiles=city.children.filter(c=>c.name.startsWith('H4_CITY02_DRIVABLE_MAIN_AVENUE'));
    const cameraInBuilding=h4CityArenaBuildings.some(m=>
       new THREE.Box3().setFromObject(m).containsPoint(camera.position));
+   // Real triangle ray-cast against ALL visible world objects: geometry bounds
+   // alone are misleading for the enormous ground and transparent cloud meshes.
+   const nearMeshes=[];
+   planetaryWorldGroup.traverse(mesh=>{
+    if(!mesh.isMesh || mesh.isInstancedMesh)return;
+    for(let p=mesh;p;p=p.parent){if(!p.visible)return;}
+    nearMeshes.push(mesh);
+   });
+   const rayAudit=[];
+   for(const [nx,ny] of [[0,.0],[0,.5],[0,-.5],[-.6,0],[.6,0]]){
+    const rayEnd=new THREE.Vector3(nx,ny,.6).unproject(camera);
+    const direction=rayEnd.sub(camera.position).normalize();
+    const hits=new THREE.Raycaster(camera.position,direction,0,1800)
+      .intersectObjects(nearMeshes,false).slice(0,12).map(h=>{
+       let o=h.object, names=[];
+       for(let k=0;o&&k<6;k++,o=o.parent)
+        names.push(o.name||o.type);
+       const obj=h.object;
+       return {dist:Math.round(h.distance),path:names.join('/'),
+         geo:obj.geometry?.type,mat:obj.material?.name||'',
+         world:obj.getWorldPosition(new THREE.Vector3()).toArray().map(Math.round)};
+      });
+    rayAudit.push({ray:[nx,ny],hits});
+   }
    return {
     phase:state.map4Phase,seconds:state.map4ArenaElapsed,
     pilot:[state.routeProgress,state.laneX,state.laneY],
@@ -62,6 +86,7 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
     oldRegionSkylineHidden:!h4SceneryGroups[1].near.visible&&
        !h4SceneryGroups[1].far.visible,
     noIndustrialColliderLeaks:!nextPhasePollution,
+    rayAudit,
     cameraInBuilding
    };
   });
