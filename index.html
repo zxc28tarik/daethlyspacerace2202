@@ -3052,7 +3052,12 @@
             ship.laneX=dx*ratio;
             ship.laneY=a.centerY+dy*ratio;
             if(ship!==state)ship.arenaDirection=-(ship.arenaDirection||1);
-            else ship.currentSpeed*=.86;
+            else {
+                // City02: repeated .86 multipliers used to drag speed to zero
+                // and leave the player hovering motionless at the unseen wall.
+                // Reverse passive patrol INWARD; preserve throttle response.
+                ship.arenaAutoDirection=dz>=0?-1:1;
+            }
             ship.cityBoundaryFraction=1;
             return a.centerProgress+dz*ratio;
         }
@@ -3204,7 +3209,7 @@
                 const rate=ship===state ?
                     keys['KeyS']?MAP4_CITY_ARENA.reverseThrottle:
                     keys['KeyW']?MAP4_CITY_ARENA.forwardThrottle:
-                        MAP4_CITY_ARENA.forwardCruise:
+                        (ship.arenaAutoDirection||1)*MAP4_CITY_ARENA.forwardCruise:
                     (ship&&ship.arenaDirection||1)*MAP4_CITY_ARENA.rivalPatrol;
                 return map4ConstrainCityArena(ship,progress+speed*rate*dt);
             }
@@ -3231,6 +3236,7 @@
             state.map4ArenaElapsed=0;
             state.map4Phase=2;
             state.routeProgress=MAP4_PHASES.introEnd;
+            state.arenaAutoDirection=1;
             for(const pilot of racers){
                 if(pilot.dnf || pilot.finished)continue;
                 pilot.routeProgress=MAP4_PHASES.introEnd;
