@@ -48,6 +48,9 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
    const roadTiles=city.children.filter(c=>c.name.startsWith('H4_CITY02_DRIVABLE_MAIN_AVENUE'));
    const cameraInBuilding=h4CityArenaBuildings.some(m=>
       new THREE.Box3().setFromObject(m).containsPoint(camera.position));
+   const horizonAlignment=new THREE.Vector3(0,1,0)
+      .applyQuaternion(camera.quaternion)
+      .dot(getRaceFrameAtDistance(state.routeProgress).up);
    // Real triangle ray-cast against ALL visible world objects: geometry bounds
    // alone are misleading for the enormous ground and transparent cloud meshes.
    const nearMeshes=[];
@@ -87,7 +90,7 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
        !h4SceneryGroups[1].far.visible,
     noIndustrialColliderLeaks:!nextPhasePollution,
     rayAudit,
-    cameraInBuilding
+    cameraInBuilding,horizonAlignment
    };
   });
   assert.equal(scene.phase,2,'must actually be inside phase 2');
@@ -104,6 +107,8 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
   assert.equal(scene.oldRegionSkylineHidden,true);
   assert.equal(scene.noIndustrialColliderLeaks,true);
   assert.equal(scene.cameraInBuilding,false);
+  assert(scene.horizonAlignment>.85,
+   'city view must retain a natural horizon: no sideways wall camera roll');
   await page.screenshot({path:path.join(dir,'01-real-city-entrance.png')});
   const begin=await page.evaluate(()=>({
    pos:state.pos.toArray(),progress:state.routeProgress}));
