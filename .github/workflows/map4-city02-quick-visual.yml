@@ -1,4 +1,4 @@
-name: MAP4 CITY02 Quick Actual Camera Frames
+name: MAP4 CITY02 Mesh Ray Diagnostic Capture
 on:
   push:
     branches: [codex/map4-city02-real-urban-entry-flight]
