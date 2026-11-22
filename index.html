@@ -525,6 +525,208 @@
                 position:absolute;left:9px;right:9px;top:192px;max-width:calc(100vw - 18px);
                 margin:0 auto;text-align:center;z-index:2;}
         }
+
+        /* UIUX-03: one authoritative Map4 mission HUD, four phase-specific priorities.
+           All original game telemetry and collision/mission rules remain untouched. */
+        body[data-ui-mode="map4"] #planetary-zone-hud{
+            box-sizing:border-box;position:fixed;top:11px;left:50%;
+            transform:translateX(-50%);width:min(360px,33vw)!important;
+            max-width:360px!important;padding:10px 12px!important;text-align:left;
+            border:1px solid rgba(146,197,207,.43)!important;
+            border-top:2px solid var(--ui-cyan)!important;border-radius:9px!important;
+            background:linear-gradient(145deg,rgba(6,22,39,.91),rgba(10,26,42,.84))!important;
+            box-shadow:0 9px 27px rgba(0,0,0,.20)!important;
+            font-family:'Share Tech Mono',monospace;
+            --ui4-phase-accent:#72c9dd;
+        }
+        body[data-ui-mode="map4"][data-ui-phase="2"] #planetary-zone-hud{--ui4-phase-accent:#e4ab5d;border-top-color:var(--ui4-phase-accent)!important;}
+        body[data-ui-mode="map4"][data-ui-phase="3"] #planetary-zone-hud{--ui4-phase-accent:#a8d2b0;border-top-color:var(--ui4-phase-accent)!important;}
+        body[data-ui-mode="map4"][data-ui-phase="4"] #planetary-zone-hud{--ui4-phase-accent:#ada1e8;border-top-color:var(--ui4-phase-accent)!important;}
+        .ui-map4-mission-head{display:flex;justify-content:space-between;align-items:center;gap:10px;
+            color:#8faebe;font:700 10px 'Share Tech Mono',monospace;letter-spacing:.08em;}
+        #ui-map4-phase-label{color:#bddce5;font-variant-numeric:tabular-nums;white-space:nowrap;}
+        .ui-map4-phase-track{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+            gap:3px;margin:8px 0 10px;}
+        .ui-map4-phase-chip{
+            display:flex;align-items:center;justify-content:center;gap:4px;
+            min-width:0;white-space:nowrap;padding:5px 2px;border-radius:3px;
+            border:1px solid rgba(128,172,190,.16);
+            background:rgba(5,16,30,.54);color:#627e91;
+            font:700 10px 'Share Tech Mono',monospace;
+            font-variant-numeric:tabular-nums;}
+        .ui-map4-phase-chip em{font-style:normal;font-weight:400;font-size:9px;letter-spacing:0;}
+        .ui-map4-phase-chip[data-ui-complete="true"]{
+            color:#94d1bd;border-color:rgba(121,201,167,.28);background:rgba(63,114,96,.13);}
+        .ui-map4-phase-chip[aria-current="step"]{
+            color:#f4fafe;background:rgba(107,159,171,.17);
+            border-color:var(--ui4-phase-accent);box-shadow:inset 0 2px 0 var(--ui4-phase-accent);}
+        .ui-map4-mission-core{display:flex;align-items:end;justify-content:space-between;
+            gap:10px;margin:0 0 8px;}
+        .ui-map4-mission-value{display:flex;flex-direction:column;gap:3px;min-width:0;}
+        #ui-map4-goal-label{color:#a8c0cc;font:700 10px 'Share Tech Mono',monospace;letter-spacing:.07em;}
+        #ui-map4-goal-value{color:#f0f8fa;white-space:nowrap;
+            font:900 clamp(17px,1.6vw,22px)/1.15 'Orbitron',sans-serif;
+            font-variant-numeric:tabular-nums;}
+        .ui-map4-goal-context{min-width:0;max-width:130px;text-align:right;
+            color:var(--ui4-phase-accent);font:700 10px/1.3 'Share Tech Mono',monospace;}
+        .ui-map4-progress-rail{height:5px;border-radius:3px;overflow:hidden;
+            background:rgba(57,83,107,.58);border:1px solid rgba(145,183,201,.13);}
+        #ui-map4-progress-fill{height:100%;width:0%;
+            background:var(--ui4-phase-accent);box-shadow:0 0 10px rgba(125,211,226,.23);
+            transition:width .2s linear;}
+        .ui-map4-phase-directive{font:700 10px/1.42 'Share Tech Mono',monospace;
+            color:#c4d8df;margin-top:7px;letter-spacing:.01em;}
+        .ui-map4-urgent{border:1px solid rgba(229,155,97,.48);border-radius:4px;
+            background:rgba(106,40,37,.30);color:#ffd5a6;
+            font:700 10px/1.3 'Share Tech Mono',monospace;padding:5px 7px;margin-top:7px;}
+        .ui-map4-urgent.hidden{display:none!important;}
+        body[data-ui-mode="map4"] #planetary-zone-hud .ui-map4-zone-heading{display:none!important;}
+        body[data-ui-mode="map4"] #planetary-zone-hud #planetary-destination{display:none!important;}
+        body[data-ui-mode="map4"] #planetary-zone-hud #planetary-zone-name{
+            font:700 10px 'Share Tech Mono',monospace;color:#a7b9c6;margin-top:8px!important;}
+        body[data-ui-mode="map4"] #planetary-zone-hud #planetary-landmark-name{
+            font-size:10px!important;line-height:1.28!important;color:#c3a878;margin-top:4px!important;}
+        body[data-ui-mode="map4"][data-ui-phase="2"] #planetary-landmark-name,
+        body[data-ui-mode="map4"][data-ui-phase="4"] #planetary-landmark-name,
+        body[data-ui-mode="map4"][data-ui-phase="2"] #planetary-route-name,
+        body[data-ui-mode="map4"][data-ui-phase="4"] #planetary-route-name{display:none!important;}
+        body[data-ui-mode="map4"] #planetary-zone-hud #planetary-route-name{
+            font-size:10px!important;line-height:1.3!important;color:#a6d7d4;margin-top:4px!important;}
+        body[data-ui-mode="map4"] #planetary-airspace-status[data-ui-safe="true"]{
+            display:none!important;}
+        body[data-ui-mode="map4"] #planetary-airspace-status:not([data-ui-safe="true"]){
+            display:block;color:#ffd2a1!important;border-top:1px solid rgba(220,166,105,.24);
+            padding-top:6px;margin-top:5px!important;font-size:10px!important;}
+        /* Clean, coherent existing Map4 flight and combat telemetry. */
+        body[data-ui-mode="map4"] #ui-flight-metrics-panel{
+            box-sizing:border-box;max-width:410px!important;
+            width:min(410px,33vw)!important;min-width:0;
+            padding:10px 11px!important;background:rgba(6,18,32,.85)!important;
+            border-left:2px solid rgba(111,192,214,.66)!important;
+            font:400 11px 'Share Tech Mono',monospace;}
+        body[data-ui-mode="map4"] .ui-mode-caption{
+            display:block;padding-bottom:5px;border-bottom:1px solid rgba(127,170,192,.23);
+            color:#9dd8df;font:700 10px 'Share Tech Mono',monospace;letter-spacing:.065em;}
+        body[data-ui-mode="map4"] .ui-mode-divider{color:#788c9d;font-weight:400;}
+        body[data-ui-mode="map4"] .ui-race-kpis{
+            display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:7px 0 6px;}
+        body[data-ui-mode="map4"] .ui-race-kpi{min-width:0;display:flex;flex-direction:column;gap:3px;}
+        body[data-ui-mode="map4"] .ui-race-kpi small{font:400 9px 'Share Tech Mono',monospace;color:#91b4c4;}
+        body[data-ui-mode="map4"] .ui-race-kpi strong{font:700 12px 'Share Tech Mono',monospace;
+            font-variant-numeric:tabular-nums;white-space:nowrap;}
+        body[data-ui-mode="map4"] #ui-flight-facts{
+            display:flex;align-items:center;flex-wrap:wrap;gap:4px 9px;line-height:1.32;}
+        body[data-ui-mode="map4"] #ui-flight-facts>span{margin:0;font-size:10px;}
+        body[data-ui-mode="map4"] .ui-speed-fact strong{font-size:15px;line-height:1.1;}
+        body[data-ui-mode="map4"] .ui-fact-label{font-size:9px;color:#97b5c4;}
+        body[data-ui-mode="map4"] #ui-flight-facts small{font-size:9px;color:#7c9eaf;}
+        body[data-ui-mode="map4"] #race-hud-details{
+            display:flex;flex-wrap:wrap;gap:4px 8px;font:400 10px 'Share Tech Mono',monospace;}
+        body[data-ui-mode="map4"] #race-hud-details>span{margin:0!important;}
+        body[data-ui-mode="map4"] #ui-combo-panel{display:none!important;}
+        body[data-ui-mode="map4"] #rival-speed-text,
+        body[data-ui-mode="map4"] .ui-rival-fact{display:none!important;}
+        body[data-ui-mode="map4"] #planetary-zone-hud{
+            pointer-events:none;
+        }
+        body[data-ui-mode="map4"] #hunter-competition-hud{
+            box-sizing:border-box;position:fixed;top:87px!important;right:14px!important;
+            left:auto!important;transform:none!important;
+            width:min(340px,29vw)!important;max-width:340px!important;
+            padding:10px 11px!important;text-align:left;
+            background:rgba(7,20,35,.88)!important;border:1px solid rgba(197,166,115,.42)!important;
+            border-radius:8px!important;}
+        body[data-ui-mode="map4"] .ui-map4-competition-metrics{
+            display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;
+            padding:6px 0;margin:5px 0 3px;border-top:1px solid rgba(139,173,190,.21);
+            border-bottom:1px solid rgba(139,173,190,.14);color:#a6c5d2;
+            font:700 10px 'Share Tech Mono',monospace;}
+        body[data-ui-mode="map4"] .ui-map4-competition-metrics strong{
+            color:#f3d49b;font:900 16px 'Orbitron',sans-serif;font-variant-numeric:tabular-nums;}
+        body[data-ui-mode="map4"] #ui-map4-competition-phase-text{
+            grid-column:span 2;color:#8fb4c2;font-weight:400;font-size:10px;}
+        body[data-ui-mode="map4"] #hunter-time-limit{
+            font-size:10px;line-height:1.35;color:#e6c9a0;}
+        body[data-ui-mode="map4"] #hunter-competition-scores{
+            font:400 10px/1.3 'Share Tech Mono',monospace;word-break:normal;}
+        body[data-ui-mode="map4"]:not([data-ui-phase="2"]) #hunter-competition-scores{
+            display:none!important;}
+        body[data-ui-mode="map4"][data-ui-phase="2"] #hunter-competition-hud{
+            border-color:rgba(224,171,93,.72)!important;background:rgba(15,23,35,.93)!important;}
+        body[data-ui-mode="map4"][data-ui-phase="2"] #ui-map4-competition-phase-text{
+            color:#f2c986;}
+        body[data-ui-mode="map4"][data-ui-phase="2"] .ui-race-kpi--distance{
+            display:none!important;}
+        body[data-ui-mode="map4"][data-ui-phase="2"] .ui-race-kpis{
+            grid-template-columns:repeat(2,minmax(0,1fr));}
+        body[data-ui-mode="map4"][data-ui-phase="2"] #ui-flight-facts .ui-camera-fact{
+            display:none!important;}
+        body[data-ui-mode="map4"][data-ui-phase="4"] #ui-flight-facts .ui-camera-fact{
+            display:none!important;}
+        body[data-ui-mode="map4"] #ui-score-panel{
+            text-align:left;font:700 11px 'Share Tech Mono',monospace;}
+        body[data-ui-mode="map4"] #ui-score-panel #score-text{
+            font-size:16px;}
+        body[data-ui-mode="map4"] #ui-score-panel #laser-status{
+            display:block;font:700 11px/1.42 'Share Tech Mono',monospace;}
+        body[data-ui-mode="map4"] #ui-score-panel #laser-target-status{
+            font:400 10px/1.3 'Share Tech Mono',monospace;}
+        body[data-ui-mode="map4"] #ui-static-control-hint{display:none!important;}
+        @media(max-width:1100px){
+            body[data-ui-mode="map4"] #planetary-zone-hud{
+                width:min(335px,34vw)!important;max-width:335px!important;}
+            body[data-ui-mode="map4"] #ui-flight-metrics-panel{width:35vw!important;
+                max-width:35vw!important;padding:8px!important;}
+            body[data-ui-mode="map4"] #hunter-competition-hud{width:32vw!important;
+                max-width:32vw!important;padding:8px!important;}
+            body[data-ui-mode="map4"] .ui-race-kpi strong{font-size:11px;}
+            body[data-ui-mode="map4"] #ui-map4-goal-value{font-size:17px;}
+        }
+        @media(max-width:760px){
+            body[data-ui-mode="map4"] #planetary-zone-hud{
+                top:7px!important;width:min(325px,55vw)!important;max-width:55vw!important;
+                padding:7px!important;}
+            body[data-ui-mode="map4"] .ui-map4-phase-chip{gap:2px;padding:4px 1px;font-size:9px;}
+            body[data-ui-mode="map4"] .ui-map4-phase-chip em{display:none;}
+            body[data-ui-mode="map4"] #ui-map4-goal-value{font-size:15px;}
+            body[data-ui-mode="map4"] .ui-map4-mission-core{align-items:flex-start;flex-wrap:wrap;gap:4px;}
+            body[data-ui-mode="map4"] .ui-map4-goal-context{font-size:9px;text-align:left;max-width:none;}
+            body[data-ui-mode="map4"] #planetary-landmark-name{display:none!important;}
+            body[data-ui-mode="map4"] #ui-flight-metrics-panel{
+                width:43vw!important;max-width:43vw!important;padding:6px!important;font-size:10px;}
+            body[data-ui-mode="map4"] .ui-race-kpis{gap:2px;}
+            body[data-ui-mode="map4"] .ui-race-kpi small{font-size:8px;}
+            body[data-ui-mode="map4"] .ui-race-kpi strong{font-size:10px;}
+            body[data-ui-mode="map4"] #hunter-competition-hud{
+                top:155px!important;right:7px!important;
+                width:42vw!important;max-width:42vw!important;padding:7px!important;}
+            body[data-ui-mode="map4"] #hunter-competition-scores{
+                font-size:9px!important;max-height:60px;overflow:hidden;}
+        }
+        @media(max-width:480px){
+            body[data-ui-mode="map4"] #planetary-zone-hud{
+                left:auto!important;right:6px!important;top:7px!important;transform:none!important;
+                width:calc(100vw - 15px)!important;max-width:none!important;
+                padding:7px!important;}
+            body[data-ui-mode="map4"] .ui-map4-phase-chip em{display:inline;font-size:8px;}
+            body[data-ui-mode="map4"] #ui-map4-goal-value{font-size:17px;}
+            body[data-ui-mode="map4"] #planetary-route-name,
+            body[data-ui-mode="map4"] #planetary-zone-name{display:none!important;}
+            body[data-ui-mode="map4"] #ui-flight-metrics-panel{
+                position:fixed;top:174px;left:7px;
+                width:46vw!important;max-width:46vw!important;}
+            body[data-ui-mode="map4"] #hunter-competition-hud{
+                position:fixed;top:174px!important;right:7px!important;
+                width:46vw!important;max-width:46vw!important;}
+            body[data-ui-mode="map4"] #ui-flight-facts{font-size:9px!important;line-height:1.25;}
+            body[data-ui-mode="map4"] #race-hud-details{font-size:9px!important;}
+            body[data-ui-mode="map4"] #planetary-airspace-status{display:none!important;}
+            body[data-ui-mode="map4"] .ui-map4-competition-metrics strong{font-size:12px;}
+            body[data-ui-mode="map4"] #hunter-competition-hud>.font-bold{font-size:10px!important;letter-spacing:0;}
+            body[data-ui-mode="map4"] #hunter-time-limit{font-size:9px;}
+            body[data-ui-mode="map4"] #hunter-competition-scores{font-size:8px!important;max-height:45px;}
+            body[data-ui-mode="map4"] .map4-bottom-panel{padding:6px!important;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -543,7 +745,21 @@
 
     <div id="h4-hud-root" class="absolute inset-0 z-40 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
         <div id="planetary-zone-hud" class="hidden hud-box self-center text-center px-4 py-2 max-w-sm">
-            <div class="text-xs text-amber-200 font-bold">GEZEGEN GEÇİŞ OPERASYONU</div>
+            <div class="ui-map4-mission-head"><span>GEZEGEN OPERASYONU</span><span id="ui-map4-phase-label">AŞAMA 01 / 04</span></div>
+            <div id="ui-map4-phase-track" class="ui-map4-phase-track" role="group" aria-label="Görev ilerleme aşamaları">
+                <span data-ui-stage="1" class="ui-map4-phase-chip" aria-current="step">01 <em>VADİ</em></span>
+                <span data-ui-stage="2" class="ui-map4-phase-chip">02 <em>ARENA</em></span>
+                <span data-ui-stage="3" class="ui-map4-phase-chip">03 <em>SANAYİ</em></span>
+                <span data-ui-stage="4" class="ui-map4-phase-chip">04 <em>YÖRÜNGE</em></span>
+            </div>
+            <div class="ui-map4-mission-core">
+                <div class="ui-map4-mission-value"><small id="ui-map4-goal-label">VADİ ÇIKIŞINA</small><strong id="ui-map4-goal-value">12.500 m</strong></div>
+                <span id="ui-map4-goal-context" class="ui-map4-goal-context">12,5 km · ROTA SEÇ</span>
+            </div>
+            <div class="ui-map4-progress-rail" role="progressbar" aria-label="Mevcut görev aşamasında ilerleme" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="ui-map4-progress-fill"></div></div>
+            <div id="ui-map4-phase-directive" class="ui-map4-phase-directive">ORTA HAT GÜVENLİ · BATI DAHA HIZLI</div>
+            <div id="ui-map4-urgent" class="ui-map4-urgent hidden" role="status"></div>
+            <div class="text-xs text-amber-200 font-bold ui-map4-zone-heading">GEZEGEN GEÇİŞ OPERASYONU</div>
             <div id="planetary-zone-name" class="text-sm text-white font-black">KAYALIK VADİLER</div>
             <div id="planetary-destination" class="text-xs text-cyan-200">HEDEF: ASKERÎ ÜS</div>
             <div id="planetary-landmark-name" class="text-[10px] text-amber-200 mt-1">BÖLGE TARAMASI</div>
@@ -557,6 +773,11 @@
         <div class="flex flex-col items-center w-full gap-2">
             <div id="hunter-competition-hud" class="hidden hud-box w-full max-w-4xl px-3 py-2 text-center font-['Share_Tech_Mono']">
                 <div class="font-bold text-amber-300 text-xs tracking-widest">HARİTA 4 · AVCI İMHA SIRALAMASI</div>
+                <div class="ui-map4-competition-metrics">
+                    <span>AVCI PUANI <strong id="ui-map4-hunter-score">0</strong></span>
+                    <span>İMHA <strong id="ui-map4-hunter-kills">0</strong></span>
+                    <span id="ui-map4-competition-phase-text">HEDEF: 300 SN İÇİNDE YÖRÜNGE</span>
+                </div>
                 <div id="hunter-time-limit" class="text-xs text-amber-200 mt-1">KALAN 05:00.00 · NORMAL +1 / ELİT +3</div>
                 <div id="hunter-competition-scores" class="text-cyan-100 text-xs mt-1" aria-live="off"></div>
             </div>
@@ -17941,7 +18162,117 @@
             return marks.map((t,i) => `S${i+1}: ${formatRaceTime(Math.max(0,t-(i?marks[i-1]:0)))}`);
         }
 
+
+        // UIUX-03: presentation-only Map4 stage director. NEVER updates game state.
+        // All limits are read from MAP4_PHASES / MAP4_RACE_RULES rather than duplicated.
+        const uiMap4MissionCache={phase:0,tick:-1};
+        function updateMap4MissionHUD(force=false) {
+            if(state.activeMap!==MAP_MODES.MAP4){
+                delete document.body.dataset.uiPhase;
+                uiMap4MissionCache.phase=0; uiMap4MissionCache.tick=-1;
+                return;
+            }
+            const phase=Math.max(1,Math.min(4,state.map4Phase||1));
+            const tick=Math.floor(Math.max(0,state.raceTime)*4);
+            if(!force&&uiMap4MissionCache.phase===phase&&uiMap4MissionCache.tick===tick)return;
+            const transition=phase!==uiMap4MissionCache.phase;
+            uiMap4MissionCache.phase=phase;uiMap4MissionCache.tick=tick;
+            document.body.dataset.uiPhase=String(phase);
+            const headings=['','01 / 04 · VADİ ROTASI','02 / 04 · AVCI ARENASI',
+                '03 / 04 · SANAYİ GEÇİŞİ','04 / 04 · YÖRÜNGE ÇIKIŞI'];
+            const phases=['','VADİ ÇIKIŞINA','ARENA KAPISI AÇILANA',
+                'SANAYİ ÇIKIŞINA','GEREKLİ İRTİFA'];
+            const goalLabel=document.getElementById('ui-map4-goal-label');
+            const goalValue=document.getElementById('ui-map4-goal-value');
+            const goalContext=document.getElementById('ui-map4-goal-context');
+            const directive=document.getElementById('ui-map4-phase-directive');
+            const urgent=document.getElementById('ui-map4-urgent');
+            const hud=document.getElementById('planetary-zone-hud');
+            const airspace=document.getElementById('planetary-airspace-status');
+            if(transition){
+                for(const chip of hud.querySelectorAll('[data-ui-stage]')){
+                    const id=Number(chip.dataset.uiStage);
+                    chip.dataset.uiComplete=id<phase?'true':'false';
+                    if(id===phase)chip.setAttribute('aria-current','step');
+                    else chip.removeAttribute('aria-current');
+                }
+            }
+            document.getElementById('ui-map4-phase-label').textContent=headings[phase];
+            const meters=(n)=>Math.round(Math.max(0,n)).toLocaleString('tr-TR')+' m';
+            const remainingRace=Math.max(0,RACE_ROUTE_NOMINAL_DISTANCE-state.routeProgress);
+            let label=phases[phase],value='',context='',instruction='',fraction=0;
+            if(phase===1){
+                const remaining=Math.max(0,MAP4_PHASES.introEnd-state.routeProgress);
+                fraction=100*(1-remaining/MAP4_PHASES.introEnd);
+                value=meters(remaining);
+                const route=h4CanyonRoute(state.routeProgress,state.laneX);
+                context=route==='FAST'?'BATI · HIZ +%18':route==='HUNT'?'DOĞU · AVCI ROTASI':
+                    route==='MAIN'?'ORTA · GÜVENLİ':'ROTA SEÇ';
+                instruction=route==='FAST'?'DAR BATI GEÇİDİNDE KAYALARDAN KAÇIN':
+                    route==='HUNT'?'DOĞUDA EK AVCI HEDEFLERİ VAR':
+                    'BATI HIZLI · ORTA GÜVENLİ · DOĞU AVCI';
+            } else if(phase===2){
+                const remaining=Math.max(0,MAP4_PHASES.arenaSeconds-state.map4ArenaElapsed);
+                fraction=100*(1-remaining/MAP4_PHASES.arenaSeconds);
+                value=formatRaceTime(remaining);
+                const pocket=h4ArenaPocketForLane(state.laneX);
+                context='AVCI PUANI '+Math.round(state.hunterScore);
+                instruction='İLERLEME KİLİTLİ · '+pocket.name+' · NORMAL +1 / ELİT +3';
+            } else if(phase===3){
+                const remaining=Math.max(0,MAP4_PHASES.industryEnd-state.routeProgress);
+                fraction=100*(1-remaining/(MAP4_PHASES.industryEnd-MAP4_PHASES.arenaEnd));
+                value=meters(remaining);
+                const route=h4IndustrialRoute(state.routeProgress,state.laneX,state.laneY);
+                context=route==='FAST_LOW'?'ALT BORU · HIZ +%12':
+                    route==='SAFE_UPPER'?'ÜST HAT · GÜVENLİ':
+                    route==='HUNTER_FLANK'?'DOĞU · AVCI':'MERKEZ HAT';
+                instruction=route==='FAST_LOW'?'DAR BORU KORİDORU · ENGELLERDEN KAÇIN':
+                    route==='SAFE_UPPER'?'ÜST ROTAYI KORU · BORULARDAN UZAK DUR':
+                    route==='HUNTER_FLANK'?'AVCILARI VUR · TESİS ÇARPIŞMASINDAN KAÇIN':
+                    'ALT HIZLI · ÜST GÜVENLİ · DOĞU AVCI';
+            } else {
+                const altitude=Math.max(0,state.laneY);
+                fraction=100*Math.min(1,altitude/MAP4_PHASES.orbitAltitude);
+                value=meters(state.laneY);
+                context=meters(remainingRace)+' PARKUR';
+                instruction=state.laneY>=MAP4_PHASES.orbitAltitude?
+                    'İRTİFA TAMAM · ÇIKIŞ KAPISINA İLERLE':
+                    'İRTİFA '+MAP4_PHASES.orbitAltitude+' m HEDEFİNE ULAŞ · ↑ İLE YÜKSEL';
+            }
+            goalLabel.textContent=label;goalValue.textContent=value;
+            goalContext.textContent=context;directive.textContent=instruction;
+            const percent=Math.max(0,Math.min(100,fraction));
+            document.getElementById('ui-map4-progress-fill').style.width=percent.toFixed(1)+'%';
+            const progress=hud.querySelector('.ui-map4-progress-rail');
+            progress.setAttribute('aria-valuenow',String(Math.round(percent)));
+            progress.setAttribute('aria-valuetext',Math.round(percent)+'%, '+headings[phase]);
+            const raceRemaining=Math.max(0,MAP4_RACE_RULES.realTimeLimit-state.raceTime);
+            let warning='';
+            if(raceRemaining<25)warning='SÜRE AZALIYOR · '+formatRaceTime(raceRemaining);
+            else if(state.boundaryLevel>=2)warning='GÖREV SAHASI DIŞINA ÇIKMA · KALKAN RİSKİ';
+            urgent.textContent=warning;urgent.classList.toggle('hidden',!warning);
+            // Keep original boundary telemetry updating, but omit its safe/verbose line.
+            if(airspace)airspace.dataset.uiSafe=state.boundaryLevel===0?'true':'false';
+            document.getElementById('ui-map4-hunter-score').textContent=String(state.hunterScore);
+            document.getElementById('ui-map4-hunter-kills').textContent=String(state.hunterKills);
+            const competition=document.getElementById('ui-map4-competition-phase-text');
+            competition.textContent=phase===2?'ARENA · '+formatRaceTime(
+                    Math.max(0,MAP4_PHASES.arenaSeconds-state.map4ArenaElapsed))+' KALDI':
+                phase===4?'YÖRÜNGE · '+Math.round(state.laneY)+' / '+MAP4_PHASES.orbitAltitude+' m':
+                'YARIŞ LİMİTİ '+formatRaceTime(raceRemaining);
+            // These values are for tests and UI debugging only; no physics mutation.
+            window.deathlyUIPhaseTelemetry={
+                map:'MAP4',phase,progress:Math.round(percent),label,value,context,
+                raceTime:state.raceTime,arenaRemaining:Math.max(0,MAP4_PHASES.arenaSeconds-
+                    state.map4ArenaElapsed),altitude:state.laneY,
+                orbitTarget:MAP4_PHASES.orbitAltitude,
+                totalRemaining:raceRemaining,
+                score:state.hunterScore,kills:state.hunterKills,warning
+            };
+        }
+
         function updateHUD(incomingDanger) {
+            updateMap4MissionHUD();
             document.getElementById('score-text').textContent = state.score.toLocaleString('en-US').padStart(7, '0');
             document.getElementById('obstacle-kills').textContent = state.obstaclesDestroyed;
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
@@ -18598,6 +18929,7 @@
             if (state.running) return; // A running race can never switch maps.
             state.activeMap = mapId;
             document.body.dataset.uiMode = mapId; // UI presentation only; no gameplay change.
+            if(mapId!==MAP_MODES.MAP4)delete document.body.dataset.uiPhase;
             applyPlanetaryEnvironment();
             const ready = MAP_AVAILABLE[mapId] === true;
             document.getElementById('map-choice-1').setAttribute('aria-pressed', String(mapId === MAP_MODES.MAP1));
