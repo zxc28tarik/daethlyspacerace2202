@@ -693,8 +693,8 @@
         }
         @media(max-width:760px){
             body[data-ui-mode="map4"] #planetary-zone-hud{
-                top:7px!important;width:min(325px,55vw)!important;max-width:55vw!important;
-                padding:7px!important;}
+                top:7px!important;width:min(545px,calc(100vw - 16px))!important;
+                max-width:calc(100vw - 16px)!important;padding:7px!important;}
             body[data-ui-mode="map4"] .ui-map4-phase-chip{gap:2px;padding:4px 1px;font-size:9px;}
             body[data-ui-mode="map4"] .ui-map4-phase-chip em{display:none;}
             body[data-ui-mode="map4"] #ui-map4-goal-value{font-size:15px;}
@@ -702,12 +702,13 @@
             body[data-ui-mode="map4"] .ui-map4-goal-context{font-size:9px;text-align:left;max-width:none;}
             body[data-ui-mode="map4"] #planetary-landmark-name{display:none!important;}
             body[data-ui-mode="map4"] #ui-flight-metrics-panel{
+                position:fixed;top:202px;left:7px;
                 width:43vw!important;max-width:43vw!important;padding:6px!important;font-size:10px;}
             body[data-ui-mode="map4"] .ui-race-kpis{gap:2px;}
             body[data-ui-mode="map4"] .ui-race-kpi small{font-size:8px;}
             body[data-ui-mode="map4"] .ui-race-kpi strong{font-size:10px;}
             body[data-ui-mode="map4"] #hunter-competition-hud{
-                top:155px!important;right:7px!important;
+                top:202px!important;right:7px!important;
                 width:42vw!important;max-width:42vw!important;padding:7px!important;}
             body[data-ui-mode="map4"] #hunter-competition-scores{
                 font-size:9px!important;max-height:60px;overflow:hidden;}
