@@ -11178,6 +11178,9 @@
             district.userData.realCollision=true;
             zone.add(district);
             h4City02DistrictGroup=district;
+            // CITY05: restrained cyan guidance lights and paired roadside pylons.
+            // Their geometry is visual only, leaving the main flight corridor open.
+            const curbGuides=[],streetPylons=[],streetLanterns=[];
             // Segmented road follows the curved planetary route; unlike one
             // giant plane it cannot turn into a vertical wall at a bend.
             for(let row=0;row<10;row++){
@@ -11186,6 +11189,16 @@
                     H4_CITY02_BOX,H4_CITY02_ROAD,[1060,7,155]);
                 avenue.name='H4_CITY02_DRIVABLE_MAIN_AVENUE_'+row;
                 avenue.userData.visualOnly=true;
+                for(const sign of [-1,1]){
+                    // Guidance strips sit just inside the road's outer edge.
+                    curbGuides.push({progress,side:sign*496,y:-428,
+                        sx:7,sy:3,sz:125});
+                    // Slim pylons give stable distance cues at street junctions.
+                    streetPylons.push({progress,side:sign*557,y:-404,
+                        sx:6,sy:70,sz:6});
+                    streetLanterns.push({progress,side:sign*557,y:-362,
+                        sx:19,sy:7,sz:19});
+                }
                 if(row===2||row===5||row===8){
                     const cross=h4PlaceStructure(district,progress,0,-433,
                         H4_CITY02_BOX,H4_CITY02_ROAD,[2740,5,80]);
@@ -11290,6 +11303,12 @@
                 H4_CITY02_ROOF,roofMachines);
             h4City02DetailBatch('H4_CITY03_BATCHED_FACADE_RIBS',
                 H4_CITY02_ROOF,facadeRibs);
+            h4City02DetailBatch('H4_CITY05_ROADSIDE_PYLONS',
+                H4_CITY02_ROOF,streetPylons);
+            h4City02DetailBatch('H4_CITY05_LIT_PYLON_HEADS',
+                H4_CITY02_STREETLIGHT,streetLanterns);
+            h4City02DetailBatch('H4_CITY05_AVENUE_EDGE_GUIDES',
+                H4_CITY02_STREETLIGHT,curbGuides);
             h4City02DetailBatch('H4_CITY04_STEPPED_TOWER_TOPS',
                 H4_CITY02_MATERIALS[1],setbackTiers);
             h4City02DetailBatch('H4_CITY04_ANTENNA_TOWER_MASTS',
