@@ -46,6 +46,12 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
       h4CityArenaColliders.includes(c));
    const windows=city.children.find(c=>c.name==='H4_CITY02_INSTANCED_STREET_WINDOWS');
    const roadTiles=city.children.filter(c=>c.name.startsWith('H4_CITY02_DRIVABLE_MAIN_AVENUE'));
+   const city04Details=['H4_CITY04_STEPPED_TOWER_TOPS',
+    'H4_CITY04_ANTENNA_TOWER_MASTS',
+    'H4_CITY04_HORIZONTAL_FACADE_TRIMS'].map(name=>{
+      const mesh=city.children.find(c=>c.name===name);
+      return {name,count:mesh?.count||0,visualOnly:mesh?.userData.visualOnly===true};
+    });
    const cameraInBuilding=h4CityArenaBuildings.some(m=>
       new THREE.Box3().setFromObject(m).containsPoint(camera.position));
    const horizonAlignment=new THREE.Vector3(0,1,0)
@@ -82,7 +88,7 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
     camera:camera.position.toArray(),
     cityVisible:!!city&&city.visible&&planetaryWorldRegions[1].visible,
     physicalCity:h4CityArenaBuildings.length,colliders:h4CityArenaColliders.length,
-    windows:windows?.count,roads:roadTiles.length,openMainStreet:mainCorridor,
+    windows:windows?.count,roads:roadTiles.length,city04Details,openMainStreet:mainCorridor,
     oldWarfrontHidden:h4ArenaWarfrontGroups.every(g=>!g.visible),
     oldGiantWreckHidden:!h4Next22kArenaWreckGroup.visible,
     oldGiantSkylineHidden:!h4Gfx11bArenaSkylineGroup.visible,
@@ -100,6 +106,9 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
   assert.equal(scene.colliders,48);
   assert.equal(scene.windows,432);
   assert.equal(scene.roads,10);
+  assert.deepEqual(scene.city04Details.map(d=>d.count),[30,36,144]);
+  assert(scene.city04Details.every(d=>d.visualOnly),
+   'new skyline detail must never change city building collision');
   assert.equal(scene.openMainStreet,true,'open flyable avenue required');
   assert.equal(scene.oldWarfrontHidden,true,'old warfront wall MUST NOT render');
   assert.equal(scene.oldGiantWreckHidden,true,'old wreck must not hover before pilot');
