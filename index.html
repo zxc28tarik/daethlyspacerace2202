@@ -2397,6 +2397,44 @@
         }
         /* Normal flight status has no action value; keep boundary warnings. */
         body[data-ui-hud-density="COMPACT"] #boundary-alert.text-emerald-300{display:none!important;}
+/* First-flight coaching is one readable hint, not another floating card. */
+        #ui-first-flight,
+        body[data-ui-mode="map4"] #ui-first-flight{
+            width:min(245px,25vw)!important;
+            padding:4px 8px!important;
+            border:0!important;border-left:0!important;border-radius:0!important;
+            background:transparent!important;box-shadow:none!important;
+            backdrop-filter:none!important;
+            color:#f3f7f4!important;
+            text-shadow:0 2px 4px rgba(0,0,0,.92),0 0 9px rgba(0,0,0,.8);
+        }
+        #ui-first-flight .ui-first-flight-head{
+            position:absolute;top:-4px;right:2px;margin:0!important;
+            background:transparent!important;border:0!important;
+        }
+        #ui-first-flight #ui-first-flight-step,
+        #ui-first-flight .ui-first-flight-foot{display:none!important;}
+        #ui-first-flight #ui-first-flight-dismiss{
+            width:24px!important;height:24px!important;padding:0!important;
+            color:#e6eeeb!important;border:0!important;background:transparent!important;
+            box-shadow:none!important;text-shadow:0 1px 3px #000;
+            font-size:16px!important;
+        }
+        #ui-first-flight #ui-first-flight-title{
+            max-width:215px;margin:0 20px 4px 0!important;
+            font:700 14px/1.35 system-ui,sans-serif!important;
+            color:#f3f7f4!important;text-shadow:0 2px 4px #000!important;
+        }
+        #ui-first-flight #ui-first-flight-text{
+            margin:0!important;font:500 12px/1.45 system-ui,sans-serif!important;
+            color:#e2e9e4!important;text-shadow:0 2px 5px #000!important;
+        }
+        /* Hide combat scoring only during the initial route; it is shown on entry to combat. */
+        body[data-ui-hud-density="COMPACT"]:has(#ui-map4-phase-track [data-ui-stage="1"][aria-current="step"])
+        #hunter-competition-hud{display:none!important;}
+        @media(max-width:700px){
+            #ui-first-flight{width:min(218px,58vw)!important;top:clamp(130px,24vh,210px)!important;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
