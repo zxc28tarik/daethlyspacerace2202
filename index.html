@@ -11198,7 +11198,7 @@
             const columns=[-1390,-1010,-650,650,1010,1390];
             const windows=[];
             // CITY03: decorative details are instanced, not physical obstacles.
-            const roofMachines=[],facadeRibs=[];
+            const roofMachines=[],facadeRibs=[],setbackTiers=[],antennaMasts=[],streetTrims=[];
             for(let row=0;row<9;row++)for(let col=0;col<columns.length;col++){
                 // Open real side streets: no tower blocks across the two
                 // inner corners of the three east/west intersections.
@@ -11231,6 +11231,25 @@
                     facadeRibs.push({progress:progress+depth*offset,
                         side:faceSide,y:-440+height*.46,
                         sx:5,sy:height*.76,sz:5});
+                }
+                // Three distinct silhouettes: stepped tower, antenna tower,
+                // and streamlined slab. Decorative crowns do not affect hitboxes.
+                if(index%3===0){
+                    setbackTiers.push({progress,side,y:-440+height+42,
+                        sx:width*.59,sy:45,sz:depth*.62});
+                    setbackTiers.push({progress,side,y:-440+height+75,
+                        sx:width*.34,sy:24,sz:depth*.4});
+                }else if(index%3===1){
+                    antennaMasts.push({progress,side,y:-440+height+69,
+                        sx:5,sy:99,sz:5});
+                    antennaMasts.push({progress,side,y:-440+height+120,
+                        sx:24,sy:4,sz:24});
+                }
+                // Slim contrasting horizontal strips improve depth cues as
+                // the ship travels through street-level buildings.
+                for(const fraction of [.19,.57,.84]){
+                    streetTrims.push({progress,side:faceSide,
+                        y:-440+height*fraction,sx:4,sy:5,sz:depth*.8});
                 }
                 roofMachines.push({progress:progress+depth*.19,
                     side:side+width*.12,y:-440+height+24,
@@ -11271,6 +11290,12 @@
                 H4_CITY02_ROOF,roofMachines);
             h4City02DetailBatch('H4_CITY03_BATCHED_FACADE_RIBS',
                 H4_CITY02_ROOF,facadeRibs);
+            h4City02DetailBatch('H4_CITY04_STEPPED_TOWER_TOPS',
+                H4_CITY02_MATERIALS[1],setbackTiers);
+            h4City02DetailBatch('H4_CITY04_ANTENNA_TOWER_MASTS',
+                H4_CITY02_ROOF,antennaMasts);
+            h4City02DetailBatch('H4_CITY04_HORIZONTAL_FACADE_TRIMS',
+                H4_CITY02_MATERIALS[3],streetTrims);
             const batch=new THREE.InstancedMesh(H4_CITY02_BOX,
                 H4_CITY02_WINDOW,windows.length);
             const dummy=new THREE.Object3D();
