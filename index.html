@@ -11197,6 +11197,8 @@
             // frame the player, with transversal gaps for genuine dogfighting.
             const columns=[-1390,-1010,-650,650,1010,1390];
             const windows=[];
+            // CITY03: decorative details are instanced, not physical obstacles.
+            const roofMachines=[],facadeRibs=[];
             for(let row=0;row<9;row++)for(let col=0;col<columns.length;col++){
                 // Open real side streets: no tower blocks across the two
                 // inner corners of the three east/west intersections.
@@ -11223,6 +11225,16 @@
                     [width*.78,23,depth*.83]);
                 crown.name='H4_CITY02_TOWER_CROWN_'+index;
                 crown.userData.visualOnly=true;
+                // Vertical facade ribs and variable rooftop silhouettes.
+                const faceSide=side>0?side-width*.5-3:side+width*.5+3;
+                for(const offset of [-.29,.29]){
+                    facadeRibs.push({progress:progress+depth*offset,
+                        side:faceSide,y:-440+height*.46,
+                        sx:5,sy:height*.76,sz:5});
+                }
+                roofMachines.push({progress:progress+depth*.19,
+                    side:side+width*.12,y:-440+height+24,
+                    sx:width*.21,sy:20+(index%4)*7,sz:depth*.28});
                 if(index%7===0){
                     const light=h4PlaceStructure(district,progress,side,
                         -440+height+32,H4_CITY02_BOX,H4_CITY02_STREETLIGHT,
@@ -11238,6 +11250,27 @@
                         face,y:floor,seed:index+y*17+z});
                 }
             }
+            function h4City02DetailBatch(name,material,items){
+                const mesh=new THREE.InstancedMesh(H4_CITY02_BOX,material,items.length);
+                const dummy=new THREE.Object3D();
+                items.forEach((item,i)=>{
+                    const frame=getRaceFrameAtDistance(item.progress);
+                    dummy.position.copy(h4WorldPosition(item.progress,item.side,item.y));
+                    dummy.quaternion.setFromUnitVectors(H4_UP,frame.up);
+                    dummy.scale.set(item.sx,item.sy,item.sz);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(i,dummy.matrix);
+                });
+                mesh.instanceMatrix.needsUpdate=true;
+                mesh.frustumCulled=false;
+                mesh.name=name;
+                mesh.userData.visualOnly=true;
+                district.add(mesh);
+            }
+            h4City02DetailBatch('H4_CITY03_BATCHED_ROOFTOP_MACHINERY',
+                H4_CITY02_ROOF,roofMachines);
+            h4City02DetailBatch('H4_CITY03_BATCHED_FACADE_RIBS',
+                H4_CITY02_ROOF,facadeRibs);
             const batch=new THREE.InstancedMesh(H4_CITY02_BOX,
                 H4_CITY02_WINDOW,windows.length);
             const dummy=new THREE.Object3D();
