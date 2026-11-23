@@ -51,6 +51,12 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
    }));
    assert.equal(hud.density,'COMPACT');assert.equal(hud.details,'none');
    assert(hud.panels.every(v=>v==='rgba(0, 0, 0, 0)'),JSON.stringify(hud));
+   assert.equal(await page.locator('#ui-first-flight')
+     .evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)',
+     'first-flight guidance must never become an obstructing card');
+   assert.equal(await page.locator('#hunter-competition-hud')
+     .evaluate(e=>getComputedStyle(e).display),'none',
+     'do not show combat score before the combat phase');
    await page.screenshot({path:path.join(out,viewport.name+'-02-map4-hud.png')});
    await page.keyboard.press('p');
    await page.waitForFunction(()=>state.paused,null,{timeout:12000});
