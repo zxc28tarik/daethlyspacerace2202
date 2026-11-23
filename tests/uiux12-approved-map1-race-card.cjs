@@ -1,8 +1,8 @@
-/* UIUX12: real Chromium/WebGL KISS menu, HUD and pause acceptance. */
+/* UIUX13: approved Map1 + Map4 retro illustrations, WebGL menu/HUD/pause acceptance. */
 'use strict';
 const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url');
-const out=path.join(__dirname,'uiux12-evidence');
+const out=path.join(__dirname,'uiux13-evidence');
 fs.mkdirSync(out,{recursive:true});
 const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
 (async()=>{
@@ -23,20 +23,31 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
    await page.waitForFunction(()=>typeof state==='object'&&typeof startGame==='function',null,{timeout:30000});
    const mapArt=await page.evaluate(async()=>{
      const img=document.querySelector('#map-choice-1 .ui-map-retro-race-illustration');
-     await img.decode();
+     const img4=document.querySelector('#map-choice-4 .ui-map-retro-city-illustration');
+     await Promise.all([img.decode(),img4.decode()]);
      return {complete:img.complete,width:img.naturalWidth,height:img.naturalHeight,
        embedded:img.currentSrc.startsWith('data:image/webp;base64,'),
        objectFit:getComputedStyle(img).objectFit,
        map4Svg:!!document.querySelector('#map-choice-4 .ui-map-scene svg'),
-       map4ImageCount:document.querySelectorAll('#map-choice-4 .ui-map-scene img').length};
+       map4ImageCount:document.querySelectorAll('#map-choice-4 .ui-map-scene img').length,
+       map4Complete:img4.complete,map4Width:img4.naturalWidth,map4Height:img4.naturalHeight,
+       map4Embedded:img4.currentSrc.startsWith('data:image/webp;base64,'),
+       map4ObjectFit:getComputedStyle(img4).objectFit,
+       map4Filter:getComputedStyle(img4.parentElement).filter};
    });
    assert.equal(mapArt.complete,true);
    assert.equal(mapArt.embedded,true,'Map1 art should load offline');
    assert.equal(mapArt.width,1672);
    assert.equal(mapArt.height,941);
    assert.equal(mapArt.objectFit,'cover');
-   assert.equal(mapArt.map4Svg,true,'Map4 art must remain unchanged');
-   assert.equal(mapArt.map4ImageCount,0);
+   assert.equal(mapArt.map4Svg,false,'the old Map4 SVG should be replaced');
+   assert.equal(mapArt.map4ImageCount,1);
+   assert.equal(mapArt.map4Complete,true);
+   assert.equal(mapArt.map4Width,1672);
+   assert.equal(mapArt.map4Height,941);
+   assert.equal(mapArt.map4Embedded,true,'Map4 art should work offline');
+   assert.equal(mapArt.map4ObjectFit,'cover');
+   assert.equal(mapArt.map4Filter,'none');
    const retroImage=await page.evaluate(async()=>{
      const start=document.getElementById('start-screen');
      const pseudo=getComputedStyle(start,'::before');
@@ -118,6 +129,6 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
    await page.close();
   }
   fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));
-  console.log('PASS UIUX12 '+JSON.stringify(report));
+  console.log('PASS UIUX13 '+JSON.stringify(report));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
