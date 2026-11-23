@@ -30,6 +30,7 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
  assert(order.every(x=>x.img.startsWith('data:image/')),'ships must display');
  assert.equal(await page.locator('#race-standings-list > div').count(),6);
  assert.equal(await page.locator('#ui-results-reveal-wrap').getAttribute('aria-hidden'),'true');
+ await page.waitForTimeout(700); // capture all three staggered podium entrances
  await page.screenshot({path:path.join(out,vp.name+'-map1-podium.png')});
  await page.waitForFunction(()=>document.getElementById('gameover-screen').dataset.uiPodiumPhase==='reveal',null,{timeout:6500});
  await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('ui-results-reveal-wrap')).opacity)>.95,null,{timeout:10000});
@@ -40,6 +41,8 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
    return {overflow:shell.scrollWidth-shell.clientWidth,opacity:getComputedStyle(region).opacity};
  });
  assert(dims.overflow<=2,'result overflow '+JSON.stringify(dims));
+ const tableGrid=await page.locator('#race-standings-head').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
+ assert.equal(tableGrid,12,'results table columns must remain aligned without Tailwind CDN');
  assert(Number(dims.opacity)>.95,'standings should be visible '+JSON.stringify(dims));
  await page.screenshot({path:path.join(out,vp.name+'-map1-expanded.png')});
  await page.locator('#menu-btn').click();
@@ -63,6 +66,7 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
  })));
  assert.deepEqual(map4.map(x=>x.name),['SEN','VIPER-01','NOVA-X']);
  assert(map4.every(x=>x.metric.includes('PUAN')),'Map4 hunter score podium');
+ await page.waitForTimeout(700);
  await page.screenshot({path:path.join(out,vp.name+'-map4-podium.png')});
  await page.locator('#restart-btn').click();
  await page.waitForFunction(()=>state.running&&state.activeMap==='map4',null,{timeout:30000});
