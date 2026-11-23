@@ -104,6 +104,32 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
     cameraInBuilding,horizonAlignment
    };
   });
+  // CITY06: verify urban hunters are spawned outside tower collision,
+  // and swept avoidance never authorizes a through-building move.
+  const hunterSafety=await page.evaluate(()=>{
+    const point=t=>({routeProgress:t.routeProgress,laneX:t.laneX,laneY:t.laneY});
+    const alive=hunterTargets.filter(t=>t.alive);
+    const inside=alive.filter(t=>h4CityArenaColliders.some(box=>
+      h4SegmentBoxHit(point(t),point(t),box,t.radius+9))).length;
+    const blocker=h4CityArenaColliders[0];
+    const hunter=alive[0];
+    const previous={routeProgress:blocker.progress-230,
+      laneX:blocker.side,laneY:blocker.altitude};
+    const proposed={...previous,routeProgress:blocker.progress+230};
+    const oldDir=hunter.arenaDirection;
+    const adjusted=h4City06HunterAvoid(previous,proposed,hunter);
+    hunter.arenaDirection=oldDir;
+    const intersects=h4CityArenaColliders.some(box=>
+      h4SegmentBoxHit(previous,adjusted,box,hunter.radius+9));
+    return {alive:alive.length,inside,intersects,avoided:
+      adjusted.routeProgress!==proposed.routeProgress||
+      adjusted.laneX!==proposed.laneX||
+      adjusted.laneY!==proposed.laneY};
+  });
+  assert(hunterSafety.alive>0,'city must have active hunters');
+  assert.equal(hunterSafety.inside,0,'hunters must not spawn inside towers');
+  assert.equal(hunterSafety.intersects,false,'hunter avoidance must not tunnel through towers');
+  assert.equal(hunterSafety.avoided,true,'blocked urban path must be redirected');
   assert.equal(scene.phase,2,'must actually be inside phase 2');
   assert(scene.seconds>0&&scene.seconds<60);
   assert.equal(scene.cityVisible,true,'real city district must be onscreen');
