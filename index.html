@@ -2650,6 +2650,108 @@
             #gameover-screen #race-standings-list{font-size:10px!important;}
             #gameover-screen #race-standings-list>div{padding:7px 5px;}
         }
+
+        /* UIUX15 — Calm, readable results. The actual standings and craft sources remain untouched. */
+        #gameover-screen .ui-results-shell{
+            box-sizing:border-box;width:min(780px,calc(100vw - 20px))!important;
+            max-height:calc(100dvh - 20px);overflow-y:auto;overflow-x:hidden;
+            overscroll-behavior:contain;scrollbar-gutter:stable;
+        }
+        #gameover-screen .ui-topline{display:none!important;}
+        #gameover-screen .ui-results-context{
+            margin:0 0 5px;gap:6px;font-size:10px;letter-spacing:.055em;
+        }
+        #gameover-screen #gameover-title{
+            font-size:clamp(18px,2.4vw,25px)!important;line-height:1.25!important;
+            letter-spacing:.025em!important;margin:0 0 6px!important;text-shadow:none!important;
+        }
+        #gameover-screen .ui-race-podium{margin:1px 0 10px;padding:0;min-width:0;}
+        #gameover-screen .ui-podium-heading{color:#9fb8ba;font-size:9px;margin-bottom:3px;}
+        #gameover-screen .ui-podium-places{
+            grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,1fr);
+            gap:clamp(5px,1.8vw,15px);
+        }
+        #gameover-screen .ui-podium-craft{
+            height:clamp(76px,11vh,108px);
+            background:radial-gradient(ellipse at 50% 62%,rgba(105,140,153,.12),transparent 68%);
+        }
+        #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-craft{
+            height:clamp(90px,13.5vh,126px);
+            background:radial-gradient(ellipse at 50% 68%,rgba(192,158,98,.13),transparent 70%);
+        }
+        #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-craft img{transform:scale(1.06);}
+        #gameover-screen .ui-podium-name{font-size:clamp(12px,1.55vw,16px);letter-spacing:0;}
+        #gameover-screen .ui-podium-meta{font-size:10px;color:#aebec1;}
+        #gameover-screen .ui-podium-step{
+            border-top-width:2px;font-size:20px;margin-top:3px;
+            background:linear-gradient(180deg,rgba(116,139,142,.17),rgba(29,47,53,.02));
+        }
+        #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-step{height:45px;}
+        #gameover-screen .ui-podium-place[data-rank="2"] .ui-podium-step{height:30px;}
+        #gameover-screen .ui-podium-place[data-rank="3"] .ui-podium-step{height:22px;}
+        #gameover-screen .ui-podium-status{
+            min-height:12px;margin:5px 0 0;font-size:9px;letter-spacing:.06em;color:#9bafaf;
+        }
+        #gameover-screen[data-ui-podium-phase="reveal"] .ui-podium-status{display:none;}
+        #gameover-screen[data-ui-podium-phase="intro"] #ui-results-extra{
+            transform:translateY(-36px);
+        }
+        #gameover-screen #ui-results-reveal-wrap{min-width:0;}
+        #gameover-screen .ui-result-quick-metrics{gap:5px;margin:0 0 9px;}
+        #gameover-screen .ui-result-metric{
+            padding:8px 7px;border:0;border-bottom:1px solid rgba(148,174,178,.23);
+            border-radius:0;background:transparent;
+        }
+        #gameover-screen .ui-result-metric span{font-size:10px;color:#a5b9ba;}
+        #gameover-screen .ui-result-metric strong{font-size:clamp(14px,1.7vw,20px);}
+        #gameover-screen .ui-result-criteria{margin:0 0 7px!important;font-size:10px;color:#9aadb1;}
+        #gameover-screen .ui-result-extra-details{
+            margin:0 0 10px!important;padding:4px 0!important;background:transparent!important;
+            border:0!important;border-radius:0!important;
+        }
+        #gameover-screen .ui-result-extra-details summary{
+            color:#b5c9c9;font-size:11px;min-height:21px;display:list-item;
+        }
+        #gameover-screen #race-summary-banner{
+            margin:8px 0!important;padding:0!important;border:0!important;
+            border-radius:0!important;background:transparent!important;
+            font:500 11px/1.45 'Share Tech Mono',monospace!important;
+            color:#b5c9cb!important;
+        }
+        #gameover-screen .ui-results-table-label{margin:3px 0 8px!important;}
+        #gameover-screen #race-standings-container{
+            max-height:min(31vh,240px);margin-bottom:9px!important;
+            padding:7px 6px!important;
+        }
+        #gameover-screen #race-standings-head{padding:0 5px 7px;font-size:10px;}
+        #gameover-screen #race-standings-list>div{padding:7px 5px;min-height:31px;}
+        #gameover-screen .ui-screen-shell>div:last-child{
+            bottom:-1px;padding:9px 0 2px!important;
+            background:linear-gradient(0deg,#17242d 5%,rgba(23,36,45,.97) 88%,rgba(23,36,45,0));
+        }
+        @media(max-width:640px){
+            #gameover-screen .ui-results-shell{max-height:calc(100dvh - 16px);padding:13px 12px!important;}
+            #gameover-screen .ui-results-context{font-size:9px;margin-bottom:5px;}
+            #gameover-screen #gameover-title{font-size:17px!important;line-height:1.25!important;}
+            #gameover-screen .ui-podium-craft{height:68px;}
+            #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-craft{height:82px;}
+            #gameover-screen .ui-podium-name{font-size:11px;}
+            #gameover-screen .ui-podium-meta{font-size:9px;}
+            #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-step{height:35px;}
+            #gameover-screen .ui-podium-place[data-rank="2"] .ui-podium-step{height:25px;}
+            #gameover-screen .ui-podium-place[data-rank="3"] .ui-podium-step{height:19px;}
+            #gameover-screen .ui-result-metric{padding:6px 4px;min-height:42px;}
+            #gameover-screen #race-standings-container{max-height:24vh;padding:5px 2px!important;}
+            #gameover-screen #race-standings-head{font-size:9px!important;padding:0 3px 6px;}
+            #gameover-screen #race-standings-list>div{padding:6px 3px;min-height:28px;}
+            #gameover-screen .ui-results-table-label small{display:none;}
+        }
+        @media(max-height:650px){
+            #gameover-screen .ui-podium-craft{height:62px;}
+            #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-craft{height:75px;}
+            #gameover-screen .ui-race-podium{margin-bottom:4px;}
+            #gameover-screen #race-standings-container{max-height:24vh;}
+        }
 </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -3026,9 +3128,6 @@
                 <p id="ui-podium-status" class="ui-podium-status" role="status" aria-live="polite"></p>
             </section>
             <div id="ui-results-reveal-wrap"><div id="ui-results-extra">
-            <div id="race-summary-banner" class="text-xs sm:text-sm font-['Share_Tech_Mono'] text-cyan-300 tracking-widest uppercase mb-4">
-                PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
-            </div>
 
             <div id="ui-result-quick-metrics" class="ui-result-quick-metrics" role="group" aria-label="Görev sonucunun temel değerleri">
                 <div class="ui-result-metric"><span id="ui-result-metric-1-label">SIRALAMA</span><strong id="ui-result-metric-1-value">—</strong></div>
@@ -3039,6 +3138,9 @@
             <p id="ui-result-criteria" class="ui-result-criteria">Sıralama: geçerli varış ve yarış süresi</p>
             <details id="ui-result-extra-details" class="ui-result-extra-details">
                 <summary>AYRINTILI PERFORMANS VERİLERİ</summary>
+            <div id="race-summary-banner" class="text-xs sm:text-sm font-['Share_Tech_Mono'] text-cyan-300 tracking-widest uppercase mb-4">
+                PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
+            </div>
             <div id="race-bonus-summary" class="mb-2 text-xs text-fuchsia-300 font-['Share_Tech_Mono'] tracking-wide">NEAR MISSES 0 • SECTOR TIMES</div>
             <div id="race-sector-splits" class="mb-2 text-[11px] text-cyan-200 font-['Share_Tech_Mono'] tracking-wide"></div>
             <div id="race-telemetry-summary" class="mb-3 text-[11px] text-amber-200 font-['Share_Tech_Mono'] tracking-wide"></div>
@@ -21459,6 +21561,7 @@
             document.getElementById('ui-podium-places').replaceChildren();
             document.getElementById('ui-podium-status').textContent='';
             document.getElementById('ui-results-reveal-wrap').removeAttribute('aria-hidden');
+            document.getElementById('ui-results-reveal-wrap').removeAttribute('inert');
         }
         function uiPodiumFallbackShip(entry){
             const index=entry.isPlayer?-1:Math.max(0,racers.findIndex(r=>r.name===entry.name));
@@ -21540,6 +21643,7 @@
             stage.hidden=false;
             screen.dataset.uiPodiumPhase='intro';
             document.getElementById('ui-results-reveal-wrap').setAttribute('aria-hidden','true');
+            document.getElementById('ui-results-reveal-wrap').setAttribute('inert','');
             let painter=null;
             try{
                 painter=new THREE.WebGLRenderer({canvas:document.createElement('canvas'),
@@ -21580,12 +21684,13 @@
                 painter.dispose();
                 if(typeof painter.forceContextLoss==='function')painter.forceContextLoss();
             }
-            document.getElementById('ui-podium-status').textContent='TAM SIRALAMA BİRAZDAN GÖRÜNECEK';
+            document.getElementById('ui-podium-status').textContent='SIRALAMA AÇILIYOR';
             const token=uiPodiumSequence;
             const reveal=()=>{
                 if(token!==uiPodiumSequence||screen.classList.contains('hidden'))return;
                 screen.dataset.uiPodiumPhase='reveal';
                 document.getElementById('ui-results-reveal-wrap').removeAttribute('aria-hidden');
+            document.getElementById('ui-results-reveal-wrap').removeAttribute('inert');
                 document.getElementById('ui-podium-status').textContent='TAM YARIŞ SIRALAMASI';
                 uiPodiumTimer=null;
             };
