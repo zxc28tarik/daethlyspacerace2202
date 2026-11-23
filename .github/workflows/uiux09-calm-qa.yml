@@ -24,7 +24,7 @@ jobs:
           node - <<'NODE'
           const fs=require('fs'),vm=require('vm');
           const s=fs.readFileSync('index.html','utf8');
-          for(const x of s.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi))
+          for(const x of s.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
             if(x[1].trim())new vm.Script(x[1]);
           console.log('PASS JS parse');
           NODE
