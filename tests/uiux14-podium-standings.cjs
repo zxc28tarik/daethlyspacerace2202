@@ -32,7 +32,7 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
  assert.equal(await page.locator('#ui-results-reveal-wrap').getAttribute('aria-hidden'),'true');
  await page.screenshot({path:path.join(out,vp.name+'-map1-podium.png')});
  await page.waitForFunction(()=>document.getElementById('gameover-screen').dataset.uiPodiumPhase==='reveal',null,{timeout:6500});
- await page.waitForTimeout(1800);
+ await page.waitForFunction(()=>Number(getComputedStyle(document.getElementById('ui-results-reveal-wrap')).opacity)>.95,null,{timeout:10000});
  assert.equal(await page.locator('#ui-results-reveal-wrap').getAttribute('aria-hidden'),null);
  const dims=await page.evaluate(()=>{
    const shell=document.querySelector('#gameover-screen .ui-results-shell');
