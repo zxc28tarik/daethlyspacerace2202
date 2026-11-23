@@ -2513,6 +2513,99 @@
             content:"";position:absolute;inset:0;pointer-events:none;
             background:linear-gradient(180deg,transparent 73%,rgba(4,14,25,.18));
         }
+
+        /* UIUX14 — Racing results: genuine top-three craft, quiet podium and slow standings descent. */
+        #gameover-screen .ui-race-podium{margin:5px 0 11px;padding:0 2px;color:#dce7e2;}
+        #gameover-screen .ui-race-podium[hidden]{display:none!important;}
+        #gameover-screen .ui-podium-heading{
+            margin:0 0 4px;text-align:center;color:#b7c8c8;
+            font:700 10px/1.4 'Share Tech Mono',monospace;letter-spacing:.15em;
+        }
+        #gameover-screen .ui-podium-places{
+            display:grid;grid-template-columns:1fr 1.12fr 1fr;
+            align-items:end;gap:clamp(5px,1.4vw,12px);min-width:0;
+        }
+        #gameover-screen .ui-podium-place{
+            min-width:0;display:flex;flex-direction:column;align-items:center;
+            text-align:center;gap:3px;
+            animation:uiPodiumAppear .54s ease-out both;
+        }
+        #gameover-screen .ui-podium-place[data-rank="1"]{animation-delay:.12s;}
+        #gameover-screen .ui-podium-place[data-rank="3"]{animation-delay:.24s;}
+        #gameover-screen .ui-podium-craft{
+            position:relative;width:100%;height:clamp(65px,11vh,104px);
+            display:flex;align-items:center;justify-content:center;
+            background:radial-gradient(ellipse at center,rgba(71,112,135,.16),transparent 72%);
+        }
+        #gameover-screen .ui-podium-craft img{
+            display:block;width:min(100%,245px);height:100%;object-fit:contain;
+            filter:drop-shadow(0 4px 8px rgba(0,0,0,.35));
+        }
+        #gameover-screen .ui-podium-name{
+            display:block;width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;
+            white-space:nowrap;font:800 clamp(12px,1.7vw,17px)/1.2 'Orbitron',system-ui,sans-serif;
+            letter-spacing:.015em;color:#e9e6d8;
+        }
+        #gameover-screen .ui-podium-place[data-player="true"] .ui-podium-name{color:#badde4;}
+        #gameover-screen .ui-podium-meta{
+            font:600 10px/1.25 'Share Tech Mono',monospace;color:#a9c1c8;
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;
+        }
+        #gameover-screen .ui-podium-step{
+            display:flex;align-items:center;justify-content:center;
+            width:100%;font:900 21px/1 'Orbitron',system-ui,sans-serif;
+            margin-top:4px;color:#d9e0dc;border-top:3px solid var(--ui-podium-edge,#a6b8c2);
+            background:linear-gradient(180deg,rgba(93,127,141,.24),rgba(17,32,40,.03));
+        }
+        #gameover-screen .ui-podium-place[data-rank="1"]{--ui-podium-edge:#d7bd83;}
+        #gameover-screen .ui-podium-place[data-rank="2"]{--ui-podium-edge:#adc4cb;}
+        #gameover-screen .ui-podium-place[data-rank="3"]{--ui-podium-edge:#ae856d;}
+        #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-step{height:49px;color:#e1c790;}
+        #gameover-screen .ui-podium-place[data-rank="2"] .ui-podium-step{height:33px;}
+        #gameover-screen .ui-podium-place[data-rank="3"] .ui-podium-step{height:23px;color:#c8a38b;}
+        #gameover-screen .ui-podium-status{
+            font:500 10px/1.3 'Share Tech Mono',monospace;color:#9eb8c0;
+            margin:6px 0 0;text-align:center;letter-spacing:.035em;
+        }
+        #gameover-screen #ui-results-reveal-wrap{
+            display:grid;grid-template-rows:1fr;opacity:1;
+            transition:grid-template-rows 1.65s cubic-bezier(.17,.66,.23,1),
+                opacity .9s ease;
+        }
+        #gameover-screen #ui-results-extra{min-height:0;overflow:hidden;
+            transform:translateY(0);transition:transform 1.65s cubic-bezier(.17,.66,.23,1);
+        }
+        #gameover-screen[data-ui-podium-phase="intro"] #ui-results-reveal-wrap{
+            grid-template-rows:0fr;opacity:0;pointer-events:none;
+        }
+        #gameover-screen[data-ui-podium-phase="intro"] #ui-results-extra{
+            transform:translateY(-75px);
+        }
+        #gameover-screen[data-ui-podium-phase="reveal"] #ui-results-reveal-wrap{
+            grid-template-rows:1fr;opacity:1;pointer-events:auto;
+        }
+        #gameover-screen[data-ui-podium-phase="reveal"] #ui-results-extra{
+            transform:translateY(0);
+        }
+        @keyframes uiPodiumAppear{
+            from{opacity:0;transform:translateY(19px);}
+            to{opacity:1;transform:translateY(0);}
+        }
+        @media(max-width:640px){
+            #gameover-screen .ui-podium-places{gap:5px;}
+            #gameover-screen .ui-podium-craft{height:65px;}
+            #gameover-screen .ui-podium-name{font-size:11px;}
+            #gameover-screen .ui-podium-meta{font-size:9px;}
+            #gameover-screen .ui-podium-step{font-size:17px;}
+            #gameover-screen .ui-podium-place[data-rank="1"] .ui-podium-step{height:37px;}
+            #gameover-screen .ui-podium-place[data-rank="2"] .ui-podium-step{height:26px;}
+            #gameover-screen .ui-podium-place[data-rank="3"] .ui-podium-step{height:20px;}
+        }
+        @media(prefers-reduced-motion:reduce){
+            #gameover-screen .ui-podium-place{animation:none!important;}
+            #gameover-screen #ui-results-reveal-wrap,
+            #gameover-screen #ui-results-extra{transition:none!important;transform:none!important;}
+        }
 </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -2881,6 +2974,14 @@
             <h2 id="gameover-title" class="text-2xl sm:text-4xl font-black text-red-500 tracking-widest uppercase mb-2" style="text-shadow: 0 0 20px #ff0044;">
                 SHIELD CRITICAL // DOWN
             </h2>
+
+            <!-- UIUX14: podium is populated from actual sorted standings; no fictitious placements. -->
+            <section id="ui-race-podium" class="ui-race-podium" hidden aria-label="Yarışın ilk üç pilotu">
+                <div class="ui-podium-heading">YARIŞIN İLK ÜÇÜ</div>
+                <div id="ui-podium-places" class="ui-podium-places" role="list"></div>
+                <p id="ui-podium-status" class="ui-podium-status" role="status" aria-live="polite"></p>
+            </section>
+            <div id="ui-results-reveal-wrap"><div id="ui-results-extra">
             <div id="race-summary-banner" class="text-xs sm:text-sm font-['Share_Tech_Mono'] text-cyan-300 tracking-widest uppercase mb-4">
                 PLAYER RANK: POS 1 / 6 | GAP TO LEADER: +0.00s
             </div>
@@ -2925,6 +3026,7 @@
                     <span id="final-stage" class="text-yellow-300 font-bold">STAGE 1</span>
                 </div>
             </div>
+            </div></div><!-- /ui-results-extra /ui-results-reveal-wrap -->
             <div class="flex flex-wrap gap-3 justify-center">
                 <button id="restart-btn" class="cyber-btn px-7 py-3 text-sm font-black tracking-[0.1em] uppercase">TEKRAR OYNA</button>
                 <button id="menu-btn" class="cyber-btn px-7 py-3 text-sm font-black tracking-[0.1em] uppercase">HARİTA SEÇİMİ</button>
@@ -21107,6 +21209,7 @@
         function startGame() {
             // H4-05: only launch modes explicitly released in MAP_AVAILABLE.
             if (MAP_AVAILABLE[state.activeMap] !== true) return;
+            uiResetRacePodium();
             cancelCenterAnnouncement();
             state.paused = false;
             state.hudWarningTick = -1;
@@ -21297,6 +21400,140 @@
             uiFirstFlightBegin();
         }
 
+
+        /* UIUX14: view-only podium. Race timing, ranks, pilots and physics remain authoritative. */
+        const UI_PODIUM_HOLD_MS=3400;
+        let uiPodiumTimer=null;
+        let uiPodiumSequence=0;
+        function uiResetRacePodium(){
+            uiPodiumSequence++;
+            if(uiPodiumTimer!==null){clearTimeout(uiPodiumTimer);uiPodiumTimer=null;}
+            const screen=document.getElementById('gameover-screen');
+            delete screen.dataset.uiPodiumPhase;
+            const stage=document.getElementById('ui-race-podium');
+            stage.hidden=true;
+            document.getElementById('ui-podium-places').replaceChildren();
+            document.getElementById('ui-podium-status').textContent='';
+            document.getElementById('ui-results-reveal-wrap').removeAttribute('aria-hidden');
+        }
+        function uiPodiumFallbackShip(entry){
+            const index=entry.isPlayer?-1:Math.max(0,racers.findIndex(r=>r.name===entry.name));
+            const paint=entry.isPlayer?'#c45447':
+                ['#74c7d0','#e3a268','#8da2ca','#b4c1ca','#d3b378'][index%5];
+            const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 110" aria-hidden="true">'+
+                '<path d="M52 88 105 70 117 27 123 27 137 70 189 88 148 91 134 86 130 97 110 97 106 86 92 91Z" fill="#b9c7d0" stroke="#233b4d" stroke-width="3"/>'+
+                '<path d="M120 34 111 81 129 81Z" fill="#284c61"/>'+
+                '<path d="M105 73 50 87 80 88 110 82M135 73 190 87 160 88 130 82" fill="'+paint+'"/>'+
+                '<path d="M112 94 110 104 116 96M128 94 130 104 124 96" fill="#85c2d4"/>'+
+                '<path d="M91 91h14m30 0h14" stroke="#233b4d" stroke-width="3"/>'+
+                '</svg>';
+            return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+        }
+        function uiPodiumSnapshotShip(entry,painter){
+            const fallback=uiPodiumFallbackShip(entry);
+            if(!painter)return fallback;
+            const source=entry.isPlayer?geoSwordMesh:
+                (racers.find(r=>r.name===entry.name)||{}).mesh;
+            if(!source)return fallback;
+            try{
+                const ship=source.clone(true);
+                ship.position.set(0,0,0);
+                ship.rotation.set(0,0,0);
+                ship.visible=true;
+                const scene=new THREE.Scene();
+                scene.add(new THREE.AmbientLight(0xf2e8d5,1.85));
+                const key=new THREE.DirectionalLight(0xe7eef2,2.2);key.position.set(25,35,22);scene.add(key);
+                const fill=new THREE.DirectionalLight(0x6eafcb,1.2);fill.position.set(-15,8,-18);scene.add(fill);
+                scene.add(ship);
+                ship.updateMatrixWorld(true);
+                const box=new THREE.Box3();
+                ship.traverseVisible(node=>{
+                    if(!node.isMesh||!node.geometry)return;
+                    if(!node.geometry.boundingBox)node.geometry.computeBoundingBox();
+                    box.union(node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld));
+                });
+                if(box.isEmpty())return fallback;
+                const size=box.getSize(new THREE.Vector3());
+                const center=box.getCenter(new THREE.Vector3());
+                const dimension=Math.max(1,size.x,size.z,size.y*1.8);
+                const halfHeight=dimension*.67;
+                const camera=new THREE.OrthographicCamera(-halfHeight*2.4,halfHeight*2.4,
+                    halfHeight,-halfHeight,.01,dimension*10+80);
+                camera.position.set(center.x+dimension*.65,center.y+dimension*.99,
+                    center.z+dimension*1.2);
+                camera.lookAt(center);
+                camera.updateProjectionMatrix();
+                painter.render(scene,camera);
+                return painter.domElement.toDataURL('image/png');
+            }catch(err){
+                return fallback; // no second WebGL context: static craft is still shown
+            }
+        }
+        function uiShowRacePodium(standings,mapId){
+            uiResetRacePodium();
+            if(!Array.isArray(standings)||!standings.length)return;
+            const screen=document.getElementById('gameover-screen');
+            const stage=document.getElementById('ui-race-podium');
+            const places=document.getElementById('ui-podium-places');
+            stage.hidden=false;
+            screen.dataset.uiPodiumPhase='intro';
+            document.getElementById('ui-results-reveal-wrap').setAttribute('aria-hidden','true');
+            let painter=null;
+            try{
+                painter=new THREE.WebGLRenderer({canvas:document.createElement('canvas'),
+                    alpha:true,antialias:false,preserveDrawingBuffer:true});
+                painter.setSize(240,100,false);
+                painter.setPixelRatio(1);
+                painter.setClearColor(0x000000,0);
+            }catch(err){painter=null;}
+            // Visual order: silver, gold, bronze. Rank source: the actual results array.
+            for(const index of [1,0,2]){
+                const entry=standings[index];
+                if(!entry)continue;
+                const rank=index+1;
+                const place=document.createElement('div');
+                place.className='ui-podium-place';
+                place.dataset.rank=String(rank);
+                place.dataset.player=String(!!entry.isPlayer);
+                place.setAttribute('role','listitem');
+                place.setAttribute('aria-label',rank+'. '+entry.name);
+                const ship=document.createElement('div');ship.className='ui-podium-craft';
+                const img=document.createElement('img');img.alt=entry.name+' gemisi';
+                img.decoding='async';
+                img.src=uiPodiumSnapshotShip(entry,painter);
+                ship.appendChild(img);
+                const name=document.createElement('strong');name.className='ui-podium-name';
+                name.textContent=entry.isPlayer?'SEN':entry.name;
+                const metric=document.createElement('span');metric.className='ui-podium-meta';
+                metric.textContent=mapId==='map4'
+                    ?'PUAN '+String(entry.score||0)
+                    :entry.finished&&!entry.dnf&&Number.isFinite(entry.finishTime)
+                        ?formatRaceTime(entry.finishTime):'DNF';
+                const step=document.createElement('div');step.className='ui-podium-step';
+                step.textContent=String(rank);
+                place.append(ship,name,metric,step);
+                places.appendChild(place);
+            }
+            if(painter){
+                painter.dispose();
+                if(typeof painter.forceContextLoss==='function')painter.forceContextLoss();
+            }
+            document.getElementById('ui-podium-status').textContent='TAM SIRALAMA BİRAZDAN GÖRÜNECEK';
+            const token=uiPodiumSequence;
+            const reveal=()=>{
+                if(token!==uiPodiumSequence||screen.classList.contains('hidden'))return;
+                screen.dataset.uiPodiumPhase='reveal';
+                document.getElementById('ui-results-reveal-wrap').removeAttribute('aria-hidden');
+                document.getElementById('ui-podium-status').textContent='TAM YARIŞ SIRALAMASI';
+                uiPodiumTimer=null;
+            };
+            if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+                reveal();
+            else uiPodiumTimer=setTimeout(reveal,UI_PODIUM_HOLD_MS);
+            const shell=screen.querySelector('.ui-results-shell');
+            if(shell)shell.scrollTop=0;
+        }
+
         function endGame(completedRoute = false) {
             // AI-31: Sonuç ekranını tek sefer oluştur; aynı karede ikinci DNF / bitiş işlenmesin.
             if (!state.running) return;
@@ -21325,6 +21562,7 @@
             if (state.activeMap === MAP_MODES.MAP4) {
                 state.rank = standings.findIndex(e=>e.isPlayer)+1;
                 renderHunterRaceResults(standings);
+                uiShowRacePodium(standings,'map4');
                 document.getElementById('gameover-screen').classList.remove('hidden');
                 clearHunterRivalShots();
                 return;
@@ -21427,6 +21665,7 @@
                 ['LİDER FARKI',leaderGap],
                 ['ÖDÜL KUTUSU',String(state.powerUpsCollected)]
             ]);
+            uiShowRacePodium(standings,'map1');
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('final-score').textContent = state.score.toLocaleString('en-US');
             document.getElementById('final-kills').textContent = state.kills;
@@ -21624,6 +21863,7 @@
         // Return from either results screen to the chooser without launching a race.
         function returnToMapSelection() {
             if (state.running) return;
+            uiResetRacePodium();
             cancelCenterAnnouncement();
             clearHunterTargets();
             state.isFiring=false;
