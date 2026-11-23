@@ -25,9 +25,13 @@ const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
      const start=document.getElementById('start-screen');
      const pseudo=getComputedStyle(start,'::before');
      const shell=getComputedStyle(start.querySelector('.ui-start-shell'));
-     const match=pseudo.backgroundImage.match(/url\\("(data:image\\/webp;base64,[^"]+)"\\)/);
-     if(!match)return {embedded:false,blur:shell.backdropFilter};
-     const img=new Image();img.src=match[1];await img.decode();
+     const htmlImage=pseudo.backgroundImage;
+     const prefix='data:image/webp;base64,';
+     const pos=htmlImage.indexOf(prefix);
+     if(pos<0)return {embedded:false,blur:shell.backdropFilter};
+     const endQuote=htmlImage.indexOf('"',pos);
+     const imageSource=htmlImage.slice(pos,endQuote);
+     const img=new Image();img.src=imageSource;await img.decode();
      return {embedded:true,width:img.naturalWidth,height:img.naturalHeight,
        blur:shell.backdropFilter};
    });
