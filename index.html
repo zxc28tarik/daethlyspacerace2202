@@ -2606,6 +2606,50 @@
             #gameover-screen #ui-results-reveal-wrap,
             #gameover-screen #ui-results-extra{transition:none!important;transform:none!important;}
         }
+
+        /* UIUX14b: offline-safe results table grids; do not rely on Tailwind CDN. */
+        #gameover-screen #race-standings-head,
+        #gameover-screen #race-standings-list>div{
+            display:grid!important;
+            grid-template-columns:repeat(12,minmax(0,1fr))!important;
+            align-items:center;gap:clamp(2px,.55vw,6px);
+            text-align:left;
+        }
+        #gameover-screen #race-standings-head{
+            padding:0 8px 8px;border-bottom:1px solid rgba(155,193,204,.32);
+            margin-bottom:5px;line-height:1.3;
+        }
+        #gameover-screen #race-standings-list>div{
+            padding:7px 8px;min-height:32px;margin:0 0 2px;
+            border:0!important;border-bottom:1px solid rgba(111,151,168,.14)!important;
+            border-radius:0!important;background:rgba(9,25,34,.23);
+        }
+        #gameover-screen #race-standings-list>div[class*="bg-cyan"]{
+            color:#eaf5f6;border-left:2px solid #a8cad1!important;
+            background:rgba(37,92,108,.23)!important;
+        }
+        #gameover-screen #race-standings-list>div>div,
+        #gameover-screen #race-standings-head>div{
+            min-width:0;overflow:hidden;overflow-wrap:anywhere;
+        }
+        #gameover-screen #race-standings-head .col-span-2,
+        #gameover-screen #race-standings-list .col-span-2{grid-column:span 2/span 2;}
+        #gameover-screen #race-standings-head .col-span-3,
+        #gameover-screen #race-standings-list .col-span-3{grid-column:span 3/span 3;}
+        #gameover-screen #race-standings-head .col-span-4,
+        #gameover-screen #race-standings-list .col-span-4{grid-column:span 4/span 4;}
+        #gameover-screen #race-standings-head .col-span-5,
+        #gameover-screen #race-standings-list .col-span-5{grid-column:span 5/span 5;}
+        #gameover-screen #race-standings-head .text-right,
+        #gameover-screen #race-standings-list .text-right{text-align:right;}
+        #gameover-screen #race-standings-list>div>div:nth-child(2){
+            white-space:nowrap;text-overflow:ellipsis;
+        }
+        @media(max-width:640px){
+            #gameover-screen #race-standings-head{font-size:9px!important;}
+            #gameover-screen #race-standings-list{font-size:10px!important;}
+            #gameover-screen #race-standings-list>div{padding:7px 5px;}
+        }
 </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -21464,7 +21508,25 @@
                 camera.lookAt(center);
                 camera.updateProjectionMatrix();
                 painter.render(scene,camera);
-                return painter.domElement.toDataURL('image/png');
+                // Tight framing: render the authentic craft, then crop transparent
+                // WebGL margins so each pilot's ship reads at card size.
+                const frame=document.createElement('canvas');frame.width=240;frame.height=100;
+                const fctx=frame.getContext('2d',{willReadFrequently:true});
+                fctx.drawImage(painter.domElement,0,0);
+                const rgba=fctx.getImageData(0,0,240,100).data;
+                let left=240,top=100,right=-1,bottom=-1;
+                for(let y=0;y<100;y++)for(let x=0;x<240;x++){
+                    if(rgba[(y*240+x)*4+3]<=45)continue;
+                    if(x<left)left=x;if(x>right)right=x;
+                    if(y<top)top=y;if(y>bottom)bottom=y;
+                }
+                if(right<left)return fallback;
+                const width=right-left+1,height=bottom-top+1;
+                const zoom=Math.min(222/width,88/height);
+                const output=document.createElement('canvas');output.width=240;output.height=100;
+                output.getContext('2d').drawImage(frame,left,top,width,height,
+                    (240-width*zoom)/2,(100-height*zoom)/2,width*zoom,height*zoom);
+                return output.toDataURL('image/png');
             }catch(err){
                 return fallback; // no second WebGL context: static craft is still shown
             }
