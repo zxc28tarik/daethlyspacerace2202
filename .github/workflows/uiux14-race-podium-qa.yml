@@ -31,8 +31,8 @@ jobs:
           NODE
       - name: Real Chromium podium and standings animation
         run: node tests/uiux14-podium-standings.cjs
-      - name: Existing Map 1 / Map 4 results regression
-        run: node tests/uiux06-six-map-results.cjs
+      - name: Current UIUX13 Map 1 / Map 4 menu and gameplay regression
+        run: node tests/uiux12-approved-map1-race-card.cjs
       - name: Upload screenshots and browser logs
         if: always()
         uses: actions/upload-artifact@v4
