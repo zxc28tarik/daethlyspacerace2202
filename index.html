@@ -16215,6 +16215,15 @@
                     Math.sin(angle)*radius;
             target.laneX = target.baseLaneX;
             target.laneY = target.baseLaneY;
+            // Some old pocket slots begin inside the new tower grid.
+            // Clear the spawn vertically; city collision remains authoritative.
+            if(arenaActive&&h4CityArenaColliders.some(box=>
+                h4SegmentBoxHit({routeProgress:target.routeProgress,
+                    laneX:target.laneX,laneY:target.laneY},
+                    {routeProgress:target.routeProgress,
+                    laneX:target.laneX,laneY:target.laneY},box,target.radius+9)))
+                target.baseLaneY=target.laneY=620;
+            target.cityAvoidanceTurns=0;
             target.weavePhase = Math.random() * Math.PI * 2;
             target.moveSpeed = arenaActive ? 75+slot%3*22 : 260+Math.random()*180;
             target.arenaDirection=Math.random()<0.5?-1:1;
@@ -16260,6 +16269,34 @@
                 spawnHunterTarget(target, i);
             }
         }
+        // CITY06: collision-aware hunter steering in phase 2 only.
+        // Try a short lateral dodge, then a rooftop climb. The swept test
+        // prevents passing through a facade between successive frames.
+        function h4City06HunterAvoid(previous,proposed,hunter){
+            if(!h4CityArenaColliders.length)return proposed;
+            const blocked=point=>h4CityArenaColliders.some(box=>
+                h4SegmentBoxHit(previous,point,box,hunter.radius+9));
+            if(!blocked(proposed))return proposed;
+            const sideSign=previous.laneX<0?-1:1;
+            const sideSteps=[-180,180,-360,360];
+            for(const offset of sideSteps){
+                const point={...proposed,
+                    laneX:THREE.MathUtils.clamp(previous.laneX+
+                        offset*sideSign,-1750,1750),
+                    laneY:previous.laneY};
+                if(!blocked(point))return point;
+            }
+            for(const elevation of [90,180,360,620]){
+                const point={...proposed,
+                    laneX:previous.laneX,
+                    laneY:Math.max(previous.laneY,elevation)};
+                if(!blocked(point))return point;
+            }
+            // Turn away from the obstruction instead of phasing through it.
+            hunter.arenaDirection*=-1;
+            hunter.cityAvoidanceTurns=(hunter.cityAvoidanceTurns||0)+1;
+            return {...previous};
+        }
         function updateHunterTargets(dt) {
             if (state.activeMap !== MAP_MODES.MAP4 || !state.running) return;
             for (let i = 0; i < hunterTargets.length; i++) {
@@ -16271,6 +16308,9 @@
                 }
                 const arenaActive=state.map4ArenaStarted &&
                     state.map4ArenaElapsed<MAP4_PHASES.arenaSeconds;
+                const city06Previous=arenaActive?{
+                    routeProgress:target.routeProgress,
+                    laneX:target.laneX,laneY:target.laneY}:null;
                 if(arenaActive){
                     const pocket=h4ArenaPocketForSlot(i);
                     target.arenaPocketId=pocket.id;
@@ -16304,6 +16344,14 @@
                 target.laneY = THREE.MathUtils.clamp(target.baseLaneY +
                     Math.sin(target.weavePhase*1.21)*(pocket?pocket.rangeY:23),
                     -availableWidth,availableWidth);
+                if(arenaActive){
+                    const adjusted=h4City06HunterAvoid(city06Previous,{
+                        routeProgress:target.routeProgress,
+                        laneX:target.laneX,laneY:target.laneY},target);
+                    target.routeProgress=adjusted.routeProgress;
+                    target.laneX=adjusted.laneX;
+                    target.laneY=adjusted.laneY;
+                }
                 setHunterWorldPosition(target);
             }
         }
