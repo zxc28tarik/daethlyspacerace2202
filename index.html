@@ -1942,6 +1942,499 @@
         #start-screen #map-selection{
             box-sizing:border-box!important;max-width:100%!important;
         }
+        /* UIUX-10 — FOCUS / KISS. Clear hierarchy, no boxes for ordinary data.
+           Only actual actions and urgent states receive a solid surface. */
+        :root{
+            --focus-ink:#eff3f1;--focus-secondary:#b1bfc1;
+            --focus-faint:#829398;--focus-accent:#b3ccc8;
+            --focus-ground:#10191e;
+        }
+        #start-screen{
+            background:radial-gradient(ellipse at 50% 0%,rgba(55,77,84,.32),transparent 61%),
+                linear-gradient(150deg,#0d151b,#142029 65%,#0d151b)!important;
+        }
+        #start-screen .ui-start-shell{
+            box-sizing:border-box!important;display:flex!important;flex-direction:column;
+            width:min(900px,calc(100vw - 40px))!important;max-width:900px!important;
+            max-height:calc(100dvh - 30px)!important;overflow-x:hidden;overflow-y:auto;
+            padding:25px clamp(16px,4vw,39px) 22px!important;
+            border:0!important;border-top:0!important;border-radius:0!important;
+            background:transparent!important;box-shadow:none!important;clip-path:none!important;
+        }
+        #start-screen .ui-topline,#start-screen .ui-hero-description,
+        #start-screen .ui-map-picker-title small,#start-screen #map-selection-status,
+        #start-screen .ui-menu-summary,#start-screen #ui-menu-rail,
+        #start-screen #h4-quality-picker{display:none!important;}
+        #start-screen .ui-hero-title{
+            margin:0 0 clamp(27px,5vh,48px)!important;text-align:center!important;
+            font:750 clamp(30px,4.5vw,47px)/1.13 system-ui,-apple-system,'Segoe UI',sans-serif!important;
+            letter-spacing:.03em!important;color:var(--focus-ink)!important;
+            text-shadow:none!important;
+        }
+        #start-screen .ui-hero-title span{color:var(--focus-accent)!important;}
+        #start-screen #map-selection{
+            width:100%;max-width:100%;margin:0!important;padding:0!important;
+            order:0;box-sizing:border-box;
+        }
+        #start-screen .ui-map-picker-title{
+            display:block!important;margin:0 0 18px!important;padding:0!important;
+            border:0!important;text-align:center!important;
+            font:600 13px/1.4 system-ui,sans-serif!important;
+            letter-spacing:.10em!important;color:var(--focus-secondary)!important;
+        }
+        #start-screen .ui-six-map-grid{
+            display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+            gap:clamp(18px,3vw,40px)!important;max-width:760px;margin:0 auto!important;
+            align-items:start;
+        }
+        #start-screen .ui-six-map-grid .map-choice-btn{
+            box-sizing:border-box!important;position:relative;order:0;
+            display:flex!important;flex-direction:column;align-items:stretch!important;
+            justify-content:flex-start!important;gap:10px!important;
+            min-width:0!important;min-height:0!important;
+            margin:0!important;padding:0 0 15px!important;
+            background:transparent!important;border:0!important;border-bottom:2px solid transparent!important;
+            border-radius:0!important;box-shadow:none!important;clip-path:none!important;
+            color:var(--focus-ink)!important;text-align:left!important;
+            opacity:.77;transform:none!important;filter:none!important;
+            transition:opacity .15s,border-color .15s!important;
+        }
+        #start-screen .ui-six-map-grid .map-choice-btn:hover:not(:disabled),
+        #start-screen .ui-six-map-grid .map-choice-btn[aria-pressed="true"]{
+            background:transparent!important;border:0!important;
+            border-bottom:2px solid var(--focus-accent)!important;
+            box-shadow:none!important;opacity:1;transform:none!important;
+            padding:0 0 15px!important;
+        }
+        #start-screen .ui-six-map-grid .ui-map-index{
+            color:var(--focus-secondary)!important;font:500 11px/1.2 system-ui,sans-serif!important;
+            letter-spacing:.09em!important;
+        }
+        #start-screen .ui-map-scene{
+            order:-1;width:100%!important;height:clamp(100px,15vw,150px)!important;
+            overflow:hidden;border:0!important;border-radius:4px!important;
+            background:rgba(27,43,54,.6)!important;
+            filter:saturate(.68) brightness(.88)!important;
+        }
+        #start-screen .ui-map-scene svg{width:100%;height:100%;}
+        #start-screen .ui-six-map-grid .map-choice-btn strong{
+            color:var(--focus-ink)!important;
+            font:700 clamp(19px,2vw,24px)/1.25 system-ui,sans-serif!important;
+            letter-spacing:-.015em!important;
+        }
+        #start-screen .ui-six-map-grid .ui-map-description{
+            color:var(--focus-secondary)!important;
+            font:400 13px/1.5 system-ui,sans-serif!important;
+        }
+        #start-screen .ui-six-map-grid .ui-map-status{display:none!important;}
+        #start-screen .ui-six-map-grid .map-choice-btn:disabled,
+        #start-screen .ui-six-map-grid .ui-map-locked{display:none!important;}
+        /* Unfinished maps appear only when a curious player opens the roadmap. */
+        #start-screen #map-selection:has(#ui-upcoming-maps[open]) .map-choice-btn:disabled{
+            display:flex!important;order:1;opacity:.35!important;pointer-events:none;
+            padding:9px 0!important;border:0!important;
+        }
+        #start-screen #map-selection:has(#ui-upcoming-maps[open]) .map-choice-btn:disabled .ui-map-scene{
+            display:none!important;
+        }
+        #start-screen #map-selection:has(#ui-upcoming-maps[open]) .map-choice-btn:disabled strong{
+            font-size:14px!important;
+        }
+        #start-screen #map-selection:has(#ui-upcoming-maps[open]) .map-choice-btn:disabled .ui-map-description{
+            display:none!important;
+        }
+        #start-screen #ui-upcoming-maps{
+            max-width:760px;margin:13px auto 0!important;padding:0!important;
+            text-align:center;border:0;background:none;box-shadow:none;
+            color:var(--focus-faint);font:400 12px/1.5 system-ui,sans-serif;
+        }
+        #start-screen #ui-upcoming-maps summary{cursor:pointer;list-style:none;display:inline-block;
+            padding:6px 12px;color:var(--focus-secondary);}
+        #start-screen #ui-upcoming-maps summary::-webkit-details-marker{display:none;}
+        #start-screen #ui-upcoming-maps summary::after{content:'  +';color:var(--focus-accent);}
+        #start-screen #ui-upcoming-maps[open] summary::after{content:'  −';}
+        #start-screen .ui-quick-briefing{
+            box-sizing:border-box!important;max-width:690px;width:100%;margin:24px auto 6px!important;
+            padding:0!important;border:0!important;border-radius:0!important;
+            background:transparent!important;box-shadow:none!important;text-align:center!important;
+        }
+        #start-screen .ui-brief-top,#start-screen .ui-brief-stat-grid,
+        #start-screen #ui-quick-controls{display:none!important;}
+        #start-screen #ui-quick-mission-title{
+            margin:0 0 7px!important;text-align:center!important;
+            font:650 clamp(16px,2vw,19px)/1.35 system-ui,sans-serif!important;
+            color:var(--focus-ink)!important;letter-spacing:0!important;
+        }
+        #start-screen #ui-quick-mission-objective{
+            max-width:560px;margin:0 auto!important;
+            text-align:center!important;font:400 14px/1.5 system-ui,sans-serif!important;
+            color:var(--focus-secondary)!important;
+        }
+        #start-screen .ui-guide-detail,#start-screen #map1-instructions,
+        #start-screen #map4-instructions{
+            width:100%;max-width:700px;margin:0 auto!important;padding:0!important;
+            border:0!important;border-radius:0!important;background:none!important;
+            color:var(--focus-secondary)!important;box-shadow:none!important;
+            font:400 12px/1.5 system-ui,sans-serif!important;
+        }
+        #start-screen .ui-guide-summary{
+            min-height:36px;margin:0!important;padding:8px 5px!important;border:0!important;
+            background:none!important;box-shadow:none!important;text-align:center!important;
+            display:flex;justify-content:center;gap:6px;
+            color:var(--focus-secondary)!important;
+            font:500 12px system-ui,sans-serif!important;
+        }
+        #start-screen .ui-instruction-grid{margin-top:8px!important;gap:18px!important;}
+        #start-screen .ui-instruction-grid>div{
+            border:0!important;border-radius:0!important;background:transparent!important;
+            box-shadow:none!important;padding:8px!important;
+        }
+        #start-screen .ui-launch-row{
+            width:100%;display:flex!important;justify-content:center!important;
+            align-items:center;gap:0!important;margin:15px 0 0!important;
+            padding:0!important;background:transparent!important;border:0!important;
+        }
+        #start-screen .ui-launch-row>span{display:none!important;}
+        #start-screen #start-btn{
+            width:min(260px,100%)!important;min-height:52px!important;
+            padding:14px 32px!important;border:0!important;border-radius:5px!important;
+            background:#a5c2be!important;color:#0e1d22!important;
+            box-shadow:none!important;text-shadow:none!important;clip-path:none!important;
+            font:700 15px/1.3 system-ui,sans-serif!important;letter-spacing:.035em!important;
+        }
+        #start-screen #start-btn:hover:not(:disabled){
+            background:#c1d8d1!important;box-shadow:none!important;
+        }
+        /* Pause is a decision, not a two-pane dashboard. */
+        #flight-help-screen{background:rgba(7,15,21,.87)!important;backdrop-filter:blur(5px)!important;}
+        #flight-help-screen .ui-pause-shell{
+            display:flex!important;flex-direction:column!important;align-items:center!important;
+            box-sizing:border-box!important;width:min(90vw,580px)!important;
+            max-width:580px!important;max-height:calc(100dvh - 24px)!important;
+            padding:30px clamp(18px,4vw,34px)!important;
+            border:0!important;border-top:0!important;border-radius:0!important;
+            background:transparent!important;box-shadow:none!important;clip-path:none!important;
+            overflow-y:auto!important;gap:0!important;
+        }
+        #flight-help-screen .ui-pause-intro,#flight-help-screen .ui-pause-left,
+        #flight-help-screen .ui-pause-right{width:100%;max-width:480px;grid-column:auto!important;grid-row:auto!important;}
+        #flight-help-screen .ui-pause-intro{text-align:center!important;margin:0 0 24px!important;}
+        #flight-help-screen .ui-topline,#flight-help-screen .ui-pause-description,
+        #flight-help-screen .ui-help-map-context,#flight-help-screen #ui-map1-pause-note,
+        #flight-help-screen .ui-pause-map-help{display:none!important;}
+        #flight-help-screen .ui-pause-title{
+            font:700 clamp(26px,3.7vw,34px)/1.2 system-ui,sans-serif!important;
+            letter-spacing:.01em!important;text-align:center!important;
+            color:var(--focus-ink)!important;text-shadow:none!important;margin:0!important;
+        }
+        #flight-help-screen .ui-pause-actions{
+            display:flex!important;flex-direction:column!important;align-items:stretch;
+            width:min(320px,100%);margin:0 auto!important;gap:5px!important;
+        }
+        #flight-help-screen .ui-pause-actions button{
+            display:flex;justify-content:center;align-items:center;
+            width:100%!important;min-height:44px!important;
+            margin:0!important;padding:11px 18px!important;
+            font:600 14px/1.3 system-ui,sans-serif!important;letter-spacing:.01em!important;
+        }
+        #flight-help-screen .ui-resume-btn{
+            margin-bottom:10px!important;background:#a5c2be!important;
+            border:0!important;border-radius:5px!important;
+            color:#0e1d22!important;box-shadow:none!important;
+        }
+        #flight-help-screen .ui-resume-btn:hover{background:#c1d8d1!important;}
+        #flight-help-screen .ui-pause-action{
+            background:transparent!important;border:0!important;border-radius:0!important;
+            color:var(--focus-secondary)!important;box-shadow:none!important;
+            text-align:center!important;
+        }
+        #flight-help-screen .ui-pause-action:hover{
+            background:rgba(170,195,191,.08)!important;
+            color:var(--focus-ink)!important;
+        }
+        #flight-help-screen .ui-pause-controls-guide{
+            margin:12px auto 0!important;width:min(320px,100%)!important;
+            border:0!important;background:transparent!important;
+        }
+        #flight-help-screen .ui-pause-controls-guide summary,
+        #flight-help-screen .ui-pause-controls-guide p{
+            color:var(--focus-secondary)!important;
+            background:transparent!important;border:0!important;
+            font:400 12px/1.5 system-ui,sans-serif!important;
+        }
+        #flight-help-screen .ui-pause-right{display:none!important;margin:20px auto 0!important;
+            padding:0!important;border:0!important;}
+        #flight-help-screen:has(#ui-settings-panel[open]) .ui-pause-right{display:block!important;}
+        #flight-help-screen .ui-pause-options-header,#flight-help-screen .ui-pause-options-tabs{display:none!important;}
+        #flight-help-screen #ui-settings-panel{
+            background:transparent!important;border:0!important;box-shadow:none!important;
+            padding:0!important;border-radius:0!important;
+        }
+        #flight-help-screen #ui-settings-panel .ui-settings-toggle{
+            font:600 14px/1.3 system-ui,sans-serif!important;
+            background:transparent!important;color:var(--focus-ink)!important;
+            padding:7px 0!important;border:0!important;
+        }
+        #flight-help-screen #ui-settings-panel .ui-settings-content{
+            padding:0!important;margin:5px 0 0!important;
+        }
+        #flight-help-screen .ui-setting-row{
+            display:flex!important;align-items:center;gap:20px;justify-content:space-between;
+            padding:10px 0!important;border-bottom:1px solid rgba(198,211,207,.10)!important;
+        }
+        #flight-help-screen .ui-setting-label label{font:600 13px/1.3 system-ui,sans-serif!important;}
+        #flight-help-screen .ui-setting-label small{display:none!important;}
+        #flight-help-screen .ui-setting-control select{
+            background:rgba(124,151,150,.17)!important;
+            border:0!important;border-radius:4px!important;min-width:130px;
+            color:var(--focus-ink)!important;
+        }
+        #flight-help-screen .ui-settings-actions{border:0!important;padding-top:12px!important;}
+        /* Gameplay: counters are unboxed, explanations are available in Detailed mode. */
+        #ui-flight-metrics-panel,#ui-combo-panel,#ui-resources-panel,
+        #ui-score-panel,#planetary-zone-hud,#hunter-competition-hud,
+        #h4-hud-root .hud-box{
+            background:transparent!important;border:0!important;border-radius:0!important;
+            box-shadow:none!important;clip-path:none!important;backdrop-filter:none!important;
+            color:#f5f7f5!important;
+            text-shadow:0 2px 5px rgba(0,0,0,.9),0 0 11px rgba(0,0,0,.45);
+        }
+        #ui-flight-metrics-panel,#ui-resources-panel,#ui-score-panel{
+            width:auto!important;max-width:min(39vw,340px)!important;
+            padding:0!important;
+        }
+        #planetary-zone-hud{
+            width:min(36vw,340px)!important;padding:0!important;
+            align-self:center!important;
+        }
+        #hunter-competition-hud{
+            max-width:270px!important;width:auto!important;
+            padding:0!important;align-self:flex-end!important;
+            text-align:right!important;
+        }
+        #ui-flight-metrics-panel :is(strong,#speed-text),
+        #ui-resources-panel :is(#shield-text,#energy-text),
+        #ui-score-panel #score-text,
+        #planetary-zone-hud #ui-map4-goal-value{color:#f4f6f3!important;text-shadow:0 2px 8px #000;}
+        #ui-resources-panel #shield-bar{background:#a3c9bf!important;}
+        #ui-resources-panel #energy-bar{background:#a5b8ca!important;}
+        #ui-resources-panel #shield-bar,#ui-resources-panel #energy-bar{
+            border:0!important;border-radius:4px!important;
+        }
+        #ui-resources-panel .bg-slate-900\/90{
+            height:5px!important;background:rgba(2,7,12,.5)!important;
+            border:0!important;border-radius:4px!important;padding:0!important;
+        }
+        #ui-map4-progress-fill{background:#adc9c5!important;}
+        body[data-ui-hud-density="COMPACT"] #ui-flight-metrics-panel .ui-mode-caption,
+        body[data-ui-hud-density="COMPACT"] #ui-flight-metrics-panel .ui-race-kpi--time,
+        body[data-ui-hud-density="COMPACT"] #ui-flight-facts .ui-rival-fact,
+        body[data-ui-hud-density="COMPACT"] #ui-flight-facts .ui-camera-fact,
+        body[data-ui-hud-density="COMPACT"] #bonus-status,
+        body[data-ui-hud-density="COMPACT"] #item-status,
+        body[data-ui-hud-density="COMPACT"] #ui-combo-panel,
+        body[data-ui-hud-density="COMPACT"] #ui-laser-brief,
+        body[data-ui-hud-density="COMPACT"] #laser-target-status,
+        body[data-ui-hud-density="COMPACT"] #ui-static-control-hint,
+        body[data-ui-hud-density="COMPACT"] #stage-text,
+        body[data-ui-hud-density="COMPACT"] #h4-power-panel,
+        body[data-ui-hud-density="COMPACT"] #roll-status,
+        body[data-ui-hud-density="COMPACT"] #ui-flight-throttle-hint,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-phase-track,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-phase-directive,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-zone-heading,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #planetary-zone-name,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #planetary-destination,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #planetary-landmark-name,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #planetary-route-name,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #planetary-airspace-status,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-progress-rail,
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #ui-map4-goal-context,
+        body[data-ui-hud-density="COMPACT"] #hunter-competition-hud>div:first-child,
+        body[data-ui-hud-density="COMPACT"] #hunter-competition-hud #hunter-time-limit,
+        body[data-ui-hud-density="COMPACT"] #hunter-competition-hud #hunter-competition-scores,
+        body[data-ui-hud-density="COMPACT"] #hunter-competition-hud #ui-map4-competition-phase-text,
+        body[data-ui-hud-density="COMPACT"] #ui-first-flight-foot,
+        body[data-ui-hud-density="COMPACT"] #race-hud-details{
+            display:none!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #ui-flight-metrics-panel .ui-race-kpis{
+            display:flex!important;align-items:baseline!important;flex-wrap:wrap!important;
+            gap:5px 16px!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #ui-flight-metrics-panel .ui-race-kpi{
+            padding:0!important;margin:0!important;background:none!important;border:0!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #ui-flight-metrics-panel .ui-race-kpi small{
+            color:#c4d0cf!important;font:500 10px/1.2 system-ui,sans-serif!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #ui-flight-metrics-panel .ui-race-kpi strong{
+            font:700 clamp(17px,2.1vw,23px)/1.2 system-ui,sans-serif!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #ui-flight-facts{margin:5px 0 0!important;}
+        body[data-ui-hud-density="COMPACT"] #ui-flight-facts .ui-speed-fact{
+            font:500 12px/1.4 system-ui,sans-serif!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-mission-head{
+            display:flex;justify-content:center;gap:5px;margin:0!important;
+            font:500 11px system-ui,sans-serif!important;color:#becdca!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-mission-head>span:first-child{
+            display:none!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-mission-core{
+            display:flex!important;flex-direction:column;align-items:center;gap:0!important;
+            margin:0!important;padding:0!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud .ui-map4-mission-value{
+            display:flex!important;flex-direction:column;align-items:center;gap:0!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #ui-map4-goal-label{
+            font:600 12px/1.4 system-ui,sans-serif!important;color:#d9e4df!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #planetary-zone-hud #ui-map4-goal-value{
+            font:750 clamp(23px,2.5vw,30px)/1.14 system-ui,sans-serif!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #hunter-competition-hud .ui-map4-competition-metrics{
+            display:flex!important;align-items:center;justify-content:flex-end;gap:12px;
+            margin:0!important;padding:0!important;border:0!important;background:none!important;
+            font:500 11px/1.35 system-ui,sans-serif!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #hunter-competition-hud .ui-map4-competition-metrics strong{
+            font:750 19px/1.1 system-ui,sans-serif!important;color:#f4f6f3!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #ui-score-panel{
+            text-align:right!important;font:500 12px/1.4 system-ui,sans-serif!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #ui-score-panel #score-text{
+            font:750 23px/1.1 system-ui,sans-serif!important;
+        }
+        body[data-ui-hud-density="COMPACT"] #laser-status{
+            color:#c4d3d0!important;font:500 11px/1.4 system-ui,sans-serif!important;
+        }
+        /* Keep actual warnings conspicuous without boxing normal telemetry. */
+        #race-warning:not(.hidden),#danger-banner:not(.hidden),#ui-map4-urgent:not(.hidden){
+            color:#fff5e9!important;text-shadow:0 2px 5px rgba(0,0,0,.86)!important;
+        }
+        /* Results: one outcome, three numbers, two clear actions. */
+        #gameover-screen .ui-results-shell{
+            background:transparent!important;border:0!important;border-top:0!important;
+            border-radius:0!important;box-shadow:none!important;max-width:760px!important;
+        }
+        #gameover-screen .ui-topline,#gameover-screen #race-summary-banner{
+            display:none!important;
+        }
+        #gameover-screen .ui-result-metric{
+            background:transparent!important;border:0!important;border-radius:0!important;
+            box-shadow:none!important;
+        }
+        #gameover-screen .ui-result-extra-details{
+            background:transparent!important;border:0!important;box-shadow:none!important;
+        }
+        #gameover-screen #race-standings-container{background:transparent!important;border:0!important;}
+        #gameover-screen #restart-btn{background:#a5c2be!important;color:#0e1d22!important;border:0!important;}
+        #gameover-screen #menu-btn{background:transparent!important;border:0!important;color:#dbe5e1!important;}
+        #start-screen :is(button,summary):focus-visible,
+        #flight-help-screen :is(button,summary,select,input):focus-visible,
+        #gameover-screen :is(button,summary):focus-visible{
+            outline:2px solid #c7dcd4!important;outline-offset:4px!important;
+        }
+        @media(max-width:700px){
+            #start-screen .ui-start-shell{
+                width:calc(100vw - 24px)!important;max-height:calc(100dvh - 16px)!important;
+                padding:16px 12px 19px!important;
+            }
+            #start-screen .ui-hero-title{font-size:clamp(26px,7.4vw,37px)!important;margin-bottom:24px!important;}
+            #start-screen .ui-six-map-grid{grid-template-columns:minmax(0,1fr)!important;
+                gap:16px!important;max-width:440px;}
+            #start-screen .ui-six-map-grid .map-choice-btn{
+                min-height:0!important;gap:5px!important;padding-bottom:10px!important;
+            }
+            #start-screen .ui-map-scene{height:72px!important;}
+            #start-screen .ui-six-map-grid .map-choice-btn strong{font-size:18px!important;}
+            #start-screen .ui-six-map-grid .ui-map-description{font-size:12px!important;}
+            #start-screen .ui-quick-briefing{margin-top:15px!important;}
+            #start-screen #ui-quick-mission-title{font-size:15px!important;}
+            #start-screen #ui-quick-mission-objective{font-size:12px!important;}
+            #start-screen .ui-launch-row{margin-top:7px!important;}
+            #flight-help-screen .ui-pause-shell{width:100%!important;padding:18px!important;}
+            #flight-help-screen .ui-pause-actions{display:flex!important;grid-template-columns:unset!important;}
+            #ui-flight-metrics-panel,#ui-resources-panel,#ui-score-panel{max-width:44vw!important;}
+            body[data-ui-hud-density="COMPACT"] #hunter-competition-hud{display:none!important;}
+        }
+        @media(prefers-reduced-motion:reduce){
+            #start-screen .map-choice-btn,#flight-help-screen .ui-pause-action{transition:none!important;}
+        }
+        /* Override legacy high-specificity dashboard surfaces. */
+        #start-screen #ui-quick-briefing{
+            border:0!important;border-top:0!important;border-bottom:0!important;
+            border-radius:0!important;background:transparent!important;
+            box-shadow:none!important;padding:0!important;
+        }
+        #flight-help-screen .ui-pause-actions #resume-btn{
+            background:#a5c2be!important;background-image:none!important;
+            color:#0e1d22!important;border:0!important;
+            border-radius:5px!important;clip-path:none!important;
+            box-shadow:none!important;text-shadow:none!important;
+        }
+        #flight-help-screen .ui-pause-actions #resume-btn:hover{
+            background:#c1d8d1!important;background-image:none!important;
+        }
+        #flight-help-screen .ui-pause-actions button span[aria-hidden="true"]{display:none!important;}
+        #flight-help-screen .ui-pause-intro{
+            border:0!important;border-bottom:0!important;box-shadow:none!important;
+        }
+        body.map4-composition #ui-flight-metrics-panel,
+        body.map4-composition #ui-combo-panel,
+        body.map4-composition #ui-resources-panel,
+        body.map4-composition #ui-score-panel,
+        body.map4-composition #planetary-zone-hud,
+        body.map4-composition #hunter-competition-hud,
+        body.map4-composition #h4-hud-root .hud-box{
+            background:transparent!important;background-image:none!important;
+            border:0!important;border-radius:0!important;
+            box-shadow:none!important;backdrop-filter:none!important;
+        }
+        /* Normal flight status has no action value; keep boundary warnings. */
+        body[data-ui-hud-density="COMPACT"] #boundary-alert.text-emerald-300{display:none!important;}
+/* First-flight coaching is one readable hint, not another floating card. */
+        #ui-first-flight,
+        body[data-ui-mode="map4"] #ui-first-flight{
+            width:min(245px,25vw)!important;
+            padding:4px 8px!important;
+            border:0!important;border-left:0!important;border-radius:0!important;
+            background:transparent!important;box-shadow:none!important;
+            backdrop-filter:none!important;
+            color:#f3f7f4!important;
+            text-shadow:0 2px 4px rgba(0,0,0,.92),0 0 9px rgba(0,0,0,.8);
+        }
+        #ui-first-flight .ui-first-flight-head{
+            position:absolute;top:-4px;right:2px;margin:0!important;
+            background:transparent!important;border:0!important;
+        }
+        #ui-first-flight #ui-first-flight-step,
+        #ui-first-flight .ui-first-flight-foot{display:none!important;}
+        #ui-first-flight #ui-first-flight-dismiss{
+            width:24px!important;height:24px!important;padding:0!important;
+            color:#e6eeeb!important;border:0!important;background:transparent!important;
+            box-shadow:none!important;text-shadow:0 1px 3px #000;
+            font-size:16px!important;
+        }
+        #ui-first-flight #ui-first-flight-title{
+            max-width:215px;margin:0 20px 4px 0!important;
+            font:700 14px/1.35 system-ui,sans-serif!important;
+            color:#f3f7f4!important;text-shadow:0 2px 4px #000!important;
+        }
+        #ui-first-flight #ui-first-flight-text{
+            margin:0!important;font:500 12px/1.45 system-ui,sans-serif!important;
+            color:#e2e9e4!important;text-shadow:0 2px 5px #000!important;
+        }
+        /* Hide combat scoring only during the initial route; it is shown on entry to combat. */
+        body[data-ui-hud-density="COMPACT"]:has(#ui-map4-phase-track [data-ui-stage="1"][aria-current="step"])
+        #hunter-competition-hud{display:none!important;}
+        @media(max-width:700px){
+            #ui-first-flight{width:min(218px,58vw)!important;top:clamp(130px,24vh,210px)!important;}
+        }
     </style>
 </head>
 <body class="w-screen h-screen relative">
@@ -2165,7 +2658,7 @@
 
             <!-- H4-01: select a map without allowing an unfinished mode to start Map 1. -->
             <div id="map-selection" class="ui-map-selection mb-5 font-['Share_Tech_Mono'] text-left">
-                <div class="ui-section-heading ui-map-picker-title"><span>HARİTA SEÇİMİ</span><small>6 HARİTA · 2 OYNANABİLİR</small></div>
+                <div class="ui-section-heading ui-map-picker-title"><span>GÖREVİNİ SEÇ</span><small>2 GÖREV HAZIR</small></div>
                 <div class="ui-six-map-grid" role="group" aria-label="Altı görev haritasından oynanabilir olanı seç">
                     <button type="button" id="map-choice-1" data-ui-map="map1" class="map-choice-btn" aria-pressed="true">
                         <span class="ui-map-index">01 / UZAY KORİDORU</span>
@@ -2210,6 +2703,7 @@
                         <span class="ui-map-status ui-map-status--locked">KİLİTLİ · GELİŞTİRİLİYOR</span>
                     </button>
                 </div>
+                <details id="ui-upcoming-maps"><summary>Diğer 4 görev geliştiriliyor</summary></details>
                 <p id="map-selection-status" class="text-xs text-emerald-300 mt-2" role="status" aria-live="polite">Harita 1 hazır: saf hız yarışını başlatabilirsiniz.</p>
                 <div id="h4-quality-picker" class="hidden mt-3 text-left font-['Share_Tech_Mono'] text-xs">
                     <label for="h4-quality-select" class="text-cyan-200 font-bold mr-2">HARİTA 4 GRAFİK PROFİLİ</label>
@@ -2243,7 +2737,7 @@
             </section>
             <details id="map1-instructions" class="ui-guide-detail">
                 <summary class="ui-guide-summary">
-                    <span>AYRINTILI KURALLAR VE TÜM KONTROLLER</span><span class="ui-guide-chevron" aria-hidden="true">+</span>
+                    <span>Kontroller ve görev ayrıntıları</span><span class="ui-guide-chevron" aria-hidden="true">+</span>
                 </summary>
                 <div class="ui-instruction-grid grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mb-8 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/70 border border-cyan-500/30 p-3.5 rounded">
@@ -2271,7 +2765,7 @@
 
             <details id="map4-instructions" class="ui-guide-detail hidden">
                 <summary class="ui-guide-summary">
-                    <span>4 AŞAMANIN KURALLARI VE TÜM KONTROLLER</span><span class="ui-guide-chevron" aria-hidden="true">+</span>
+                    <span>Kontroller ve görev ayrıntıları</span><span class="ui-guide-chevron" aria-hidden="true">+</span>
                 </summary>
                 <div class="ui-instruction-grid grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6 font-['Share_Tech_Mono'] text-xs sm:text-sm">
                 <div class="bg-slate-900/80 border border-amber-500/50 p-3.5 rounded">
@@ -2293,7 +2787,7 @@
                 </div>
             </details>
             <div class="ui-launch-row"><span>FARE + KLAVYE / P: YARDIM</span>
-                <button id="start-btn" class="cyber-btn ui-launch-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">GÖREVE BAŞLA</button>
+                <button id="start-btn" class="cyber-btn ui-launch-btn px-12 py-4 text-lg sm:text-xl font-black tracking-[0.25em] uppercase">OYNA</button>
             </div>
         </div>
     </div>
@@ -2365,12 +2859,12 @@
         <div class="hud-box ui-screen-shell ui-pause-shell max-w-xl w-full mx-4 p-5 sm:p-7 text-left font-['Share_Tech_Mono']">
             <div class="ui-pause-intro">
             <div class="ui-topline"><span>UÇUŞ KONTROLÜ / PAUSE</span><span class="ui-meta-code">SİSTEM BEKLEMEDE</span></div>
-            <h2 class="ui-pause-title text-xl text-emerald-300 font-bold mb-1">OYUN DURAKLATILDI</h2>
+            <h2 class="ui-pause-title text-xl text-emerald-300 font-bold mb-1">DURAKLATILDI</h2>
             <p class="ui-pause-description text-xs text-cyan-200 mb-4">Uçuş duraklatıldı · görev saati ve fizik beklemede.</p>
             </div>
             <div class="ui-pause-left">
                 <nav class="ui-pause-actions" aria-label="Duraklatma menüsü">
-                    <button id="resume-btn" class="cyber-btn ui-resume-btn px-6 py-3 font-bold uppercase"><span aria-hidden="true">▶</span> UÇUŞA DEVAM ET</button>
+                    <button id="resume-btn" class="cyber-btn ui-resume-btn px-6 py-3 font-bold uppercase"><span aria-hidden="true">▶</span> DEVAM ET</button>
                     <button type="button" id="ui-pause-restart" class="ui-pause-action"><span aria-hidden="true">↻</span> YENİDEN BAŞLAT</button>
                     <button type="button" id="ui-pause-open-settings" class="ui-pause-action"><span aria-hidden="true">⚙</span> AYARLAR</button>
                     <button type="button" id="ui-pause-return" class="ui-pause-action"><span aria-hidden="true">⌂</span> HARİTA SEÇİMİ</button>
@@ -2402,7 +2896,7 @@
                     <button type="button" class="ui-pause-options-tab" data-target="ui-setting-hud-text" aria-pressed="false">ERİŞİLEBİLİRLİK</button>
                     <button type="button" class="ui-pause-options-tab" data-target="ui-pause-controls-guide" aria-pressed="false">KONTROLLER</button>
                 </div>
-            <details id="ui-settings-panel" class="ui-settings-panel" open>
+            <details id="ui-settings-panel" class="ui-settings-panel">
                 <summary class="ui-settings-toggle"><span>⚙ SES · GÖRÜNTÜ · OKUNABİLİRLİK</span><span class="ui-settings-toggle-state" aria-hidden="true">AYARLAR</span></summary>
                 <div class="ui-settings-content">
                     <div class="ui-setting-row"><div class="ui-setting-label"><label for="ui-setting-volume">ANA SES DÜZEYİ</label><small>Motor, lazer, hasar ve efektler</small></div>
@@ -19966,8 +20460,8 @@
             document.getElementById('flight-help-screen').classList.toggle('hidden', !state.paused);
             if(state.paused){
                 uiFirstFlightHide();
-                // Settings are visible on the right of the new split pause screen.
-                document.getElementById('ui-settings-panel').open=true;
+                // UIUX10: pause is one clear decision; advanced settings on demand.
+                document.getElementById('ui-settings-panel').open=false;
             }
             state.isFiring = false;
             Object.keys(keys).forEach(k => { keys[k] = false; });
