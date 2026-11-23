@@ -1,0 +1,42 @@
+name: UIUX14 Podium & Slow Results Reveal QA
+on:
+  push:
+    branches: [codex/uiux14-race-podium-animated-standings]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium / WebGL smoke dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Parse all inline game scripts and podium QA
+        run: |
+          node --check tests/uiux14-podium-standings.cjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)){
+            if(m[1].trim())new vm.Script(m[1]);
+          }
+          console.log('PASS HTML embedded script parsing');
+          NODE
+      - name: Real Chromium podium and standings animation
+        run: node tests/uiux14-podium-standings.cjs
+      - name: Current UIUX13 Map 1 / Map 4 menu and gameplay regression
+        run: node tests/uiux12-approved-map1-race-card.cjs
+      - name: Upload screenshots and browser logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: UIUX14-podium-evidence
+          path: tests/uiux14-evidence/*.png
+          if-no-files-found: warn
