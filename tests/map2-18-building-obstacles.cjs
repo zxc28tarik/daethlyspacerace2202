@@ -7,7 +7,7 @@ const html=fs.readFileSync('index.html','utf8');
 for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[1].trim())new vm.Script(m[1]);
 assert(html.includes('map2BuildPhysicalMap4BuildingObstacles'));
 assert(html.includes('map2PhysicalBuilding'));
-assert(html.includes('passageHalfX=48'));
+assert(html.includes('passageHalfX=45'));
 
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl-software-rendering','--disable-dev-shm-usage']});
