@@ -160,10 +160,16 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                     arr.sort((a,b)=>b.score-a.score);
                     const first=arr[0];
                     if(first)selected.push(first);
-                    const second=arr.find(c=>c!==first&&(
+
+                    // Prefer a genuine low/central mass as the second obstacle when
+                    // available. This makes some slices require an actual lateral
+                    // move instead of letting the player hold x=0 indefinitely.
+                    const centreCandidate=arr.find(c=>c!==first&&c.blocksCentre&&Math.abs(c.laneY)<175);
+                    const diverseCandidate=arr.find(c=>c!==first&&(
                         Math.sign(c.laneX)!==Math.sign(first.laneX)||
                         Math.abs(c.laneY-first.laneY)>130
                     ));
+                    const second=centreCandidate||diverseCandidate;
                     if(second)selected.push(second);
                 }
                 selected.sort((a,b)=>a.routeProgress-b.routeProgress);
