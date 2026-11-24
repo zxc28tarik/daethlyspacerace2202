@@ -23,24 +23,29 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(layout.visualStage.map4RoadPieces>150,'real Map4 building pieces must sit directly on the Map2 road');
   assert(layout.visualStage.map4RoadColliders>150,'on-road Map4 buildings must be physical obstacles');
   const roadPieces=await page.evaluate(()=>{
-    let road=0,link=0,tech=0,maxAbsX=0,fast=0;
+    let road=0,link=0,tech=0,maxAbsX=0,fast=0,innerRoad=0,deepInner=0;
     map2CourseGroup.traverse(o=>{
       if(!o.userData?.map2RoadPiece)return;
-      road++;maxAbsX=Math.max(maxAbsX,Math.abs(o.userData.map2LaneX||0));
+      const ax=Math.abs(o.userData.map2LaneX||0);
+      road++;maxAbsX=Math.max(maxAbsX,ax);
+      if(ax<=215)innerRoad++;
+      if(ax<=195)deepInner++;
       const kind=map2Segment(o.userData.map2RouteProgress||0).kind;
       if(kind==='LINK')link++;if(kind==='TECH')tech++;if(kind==='FAST')fast++;
     });
     const physical=map2Obstacles.filter(o=>o.map4RoadBuilding);
     return {
-      road,link,tech,fast,maxAbsX,
+      road,link,tech,fast,maxAbsX,innerRoad,deepInner,
       physical:physical.length,
       physicalFast:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
       minHalfX:Math.min(...physical.map(o=>o.halfX)),
       maxHalfX:Math.max(...physical.map(o=>o.halfX))
     };
   });
-  assert(roadPieces.road>150,'road must be populated piece-by-piece with Map4 buildings');
-  assert(roadPieces.link>20&&roadPieces.tech>40,'both LINK and TECH must contain on-road Map4 buildings');
+  assert(roadPieces.road>240,'road must be densely populated piece-by-piece with Map4 buildings');
+  assert(roadPieces.link>45&&roadPieces.tech>70,'both LINK and TECH must contain many on-road Map4 buildings');
+  assert(roadPieces.innerRoad>90,'many real Map4 buildings must be pasted inside the +/-215 road band');
+  assert(roadPieces.deepInner>60,'a deep inner slalom of real Map4 buildings must exist inside +/-195');
   assert.equal(roadPieces.fast,0,'FAST must remain free of physical road buildings');
   assert.equal(roadPieces.physicalFast,0,'FAST must contain no Map4 building colliders');
   assert.equal(roadPieces.physical,layout.visualStage.map4RoadColliders,'every physical road piece must own one collider');
