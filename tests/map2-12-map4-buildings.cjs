@@ -20,6 +20,20 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   const layout=await page.evaluate(()=>window.starbladeMap2Layout);
   assert(layout.visualStage.map4BuildingKits>300,'Map4 visual kits must populate TECH/FAST/LINK scenery');
   assert(layout.visualStage.map4BuildingMeshes>500,'active Map4 visual meshes must replace box placeholders');
+  assert(layout.visualStage.map4RoadPieces>150,'real Map4 building pieces must sit directly on the Map2 road');
+  const roadPieces=await page.evaluate(()=>{
+    let road=0,link=0,tech=0,maxAbsX=0;
+    map2CourseGroup.traverse(o=>{
+      if(!o.userData?.map2RoadPiece)return;
+      road++;maxAbsX=Math.max(maxAbsX,Math.abs(o.userData.map2LaneX||0));
+      const kind=map2Segment(o.userData.map2RouteProgress||0).kind;
+      if(kind==='LINK')link++;if(kind==='TECH')tech++;
+    });
+    return {road,link,tech,maxAbsX};
+  });
+  assert(roadPieces.road>150,'road must be populated piece-by-piece with Map4 buildings');
+  assert(roadPieces.link>20&&roadPieces.tech>40,'both LINK and TECH must contain on-road Map4 buildings');
+  assert(roadPieces.maxAbsX<=430,'road pieces must stay on the course instead of distant skyline placement');
   assert.equal(await page.evaluate(()=>planetaryWorldGroup.visible),false,'Map4 source world must stay hidden');
   assert(await page.locator('#map-choice-4').isDisabled(),'Map4 remains locked after sourcing');
   assert(await page.evaluate(()=>{const src=h4Gfx11c17Root.children.filter(o=>o.isInstancedMesh&&!o.userData.h4Gfx11c17Service);let road=0;map2CourseGroup.traverse(o=>{if(o.name.startsWith('MAP2_REUSED_H4_KIT_')&&src.some(x=>x.geometry===o.geometry&&x.material===o.material))road++;});return road>100;}),'final Map4 buildings must occupy physical course piers');
@@ -89,6 +103,6 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(families.exact>300,'many scene meshes must directly reuse final C17 geometry/material');
   assert.equal(families.blackFast,0);assert.equal(families.blackLink,0);
   assert.deepEqual(errors,[]);
-  console.log('PASS MAP2-13 final rendered Map4 buildings visible including user 167751m view '+JSON.stringify({visual:layout.visualStage,userShot,a,b,c,families}));
+  console.log('PASS MAP2-14 Map4 building pieces pasted directly onto Map2 road '+JSON.stringify({visual:layout.visualStage,userShot,a,b,c,families}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
