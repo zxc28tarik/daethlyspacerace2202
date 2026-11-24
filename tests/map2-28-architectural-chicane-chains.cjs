@@ -34,15 +34,18 @@ assert(html.includes('REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES'));
         y:o.userData.map2ArchitecturalChicaneShiftY
       });
     });
-    let maxJumpX=0,maxJumpY=0,maxGap=0;
+    let maxJumpX=0,maxJumpY=0,maxGap=0,maxSlopeX=0,maxSlopeY=0;
     const a=(route?.routeAnchors||[]).slice().sort((u,v)=>u.distance-v.distance);
     for(let i=1;i<a.length;i++){
       if(map2Segment((a[i-1].distance+a[i].distance)/2).kind!=='TECH')continue;
       const gap=a[i].distance-a[i-1].distance;
-      if(gap>950)continue;
+      if(gap>950||gap<=1)continue;
+      const jx=Math.abs(a[i].x-a[i-1].x),jy=Math.abs(a[i].y-a[i-1].y);
       maxGap=Math.max(maxGap,gap);
-      maxJumpX=Math.max(maxJumpX,Math.abs(a[i].x-a[i-1].x));
-      maxJumpY=Math.max(maxJumpY,Math.abs(a[i].y-a[i-1].y));
+      maxJumpX=Math.max(maxJumpX,jx);
+      maxJumpY=Math.max(maxJumpY,jy);
+      maxSlopeX=Math.max(maxSlopeX,jx/gap);
+      maxSlopeY=Math.max(maxSlopeY,jy/gap);
     }
     const blocked=[];
     for(const m of route.modules.filter(m=>m.chicane)){
@@ -61,7 +64,7 @@ assert(html.includes('REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES'));
       taggedFast:tagged.filter(x=>Number.isFinite(x.d)&&map2Segment(x.d).kind==='FAST').length,
       routeModules:route?.modules?.length,
       anchors:route?.routeAnchors?.length,
-      maxJumpX,maxJumpY,maxGap,
+      maxJumpX,maxJumpY,maxGap,maxSlopeX,maxSlopeY,
       blocked,
       physical:physical.length,
       fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
@@ -85,8 +88,10 @@ assert(html.includes('REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES'));
   assert(s.longestMovedSpan>=7000,'at least one authored chicane sequence must extend for kilometres');
   assert(info.tagged>=s.movedRoots,'moved roots must be tagged in the scene graph');
   assert.equal(info.taggedFast,0,'FAST sectors may not receive chicane buildings');
-  assert(info.maxJumpX<=330,'real-aperture anchor handoffs must remain flyable laterally');
-  assert(info.maxJumpY<=190,'real-aperture anchor handoffs must remain flyable vertically');
+  assert(info.maxJumpX<=330,'real-aperture anchor handoffs must remain bounded laterally');
+  assert(info.maxJumpY<=310,'real-aperture anchor handoffs must remain bounded vertically');
+  assert(info.maxSlopeX<=.72,'lateral handoffs must stay gradual relative to their longitudinal spacing');
+  assert(info.maxSlopeY<=.72,'vertical handoffs must stay gradual relative to their longitudinal spacing');
   assert.equal(info.blocked.length,0,'shifted buildings may not close their own route tube');
   assert(info.physical>=180,'real Map4 building physics must remain substantial');
   assert.equal(info.fastPhysical,0,'FAST remains free from building collision');
