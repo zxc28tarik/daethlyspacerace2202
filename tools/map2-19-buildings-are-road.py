@@ -3,7 +3,7 @@ p=Path("index.html")
 s=p.read_text(encoding="utf-8")
 
 stats_anchor="map4BuildingOverheads:0"
-stats_new="map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0"
+stats_new="map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0,routeBuildingFramedApertures:0"
 if stats_anchor not in s:
     raise SystemExit("MAP2-19 stats anchor not found")
 s=s.replace(stats_anchor,stats_new,1)
@@ -41,8 +41,8 @@ insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
             // The hidden route spline is now only a technical progress backbone.
             // In TECH sectors the visible/traversable course is defined by real
             // openings inside the copied Map4 architecture itself.
-            const map2BuildingRoadSampleXs=[-252,-210,-168,-126,-84,-42,0,42,84,126,168,210,252];
-            const map2BuildingRoadSampleYs=[-190,-145,-100,-55,-10,35,80,125,160];
+            const map2BuildingRoadSampleXs=Array.from({length:21},(_,i)=>-700+i*70);
+            const map2BuildingRoadSampleYs=Array.from({length:11},(_,i)=>-250+i*47);
 
             const map2CollectRouteSolids=(roots,d)=>{
                 const solids=[];
@@ -80,12 +80,35 @@ insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
                             if(zOverlap&&xyOverlap){blocked=true;break;}
                         }
                         if(blocked)continue;
+
+                        // An empty point is not enough. Prefer holes that are visibly
+                        // framed by architecture: opposing walls, floor+ceiling, or a
+                        // wall combined with overhead/underpass mass. This is what
+                        // makes the building itself read as the road.
+                        const zSolids=solids.filter(q=>q.maxZ>=-320&&q.minZ<=320);
+                        const left=zSolids.some(q=>
+                            q.maxX<=x-42&&x-q.maxX<360&&
+                            q.maxY>=y-170&&q.minY<=y+170);
+                        const right=zSolids.some(q=>
+                            q.minX>=x+42&&q.minX-x<360&&
+                            q.maxY>=y-170&&q.minY<=y+170);
+                        const above=zSolids.some(q=>
+                            q.minY>=y+36&&q.minY-y<300&&
+                            q.maxX>=x-240&&q.minX<=x+240);
+                        const below=zSolids.some(q=>
+                            q.maxY<=y-36&&y-q.maxY<300&&
+                            q.maxX>=x-240&&q.minX<=x+240);
+                        const framed=(left&&right)||(above&&below)||((left||right)&&(above||below));
+                        const directional=(left?1:0)+(right?1:0)+(above?1:0)+(below?1:0);
+
                         // The preferred point only controls continuity between
-                        // complexes. The opening itself is discovered from the
-                        // building geometry, never fabricated.
+                        // complexes. Framing dominates the score so a wide empty
+                        // courtyard never beats a real hangar/canyon/underpass.
                         const dx=x-preferred.x,dy=y-preferred.y;
-                        const centreBias=Math.abs(x)*.08+Math.abs(y+55)*.035;
-                        candidates.push({x,y,score:Math.hypot(dx,dy*.72)+centreBias});
+                        const centreBias=Math.abs(x)*.035+Math.abs(y+55)*.02;
+                        const framePenalty=framed?0:(directional>=2?110:directional===1?230:420);
+                        candidates.push({x,y,left,right,above,below,framed,directional,
+                            score:framePenalty+Math.hypot(dx,dy*.72)+centreBias});
                     }
                 }
                 candidates.sort((a,b)=>a.score-b.score);
@@ -133,7 +156,7 @@ insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
                 for(const roots of industrialChunks.values())groups.push(roots);
 
                 const records=[];
-                let shifted=0,maxShift=0,shells=0,apertures=0;
+                let shifted=0,maxShift=0,shells=0,apertures=0,framedApertures=0;
                 groups.sort((a,b)=>{
                     const ad=a.reduce((n,r)=>n+Number(r.userData.map2TargetDistance),0)/a.length;
                     const bd=b.reduce((n,r)=>n+Number(r.userData.map2TargetDistance),0)/b.length;
@@ -184,11 +207,13 @@ insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
                     }
                     shells+=roots.length;
                     apertures++;
+                    if(found.aperture.framed)framedApertures++;
                     previous=routeTarget;
                     records.push({
                         d,roots:roots.length,open:true,solids:found.solids,
                         rootNames:roots.map(r=>r.name),
                         sourceX:found.aperture.x,sourceY:found.aperture.y,
+                        framed:!!found.aperture.framed,
                         x:routeTarget.x,y:routeTarget.y,shift
                     });
                 }
@@ -210,6 +235,7 @@ insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
                 map2VisualStageStats.routeBuildingApertures=apertures;
                 map2VisualStageStats.routeBuildingShifted=shifted;
                 map2VisualStageStats.routeBuildingMaxShift=maxShift;
+                map2VisualStageStats.routeBuildingFramedApertures=framedApertures;
                 return records;
             };
 
