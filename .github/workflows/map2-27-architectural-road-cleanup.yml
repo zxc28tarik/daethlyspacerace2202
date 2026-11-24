@@ -1,0 +1,39 @@
+name: MAP2-27 architectural road cleanup
+on:
+  push:
+    branches: [codex/map2-27-retire-legacy-central-road]
+    paths:
+      - index.html
+      - tests/map2-27-architectural-road-cleanup.cjs
+      - .github/workflows/map2-27-architectural-road-cleanup.yml
+  pull_request:
+    branches: [codex/map2-26-long-industrial-building-chains]
+    paths:
+      - index.html
+      - tests/map2-27-architectural-road-cleanup.cjs
+  workflow_dispatch:
+jobs:
+  browser-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - run: node tests/map2-27-architectural-road-cleanup.cjs
+      - run: node tests/map2-26-long-industrial-building-chains.cjs
+      - run: node tests/map2-25-through-building-route-modules.cjs
+      - run: node tests/map2-18-building-obstacles.cjs
+      - run: node tests/map2-05-course-flow.cjs
+      - run: node tests/map2-11-keep-it-low-visual.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-27-architectural-road-evidence
+          path: |
+            tests/map2-27-evidence/
+            tests/map2-26-evidence/
+          if-no-files-found: warn
