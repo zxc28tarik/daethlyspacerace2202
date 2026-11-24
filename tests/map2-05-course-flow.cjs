@@ -77,11 +77,34 @@ const flow=await page.evaluate(()=>{
       const a=gates[i-1],b=gates[i];
       const from=a.distance+a.depth/2+40,to=b.distance-b.depth/2-40;
       minimumRun=Math.min(minimumRun,to-from);
+      const routeClear=(p,q)=>{
+        const nodes=[{routeProgress:from,laneX:p.x,laneY:p.y}];
+        const run=Math.max(1,to-from);
+        const blend=Math.min(480,run*.42);
+        const smooth=t=>t*t*(3-2*t);
+        for(let d=from+90;d<to;d+=90){
+          const lane=starbladeMap2BuildingPassageAt(d);
+          let x=lane.x,y=lane.y;
+          if(d<from+blend){
+            const t=smooth((d-from)/blend);
+            x=p.x+(x-p.x)*t;y=p.y+(y-p.y)*t;
+          }
+          if(d>to-blend){
+            const t=smooth((d-(to-blend))/blend);
+            x=x+(q.x-x)*t;y=y+(q.y-y)*t;
+          }
+          nodes.push({routeProgress:d,laneX:x,laneY:y});
+        }
+        nodes.push({routeProgress:to,laneX:q.x,laneY:q.y});
+        for(let n=1;n<nodes.length;n++){
+          if(map2Obstacles.some(o=>courseSegmentTouch(o,nodes[n-1],nodes[n],12.5)))return false;
+        }
+        return true;
+      };
       for(const p of a.openings){
         const choices=b.openings.map(q=>({q,shift:Math.hypot(q.x-p.x,q.y-p.y)}))
           .sort((x,y)=>x.shift-y.shift);
-        const reachable=choices.find(({q})=>!map2Obstacles.some(o=>courseSegmentTouch(o,
-          {routeProgress:from,laneX:p.x,laneY:p.y},{routeProgress:to,laneX:q.x,laneY:q.y},12.5)));
+        const reachable=choices.find(({q})=>routeClear(p,q));
         if(!reachable)clear=false;else worstShift=Math.max(worstShift,reachable.shift);
       }
     }
