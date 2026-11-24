@@ -216,14 +216,20 @@ s=s.replace(anchor,insert,1)
 
 call_anchor="""            // Paste all 985 meshes from the final Map4 industrial visual group once.
             map2CloneExactMap4IndustrialVisualParts();"""
-call_new=call_anchor+"""
-
-            // MAP2-18: after every real Map4 building is in its final Map2 position,
-            // derive gameplay collision from the visible structural masses.
-            map2BuildPhysicalMap4BuildingObstacles();"""
 if call_anchor not in s:
-    raise SystemExit("MAP2-18 call anchor not found")
-s=s.replace(call_anchor,call_new,1)
+    raise SystemExit("MAP2-18 Map4 visual placement anchor not found")
+
+layout_anchor="""            window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),"""
+layout_new="""            // MAP2-18: only after all authored gates and original physical solids
+            // exist, derive collision directly from the visible Map4 building meshes.
+            // This ordering lets the real buildings act as obstacles without
+            // accidentally sealing the intended gate apertures.
+            map2BuildPhysicalMap4BuildingObstacles();
+
+            window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),"""
+if layout_anchor not in s:
+    raise SystemExit("MAP2-18 final layout anchor not found")
+s=s.replace(layout_anchor,layout_new,1)
 
 p.write_text(s,encoding="utf-8")
 print("MAP2-18 real-building obstacle/chokepoint patch applied")
