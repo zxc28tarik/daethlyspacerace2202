@@ -1,0 +1,31 @@
+name: MAP2-11 apply patrol visibility accents
+on:
+  push:
+    branches: [codex/map2-11-keep-it-low-visual-language]
+    paths:
+      - tools/map2-11-patrol-visibility.py
+      - .github/workflows/map2-11-patrol-visibility.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-11-keep-it-low-visual-language
+          fetch-depth: 0
+      - run: python tools/map2-11-patrol-visibility.py
+      - name: Validate patrol visibility
+        run: |
+          grep -q "MAP2_PATROL_BEACON" index.html
+          grep -q "MAP2_PATROL_GLOW" index.html
+          grep -q "const altitude=285-v.approach\*20+strike\*55" index.html
+      - name: Commit correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-11 add readable patrol wing lights"
+          git push origin HEAD:codex/map2-11-keep-it-low-visual-language
