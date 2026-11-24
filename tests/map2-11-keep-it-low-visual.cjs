@@ -102,6 +102,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
       ship:{x:ship.x,y:ship.y,z:ship.z},player:{x:player.x,y:player.y,z:player.z},
       start:{x:start.x,y:start.y,z:start.z},end:{x:end.x,y:end.y,z:end.z}};
   });
+  console.log('MAP2-11 approach visual debug '+JSON.stringify(approachShot));
   assert.equal(approachShot.search,true);assert(approachShot.warning?.includes('YAKLAŞIYOR'));
   assert.equal(approachShot.depthTest,false,'searchlight must remain readable against roof geometry');
   assert(Math.abs(approachShot.ship.x)<1&&Math.abs(approachShot.ship.y)<1&&approachShot.ship.z>=-1&&approachShot.ship.z<=1,
