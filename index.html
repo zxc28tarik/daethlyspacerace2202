@@ -14001,10 +14001,14 @@
                 mesh.material=mesh.material.clone();mesh.material.visible=false;
                 mesh.add(core,detail);kitCounts[style]++;
             }
+            // MAP2-05: a spacious entry, then alternating compression/recovery.
+            // Gate spacing is deterministic and independent of pilot performance.
+            const spacing=[1900,1550,1800,1500,2050,1650,1850,1550];
             let serial=0;
             for(const seg of MAP2_SEGMENTS.filter(s=>s.kind==='TECH')){
-                for(let d=seg.from*MAP2_DISTANCE+800;d<seg.to*MAP2_DISTANCE-800;d+=1700){
-                    const i=serial++;
+                let local=0;
+                for(let d=seg.from*MAP2_DISTANCE+1050;d<seg.to*MAP2_DISTANCE-900;){
+                    const i=serial++,stage=local++;
                     // Actual physical obstacles occupy three fifths of the 720-wide route.
                     const style=i%4,kind=gateKinds[style];
                     const center=[0,-42,0,42][style],left=center-216,right=center+216,low=-218,high=216;
@@ -14012,6 +14016,8 @@
                     const openings=style===2?
                         [{x:-105,y:-38,hx:76,hy:85},{x:105,y:-38,hx:76,hy:85}]:
                         [{x:center+[0,-18,0,12][style],y:[-40,-90,0,-15][style],hx:[94,100,0,72][style],hy:[83,110,0,64][style]}];
+                    // First three structures after each fast stretch are more forgiving.
+                    if(stage<3){for(const gap of openings){gap.hx+=style===2?5:12;gap.hy+=8;}}
                     const primary=openings[style===2&&Math.floor(i/4)%2?1:0];
                     const opening=primary.x,oy=primary.y,hx=primary.hx,hy=primary.hy;
                     // Disjoint solid columns and lintels, with actual empty openings.
@@ -14034,7 +14040,7 @@
                         else h4ArchitecturalDetail(mesh,'building');
                     }
                     map2Gates.push({distance:d,mode:'CENTER_ONLY',laneX:opening,laneY:oy,clearX:hx,clearY:hy,
-                        kind,depth,openings});
+                        kind,depth,openings,flowStage:stage<3?'ENTRY':'TECH'});
                     // Actual route curvature determines paired city walls.
                     const turnAngle=getRaceFrameAtDistance(d-650).tangent.angleTo(getRaceFrameAtDistance(d+650).tangent);
                     if(turnAngle>.095||i%7===1){
@@ -14054,6 +14060,7 @@
                         map2Items.push({id:'MAP2-ITEM-'+i,routeProgress:at,laneX:opening,laneY:oy,
                             radius:source.radius,mesh:g,claimed:new Set(),spin,edge:g.children[1],core});
                     }
+                    d+=stage<3?[2100,1950,1850][stage]:spacing[(stage-3)%spacing.length];
                 }
             }
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
