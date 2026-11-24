@@ -94,12 +94,20 @@ assert(html.includes('passageHalfX=45'));
 
     const road=window.starbladeMap2BuildingRoad;
     const buildingRoadDeviations=road?.knots?.filter(k=>Math.abs(k.x)>60||Math.abs(k.y+55)>42).length||0;
+    const retiredCount=window.starbladeMap2RetiredLegacyObstacles||0;
+    const retiredVisible=[];
+    map2CourseGroup.traverse(o=>{
+      if(o.userData?.map2RetiredForBuildingRoute)retiredVisible.push({
+        name:o.name,visible:o.visible
+      });
+    });
     return {
       buildingRoadActive:!!road,
       buildingRoadDeviations,
       count:building.length,
       totalObstacles:map2Obstacles.length,
       originalObstacleEstimate:map2Obstacles.length-building.length,
+      retiredCount,retiredVisible,
       rows,
       bins:bins.size,centerlineBlocked,lowLaneBlocked,overhead,left,right,centre,signChanges,gantryIntrusions,
       stats:window.starbladeMap2Layout?.visualStage||null,
@@ -109,7 +117,19 @@ assert(html.includes('passageHalfX=45'));
   console.log('MAP2-18 BUILDING_PHYSICS '+JSON.stringify(info));
 
   assert(info.count>=30,'real Map4 building masses should add a substantial physical layer');
-  assert.equal(info.originalObstacleEstimate,382,'MAP2-18 must add on top of the established 382 physical obstacles');
+  if(info.retiredCount>0){
+    assert.equal(
+      info.originalObstacleEstimate+info.retiredCount,382,
+      'MAP2-25 may replace only explicitly retired legacy route obstacles'
+    );
+    assert(info.retiredVisible.length>=info.retiredCount,
+      'retired legacy obstacles must be tagged on their visible source meshes');
+    assert(info.retiredVisible.every(x=>x.visible===false),
+      'a retired legacy collider may not leave a visible generic obstacle behind');
+    assert.equal(info.stats?.throughBuildingRetiredLegacyObstacles,info.retiredCount);
+  }else{
+    assert.equal(info.originalObstacleEstimate,382,'MAP2-18 must preserve the established legacy obstacle layer before MAP2-25 retirement');
+  }
   assert.equal(info.fast,0,'FAST zones must remain free of building-derived colliders');
   assert(info.bins>=20,'building physics should be distributed across many route slices');
   assert(info.rows.every(x=>x.seg==='TECH'&&x.hit),'every derived building collider must be physically hittable in TECH');
