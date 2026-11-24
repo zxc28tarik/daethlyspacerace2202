@@ -119,8 +119,8 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
 
                         // Pull the collider well inside the rendered mesh. This avoids
                         // the old "invisible box" feeling at rotated/irregular edges.
-                        hx=Math.min(215,hx*.72);
-                        hy=Math.min(205,hy*.72);
+                        hx=Math.min(215,hx*.78);
+                        hy=Math.min(205,hy*.78);
                         hd=Math.min(230,hd*.72);
                         if(hx<22||hy<22||hd<10)return;
 
@@ -140,7 +140,7 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                         if(map2Gates.some(g=>Math.abs(g.distance-d)<260+hd))return;
 
                         const pass=map2BuildingPassageAt(d);
-                        const passageHalfX=48,passageHalfY=42;
+                        const passageHalfX=45,passageHalfY=38;
                         const blocksPassage=
                             Math.abs(cx-pass.x)<hx+passageHalfX&&
                             Math.abs(cy-pass.y)<hy+passageHalfY;
