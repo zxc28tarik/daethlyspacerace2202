@@ -121,6 +121,8 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'searchlight must terminate on the actually rendered player craft');
   assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)>.055,
     'patrol fighter must be large enough to read on screen');
+  assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)<.35,
+    'patrol fighter must not dominate the whole race view');
   assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
   assert(approachShot.ship.y+approachShot.bbox.h/2<1.02,'patrol fighter should not be clipped above the frame');
   assert.equal(approachShot.beacons.length,2,'patrol needs two readable wing beacons');
