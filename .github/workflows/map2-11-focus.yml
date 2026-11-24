@@ -1,0 +1,14 @@
+name: MAP2-11 focus diagnostics
+on:
+  push:
+    branches: [codex/map2-11-keep-it-low-visual-language]
+    paths:
+      - tools/map2-11-focus.py
+      - .github/workflows/map2-11-focus.yml
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/map2-11-focus.py
