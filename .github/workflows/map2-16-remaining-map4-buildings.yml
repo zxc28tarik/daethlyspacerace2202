@@ -1,0 +1,58 @@
+name: MAP2-16 remaining exact Map4 buildings
+on:
+  push:
+    branches: [codex/map2-16-remaining-map4-buildings]
+    paths:
+      - tools/map2-16-remaining-map4-buildings.py
+      - tests/map2-16-remaining-map4-buildings.cjs
+      - .github/workflows/map2-16-remaining-map4-buildings.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply-and-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-16-remaining-map4-buildings
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply remaining Map4 building transfer
+        run: python tools/map2-16-remaining-map4-buildings.py
+      - name: Validate transfer markers
+        run: |
+          grep -q "MAP2_EXACT_MAP4_LANDMARK_" index.html
+          grep -q "MAP2_EXACT_MAP4_FINAL_CORRIDOR_AT_" index.html
+          grep -q "MAP4_SPACEPORT_42600" index.html
+          grep -q "MAP4_LAUNCH_48300" index.html
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-16 remaining building QA
+        run: node tests/map2-16-remaining-map4-buildings.cjs
+      - name: MAP2-15 city regression
+        run: node tests/map2-15-map4-city-district-reuse.cjs
+      - name: MAP2-14 dense industrial regression
+        run: node tests/map2-14-dense-map4-road-buildings.cjs
+      - name: MAP2-13 exact clone regression
+        run: node tests/map2-13-exact-map4-clones.cjs
+      - name: MAP2-11 KEEP IT LOW regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: Commit remaining building transfer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-16 transfer remaining final Map4 buildings to Map2"
+          git push origin HEAD:codex/map2-16-remaining-map4-buildings
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-16-remaining-buildings-evidence
+          path: tests/map2-16-evidence/
+          if-no-files-found: warn
