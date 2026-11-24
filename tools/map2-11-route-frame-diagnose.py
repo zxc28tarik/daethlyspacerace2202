@@ -11,3 +11,6 @@ for term in terms:
 
 print("\n--- PLAYER ROUTE/CAMERA 19815-19910 ---")
 for n in range(19815,19911): print(f"{n}: {L[n-1]}")
+
+print("\n--- CAMERA DETAIL 19908-19955 ---")
+for n in range(19908,19956): print(f"{n}: {L[n-1]}")
