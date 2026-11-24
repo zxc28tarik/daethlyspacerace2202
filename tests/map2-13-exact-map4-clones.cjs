@@ -1,3 +1,4 @@
+// MAP2-13 exact clone QA after circular-metadata fix
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const {pathToFileURL}=require('node:url');
