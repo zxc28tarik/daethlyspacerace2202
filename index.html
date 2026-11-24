@@ -13969,15 +13969,26 @@
             for(let from=0;from<MAP2_DISTANCE;from+=2500){
                 const section=new THREE.Group();const to=Math.min(MAP2_DISTANCE,from+2500);
                 section.userData.from=from;section.userData.to=to;
-                for(const side of [-1,1]){
-                    const pts=[];
-                    for(let d=from;d<to;d+=125){
-                        const f=getRaceFrameAtDistance(d);
-                        pts.push(f.center.clone().addScaledVector(f.right,side*355).addScaledVector(f.up,-205));
+                // MAP2-27: the real buildings define TECH, not continuous painted rails.
+                // Retain the original rails only in non-TECH sectors, split exactly at boundaries.
+                for(const seg of MAP2_SEGMENTS){
+                    if(seg.kind==='TECH')continue;
+                    const start=Math.max(from,seg.from*MAP2_DISTANCE);
+                    const end=Math.min(to,seg.to*MAP2_DISTANCE);
+                    if(end-start<1)continue;
+                    for(const side of [-1,1]){
+                        const pts=[];
+                        const append=d=>{
+                            const f=getRaceFrameAtDistance(d);
+                            pts.push(f.center.clone().addScaledVector(f.right,side*355).addScaledVector(f.up,-205));
+                        };
+                        for(let d=start;d<end;d+=125)append(d);
+                        append(end);
+                        const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),guideMat);
+                        line.name='MAP2_OPEN_SECTOR_GUIDE';
+                        line.userData={map2OpenSectorGuide:true,from:start,to:end,kind:seg.kind};
+                        section.add(line);
                     }
-                    const f=getRaceFrameAtDistance(to);
-                    pts.push(f.center.clone().addScaledVector(f.right,side*355).addScaledVector(f.up,-205));
-                    section.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),guideMat));
                 }
                 map2Sections.push(section);map2CourseGroup.add(section);
             }
@@ -15911,14 +15922,14 @@
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(H4_MESHES.structure,mat);
                 mesh.scale.set(w,h,depth);mesh.castShadow=false;mesh.receiveShadow=false;
-                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.name=name;
+                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;
                 g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualStack=(d,x,y,r,h,mat,name)=>{
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(H4_MESHES.tower,mat);
                 mesh.scale.set(r,h,r);mesh.userData.map2VisualOnly=true;
-                g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
+                g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualPipe=(d,x,y,r,length,mat,name,axis='route')=>{
                 const g=makeCourseLocalGroup(d,x,y);
@@ -15926,20 +15937,20 @@
                 mesh.scale.set(r,length,r);
                 if(axis==='route')mesh.rotation.x=Math.PI/2;
                 else if(axis==='side')mesh.rotation.z=Math.PI/2;
-                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.name=name;
+                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;
                 g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualTank=(d,x,y,r,h,mat,name)=>{
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(map2DetailGeos.tank,mat);
                 mesh.scale.set(r,h,r);mesh.userData.map2VisualOnly=true;
-                g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
+                g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualLamp=(d,x,y,r,mat,name)=>{
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(map2DetailGeos.lamp,mat);
                 mesh.scale.setScalar(r);mesh.userData.map2VisualOnly=true;
-                g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
+                g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
             for(let d=310,cell=0;d<MAP2_DISTANCE-200;d+=620,cell++){
                 const kind=map2Segment(d).kind;
@@ -16327,6 +16338,49 @@
             // MAP2-25: remove obsolete generic road obstacles that conflict with
             // the now-denser real building route before deriving Map4 collision.
             map2RetireLegacyObstaclesOnBuildingRoute();
+
+            // MAP2-27: retire obsolete decorative road architecture. Only roots
+            // explicitly authored by the old Map2 visual helpers are eligible.
+            // Do not touch exact Map4 clones, hard safety gates, items or patrol cues.
+            const map2RetireLegacyRoadVisuals=()=>{
+                const modules=window.starbladeMap2ThroughRoute.modules;
+                const chains=window.starbladeMap2LongBuildingChains.chains||[];
+                const covered=d=>modules.some(m=>d>=m.entrance.distance-240&&d<=m.exit.distance+240)||
+                    chains.some(c=>c.span>=10000&&d>=c.from&&d<=c.to);
+                const counts={deck:0,tunnel:0,secondary:0,total:0,retainedOpenDeck:0};
+                const retired=[];
+                const tunnel=/^MAP2_(?:GATE_SHELL_|HANGAR_RIB_|HANGAR_TOWER_|GANTRY_PIPE_|GANTRY_PYLON_|DUAL_FACTORY_MASS_|DUAL_TANK_|DUAL_PIPE_|SLOT_FIN_|SLOT_MACHINE_|SLOT_CROWN_|VISUAL_TRUSS_|CHOKE_WALL_|TURN_FRAME_|TURN_TOWER_)/;
+                const secondary=/^MAP2_(?:VISUAL_STACK_|PIPE_|TANK_|ROOF_UNIT_|ROOF_VENT_|CATWALK_|CATWALK_SUPPORT_)/;
+                for(const section of map2Sections){
+                    for(const root of section.children.slice()){
+                        if(!root.userData?.map2VisualOnly)continue;
+                        const d=root.userData.map2Distance;
+                        if(!Number.isFinite(d))continue;
+                        const deck=root.name.startsWith('MAP2_VISUAL_DECK_');
+                        if(map2Segment(d).kind!=='TECH'){
+                            if(deck)counts.retainedOpenDeck++;
+                            continue;
+                        }
+                        let kind=null;
+                        if(deck)kind='deck';
+                        else if(covered(d)&&tunnel.test(root.name))kind='tunnel';
+                        else if(covered(d)&&secondary.test(root.name))kind='secondary';
+                        if(!kind)continue;
+                        // These are non-colliding helper groups; detach the complete
+                        // group, not individual meshes, so no ghost visual remains.
+                        retired.push({name:root.name,d,kind});
+                        section.remove(root);
+                        counts[kind]++;counts.total++;
+                    }
+                }
+                window.starbladeMap2LegacyRoadCleanup={...counts,retired};
+                Object.assign(map2VisualStageStats,{
+                    retiredRoadDecks:counts.deck,retiredFakeTunnels:counts.tunnel,
+                    retiredSecondaryRoadVisuals:counts.secondary,
+                    retiredLegacyRoadVisuals:counts.total,retainedOpenRoadDecks:counts.retainedOpenDeck
+                });
+            };
+            map2RetireLegacyRoadVisuals();
 
             // MAP2-18: only after all authored gates and original physical solids
             // exist, derive collision directly from the visible Map4 building meshes.
