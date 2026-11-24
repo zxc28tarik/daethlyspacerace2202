@@ -13981,6 +13981,29 @@
                     touchingShips:new Set(),hitTimes:Object.create(null)});
                 return mesh;
             };
+            // MAP2-06: low-key physical corner cues, mounted only in Map2's own course.
+            // No luminous rectangle, no HUD panel, no collision geometry.
+            const apertureCueMat=new THREE.LineBasicMaterial({
+                color:0x94b9bf,transparent:true,opacity:.66,depthTest:true,depthWrite:false
+            });
+            let apertureGuideCount=0;
+            function addApertureCue(d,depth,opening,index){
+                const halfX=Math.max(0,opening.hx-7),halfY=Math.max(0,opening.hy-7);
+                const tip=Math.min(22,halfX*.26,halfY*.26);
+                const points=[];
+                for(const sx of [-1,1])for(const sy of [-1,1]){
+                    points.push(new THREE.Vector3(sx*halfX,sy*halfY,0),
+                        new THREE.Vector3(sx*(halfX-tip),sy*halfY,0),
+                        new THREE.Vector3(sx*halfX,sy*halfY,0),
+                        new THREE.Vector3(sx*halfX,sy*(halfY-tip),0));
+                }
+                const guide=makeCourseLocalGroup(d-depth/2-6,opening.x,opening.y);
+                const lines=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),apertureCueMat);
+                lines.name='MAP2_APERTURE_CORNERS';
+                lines.userData={visualOnly:true,nonColliding:true,openingIndex:index,routeProgress:d};
+                guide.add(lines);sectionAt(d).add(guide);
+                apertureGuideCount++;
+            }
             const detailMat=H4_MATERIALS.steel;
             const gateKinds=['HANGAR','GANTRY','DUAL_FACTORY','MACHINE_SLOT'];
             const kitCounts=[0,0,0,0];
@@ -14041,6 +14064,7 @@
                     }
                     map2Gates.push({distance:d,mode:'CENTER_ONLY',laneX:opening,laneY:oy,clearX:hx,clearY:hy,
                         kind,depth,openings,flowStage:stage<3?'ENTRY':'TECH'});
+                    openings.forEach((gap,n)=>addApertureCue(d,depth,gap,n));
                     // Actual route curvature determines paired city walls.
                     const turnAngle=getRaceFrameAtDistance(d-650).tangent.angleTo(getRaceFrameAtDistance(d+650).tangent);
                     if(turnAngle>.095||i%7===1){
@@ -14065,7 +14089,7 @@
             }
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
-                gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),
+                gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
                 closure:map2RouteCurve.getPointAt(0).distanceTo(map2RouteCurve.getPointAt(1))};
         }
         // MAP2-04: altitude patrol. Isolated from all existing combat collections.
@@ -21095,6 +21119,33 @@
             }
             return null;
         }
+        // MAP2-06: use the existing single-line warning, not another on-screen widget.
+        // Choose the opening with the smallest safety-corridor correction; the cues
+        // never control the ship and do not alter physical obstacles.
+        function map2PlayerApertureCue(gate,progress,laneX,laneY,shipRadius=12.5) {
+            if(!gate||!gate.openings||!gate.openings.length)return null;
+            let best=null;
+            gate.openings.forEach((p,openingIndex)=>{
+                const marginX=Math.max(0,p.hx-shipRadius-14);
+                const marginY=Math.max(0,p.hy-shipRadius-14);
+                const dx=p.x-laneX,dy=p.y-laneY;
+                const excessX=Math.max(0,Math.abs(dx)-marginX);
+                const excessY=Math.max(0,Math.abs(dy)-marginY);
+                const score=Math.hypot(excessX,excessY)*2+Math.hypot(dx,dy)*.12;
+                if(!best||score<best.score)best={openingIndex,dx,dy,excessX,excessY,score};
+            });
+            const entry=Math.max(0,Math.round(gate.distance-gate.depth/2-progress));
+            const aligned=best.excessX===0&&best.excessY===0;
+            const side=gate.openings.length>1?
+                (best.openingIndex===0?'SOL AÇIKLIK':'SAĞ AÇIKLIK'):'SANAYİ GEÇİDİ';
+            const moves=[];
+            if(best.excessX>0)moves.push(best.dx<0?'SOLA':'SAĞA');
+            if(best.excessY>0)moves.push(best.dy<0?'ALÇAL':'YÜKSEL');
+            return {openingIndex:best.openingIndex,aligned,entry,dx:best.dx,dy:best.dy,
+                tone:entry<650&&!aligned?'urgent':'caution',
+                title:aligned?'GEÇİT HİZASI TAMAM':side,
+                detail:entry+'m · '+(aligned?'HATTI KORU':moves.join(' / '))};
+        }
         function updateRaceHudWarning() {
             if (state.finished || state.playerDNF) return null;
             const patrolWarning=map2PatrolWarning();
@@ -21104,8 +21155,7 @@
                 state.hudWarningTick = nextTick;
                 const gate=upcomingWreckGate(state.routeProgress,2400);
                 if(map2Active()){
-                    const remaining=gate?Math.max(0,Math.round(gate.distance-state.routeProgress)):0;
-                    state.hudWarning=gate?{tone:remaining<800?'urgent':'caution',title:gate.openings.length>1?'SANAYİ GEÇİDİ · İKİ AÇIKLIK':'SANAYİ GEÇİDİ',detail:remaining+'m · açıklığa hizalan'}:null;
+                    state.hudWarning=map2PlayerApertureCue(gate,state.routeProgress,state.laneX,state.laneY);
                 }else state.hudWarning = computeRaceHudWarning(state.routeProgress, state.laneX,
                     state.laneY, state.currentSpeed, gate, asteroids.concat(staticObstacles));
             }
