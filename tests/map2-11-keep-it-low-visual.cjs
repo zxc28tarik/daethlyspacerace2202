@@ -96,9 +96,15 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
       pts.push(new THREE.Vector3(x,y,z).project(camera));
     const bbox={w:Math.max(...pts.map(p=>p.x))-Math.min(...pts.map(p=>p.x)),
       h:Math.max(...pts.map(p=>p.y))-Math.min(...pts.map(p=>p.y))};
+    const beacons=[];
+    map2PatrolVisual.ship.traverse(o=>{
+      if(o.name!=='MAP2_PATROL_BEACON')return;
+      const p=new THREE.Vector3();o.getWorldPosition(p);p.project(camera);
+      beacons.push({x:p.x,y:p.y,z:p.z});
+    });
     return {search:map2PatrolVisual.search?.visible===true,phase:window.starbladeMap2Patrol?.phase,
       warning:map2PatrolWarning()?.title||null,depthTest:map2PatrolVisual.search.material.depthTest,
-      lineLength:Math.hypot(start.x-end.x,start.y-end.y),bbox,
+      lineLength:Math.hypot(start.x-end.x,start.y-end.y),bbox,beacons,
       ship:{x:ship.x,y:ship.y,z:ship.z},player:{x:player.x,y:player.y,z:player.z},
       start:{x:start.x,y:start.y,z:start.z},end:{x:end.x,y:end.y,z:end.z}};
   });
@@ -117,6 +123,10 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'patrol fighter must be large enough to read on screen');
   assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
   assert(approachShot.ship.z<.995,'patrol fighter must not sit at near-far-plane distance');
+  assert(approachShot.ship.y+approachShot.bbox.h/2<1.02,'patrol fighter should not be clipped above the frame');
+  assert.equal(approachShot.beacons.length,2,'patrol needs two readable wing beacons');
+  assert(approachShot.beacons.every(b=>Math.abs(b.x)<1&&Math.abs(b.y)<1&&b.z>=-1&&b.z<=1),
+    'both patrol wing beacons must be visible in the camera frame');
   await page.screenshot({path:path.join(evidence,'02-exposed-patrol-search.png')});
 
   await settle(12000,300);
