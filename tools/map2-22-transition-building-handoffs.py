@@ -46,9 +46,9 @@ insert=r"""            // MAP2-22: transition building handoffs.
                     const slots=range.slots.slice().sort((a,b)=>a.distance-b.distance);
                     for(let i=0;i<slots.length-1;i++){
                         const a=slots[i],b=slots[i+1];
-                        // Do not bridge two named sequences with an artificial beat.
-                        // Sequence boundaries stay readable as major transitions.
-                        if(a.sequence!==b.sequence)continue;
+                        // Bridge sequence boundaries too: TECH should feel like one
+                        // continuous built environment. Only the actual FAST sectors
+                        // are allowed to break the building chain.
                         const gap=b.distance-a.distance;
                         maxBefore=Math.max(maxBefore,gap);
                         const d=map2TransitionSafeDistance(a.distance,b.distance,ordinal);
@@ -69,6 +69,8 @@ insert=r"""            // MAP2-22: transition building handoffs.
                         clone.name=clone.name+'_HANDOFF_'+ordinal;
                         clone.userData.map2TransitionRoadClone=true;
                         clone.userData.map2TransitionFrom=a.sequence;
+                        clone.userData.map2TransitionTo=b.sequence;
+                        clone.userData.map2TransitionBoundary=a.sequence!==b.sequence;
                         clone.userData.map2TransitionOrdinal=ordinal;
                         clone.userData.map2SequenceLaneX=x;
                         clone.userData.map2SequenceLaneY=y;
@@ -76,7 +78,12 @@ insert=r"""            // MAP2-22: transition building handoffs.
                             o.userData.map2TransitionRoadClone=true;
                             o.userData.map2TransitionOrdinal=ordinal;
                         });
-                        transitions.push({distance:d,x,y,sourceIndex,sequence:a.sequence,name:clone.name});
+                        transitions.push({
+                            distance:d,x,y,sourceIndex,
+                            sequence:a.sequence,toSequence:b.sequence,
+                            boundary:a.sequence!==b.sequence,
+                            name:clone.name
+                        });
                         ordinal++;
                     }
                 }
