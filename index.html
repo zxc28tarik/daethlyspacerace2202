@@ -13952,7 +13952,7 @@
         const map2CourseGroup=new THREE.Group();
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
-        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0};
+        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0};
         function map2BuildCourse(){
             if(map2Sections.length)return;
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
@@ -14107,6 +14107,16 @@
                             map2VisualStageStats.signals++;
                         }
                     }
+                    // MAP2-11: the KEEP IT LOW ceiling is communicated by the world,
+                    // not another HUD panel. Sparse amber service rails sit exactly
+                    // around the 220 flight ceiling while the safe openings stay cyan.
+                    if(cell%2===0){
+                        for(const side of [-1,1]){
+                            addVisualBlock(d+145,side*418,220,76,8,250,map2VisualMats.signalWarm,
+                                'MAP2_ROOFLINE_RAIL_'+cell+'_'+side);
+                            map2VisualStageStats.rooflineRails++;
+                        }
+                    }
                 }else if(fast && cell%2===0){
                     for(const side of [-1,1]){
                         addVisualBlock(d,side*(790+(cell%3)*80),-70,240,300+(cell%4)*45,520,
@@ -14152,6 +14162,15 @@
                 lines.name='MAP2_APERTURE_CORNERS';
                 lines.userData={visualOnly:true,nonColliding:true,openingIndex:index,routeProgress:d};
                 guide.add(lines);sectionAt(d).add(guide);
+                // Two low cyan lamps make the safe underside legible without drawing
+                // a giant ring or rectangle around the opening.
+                const safeD=d-depth/2-12;
+                for(const sx of [-1,1]){
+                    addVisualLamp(safeD,opening.x+sx*Math.max(12,halfX-10),
+                        opening.y-Math.max(12,halfY-10),7,map2VisualMats.signal,
+                        'MAP2_SAFE_APERTURE_'+index+'_'+apertureGuideCount+'_'+sx);
+                    map2VisualStageStats.safeApertureLights++;
+                }
                 apertureGuideCount++;
             }
             const detailMat=H4_MATERIALS.steel;
@@ -14313,12 +14332,13 @@
         }
         // MAP2-04/07: altitude patrol. Gameplay damage stays fixed; MAP2-07 adds readable approach/lock/breakaway motion.
         const MAP2_PATROL=Object.freeze({ceiling:220,lockSeconds:.85,approachSeconds:.42,shotInterval:.7,damage:12,beamSeconds:.13});
-        const map2PatrolVisual={ship:null,beam:null,flash:0,breakaway:0,side:1,approach:0};
+        const map2PatrolVisual={ship:null,beam:null,search:null,flash:0,breakaway:0,side:1,approach:0};
         function map2PatrolReset(){
             state.map2Patrol=null;
             map2PatrolVisual.flash=0;map2PatrolVisual.breakaway=0;map2PatrolVisual.side=1;map2PatrolVisual.approach=0;
             if(map2PatrolVisual.ship)map2PatrolVisual.ship.visible=false;
             if(map2PatrolVisual.beam)map2PatrolVisual.beam.visible=false;
+            if(map2PatrolVisual.search)map2PatrolVisual.search.visible=false;
             window.starbladeMap2Patrol=null;
         }
         function map2PatrolStep(ship,dt,isPlayer){
@@ -14348,11 +14368,25 @@
             const v=map2PatrolVisual;
             if(visible&&!v.ship){
                 v.ship=createEnemyFighterMesh(true,false);
-                v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(3.4);scene.add(v.ship);
+                v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(1.2);
+                const patrolBeaconMat=new THREE.MeshBasicMaterial({color:0xff9b63});
+                for(const bx of [-2.7,2.7]){
+                    const beacon=new THREE.Mesh(new THREE.SphereGeometry(.55,8,6),patrolBeaconMat);
+                    beacon.position.set(bx,.25,-.45);beacon.name='MAP2_PATROL_BEACON';v.ship.add(beacon);
+                }
+                const patrolGlow=new THREE.PointLight(0xff8c58,.85,42);
+                patrolGlow.position.set(0,1.2,.4);patrolGlow.name='MAP2_PATROL_GLOW';v.ship.add(patrolGlow);
+                scene.add(v.ship);
                 const geo=new THREE.BufferGeometry();
                 geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
                 v.beam=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xff593c,transparent:true,opacity:.95,depthWrite:false}));
                 v.beam.name='MAP2_PATROL_LASER';v.beam.frustumCulled=false;scene.add(v.beam);
+                const searchGeo=new THREE.BufferGeometry();
+                searchGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+                v.search=new THREE.Line(searchGeo,new THREE.LineBasicMaterial({
+                    color:0xffb06a,transparent:true,opacity:.30,depthWrite:false,depthTest:false
+                }));
+                v.search.name='MAP2_PATROL_SEARCHLIGHT';v.search.frustumCulled=false;scene.add(v.search);
             }
             if(v.ship){
                 v.ship.visible=visible;
@@ -14360,24 +14394,34 @@
                 if(fired){v.breakaway=.34;v.side=(p.shots%2)?1:-1;}
                 else v.breakaway=Math.max(0,v.breakaway-dt);
                 v.beam.visible=visible&&v.flash>0;
+                if(v.search)v.search.visible=false;
                 if(visible){
                     const active=!!p.active;
                     const lockRatio=active?Math.min(1,p.lock/MAP2_PATROL.lockSeconds):0;
                     const targetApproach=active?Math.min(1,lockRatio+(p.shots>0?.18:0)):0;
                     v.approach+=(targetApproach-v.approach)*Math.min(1,dt*(active?5.5:2.2));
                     const strike=v.breakaway>0?Math.sin((v.breakaway/.34)*Math.PI):0;
-                    const ahead=370-v.approach*190+strike*95;
+                    const ahead=155-v.approach*35+strike*55;
                     const f=getRaceFrameAtDistance(Math.min(MAP2_DISTANCE,state.routeProgress+ahead));
-                    const sweep=Math.sin(state.raceTime*.85)*82;
+                    const sweep=Math.sin(state.raceTime*.85)*(active?28:82);
                     const attackSide=v.side*(55+80*strike);
                     const x=state.laneX*(.25+.25*v.approach)+sweep*(1-v.approach*.55)+
                         attackSide*(v.approach*.35+strike*.65);
-                    const altitude=430-v.approach*145+strike*90;
+                    const altitude=285-v.approach*20+strike*55;
                     v.ship.position.copy(f.center).addScaledVector(f.right,x).addScaledVector(f.up,altitude);
                     const pf=getRaceFrameAtDistance(state.routeProgress);
-                    const target=pf.center.clone().addScaledVector(pf.right,state.laneX).addScaledVector(pf.up,state.laneY);
+                    // MAP2-11: target the exact rendered player position instead of
+                    // reconstructing it separately from route coordinates.
+                    const target=state.pos.clone();
                     const aim=target.clone().addScaledVector(pf.up,active?0:55);
                     v.ship.lookAt(aim);
+                    if(v.search&&active&&!v.beam.visible){
+                        v.search.visible=true;
+                        v.search.material.opacity=.16+.30*lockRatio;
+                        const s=v.search.geometry.attributes.position;
+                        s.setXYZ(0,v.ship.position.x,v.ship.position.y,v.ship.position.z);
+                        s.setXYZ(1,target.x,target.y,target.z);s.needsUpdate=true;
+                    }
                     if(v.beam.visible){
                         const a=v.beam.geometry.attributes.position;
                         a.setXYZ(0,v.ship.position.x,v.ship.position.y,v.ship.position.z);
@@ -14389,7 +14433,8 @@
             }
             const phase=!p.active?'patrol':p.shots>0?'attack':p.lock<MAP2_PATROL.approachSeconds?'approach':'lock';
             window.starbladeMap2Patrol={active:p.active,lock:p.lock,shots:p.shots,hits:p.hits,visible,
-                ceiling:MAP2_PATROL.ceiling,approach:v.approach,breakaway:v.breakaway,phase};
+                ceiling:MAP2_PATROL.ceiling,approach:v.approach,breakaway:v.breakaway,
+                searching:!!(v.search&&v.search.visible),phase};
         }
         function map2PatrolWarning(){
             if(!map2Active()||state.finished||state.playerDNF||map2Segment(state.routeProgress).kind!=='TECH'||
@@ -21661,8 +21706,14 @@
             if(!ui.active){uiFirstFlightHide();return;}
             const element=document.getElementById('ui-first-flight');
             element.classList.remove('hidden');
-            const step=ui.initial?
+            let step=ui.initial?
                 Math.max(0,Math.min(2,Math.floor((now-ui.startedAt)/3))):0;
+            // MAP2-11: first-flight copy follows the actual course context.
+            // FAST never tells the player to fly low; TECH does.
+            if(ui.initial&&ui.map===MAP_MODES.MAP2){
+                const seg=map2Segment(state.routeProgress).kind;
+                step=seg==='TECH'?0:seg==='FAST'?2:1;
+            }
             if(force||step!==ui.displayedStep||phase!==ui.displayedPhase){
                 let title,description;
                 if(ui.initial)[title,description]=uiFirstFlightSteps[ui.map][step];
