@@ -31,9 +31,18 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                 const pb=map2PreferredGateOpening(b,next);
                 if(a===b)return {x:pa.x,y:pa.y};
                 const t=THREE.MathUtils.clamp((d-a.distance)/(b.distance-a.distance),0,1);
+                const baseX=THREE.MathUtils.lerp(pa.x,pb.x,t);
+                const baseY=THREE.MathUtils.lerp(pa.y,pb.y,t);
+                // Gate openings themselves remain untouched, but the route between
+                // gates bows alternately left/right. At t=0/1 the added offset is
+                // exactly zero, so every authored gate aperture is still reachable.
+                const dir=((prev+Math.floor(prev/3))%2)?1:-1;
+                const bow=Math.sin(Math.PI*t);
+                const lateralBow=dir*135*bow;
+                const verticalBow=Math.sin(Math.PI*2*t)*38;
                 return {
-                    x:THREE.MathUtils.lerp(pa.x,pb.x,t),
-                    y:THREE.MathUtils.lerp(pa.y,pb.y,t)
+                    x:THREE.MathUtils.clamp(baseX+lateralBow,-205,205),
+                    y:THREE.MathUtils.clamp(baseY+verticalBow,-190,135)
                 };
             };
             const map2ProjectedBoxAt=(box,d)=>{
@@ -85,11 +94,15 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                         if(!visible)return;
                         const box=new THREE.Box3().setFromObject(mesh);
                         if(box.isEmpty())return;
-                        const q=map2ProjectedBoxAt(box,rootD);
-                        const cx=(q.minX+q.maxX)*.5,cy=(q.minY+q.maxY)*.5,cz=(q.minZ+q.maxZ)*.5;
-                        let hx=(q.maxX-q.minX)*.5,hy=(q.maxY-q.minY)*.5,hd=(q.maxZ-q.minZ)*.5;
-                        const d=rootD+cz;
+                        const initial=map2ProjectedBoxAt(box,rootD);
+                        const initialZ=(initial.minZ+initial.maxZ)*.5;
+                        const d=rootD+initialZ;
                         if(!Number.isFinite(d)||d<0||d>MAP2_DISTANCE||map2Segment(d).kind!=='TECH')return;
+                        // Re-project at the collider's actual route progress. On sharp
+                        // bends this keeps the collision centre inside the real mesh.
+                        const q=map2ProjectedBoxAt(box,d);
+                        const cx=(q.minX+q.maxX)*.5,cy=(q.minY+q.maxY)*.5;
+                        let hx=(q.maxX-q.minX)*.5,hy=(q.maxY-q.minY)*.5,hd=(q.maxZ-q.minZ)*.5;
                         // Existing authored gates already handle their own immediate
                         // collision. Use real buildings mainly between those gates.
                         if(map2Gates.some(g=>Math.abs(g.distance-d)<280))return;
