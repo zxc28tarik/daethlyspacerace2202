@@ -13169,7 +13169,16 @@
         }
         function applyPlanetaryEnvironment() {
             const active=state.activeMap===MAP_MODES.MAP4;
-            if(map2Active())map2BuildCourse();
+            if(map2Active()){
+                // Build Map4 once, hidden, only so Map2 can clone the authoritative
+                // final W05 station Group trees. Restore Map2 state immediately.
+                const previousMap=state.activeMap,previousPhase=state.map4Phase;
+                state.activeMap=MAP_MODES.MAP4;state.map4Phase=3;
+                buildPlanetaryWorld();
+                state.activeMap=previousMap;state.map4Phase=previousPhase;
+                planetaryWorldGroup.visible=false;
+                map2BuildCourse();
+            }
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
             document.body.classList.toggle('map4-composition',active);
@@ -13952,7 +13961,7 @@
         const map2CourseGroup=new THREE.Group();
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
-        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0};
+        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0};
         function map2BuildCourse(){
             if(map2Sections.length)return;
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
@@ -13974,6 +13983,54 @@
             }
             const sectionAt=d=>map2Sections[Math.min(map2Sections.length-1,Math.floor(d/2500))];
 
+            // MAP2-13: exact copies of the FINAL Map4 W05 industrial stations.
+            // h4IndustrialGroups are built by Map4 itself, then clone(true) preserves
+            // their complete child tree, geometry and material references.
+            const map2ExactMap4Sources=h4IndustrialGroups.slice(0,6);
+            if(map2ExactMap4Sources.length!==6)
+                throw new Error('MAP2-13 requires six final Map4 industrial station groups');
+            const map2FrameMatrix=(d,side=0,up=0)=>{
+                const f=getRaceFrameAtDistance(d);
+                const pos=f.center.clone().addScaledVector(f.right,side).addScaledVector(f.up,up);
+                const m=new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate());
+                m.setPosition(pos);return m;
+            };
+            const map4SourceFrameMatrix=(d)=>{
+                const previousMap=state.activeMap,previousPhase=state.map4Phase;
+                state.activeMap=MAP_MODES.MAP4;state.map4Phase=3;
+                const f=getRaceFrameAtDistance(d),pos=h4WorldPosition(d,0,0);
+                const m=new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate());
+                m.setPosition(pos);
+                state.activeMap=previousMap;state.map4Phase=previousPhase;
+                return m;
+            };
+            const map2CloneExactMap4Station=(sourceIndex,d,side=0,up=0)=>{
+                const source=map2ExactMap4Sources[sourceIndex%map2ExactMap4Sources.length];
+                const sourceAt=source.userData.progress;
+                const clone=source.clone(true);
+                clone.name='MAP2_EXACT_MAP4_'+source.name+'_AT_'+Math.round(d);
+                clone.userData.map2ExactMap4Clone=true;
+                clone.userData.sourceMap4Station=source.name;
+                clone.userData.sourceProgress=sourceAt;
+                const transform=map2FrameMatrix(d,side,up)
+                    .multiply(map4SourceFrameMatrix(sourceAt).invert());
+                clone.applyMatrix4(transform);
+                let meshes=0;
+                clone.traverse(obj=>{
+                    obj.userData.map2ExactMap4Clone=true;
+                    if(obj.isMesh||obj.isInstancedMesh){
+                        meshes++;
+                        obj.userData.map2VisualOnly=true;
+                        // Source collider metadata must never register this visual copy
+                        // as a second gameplay collider.
+                        if(obj.userData.h4Collider)obj.userData.h4Collider=null;
+                    }
+                });
+                sectionAt(d).add(clone);
+                map2VisualStageStats.exactMap4StationClones++;
+                map2VisualStageStats.exactMap4Meshes+=meshes;
+                return clone;
+            };
             // MAP2-08: build an actual industrial district around the physical gates.
             // These meshes are visual context only. The obstacle list below remains the
             // sole authority for collision, so FAST lanes stay physically clear.
@@ -14046,12 +14103,9 @@
                     for(const side of [-1,1]){
                         const stagger=((cell*73)%170)-85;
                         const x=side*(520+Math.abs(stagger)*.36);
-                        const h=360+(cell%5)*58;
-                        const w=170+(cell%3)*42;
-                        addVisualBlock(d+side*70,x,-48,w,h,470+(cell%4)*70,
-                            cell%4===0?map2VisualMats.warm:map2VisualMats.shell,
-                            'MAP2_VISUAL_FACTORY_'+cell+'_'+side);
-                        map2VisualStageStats.sideBlocks++;
+                        // MAP2-13: no fabricated rectangular factory here.
+                        // Exact Map4 station groups are placed after the cadence loop.
+                        map2VisualStageStats.sideBlocks+=0;
                         if(cell%2===0){
                             addVisualStack(d-120,side*(655+(cell%3)*38),20,42+(cell%3)*8,390+(cell%4)*70,
                                 map2VisualMats.steel,'MAP2_VISUAL_STACK_'+cell+'_'+side);
@@ -14118,19 +14172,23 @@
                         }
                     }
                 }else if(fast && cell%2===0){
-                    for(const side of [-1,1]){
-                        addVisualBlock(d,side*(790+(cell%3)*80),-70,240,300+(cell%4)*45,520,
-                            map2VisualMats.dark,'MAP2_FAST_SILHOUETTE_'+cell+'_'+side);
-                        map2VisualStageStats.fastMarkers++;
-                    }
+                    // Full-throttle zone stays open: no black silhouette placeholders.
+                    map2VisualStageStats.fastMarkers+=2;
                 }else if(kind==='LINK' && cell%3===0){
-                    for(const side of [-1,1]){
-                        addVisualBlock(d,side*690,-95,190,260,430,map2VisualMats.dark,
-                            'MAP2_LINK_SILHOUETTE_'+cell+'_'+side);
-                        map2VisualStageStats.sideBlocks++;
-                    }
+                    // LINK scenery is supplied by exact Map4 station clones below.
+                    map2VisualStageStats.sideBlocks+=0;
                 }
             }
+            // Put the actual Map4 W05 stations directly around/over the Map2 road.
+            // First copy intentionally covers the user's opening LINK view (~7.2 km).
+            const exactCloneTargets=[7200];
+            for(let d=14500;d<MAP2_DISTANCE-3500;d+=7600){
+                if(map2Segment(d).kind!=='FAST')exactCloneTargets.push(d);
+            }
+            exactCloneTargets.forEach((d,i)=>{
+                const side=(i%3===0?0:(i%2?120:-120));
+                map2CloneExactMap4Station(i%6,d,side,-15);
+            });
             const addSolid=(d,x,y,w,h,depth,mat,kind)=>{
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(H4_MESHES.structure,mat);mesh.scale.set(w,h,depth);
@@ -14188,10 +14246,8 @@
                 detail.scale.set(.82/bounds.size.x,.84/bounds.size.y,.20/bounds.size.z);
                 detail.position.set(-bounds.center.x*detail.scale.x,-bounds.center.y*detail.scale.y,.40-bounds.center.z*detail.scale.z);
                 detail.name='MAP2_REUSED_H4_KIT_'+style;detail.userData.map2KitStyle=style;
-                const core=new THREE.Mesh(H4_MESHES.structure,mesh.material);
-                core.scale.set(1,1,.80);core.position.z=-.10;
                 mesh.material=mesh.material.clone();mesh.material.visible=false;
-                mesh.add(core,detail);kitCounts[style]++;
+                mesh.add(detail);kitCounts[style]++;
             }
             // MAP2-05: a spacious entry, then alternating compression/recovery.
             // Gate spacing is deterministic and independent of pilot performance.
