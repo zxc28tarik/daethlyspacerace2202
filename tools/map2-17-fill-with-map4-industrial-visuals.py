@@ -29,10 +29,54 @@ insert="""            const map2FindNonFastStructureTarget=(seed,pad=1000)=>{
                 return null;
             };
 
-            // MAP2-17: paste the entire 985-mesh Map4 industrial visual district,
-            // but split its original 20 km source span into five ~4 km authored
-            // chunks. Each chunk is relocated into a clear TECH window, so every
-            // original mesh is reused exactly once without filling FAST sectors.
+            // MAP2-17: paste every drawable from the large final Map4 industrial
+            // visual group. Three.js clone(true) drops descendants on several of
+            // its special batched nodes, so use an explicit visual deep-clone that
+            // preserves the exact source geometry/material references and instance
+            // matrices while avoiding circular userData.
+            const map2ClonePrimitiveUserData=(src)=>{
+                const out={};
+                for(const [k,v] of Object.entries(src||{})){
+                    if(v===null||['string','number','boolean'].includes(typeof v))out[k]=v;
+                }
+                return out;
+            };
+            const map2DeepCloneVisualNode=(node)=>{
+                let out;
+                if(node.isInstancedMesh){
+                    out=new THREE.InstancedMesh(node.geometry,node.material,node.count);
+                    out.count=node.count;
+                    out.instanceMatrix.copy(node.instanceMatrix);
+                    out.instanceMatrix.needsUpdate=true;
+                    if(node.instanceColor)out.instanceColor=node.instanceColor.clone();
+                }else if(node.isMesh){
+                    out=new THREE.Mesh(node.geometry,node.material);
+                }else if(node.isLineSegments){
+                    out=new THREE.LineSegments(node.geometry,node.material);
+                }else if(node.isLine){
+                    out=new THREE.Line(node.geometry,node.material);
+                }else if(node.isPoints){
+                    out=new THREE.Points(node.geometry,node.material);
+                }else if(node.isGroup){
+                    out=new THREE.Group();
+                }else{
+                    out=new THREE.Object3D();
+                }
+                out.name=node.name;
+                out.position.copy(node.position);
+                out.quaternion.copy(node.quaternion);
+                out.scale.copy(node.scale);
+                out.matrix.copy(node.matrix);
+                out.matrixAutoUpdate=node.matrixAutoUpdate;
+                out.visible=node.visible;
+                out.frustumCulled=node.frustumCulled;
+                out.renderOrder=node.renderOrder;
+                out.castShadow=!!node.castShadow;
+                out.receiveShadow=!!node.receiveShadow;
+                out.userData=map2ClonePrimitiveUserData(node.userData);
+                for(const child of node.children)out.add(map2DeepCloneVisualNode(child));
+                return out;
+            };
             const map2FindClearTechWindow=(preferred,halfSpan=2500,used=[])=>{
                 const candidates=[];
                 for(let d=halfSpan+4500;d<MAP2_DISTANCE-halfSpan-4500;d+=500){
@@ -46,104 +90,89 @@ insert="""            const map2FindNonFastStructureTarget=(seed,pad=1000)=>{
                 candidates.sort((a,b)=>Math.abs(a-preferred)-Math.abs(b-preferred));
                 return candidates[0];
             };
-            const map2NearestMap4Progress=(worldPoint,from,to)=>{
-                let best=from,bestDist=Infinity;
-                for(let d=from;d<=to;d+=250){
-                    const dist=h4WorldPosition(d,0,0).distanceToSquared(worldPoint);
-                    if(dist<bestDist){bestDist=dist;best=d;}
-                }
-                const lo=Math.max(from,best-250),hi=Math.min(to,best+250);
-                for(let d=lo;d<=hi;d+=25){
-                    const dist=h4WorldPosition(d,0,0).distanceToSquared(worldPoint);
-                    if(dist<bestDist){bestDist=dist;best=d;}
-                }
-                return best;
-            };
             const map2CloneExactMap4IndustrialVisualParts=()=>{
                 const source=planetaryWorldRegions[2].children.find(o=>
                     o.name==='MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS');
                 if(!source)throw new Error('MAP2-17 missing 985-mesh Map4 industrial visual source');
-                const sourceFrom=PLANETARY_REGIONS[2].from;
-                const sourceTo=PLANETARY_REGIONS[2].to;
-                const sourceSpan=sourceTo-sourceFrom;
+
+                const sourceChildren=source.children.filter(child=>{
+                    let n=0;child.traverse(o=>{if(o.isMesh||o.isInstancedMesh)n++;});return n>0;
+                });
                 const chunkCount=5;
-                const chunkSpan=sourceSpan/chunkCount;
                 const preferred=[26000,56000,86000,121000,153000];
                 const targets=[],used=[];
                 for(let i=0;i<chunkCount;i++){
-                    const target=map2FindClearTechWindow(preferred[i],chunkSpan*.5+500,used);
+                    const target=map2FindClearTechWindow(preferred[i],2500,used);
                     if(target===null)throw new Error('MAP2-17 no clear TECH window for industrial chunk '+i);
                     targets.push(target);used.push(target);
                 }
 
                 source.updateMatrixWorld(true);
                 const sourceParentWorld=source.matrixWorld.clone();
-                const center=new THREE.Vector3();
+                const sourceAnchor=(PLANETARY_REGIONS[2].from+PLANETARY_REGIONS[2].to)*.5;
+                const sourceAnchorInv=map4SourceFrameMatrix(sourceAnchor).invert();
                 let totalMeshes=0,totalParts=0;
-                source.children.forEach((child,index)=>{
-                    let childMeshes=0;
-                    child.traverse(o=>{if(o.isMesh||o.isInstancedMesh)childMeshes++;});
-                    if(!childMeshes)return;
 
-                    const box=new THREE.Box3().setFromObject(child);
-                    if(!box.isEmpty()){
-                        box.getCenter(center);
-                    }else{
-                        // Some final industrial batches have no usable aggregate
-                        // Box3 despite containing meshes/instances. Recover a real
-                        // source point from the first drawable descendant.
-                        let found=false;
-                        child.traverse(o=>{
-                            if(found||!(o.isMesh||o.isInstancedMesh))return;
-                            o.updateMatrixWorld(true);
-                            if(o.isInstancedMesh&&o.count>0){
-                                const im=new THREE.Matrix4();
-                                o.getMatrixAt(0,im);
-                                center.setFromMatrixPosition(im).applyMatrix4(o.matrixWorld);
-                            }else{
-                                o.getWorldPosition(center);
-                            }
-                            found=true;
-                        });
-                        if(!found)child.getWorldPosition(center);
-                    }
-                    const sourceAt=map2NearestMap4Progress(center,sourceFrom,sourceTo);
-                    const chunk=Math.max(0,Math.min(chunkCount-1,
-                        Math.floor((sourceAt-sourceFrom)/chunkSpan)));
-                    const sourceChunkCenter=sourceFrom+(chunk+.5)*chunkSpan;
-                    const targetAt=targets[chunk]+(sourceAt-sourceChunkCenter);
+                sourceChildren.forEach((child,index)=>{
+                    let sourceMeshCount=0;
+                    child.traverse(o=>{if(o.isMesh||o.isInstancedMesh)sourceMeshCount++;});
+                    const chunk=Math.min(chunkCount-1,
+                        Math.floor(index*chunkCount/sourceChildren.length));
+                    const first=Math.floor(chunk*sourceChildren.length/chunkCount);
+                    const last=Math.floor((chunk+1)*sourceChildren.length/chunkCount);
+                    const localCount=Math.max(1,last-first);
+                    const localIndex=index-first;
+                    const longitudinal=localCount<=1?0:
+                        -1800+(localIndex/(localCount-1))*3600;
+                    const targetAt=targets[chunk]+longitudinal;
+                    const side=((localIndex%3)-1)*260;
 
-                    const clone=child.clone(true);
+                    const clone=map2DeepCloneVisualNode(child);
                     clone.name='MAP2_EXACT_MAP4_INDUSTRIAL_PART_'+chunk+'_'+index;
                     clone.userData.map2ExactMap4IndustrialVisualPart=true;
                     clone.userData.sourceMap4IndustrialVisual=source.name;
                     clone.userData.sourceChildName=child.name||null;
                     clone.userData.sourceChildIndex=index;
-                    clone.userData.sourceProgress=sourceAt;
                     clone.userData.sourceChunk=chunk;
                     clone.userData.map2TargetDistance=targetAt;
                     clone.userData.map2ChunkCenter=targets[chunk];
 
-                    // Convert the child's original parent-local transform to world,
-                    // then map that Map4 route frame onto the chosen Map2 TECH frame.
+                    // Preserve each complete authored child composition, then align
+                    // and center that composition on its assigned Map2 road slot.
                     clone.applyMatrix4(sourceParentWorld);
-                    const transform=map2FrameMatrix(targetAt,0,-20)
-                        .multiply(map4SourceFrameMatrix(sourceAt).invert());
-                    clone.applyMatrix4(transform);
+                    const orient=map2FrameMatrix(targetAt,side,-20)
+                        .multiply(sourceAnchorInv.clone());
+                    clone.applyMatrix4(orient);
+                    clone.updateMatrixWorld(true);
+                    const box=new THREE.Box3().setFromObject(clone);
+                    if(!box.isEmpty()){
+                        const actual=box.getCenter(new THREE.Vector3());
+                        const frame=getRaceFrameAtDistance(targetAt);
+                        const desired=frame.center.clone()
+                            .addScaledVector(frame.right,side)
+                            .addScaledVector(frame.up,-20);
+                        clone.position.add(desired.sub(actual));
+                        clone.updateMatrix();
+                    }
 
+                    let cloneMeshCount=0;
                     clone.traverse(obj=>{
                         obj.userData.map2ExactMap4IndustrialVisualPart=true;
                         if(obj.isMesh||obj.isInstancedMesh){
+                            cloneMeshCount++;
                             obj.userData.map2VisualOnly=true;
                             obj.userData.visualOnly=true;
                             if(obj.userData.h4Collider)obj.userData.h4Collider=null;
                             if(obj.userData.h4CityPhysical)obj.userData.h4CityPhysical=false;
                         }
                     });
+                    if(cloneMeshCount!==sourceMeshCount)
+                        throw new Error('MAP2-17 deep clone mismatch '+index+': '+sourceMeshCount+' -> '+cloneMeshCount);
                     sectionAt(targetAt).add(clone);
-                    totalMeshes+=childMeshes;
+                    totalMeshes+=cloneMeshCount;
                     totalParts++;
                 });
+
                 map2VisualStageStats.exactMap4IndustrialVisualParts+=totalParts;
                 map2VisualStageStats.exactMap4IndustrialVisualMeshes+=totalMeshes;
                 if(totalMeshes!==985)
@@ -161,11 +190,11 @@ layout_anchor="""            const finalCorridorTarget=map2FindNonFastStructureT
                 map2CloneExactMap4FinalCorridor(finalCorridorTarget,0,-18);"""
 layout_new=layout_anchor+"""
 
-            // Paste every mesh from the large Map4 industrial visual group once.
+            // Paste all 985 meshes from the final Map4 industrial visual group once.
             map2CloneExactMap4IndustrialVisualParts();"""
 if layout_anchor not in s:
     raise SystemExit("MAP2-17 placement anchor not found")
 s=s.replace(layout_anchor,layout_new,1)
 
 p.write_text(s,encoding="utf-8")
-print("MAP2-17 split-and-paste 985-mesh Map4 industrial district patch applied")
+print("MAP2-17 manual-deep-clone 985-mesh Map4 industrial district patch applied")
