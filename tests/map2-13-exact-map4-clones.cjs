@@ -46,6 +46,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
       fakeFastNames:[],
     };
   });
+  console.log('MAP2-13 PAGEERRORS '+JSON.stringify(errors));
   console.log('MAP2-13 STRUCTURAL '+JSON.stringify(structural));
   assert.equal(structural.activeMap,'map2');
   assert(structural.map4Regions>=4,'hidden authoritative Map4 must be built once');
