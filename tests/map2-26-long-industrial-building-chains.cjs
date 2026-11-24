@@ -75,6 +75,7 @@ assert(html.includes('map2LongChainBridge'));
       physical:physical.length,
       fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
       retired,retiredVisible,
+      retirement:window.starbladeMap2LegacyRoadRetirement||null,
       stats:window.starbladeMap2Layout?.visualStage
     };
   });
@@ -99,7 +100,18 @@ assert(html.includes('map2LongChainBridge'));
   assert.equal(info.blocked.length,0,'new bridge buildings may not close their own real route tubes');
   assert(info.physical>=150,'real building physics remains substantial');
   assert.equal(info.fastPhysical,0,'FAST remains free of building collision');
-  assert(info.retired<=20,'legacy cleanup remains selective, not a broad deletion pass');
+  if(info.retirement){
+    assert.equal(info.retired,info.retirement.totalRetired,
+      'MAP2-27 explicit retirement metadata must account for MAP2-26 legacy count');
+    assert(info.retirement.retiredCount<=90,
+      'MAP2-27 retirement remains a classified CITY_TURN replacement pass');
+    assert(info.retirement.retired.every(x=>/^MAP2_CITY_TURN_/.test(x.name)),
+      'MAP2-27 may only expand retirement with the classified CITY_TURN class');
+    assert(info.retirement.gatePreserved>=250,
+      'MAP2-26 hard-safety gate layer remains intact after MAP2-27');
+  }else{
+    assert(info.retired<=20,'pre-MAP2-27 legacy cleanup remains selective');
+  }
   assert(info.retiredVisible.every(x=>x.visible===false),'retired generic obstacles must not remain visually present');
   assert.equal(info.stats?.longChainBridgeModules,info.bridges);
   assert.equal(info.stats?.longChainBridgeClones,info.bridges);

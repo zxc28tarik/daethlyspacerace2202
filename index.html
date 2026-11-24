@@ -13961,7 +13961,7 @@
         const map2CourseGroup=new THREE.Group();
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
-        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0,exactMap4CityDistrictClones:0,exactMap4CityMeshes:0,exactMap4LandmarkClones:0,exactMap4LandmarkMeshes:0,exactMap4CorridorClusters:0,exactMap4CorridorMeshes:0,exactMap4IndustrialVisualParts:0,exactMap4IndustrialVisualMeshes:0,map4BuildingColliders:0,map4BuildingColliderBins:0,map4BuildingCenterBlocks:0,map4BuildingSideBlocks:0,map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0,routeBuildingFramedApertures:0,chainCompactedGroups:0,chainLongitudinalMoves:0,chainMaxShift:0,chainMaxGapBefore:0,chainMaxGapAfter:0,authoredSequences:0,sequenceReorderedGroups:0,sequenceLaneSwings:0,sequenceVerticalSwings:0,transitionBuildingClones:0,transitionBuildingKnots:0,transitionMaxGapBefore:0,transitionMaxGapAfter:0,architecturalAlignedGroups:0,architecturalYawTurns:0,architecturalMaxYawDeg:0,architecturalFacingPairs:0,canyonLinkedTransitions:0,canyonShiftedTransitions:0,canyonMaxLaneShift:0,canyonPredictedMaxJumpBefore:0,canyonPredictedMaxJumpAfter:0,throughBuildingModules:0,throughBuildingAnchors:0,throughBuildingFramedAnchors:0,throughBuildingDeepModules:0,throughBuildingMaxDepth:0,throughBuildingRouteKnots:0,throughBuildingLegacySafetyRejects:0,throughBuildingRetiredLegacyObstacles:0,longChainBridgeClones:0,longChainBridgeModules:0,longChainBridgeAnchors:0,longChainCoveragePct:0,longChainLongestSpan:0,longChainMaxGapAfter:0,longChainBadLinksAfter:0};
+        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0,exactMap4CityDistrictClones:0,exactMap4CityMeshes:0,exactMap4LandmarkClones:0,exactMap4LandmarkMeshes:0,exactMap4CorridorClusters:0,exactMap4CorridorMeshes:0,exactMap4IndustrialVisualParts:0,exactMap4IndustrialVisualMeshes:0,map4BuildingColliders:0,map4BuildingColliderBins:0,map4BuildingCenterBlocks:0,map4BuildingSideBlocks:0,map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0,routeBuildingFramedApertures:0,chainCompactedGroups:0,chainLongitudinalMoves:0,chainMaxShift:0,chainMaxGapBefore:0,chainMaxGapAfter:0,authoredSequences:0,sequenceReorderedGroups:0,sequenceLaneSwings:0,sequenceVerticalSwings:0,transitionBuildingClones:0,transitionBuildingKnots:0,transitionMaxGapBefore:0,transitionMaxGapAfter:0,architecturalAlignedGroups:0,architecturalYawTurns:0,architecturalMaxYawDeg:0,architecturalFacingPairs:0,canyonLinkedTransitions:0,canyonShiftedTransitions:0,canyonMaxLaneShift:0,canyonPredictedMaxJumpBefore:0,canyonPredictedMaxJumpAfter:0,throughBuildingModules:0,throughBuildingAnchors:0,throughBuildingFramedAnchors:0,throughBuildingDeepModules:0,throughBuildingMaxDepth:0,throughBuildingRouteKnots:0,throughBuildingLegacySafetyRejects:0,throughBuildingRetiredLegacyObstacles:0,longChainBridgeClones:0,longChainBridgeModules:0,longChainBridgeAnchors:0,longChainCoveragePct:0,longChainLongestSpan:0,longChainMaxGapAfter:0,longChainBadLinksAfter:0,legacyRoadTurnsRetired:0,legacyRoadMeshesHidden:0,legacyApertureGuidesHidden:0,legacyRoadObstaclesBefore:0,legacyRoadObstaclesAfter:0,legacyRoadGateObstaclesPreserved:0};
         function map2BuildCourse(){
             if(map2Sections.length)return;
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
@@ -13969,15 +13969,26 @@
             for(let from=0;from<MAP2_DISTANCE;from+=2500){
                 const section=new THREE.Group();const to=Math.min(MAP2_DISTANCE,from+2500);
                 section.userData.from=from;section.userData.to=to;
-                for(const side of [-1,1]){
-                    const pts=[];
-                    for(let d=from;d<to;d+=125){
-                        const f=getRaceFrameAtDistance(d);
-                        pts.push(f.center.clone().addScaledVector(f.right,side*355).addScaledVector(f.up,-205));
+                // MAP2-27: the real buildings define TECH, not continuous painted rails.
+                // Retain the original rails only in non-TECH sectors, split exactly at boundaries.
+                for(const seg of MAP2_SEGMENTS){
+                    if(seg.kind==='TECH')continue;
+                    const start=Math.max(from,seg.from*MAP2_DISTANCE);
+                    const end=Math.min(to,seg.to*MAP2_DISTANCE);
+                    if(end-start<1)continue;
+                    for(const side of [-1,1]){
+                        const pts=[];
+                        const append=d=>{
+                            const f=getRaceFrameAtDistance(d);
+                            pts.push(f.center.clone().addScaledVector(f.right,side*355).addScaledVector(f.up,-205));
+                        };
+                        for(let d=start;d<end;d+=125)append(d);
+                        append(end);
+                        const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),guideMat);
+                        line.name='MAP2_OPEN_SECTOR_GUIDE';
+                        line.userData={map2OpenSectorGuide:true,from:start,to:end,kind:seg.kind};
+                        section.add(line);
                     }
-                    const f=getRaceFrameAtDistance(to);
-                    pts.push(f.center.clone().addScaledVector(f.right,side*355).addScaledVector(f.up,-205));
-                    section.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),guideMat));
                 }
                 map2Sections.push(section);map2CourseGroup.add(section);
             }
@@ -15641,6 +15652,142 @@
                 return bridges;
             };
 
+            // MAP2-27: retire the obsolete central-road scaffolding.
+            // Hard-safety gates remain intact. We only remove old generic CITY_TURN
+            // collision/meshes where the route is already physically defined by
+            // real Map4 architecture, and hide artificial aperture-corner line
+            // guides in long real-building chains.
+            const map2RetireLegacyCentralRoadScaffolding=()=>{
+                const route=window.starbladeMap2ThroughRoute;
+                const chains=window.starbladeMap2LongBuildingChains;
+                const building=window.starbladeMap2BuildingColliders||[];
+                if(!route?.modules?.length||!chains?.chains?.length)return null;
+
+                const longChains=chains.chains.filter(c=>c.span>=10000);
+                const inLongChain=d=>longChains.some(c=>d>=c.from&&d<=c.to);
+                const inRealModule=d=>route.modules.some(m=>
+                    d>=m.entrance.distance-120&&d<=m.exit.distance+120
+                );
+                const nearbyBuildingPhysics=d=>building.filter(o=>
+                    Math.abs((o.routeProgress??-999999)-d)<=520
+                ).length;
+                const isGateObstacleName=name=>
+                    /^MAP2_(?:HANGAR|GANTRY|DUAL_FACTORY|MACHINE_SLOT)_/.test(name||'');
+
+                const before=map2Obstacles.length;
+                const keep=[];
+                const retired=[];
+                let hiddenMeshes=0,gatePreserved=0;
+
+                for(const obstacle of map2Obstacles){
+                    if(obstacle.map2BuildingDerived){keep.push(obstacle);continue;}
+                    const d=Number(obstacle.routeProgress);
+                    const name=obstacle.mesh?.name||obstacle.name||'';
+                    if(isGateObstacleName(name)){
+                        gatePreserved++;
+                        keep.push(obstacle);
+                        continue;
+                    }
+
+                    const cityTurn=/^MAP2_CITY_TURN_/.test(name);
+                    const replaceable=cityTurn&&Number.isFinite(d)&&
+                        map2Segment(d).kind==='TECH'&&
+                        inLongChain(d)&&inRealModule(d)&&
+                        nearbyBuildingPhysics(d)>=1;
+
+                    if(!replaceable){
+                        keep.push(obstacle);
+                        continue;
+                    }
+
+                    obstacle.active=false;
+                    obstacle.map2RetiredForBuildingRoute=true;
+                    obstacle.map2RetiredByMAP227=true;
+                    if(obstacle.mesh){
+                        if(obstacle.mesh.visible!==false)hiddenMeshes++;
+                        obstacle.mesh.visible=false;
+                        obstacle.mesh.userData.map2RetiredForBuildingRoute=true;
+                        obstacle.mesh.userData.map2RetiredByMAP227=true;
+                    }
+                    retired.push({
+                        name,d,
+                        buildingPhysicsNearby:nearbyBuildingPhysics(d)
+                    });
+                }
+
+                map2Obstacles.length=0;
+                map2Obstacles.push(...keep);
+
+                let guidesHidden=0;
+                const hiddenGuides=[];
+                map2CourseGroup.traverse(o=>{
+                    if(o.name!=='MAP2_APERTURE_CORNERS'||o.visible===false)return;
+                    const d=Number(
+                        o.userData?.map2TargetDistance??
+                        o.userData?.map2Distance??
+                        o.userData?.routeProgress
+                    );
+                    if(!Number.isFinite(d)||!inLongChain(d))return;
+                    // Keep entrance/exit-region hints near TECH boundaries. Deep
+                    // inside long real-building chains, architecture itself guides.
+                    const seg=map2Segment(d);
+                    if(seg.kind!=='TECH')return;
+                    const edgeDist=Math.min(
+                        ...MAP2_SEGMENTS.filter(sg=>sg.kind==='TECH')
+                            .map(sg=>Math.min(
+                                Math.abs(d-sg.from*MAP2_DISTANCE),
+                                Math.abs(d-sg.to*MAP2_DISTANCE)
+                            ))
+                    );
+                    if(edgeDist<1200)return;
+
+                    const closeModule=route.modules.some(m=>
+                        Math.abs(m.centerDistance-d)<=950||
+                        (d>=m.entrance.distance-150&&d<=m.exit.distance+150)
+                    );
+                    if(!closeModule)return;
+
+                    o.visible=false;
+                    o.userData.map2RetiredByMAP227=true;
+                    o.userData.map2LegacyGuideHidden=true;
+                    guidesHidden++;
+                    hiddenGuides.push({name:o.name,d});
+                });
+
+                // MAP2-25 already published its retirement count. MAP2-27 extends
+                // the same explicit accounting instead of silently changing totals.
+                const prior=window.starbladeMap2RetiredLegacyObstacles||0;
+                const totalRetired=prior+retired.length;
+                window.starbladeMap2RetiredLegacyObstacles=totalRetired;
+                map2VisualStageStats.throughBuildingRetiredLegacyObstacles=totalRetired;
+
+                const result={
+                    philosophy:'REAL_BUILDINGS_REPLACE_LEGACY_CENTRAL_ROAD',
+                    before,
+                    after:map2Obstacles.length,
+                    retired,
+                    retiredCount:retired.length,
+                    hiddenMeshes,
+                    guidesHidden,
+                    hiddenGuides,
+                    gatePreserved,
+                    priorRetired:prior,
+                    totalRetired,
+                    longChains:longChains.map(c=>({
+                        from:c.from,to:c.to,span:c.span,count:c.count
+                    }))
+                };
+                window.starbladeMap2LegacyRoadRetirement=result;
+
+                map2VisualStageStats.legacyRoadTurnsRetired=retired.length;
+                map2VisualStageStats.legacyRoadMeshesHidden=hiddenMeshes;
+                map2VisualStageStats.legacyApertureGuidesHidden=guidesHidden;
+                map2VisualStageStats.legacyRoadObstaclesBefore=before;
+                map2VisualStageStats.legacyRoadObstaclesAfter=map2Obstacles.length;
+                map2VisualStageStats.legacyRoadGateObstaclesPreserved=gatePreserved;
+                return result;
+            };
+
             const map2RetireLegacyObstaclesOnBuildingRoute=()=>{
                 const route=window.starbladeMap2ThroughRoute;
                 if(!route?.routeAnchors?.length)return 0;
@@ -15911,14 +16058,14 @@
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(H4_MESHES.structure,mat);
                 mesh.scale.set(w,h,depth);mesh.castShadow=false;mesh.receiveShadow=false;
-                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.name=name;
+                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;
                 g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualStack=(d,x,y,r,h,mat,name)=>{
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(H4_MESHES.tower,mat);
                 mesh.scale.set(r,h,r);mesh.userData.map2VisualOnly=true;
-                g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
+                g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualPipe=(d,x,y,r,length,mat,name,axis='route')=>{
                 const g=makeCourseLocalGroup(d,x,y);
@@ -15926,20 +16073,20 @@
                 mesh.scale.set(r,length,r);
                 if(axis==='route')mesh.rotation.x=Math.PI/2;
                 else if(axis==='side')mesh.rotation.z=Math.PI/2;
-                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.name=name;
+                mesh.userData.map2VisualOnly=true;g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;
                 g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualTank=(d,x,y,r,h,mat,name)=>{
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(map2DetailGeos.tank,mat);
                 mesh.scale.set(r,h,r);mesh.userData.map2VisualOnly=true;
-                g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
+                g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
             const addVisualLamp=(d,x,y,r,mat,name)=>{
                 const g=makeCourseLocalGroup(d,x,y);
                 const mesh=new THREE.Mesh(map2DetailGeos.lamp,mat);
                 mesh.scale.setScalar(r);mesh.userData.map2VisualOnly=true;
-                g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
+                g.userData.map2VisualOnly=true;g.userData.map2Distance=d;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
             for(let d=310,cell=0;d<MAP2_DISTANCE-200;d+=620,cell++){
                 const kind=map2Segment(d).kind;
@@ -16328,11 +16475,85 @@
             // the now-denser real building route before deriving Map4 collision.
             map2RetireLegacyObstaclesOnBuildingRoute();
 
+            // MAP2-27: retire obsolete decorative road architecture. Only roots
+            // explicitly authored by the old Map2 visual helpers are eligible.
+            // Do not touch exact Map4 clones, hard safety gates, items or patrol cues.
+            const map2RetireLegacyRoadVisuals=()=>{
+                const modules=window.starbladeMap2ThroughRoute.modules;
+                const chains=window.starbladeMap2LongBuildingChains.chains||[];
+                const covered=d=>modules.some(m=>d>=m.entrance.distance-240&&d<=m.exit.distance+240)||
+                    chains.some(c=>c.span>=10000&&d>=c.from&&d<=c.to);
+                const counts={deck:0,tunnel:0,secondary:0,total:0,retainedOpenDeck:0};
+                const retired=[];
+                const tunnel=/^MAP2_(?:GATE_SHELL_|HANGAR_RIB_|HANGAR_TOWER_|GANTRY_PIPE_|GANTRY_PYLON_|DUAL_FACTORY_MASS_|DUAL_TANK_|DUAL_PIPE_|SLOT_FIN_|SLOT_MACHINE_|SLOT_CROWN_|VISUAL_TRUSS_|CHOKE_WALL_|TURN_FRAME_|TURN_TOWER_)/;
+                const secondary=/^MAP2_(?:VISUAL_STACK_|PIPE_|TANK_|ROOF_UNIT_|ROOF_VENT_|CATWALK_|CATWALK_SUPPORT_)/;
+                for(const section of map2Sections){
+                    for(const root of section.children.slice()){
+                        if(!root.userData?.map2VisualOnly)continue;
+                        const d=root.userData.map2Distance;
+                        if(!Number.isFinite(d))continue;
+                        const deck=root.name.startsWith('MAP2_VISUAL_DECK_');
+                        if(map2Segment(d).kind!=='TECH'){
+                            if(deck)counts.retainedOpenDeck++;
+                            continue;
+                        }
+                        let kind=null;
+                        if(deck)kind='deck';
+                        else if(covered(d)&&tunnel.test(root.name))kind='tunnel';
+                        else if(covered(d)&&secondary.test(root.name))kind='secondary';
+                        if(!kind)continue;
+                        // These are non-colliding helper groups; detach the complete
+                        // group, not individual meshes, so no ghost visual remains.
+                        retired.push({name:root.name,d,kind});
+                        section.remove(root);
+                        counts[kind]++;counts.total++;
+                    }
+                }
+                window.starbladeMap2LegacyRoadCleanup={...counts,retired};
+                Object.assign(map2VisualStageStats,{
+                    retiredRoadDecks:counts.deck,retiredFakeTunnels:counts.tunnel,
+                    retiredSecondaryRoadVisuals:counts.secondary,
+                    retiredLegacyRoadVisuals:counts.total,retainedOpenRoadDecks:counts.retainedOpenDeck
+                });
+            };
+            map2RetireLegacyRoadVisuals();
+
             // MAP2-18: only after all authored gates and original physical solids
             // exist, derive collision directly from the visible Map4 building meshes.
             // This ordering lets the real buildings act as obstacles without
             // accidentally sealing the intended gate apertures.
             map2BuildPhysicalMap4BuildingObstacles();
+
+            // MAP2-27: now that replacement Map4 collision exists, remove the old
+            // CITY_TURN central-road scaffolding and artificial corner guides only
+            // where long real-building chains have physically taken over.
+            map2RetireLegacyCentralRoadScaffolding();
+
+            // MAP2-27: the render sector is now the union of the original
+            // chunk and the real building module/collider spans it contains.
+            // A long building must not vanish while a pilot is still inside.
+            const sectionSet=new Set(map2Sections);
+            const extend=(obj,from,to)=>{
+                let owner=obj;
+                while(owner&&!sectionSet.has(owner))owner=owner.parent;
+                if(!owner||!Number.isFinite(from)||!Number.isFinite(to))return;
+                owner.userData.architectureFrom=Math.min(owner.userData.architectureFrom??owner.userData.from,from);
+                owner.userData.architectureTo=Math.max(owner.userData.architectureTo??owner.userData.to,to);
+            };
+            const roots=map2ExactBuildingRoots();
+            for(const root of roots){
+                const d=root.userData.map2TargetDistance;
+                if(!Number.isFinite(d))continue;
+                extend(root,root.userData.map2ThroughEntrance??d,root.userData.map2ThroughExit??d);
+            }
+            for(const obstacle of map2Obstacles){
+                if(!obstacle.map2BuildingDerived)continue;
+                const d=obstacle.routeProgress,half=obstacle.halfDepth||0;
+                extend(obstacle.mesh,d-half,d+half);
+            }
+            map2VisualStageStats.architectureExtendedSections=map2Sections.filter(g=>
+                (g.userData.architectureFrom??g.userData.from)<g.userData.from||
+                (g.userData.architectureTo??g.userData.to)>g.userData.to).length;
 
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
@@ -16495,7 +16716,11 @@
         function map2UpdateVisibility(progress){
             map2CourseGroup.visible=map2Active();
             if(!map2Active())return;
-            for(const g of map2Sections)g.visible=g.userData.to>=progress-900&&g.userData.from<=progress+6500;
+            for(const g of map2Sections){
+                const from=g.userData.architectureFrom??g.userData.from;
+                const to=g.userData.architectureTo??g.userData.to;
+                g.visible=to>=progress-900&&from<=progress+6500;
+            }
             finishGateGroup.visible=progress>=MAP2_DISTANCE-4000;
         }
 

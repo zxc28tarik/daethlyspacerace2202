@@ -24,7 +24,23 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   const retired=layout.visualStage.throughBuildingRetiredLegacyObstacles||0;
   assert.equal(layout.structures+retired,382+layout.visualStage.map4BuildingColliders,
     'visible/physical structure accounting must preserve the base layer minus explicitly retired legacy obstacles');
-  if(retired>0)assert(retired<=12,'only a small, explicit set of obsolete generic route obstacles may be retired at this stage');
+  if(retired>0){
+    const legacyRetirement=await page.evaluate(()=>window.starbladeMap2LegacyRoadRetirement||null);
+    if(legacyRetirement){
+      assert.equal(legacyRetirement.totalRetired,retired,
+        'MAP2-27 explicit retirement metadata must account for every retired legacy obstacle');
+      assert(legacyRetirement.retiredCount>=1,
+        'MAP2-27 retirement must be a deliberate replacement pass');
+      assert(legacyRetirement.retired.every(x=>/^MAP2_CITY_TURN_/.test(x.name)),
+        'MAP2-27 may only retire the classified CITY_TURN central-road obstacle class');
+      assert(legacyRetirement.retiredCount<=90,
+        'MAP2-27 retirement remains selective rather than broad legacy deletion');
+      assert(legacyRetirement.gatePreserved>=250,
+        'hard-safety gate obstacle layer must remain preserved');
+    }else{
+      assert(retired<=12,'pre-MAP2-27 only a small explicit legacy set may be retired');
+    }
+  }
   assert(layout.visualStage.map4BuildingColliders>=30,'real Map4 buildings must contribute physical obstacles');
   assert.equal(layout.gates,68);assert.equal(layout.openings,85);
   assert(layout.visualStage.rooflineRails>100,'roofline warning language should repeat through TECH');
