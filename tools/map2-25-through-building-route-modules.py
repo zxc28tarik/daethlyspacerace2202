@@ -26,60 +26,7 @@ if bias_anchor not in s:
 s=s.replace(bias_anchor,"const bias=coreSpan>150?0:(linked===5?3:((linked%3)-1)*2);",1)
 
 # Build multi-point route tubes through the actual depth of real Map4 buildings.
-fn_anchor="""            // MAP2-25: the copied Map4 architecture is now the real route.
-            // Retire old generic Map2 obstacle meshes that physically cross that
-            // real entrance/interior/exit tube. This is not an invisible-collision
-            // workaround: both the obsolete legacy collider and its visible generic
-            // mesh are removed from play. Authored gate walls remain untouched.
-            const map2RetireLegacyObstaclesOnBuildingRoute=()=>{
-                const route=window.starbladeMap2ThroughRoute;
-                if(!route?.routeAnchors?.length)return 0;
-                let retired=0;
-                const keep=[];
-                for(const obstacle of map2Obstacles){
-                    if(obstacle.map2BuildingDerived){keep.push(obstacle);continue;}
-                    const d=Number(obstacle.routeProgress);
-                    if(!Number.isFinite(d)||map2Segment(d).kind!=='TECH'){
-                        keep.push(obstacle);continue;
-                    }
-                    const hd=obstacle.halfDepth||obstacle.radius||45;
-                    const gateProtected=map2Gates.some(g=>
-                        Math.abs(g.distance-d)<Math.max(330,hd+260)
-                    );
-                    if(gateProtected){keep.push(obstacle);continue;}
-
-                    let crosses=false;
-                    const from=Math.max(0,d-hd-140);
-                    const to=Math.min(MAP2_DISTANCE,d+hd+140);
-                    let prev=null;
-                    for(let sd=from;sd<=to+1;sd+=70){
-                        const qd=Math.min(sd,to);
-                        if(map2Segment(qd).kind!=='TECH'){prev=null;continue;}
-                        const q=map2BuildingPassageAt(qd);
-                        const node={routeProgress:qd,laneX:q.x,laneY:q.y};
-                        if(prev&&courseSegmentTouch(obstacle,prev,node,12.5)){
-                            crosses=true;break;
-                        }
-                        prev=node;
-                    }
-                    if(crosses){
-                        obstacle.active=false;
-                        obstacle.map2RetiredForBuildingRoute=true;
-                        if(obstacle.mesh){
-                            obstacle.mesh.visible=false;
-                            obstacle.mesh.userData.map2RetiredForBuildingRoute=true;
-                        }
-                        retired++;
-                    }else keep.push(obstacle);
-                }
-                map2Obstacles.length=0;
-                map2Obstacles.push(...keep);
-                map2VisualStageStats.throughBuildingRetiredLegacyObstacles=retired;
-                window.starbladeMap2RetiredLegacyObstacles=retired;
-                return retired;
-            };
-
-            const map2BuildPhysicalMap4BuildingObstacles=()=>{"""
+fn_anchor="""            const map2BuildPhysicalMap4BuildingObstacles=()=>{"""
 fn_insert=r"""            // MAP2-25: through-building route modules.
             // A real complex is no longer represented by one centre aperture only.
             // We slice its visible Map4 mass along route depth and keep pilot-sized
@@ -221,6 +168,58 @@ fn_insert=r"""            // MAP2-25: through-building route modules.
                 map2VisualStageStats.throughBuildingMaxDepth=maxDepth;
                 map2VisualStageStats.throughBuildingRouteKnots=enriched.length;
                 return modules;
+            };
+
+            // MAP2-25: the copied Map4 architecture is now the real route.
+            // Retire old generic Map2 obstacle meshes that physically cross that
+            // real entrance/interior/exit tube. Both the obsolete legacy collider
+            // and its visible generic mesh leave play; authored gate walls remain.
+            const map2RetireLegacyObstaclesOnBuildingRoute=()=>{
+                const route=window.starbladeMap2ThroughRoute;
+                if(!route?.routeAnchors?.length)return 0;
+                let retired=0;
+                const keep=[];
+                for(const obstacle of map2Obstacles){
+                    if(obstacle.map2BuildingDerived){keep.push(obstacle);continue;}
+                    const d=Number(obstacle.routeProgress);
+                    if(!Number.isFinite(d)||map2Segment(d).kind!=='TECH'){
+                        keep.push(obstacle);continue;
+                    }
+                    const hd=obstacle.halfDepth||obstacle.radius||45;
+                    const gateProtected=map2Gates.some(g=>
+                        Math.abs(g.distance-d)<Math.max(330,hd+260)
+                    );
+                    if(gateProtected){keep.push(obstacle);continue;}
+
+                    let crosses=false;
+                    const from=Math.max(0,d-hd-140);
+                    const to=Math.min(MAP2_DISTANCE,d+hd+140);
+                    let prev=null;
+                    for(let sd=from;sd<=to+1;sd+=70){
+                        const qd=Math.min(sd,to);
+                        if(map2Segment(qd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(qd);
+                        const node={routeProgress:qd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(obstacle,prev,node,12.5)){
+                            crosses=true;break;
+                        }
+                        prev=node;
+                    }
+                    if(crosses){
+                        obstacle.active=false;
+                        obstacle.map2RetiredForBuildingRoute=true;
+                        if(obstacle.mesh){
+                            obstacle.mesh.visible=false;
+                            obstacle.mesh.userData.map2RetiredForBuildingRoute=true;
+                        }
+                        retired++;
+                    }else keep.push(obstacle);
+                }
+                map2Obstacles.length=0;
+                map2Obstacles.push(...keep);
+                map2VisualStageStats.throughBuildingRetiredLegacyObstacles=retired;
+                window.starbladeMap2RetiredLegacyObstacles=retired;
+                return retired;
             };
 
             const map2BuildPhysicalMap4BuildingObstacles=()=>{"""
