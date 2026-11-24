@@ -1,0 +1,45 @@
+name: UIUX15 Calm Podium & Results QA
+on:
+  push:
+    branches: [codex/uiux15-podium-clarity-polish]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Parse scripts and tests
+        run: |
+          node --check tests/uiux15-podium-clarity.cjs
+          node --check tests/uiux14-podium-standings.cjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)){
+            if(m[1].trim())new vm.Script(m[1]);
+          }
+          console.log('PASS embedded scripts');
+          NODE
+      - name: UIUX15 desktop/mobile/short viewport layout and focus regression
+        run: node tests/uiux15-podium-clarity.cjs
+      - name: UIUX14 actual-rank podium and Map 1/4 race regression
+        run: node tests/uiux14-podium-standings.cjs
+      - name: UIUX13 Map 1/4 gameplay and menus regression
+        run: node tests/uiux12-approved-map1-race-card.cjs
+      - name: Upload UIUX15 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: UIUX15-podium-clarity-evidence
+          path: tests/uiux15-evidence/*.png
+          if-no-files-found: warn
