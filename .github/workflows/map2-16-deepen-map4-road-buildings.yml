@@ -1,0 +1,43 @@
+name: MAP2-16 deepen Map4 buildings into road
+on:
+  push:
+    branches: [codex/map2-12-map4-building-reuse]
+    paths:
+      - tools/map2-16-deepen-map4-road-buildings.py
+      - .github/workflows/map2-16-deepen-map4-road-buildings.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-12-map4-building-reuse
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Paste Map4 buildings deeper into Map2 road
+        run: python tools/map2-16-deepen-map4-road-buildings.py
+      - name: Validate source markers
+        run: |
+          grep -q "ROAD_TECH_INNER_" index.html
+          grep -q "ROAD_LINK_INNER_" index.html
+          grep -q "deepInner" tests/map2-12-map4-buildings.cjs
+      - name: Install Chromium test dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Browser QA
+        run: node tests/map2-12-map4-buildings.cjs
+      - name: Commit tested road-building pass
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html tests/map2-12-map4-buildings.cjs
+          git diff --cached --quiet && exit 0
+          git commit -m "MAP2-16 paste Map4 buildings deeper into Map2 road"
+          git push origin HEAD:codex/map2-12-map4-building-reuse

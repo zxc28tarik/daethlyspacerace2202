@@ -1,0 +1,36 @@
+name: MAP2-12 Map4 building reuse browser QA
+on:
+  push:
+    branches: [codex/map2-12-map4-building-reuse]
+    paths:
+      - index.html
+      - tests/map2-12-map4-buildings.cjs
+      - .github/workflows/map2-12-map4-buildings.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-11 regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: MAP2-12 actual Map4 building reuse QA
+        run: node tests/map2-12-map4-buildings.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-12-browser-evidence
+          path: |
+            tests/map2-12-evidence/
+            index.html
+          if-no-files-found: warn

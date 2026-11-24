@@ -13952,7 +13952,7 @@
         const map2CourseGroup=new THREE.Group();
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
-        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0};
+        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,map4BuildingKits:0,map4BuildingMeshes:0,map4RoadPieces:0,map4RoadColliders:0};
         function map2BuildCourse(){
             if(map2Sections.length)return;
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
@@ -14036,6 +14036,83 @@
                 mesh.scale.setScalar(r);mesh.userData.map2VisualOnly=true;
                 g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
+            // MAP2-13: source the final, actually rendered C17 factory instances,
+            // not VIS02 silhouettes or newly assembled primitives. The original
+            // world is initialized on its own route and remains hidden/locked.
+            const savedMap=state.activeMap,savedDistance=RACE_ROUTE_NOMINAL_DISTANCE;
+            try{
+                state.activeMap=MAP_MODES.MAP4;RACE_ROUTE_NOMINAL_DISTANCE=50000;
+                buildPlanetaryWorld();
+            }finally{
+                state.activeMap=savedMap;RACE_ROUTE_NOMINAL_DISTANCE=savedDistance;
+                planetaryWorldGroup.visible=false;
+            }
+            const finalFactories=h4Gfx11c17Root.children.filter(o=>o.isInstancedMesh&&
+                o.userData.h4Gfx11c17Service===false);
+            if(finalFactories.length!==4)throw new Error('MAP2 final Map4 factory sources missing');
+            const factorySources=finalFactories.map(source=>{
+                const bounds=new THREE.Box3().setFromBufferAttribute(source.geometry.attributes.position);
+                return {source,size:bounds.getSize(new THREE.Vector3()),center:bounds.getCenter(new THREE.Vector3()),min:bounds.min.clone()};
+            });
+            // Copy one real rendered instance with the exact geometry, material,
+            // vertex colors and instance tint. Never alter the source.
+            const copyFactory=(style,id)=>{
+                const src=factorySources[style].source;
+                const copy=new THREE.InstancedMesh(src.geometry,src.material,1);
+                const idx=Array.from(String(id)).reduce((n,c)=>n+c.charCodeAt(0),0)%src.count;
+                const m=new THREE.Matrix4();src.getMatrixAt(idx,m);
+                const q=new THREE.Quaternion(),p=new THREE.Vector3(),scale=new THREE.Vector3();
+                m.decompose(p,q,scale);
+                const color=new THREE.Color();
+                if(src.instanceColor){src.getColorAt(idx,color);copy.setColorAt(0,color);}
+                copy.setMatrixAt(0,new THREE.Matrix4());
+                copy.instanceMatrix.needsUpdate=true;
+                if(copy.instanceColor)copy.instanceColor.needsUpdate=true;
+                copy.name='MAP2_MAP4_FINAL_'+style+'_'+id;
+                copy.userData={map4ReusedBuilding:true,map4Source:src.name,map4SourceIndex:idx,map2VisualOnly:true};
+                copy.frustumCulled=false;
+                map2VisualStageStats.map4BuildingMeshes++;
+                return copy;
+            };
+            const map2AddMap4BuildingKit=(d,baseX,family,id,size=390,turn=0,physical=false)=>{
+                const style={refinery:0,factory:1,power:3,outpost:2}[family];
+                const bounds=factorySources[style];
+                const g=makeCourseLocalGroup(d,baseX,-256);
+                const mesh=copyFactory(style,id);
+                // Exact Map4 C17 factory geometry/material. The building is copied
+                // as a complete authored piece and only its course transform changes.
+                const scale=size/Math.max(bounds.size.x,bounds.size.y,bounds.size.z);
+                mesh.scale.setScalar(scale);
+                mesh.position.set(-bounds.center.x*scale,-bounds.min.y*scale,-bounds.center.z*scale);
+                mesh.rotation.y=turn;
+                g.name='MAP2_MAP4_BUILDING_'+family.toUpperCase()+'_'+id;
+                g.userData.map4ReusedBuilding=true;
+                g.userData.map2RouteProgress=d;
+                g.userData.map2LaneX=baseX;
+                g.userData.map2RoadPiece=!!physical;
+                g.add(mesh);sectionAt(d).add(g);
+                map2VisualStageStats.map4BuildingKits++;
+                if(physical){
+                    // Conservative collider: narrower than the visible building so the
+                    // player can skim architecture without invisible-edge punishment.
+                    const halfX=Math.max(72,size*.235);
+                    const height=Math.max(220,size*.84);
+                    const halfY=height*.5;
+                    const centerY=-256+halfY;
+                    const halfDepth=Math.min(175,size*.34);
+                    map2Obstacles.push({
+                        routeProgress:d,laneX:baseX,laneY:centerY,
+                        halfX,halfY,halfDepth,
+                        radius:Math.hypot(halfX,halfY),
+                        mesh:g,type:'WRECK_BOX',moveType:'STATIC',active:true,
+                        touchingShips:new Set(),hitTimes:Object.create(null),
+                        map4RoadBuilding:true,map4Family:family,map4BuildingId:id
+                    });
+                    map2VisualStageStats.map4RoadPieces++;
+                    map2VisualStageStats.map4RoadColliders++;
+                }
+                return g;
+            };
             for(let d=310,cell=0;d<MAP2_DISTANCE-200;d+=620,cell++){
                 const kind=map2Segment(d).kind;
                 const tech=kind==='TECH',fast=kind==='FAST';
@@ -14043,15 +14120,36 @@
                 addVisualBlock(d,0,-285,deckWidth,58,690,map2VisualMats.floor,'MAP2_VISUAL_DECK_'+cell);
                 map2VisualStageStats.deckSlabs++;
                 if(tech){
+                    const chicaneSide=cell%2?1:-1;
                     for(const side of [-1,1]){
                         const stagger=((cell*73)%170)-85;
-                        const x=side*(520+Math.abs(stagger)*.36);
-                        const h=360+(cell%5)*58;
-                        const w=170+(cell%3)*42;
-                        addVisualBlock(d+side*70,x,-48,w,h,470+(cell%4)*70,
-                            cell%4===0?map2VisualMats.warm:map2VisualMats.shell,
-                            'MAP2_VISUAL_FACTORY_'+cell+'_'+side);
-                        map2VisualStageStats.sideBlocks++;
+                        const families=['refinery','factory','power','outpost'];
+                        const family=families[(cell+(side>0?1:0))%families.length];
+                        // MAP2-16: pull the real Map4 building onto the road edge.
+                        map2AddMap4BuildingKit(
+                            d+side*70,
+                            side*(238+Math.abs(stagger)*.24),
+                            family,
+                            'ROAD_TECH_'+cell+'_'+(side>0?'R':'L'),
+                            410+(cell%3)*18,
+                            side*(cell%3-1)*.045,
+                            true
+                        );
+                        // Paste a second complete Map4 building deeper into the road
+                        // on alternating sides so the player flies a real building slalom.
+                        const innerD=d+245;
+                        if(side===chicaneSide&&map2Segment(innerD).kind!=='FAST'){
+                            const innerFamily=families[(cell+2+(side>0?1:0))%families.length];
+                            map2AddMap4BuildingKit(
+                                innerD,
+                                side*(158+(cell%3)*18),
+                                innerFamily,
+                                'ROAD_TECH_INNER_'+cell+'_'+(side>0?'R':'L'),
+                                326+(cell%2)*18,
+                                -side*.065,
+                                true
+                            );
+                        }
                         if(cell%2===0){
                             addVisualStack(d-120,side*(655+(cell%3)*38),20,42+(cell%3)*8,390+(cell%4)*70,
                                 map2VisualMats.steel,'MAP2_VISUAL_STACK_'+cell+'_'+side);
@@ -14083,7 +14181,7 @@
                     }
                     if(cell%4===1){
                         for(const side of [-1,1]){
-                            addVisualBlock(d-135,side*(505+(cell%3)*30),185,118,66,150,
+                            addVisualBlock(d-135,side*(505+(cell%3)*30),185,78,42,90,
                                 map2VisualMats.service,'MAP2_ROOF_UNIT_'+cell+'_'+side);
                             addVisualPipe(d-135,side*(505+(cell%3)*30),225,10,120,
                                 map2VisualMats.pipe,'MAP2_ROOF_VENT_'+cell+'_'+side,'vertical');
@@ -14092,7 +14190,7 @@
                     }
                     if(cell%5===2){
                         for(const side of [-1,1]){
-                            addVisualBlock(d+60,side*420,128,82,22,410,map2VisualMats.steel,
+                            addVisualBlock(d+60,side*420,128,52,16,260,map2VisualMats.steel,
                                 'MAP2_CATWALK_'+cell+'_'+side);
                             addVisualBlock(d-110,side*420,68,22,120,24,map2VisualMats.dark,
                                 'MAP2_CATWALK_SUPPORT_'+cell+'_'+side);
@@ -14118,17 +14216,61 @@
                         }
                     }
                 }else if(fast && cell%2===0){
+                    // Keep the full-throttle lane clear, but use real Map4 skyline
+                    // buildings at the flanks instead of black placeholder cuboids.
                     for(const side of [-1,1]){
-                        addVisualBlock(d,side*(790+(cell%3)*80),-70,240,300+(cell%4)*45,520,
-                            map2VisualMats.dark,'MAP2_FAST_SILHOUETTE_'+cell+'_'+side);
+                        const family=(cell+side>0)?'factory':'outpost';
+                        map2AddMap4BuildingKit(
+                            d+side*55,
+                            side*(610+(cell%3)*70),
+                            family,
+                            'FAST_EDGE_'+cell+'_'+(side>0?'R':'L'),
+                            390+(cell%2)*35,
+                            side*.035
+                        );
                         map2VisualStageStats.fastMarkers++;
                     }
-                }else if(kind==='LINK' && cell%3===0){
-                    for(const side of [-1,1]){
-                        addVisualBlock(d,side*690,-95,190,260,430,map2VisualMats.dark,
-                            'MAP2_LINK_SILHOUETTE_'+cell+'_'+side);
-                        map2VisualStageStats.sideBlocks++;
+                }else if(kind==='LINK'){
+                    // MAP2-16: LINK becomes a real Map4-building street. Pull the
+                    // first piece inward, then paste another on the opposite inner lane.
+                    const side=cell%2?1:-1;
+                    const families=['refinery','factory','power','outpost'];
+                    const family=families[cell%families.length];
+                    map2AddMap4BuildingKit(
+                        d,
+                        side*(218+(cell%4)*18),
+                        family,
+                        'ROAD_LINK_'+cell+'_'+(side>0?'R':'L'),
+                        398+(cell%3)*16,
+                        side*(cell%3-1)*.05,
+                        true
+                    );
+                    const innerD=d+238;
+                    if(map2Segment(innerD).kind!=='FAST'){
+                        const innerFamily=families[(cell+1)%families.length];
+                        map2AddMap4BuildingKit(
+                            innerD,
+                            -side*(154+(cell%3)*20),
+                            innerFamily,
+                            'ROAD_LINK_INNER_'+cell+'_'+(side>0?'L':'R'),
+                            324+(cell%2)*18,
+                            side*.07,
+                            true
+                        );
                     }
+                    if(cell%4===0){
+                        const other=families[(cell+2)%families.length];
+                        map2AddMap4BuildingKit(
+                            d+145,
+                            -side*(292+(cell%3)*16),
+                            other,
+                            'ROAD_LINK_PAIR_'+cell,
+                            350+(cell%2)*18,
+                            -side*.04,
+                            true
+                        );
+                    }
+                    map2VisualStageStats.sideBlocks++;
                 }
             }
             const addSolid=(d,x,y,w,h,depth,mat,kind)=>{
@@ -14176,22 +14318,17 @@
             const detailMat=H4_MATERIALS.steel;
             const gateKinds=['HANGAR','GANTRY','DUAL_FACTORY','MACHINE_SLOT'];
             const kitCounts=[0,0,0,0];
-            const kitBounds=h4Vis02Kits.map(geo=>{
-                const b=new THREE.Box3().setFromBufferAttribute(geo.attributes.position);
-                return {size:b.getSize(new THREE.Vector3()),center:b.getCenter(new THREE.Vector3())};
-            });
-            // Read-only Map4 VIS02 meshes: fit machinery into the front fifth of each solid pier.
-            // Solid backing is visible, and the collision envelope remains conservative.
+            // Put the same final factory geometry directly on the physical
+            // route piers. Only the instance transform changes to fit the gate.
             function mountKit(mesh,style){
-                const bounds=kitBounds[style];
-                const detail=new THREE.Mesh(h4Vis02Kits[style],h4Vis02Mat);
-                detail.scale.set(.82/bounds.size.x,.84/bounds.size.y,.20/bounds.size.z);
-                detail.position.set(-bounds.center.x*detail.scale.x,-bounds.center.y*detail.scale.y,.40-bounds.center.z*detail.scale.z);
-                detail.name='MAP2_REUSED_H4_KIT_'+style;detail.userData.map2KitStyle=style;
-                const core=new THREE.Mesh(H4_MESHES.structure,mesh.material);
-                core.scale.set(1,1,.80);core.position.z=-.10;
+                const bounds=factorySources[style],detail=copyFactory(style,mesh.name);
+                detail.scale.set(.98/bounds.size.x,.98/bounds.size.y,.98/bounds.size.z);
+                detail.position.set(-bounds.center.x*detail.scale.x,
+                    -bounds.center.y*detail.scale.y,-bounds.center.z*detail.scale.z);
+                detail.name='MAP2_REUSED_H4_KIT_'+style;
+                detail.userData.map2KitStyle=style;
                 mesh.material=mesh.material.clone();mesh.material.visible=false;
-                mesh.add(core,detail);kitCounts[style]++;
+                mesh.add(detail);kitCounts[style]++;
             }
             // MAP2-05: a spacious entry, then alternating compression/recovery.
             // Gate spacing is deterministic and independent of pilot performance.
@@ -14234,35 +14371,28 @@
                     // MAP2-08: long factory envelope is visual-only. The short physical
                     // gate stays conservative so curved routes between gates remain valid.
                     const visualTunnelDepth=[680,540,760,620][style];
-                    addVisualBlock(d,-318,8,150,480,visualTunnelDepth,map2VisualMats.dark,
-                        'MAP2_GATE_SHELL_L_'+i);
-                    addVisualBlock(d,318,8,150,480,visualTunnelDepth,map2VisualMats.dark,
-                        'MAP2_GATE_SHELL_R_'+i);
-                    addVisualBlock(d,0,292,790,104,visualTunnelDepth,map2VisualMats.shell,
-                        'MAP2_GATE_SHELL_TOP_'+i);
-                    map2VisualStageStats.sideBlocks+=2;map2VisualStageStats.trusses++;
                     if(style===0){
                         for(const z of [-220,220]){
                             addVisualBlock(d+z,-350,35,34,430,42,map2VisualMats.steel,'MAP2_HANGAR_RIB_L_'+i+'_'+z);
                             addVisualBlock(d+z,350,35,34,430,42,map2VisualMats.steel,'MAP2_HANGAR_RIB_R_'+i+'_'+z);
                             map2VisualStageStats.gateDetails+=2;
                         }
-                        addVisualBlock(d-70,-510,55,190,540,360,map2VisualMats.shell,'MAP2_HANGAR_TOWER_L_'+i);
-                        addVisualBlock(d+70,510,55,190,540,360,map2VisualMats.shell,'MAP2_HANGAR_TOWER_R_'+i);
+                        map2AddMap4BuildingKit(d-70,-342,'factory','GATE_HANGAR_L_'+i,430,.04);
+                        map2AddMap4BuildingKit(d+70,342,'refinery','GATE_HANGAR_R_'+i,430,-.04);
                         map2VisualStageStats.silhouetteTowers+=2;
                     }else if(style===1){
                         addVisualPipe(d,0,350,16,690,map2VisualMats.pipe,'MAP2_GANTRY_PIPE_A_'+i,'side');
                         addVisualPipe(d,0,382,11,690,map2VisualMats.pipe,'MAP2_GANTRY_PIPE_B_'+i,'side');
-                        addVisualBlock(d-35,-500,95,120,650,250,map2VisualMats.steel,'MAP2_GANTRY_PYLON_L_'+i);
-                        addVisualBlock(d+35,500,95,120,650,250,map2VisualMats.steel,'MAP2_GANTRY_PYLON_R_'+i);
+                        map2AddMap4BuildingKit(d-35,-338,'power','GATE_GANTRY_L_'+i,445,.03);
+                        map2AddMap4BuildingKit(d+35,338,'factory','GATE_GANTRY_R_'+i,445,-.03);
                         map2VisualStageStats.gateDetails+=2;map2VisualStageStats.silhouetteTowers+=2;
                     }else if(style===2){
                         addVisualTank(d-180,-455,-70,64,250,map2VisualMats.tank,'MAP2_DUAL_TANK_L_'+i);
                         addVisualTank(d+180,455,-70,64,250,map2VisualMats.tank,'MAP2_DUAL_TANK_R_'+i);
                         addVisualPipe(d,-455,90,12,420,map2VisualMats.pipe,'MAP2_DUAL_PIPE_L_'+i);
                         addVisualPipe(d,455,90,12,420,map2VisualMats.pipe,'MAP2_DUAL_PIPE_R_'+i);
-                        addVisualBlock(d-150,-585,20,210,480,420,map2VisualMats.warm,'MAP2_DUAL_FACTORY_MASS_L_'+i);
-                        addVisualBlock(d+150,585,20,210,480,420,map2VisualMats.shell,'MAP2_DUAL_FACTORY_MASS_R_'+i);
+                        map2AddMap4BuildingKit(d-150,-350,'refinery','GATE_DUAL_L_'+i,420,.045);
+                        map2AddMap4BuildingKit(d+150,350,'outpost','GATE_DUAL_R_'+i,420,-.045);
                         map2VisualStageStats.gateDetails+=4;map2VisualStageStats.silhouetteTowers+=2;
                     }else{
                         for(const side of [-1,1])for(const y of [150,205,260]){
@@ -14270,8 +14400,8 @@
                                 'MAP2_SLOT_FIN_'+i+'_'+side+'_'+y);
                             map2VisualStageStats.gateDetails++;
                         }
-                        addVisualBlock(d-110,-455,70,135,600,330,map2VisualMats.dark,'MAP2_SLOT_MACHINE_L_'+i);
-                        addVisualBlock(d+110,455,70,135,600,330,map2VisualMats.dark,'MAP2_SLOT_MACHINE_R_'+i);
+                        map2AddMap4BuildingKit(d-110,-332,'outpost','GATE_SLOT_L_'+i,405,.05);
+                        map2AddMap4BuildingKit(d+110,332,'power','GATE_SLOT_R_'+i,405,-.05);
                         addVisualBlock(d,0,420,760,34,210,map2VisualMats.steel,'MAP2_SLOT_CROWN_'+i);
                         map2VisualStageStats.silhouetteTowers+=2;map2VisualStageStats.gateDetails++;
                     }
