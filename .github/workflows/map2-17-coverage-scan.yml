@@ -26,8 +26,9 @@ jobs:
         run: python tools/map2-17-fill-with-map4-industrial-visuals.py
       - name: Validate exact industrial source markers
         run: |
-          grep -q "MAP2_EXACT_MAP4_INDUSTRIAL_VISUAL_DISTRICT_AT_" index.html
+          grep -q "MAP2_EXACT_MAP4_INDUSTRIAL_PART_" index.html
           grep -q "MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS" index.html
+          grep -q "exactMap4IndustrialVisualParts" index.html
           grep -q "exactMap4IndustrialVisualMeshes" index.html
       - name: Install browser dependencies
         run: |
@@ -50,7 +51,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "MAP2-17 paste full Map4 industrial visual district while preserving 70-80 fill"
+          git commit -m "MAP2-17 paste all 985 Map4 industrial visual meshes while preserving 70-80 fill"
           git push origin HEAD:codex/map2-17-measure-and-fill-industrial
       - uses: actions/upload-artifact@v4
         if: always()
