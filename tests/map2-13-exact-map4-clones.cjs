@@ -102,23 +102,6 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(user.exactMeshesOn>=8,'opening view must visibly contain exact Map4 station meshes');
   assert(tech.exactMeshesOn>=8,'TECH view must visibly contain exact Map4 station meshes');
 
-  // Source reference: render the actual Map4 W05 station from the same runtime.
-  await page.evaluate(()=>{
-    state.activeMap=MAP_MODES.MAP4;state.map4Phase=3;state.routeProgress=15750;
-    applyPlanetaryEnvironment();
-    map2CourseGroup.visible=false;planetaryWorldGroup.visible=true;
-    const f=getRaceFrameAtDistance(15750);
-    state.pos.copy(h4WorldPosition(15750,0,0));
-    const basis=new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate());
-    const q=new THREE.Quaternion().setFromRotationMatrix(basis);
-    playerRig.position.copy(state.pos);playerRig.quaternion.copy(q);
-    camera.position.copy(state.pos).add(new THREE.Vector3(-1.45,5.1,18.2).applyQuaternion(q));
-    camera.quaternion.copy(q);camera.fov=68;camera.updateProjectionMatrix();
-    scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);
-  });
-  await page.waitForTimeout(250);
-  await page.screenshot({path:path.join(evidence,'02-map4-source-w05-station-1.png')});
-
   assert.deepEqual(errors,[]);
   console.log('PASS MAP2-13 exact Map4 station clone '+JSON.stringify({structural,user,tech}));
  }finally{await browser.close();}
