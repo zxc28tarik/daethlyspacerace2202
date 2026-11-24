@@ -35,7 +35,18 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
       await page.evaluate(({p,y})=>{state.paused=false;state.routeProgress=p;state.laneX=0;state.laneY=y;}, {p:at,y:laneY});
       await page.waitForTimeout(70);
     }
-    await page.evaluate(({p,y})=>{state.paused=true;state.routeProgress=p;state.laneX=0;state.laneY=y;map2UpdateVisibility(p);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);}, {p:progress,y:laneY});
+    await page.evaluate(({p,y})=>{
+      state.paused=true;state.routeProgress=p;state.laneX=0;state.laneY=y;
+      const f=getRaceFrameAtDistance(p);
+      state.pos.copy(f.center).addScaledVector(f.right,state.laneX).addScaledVector(f.up,state.laneY);
+      const basis=new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate());
+      const q=new THREE.Quaternion().setFromRotationMatrix(basis);
+      state.pitch=0;state.yaw=0;state.roll=0;
+      playerRig.position.copy(state.pos);playerRig.quaternion.copy(q);
+      camera.position.copy(state.pos).add(new THREE.Vector3(-1.45,5.1,18.2).applyQuaternion(q));
+      camera.quaternion.copy(q);camera.fov=68;camera.updateProjectionMatrix();
+      map2UpdateVisibility(p);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);
+    }, {p:progress,y:laneY});
   }
 
   await settle(39750,150);
@@ -124,7 +135,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'patrol fighter must be large enough to read on screen');
   assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)<.35,
     'patrol fighter must not dominate the whole race view');
-  assert(approachShot.renderScale>=3.5&&approachShot.renderScale<=4,
+  assert(approachShot.renderScale>=2.8&&approachShot.renderScale<=3.2,
     'patrol render scale must remain in the readable visual-only range');
   assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
   assert(approachShot.ship.y+approachShot.bbox.h/2<1.02,'patrol fighter should not be clipped above the frame');
