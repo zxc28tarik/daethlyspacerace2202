@@ -14109,7 +14109,7 @@
                     // Actual physical obstacles occupy three fifths of the 720-wide route.
                     const style=i%4,kind=gateKinds[style];
                     const center=[0,-42,0,42][style],left=center-216,right=center+216,low=-218,high=216;
-                    const depth=[620,460,700,520][style];
+                    const depth=[210,180,255,310][style];
                     const openings=style===2?
                         [{x:-105,y:-38,hx:76,hy:85},{x:105,y:-38,hx:76,hy:85}]:
                         [{x:center+[0,-18,0,12][style],y:[-40,-90,0,-15][style],hx:[94,100,0,72][style],hy:[83,110,0,64][style]}];
@@ -14136,6 +14136,16 @@
                         if(role==='PIER')mountKit(mesh,style);
                         else h4ArchitecturalDetail(mesh,'building');
                     }
+                    // MAP2-08: long factory envelope is visual-only. The short physical
+                    // gate stays conservative so curved routes between gates remain valid.
+                    const visualTunnelDepth=[680,540,760,620][style];
+                    addVisualBlock(d,-318,8,150,480,visualTunnelDepth,map2VisualMats.dark,
+                        'MAP2_GATE_SHELL_L_'+i);
+                    addVisualBlock(d,318,8,150,480,visualTunnelDepth,map2VisualMats.dark,
+                        'MAP2_GATE_SHELL_R_'+i);
+                    addVisualBlock(d,0,292,790,104,visualTunnelDepth,map2VisualMats.shell,
+                        'MAP2_GATE_SHELL_TOP_'+i);
+                    map2VisualStageStats.sideBlocks+=2;map2VisualStageStats.trusses++;
                     map2Gates.push({distance:d,mode:'CENTER_ONLY',laneX:opening,laneY:oy,clearX:hx,clearY:hy,
                         kind,depth,openings,flowStage:stage<3?'ENTRY':'TECH'});
                     openings.forEach((gap,n)=>addApertureCue(d,depth,gap,n));
