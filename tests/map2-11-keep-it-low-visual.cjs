@@ -21,8 +21,10 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
 
   const layout=await page.evaluate(()=>window.starbladeMap2Layout);
   assert.equal(layout.distance,175000);
-  assert.equal(layout.structures,382+layout.visualStage.map4BuildingColliders,
-    'base 382 obstacles plus real Map4 building obstacles must be present');
+  const retired=layout.visualStage.throughBuildingRetiredLegacyObstacles||0;
+  assert.equal(layout.structures+retired,382+layout.visualStage.map4BuildingColliders,
+    'visible/physical structure accounting must preserve the base layer minus explicitly retired legacy obstacles');
+  if(retired>0)assert(retired<=12,'only a small, explicit set of obsolete generic route obstacles may be retired at this stage');
   assert(layout.visualStage.map4BuildingColliders>=30,'real Map4 buildings must contribute physical obstacles');
   assert.equal(layout.gates,68);assert.equal(layout.openings,85);
   assert(layout.visualStage.rooflineRails>100,'roofline warning language should repeat through TECH');
