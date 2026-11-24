@@ -316,7 +316,7 @@ steer_new="""                if (gatePlan && (map2Pilot||gatePlan.gap < 1650)) {
                 // temporarily override it; an immediate legacy gate remains hard safety.
                 if(map2Pilot&&map2BuildingPlan&&!r.avoidAsteroid&&
                     map2Segment(r.routeProgress).kind==='TECH'){
-                    const hardGate=gatePlan&&gatePlan.gap<430&&gatePlan.gap>-190;
+                    const hardGate=gatePlan&&gatePlan.gap<950&&gatePlan.gap>-190;
                     if(!hardGate){
                         activeTargetX=map2BuildingPlan.x;
                         activeTargetY=map2BuildingPlan.y;
