@@ -43,7 +43,7 @@ insert=r"""            // MAP2-24: connected architectural canyons.
                     // Exact midpoint is the architectural handoff spine. Keep only
                     // a tiny alternating offset so adjacent W05 shells do not read
                     // as mechanically copy-pasted.
-                    const bias=((linked%3)-1)*6;
+                    const bias=((linked%3)-1)*10;
                     const targetX=THREE.MathUtils.clamp((prev.hint.x+next.hint.x)*.5+bias,-128,128);
                     const targetY=THREE.MathUtils.clamp((prev.hint.y+next.hint.y)*.5,-132,72);
                     const dx=targetX-cur.hint.x;
@@ -122,6 +122,11 @@ toe_anchor="if(i<chain.length-1&&Math.abs(localDx)>=55){"
 if toe_anchor not in s:
     raise SystemExit("MAP2-24 toe-in anchor missing")
 s=s.replace(toe_anchor,"if(i<chain.length-1&&Math.abs(localDx)>=35){",1)
+
+yaw_anchor="let yaw=Math.atan2(dx,dd)*1.90;"
+if yaw_anchor not in s:
+    raise SystemExit("MAP2-24 yaw response anchor missing")
+s=s.replace(yaw_anchor,"let yaw=Math.atan2(dx,dd)*2.15;",1)
 
 p.write_text(s,encoding="utf-8")
 print("MAP2-24 connected architectural canyons applied")
