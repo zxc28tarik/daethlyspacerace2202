@@ -22,31 +22,31 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                 return gate.openings[(Math.floor(index/2)+index)%gate.openings.length];
             };
             const map2BuildingPassageAt=(d)=>{
-                // Independent smooth S-line between building masses. The wave is
-                // deliberately slower than gate spacing, so it demands steering
-                // without impossible snap changes.
-                const phase=(d/7600)*Math.PI*2;
-                const wave={
-                    x:160*Math.sin(phase),
-                    y:-70+46*Math.sin(phase*.73+1.1)
-                };
-                if(!map2Gates.length)return wave;
+                if(!map2Gates.length)return {x:0,y:-60};
 
-                // Close to a real gate, blend the S-line back into one of the gate's
-                // actual openings. New building colliders are already excluded from
-                // the innermost 280 m, giving the ship room to complete this merge.
-                let nearest=0,best=Infinity;
-                for(let i=0;i<map2Gates.length;i++){
-                    const dist=Math.abs(map2Gates[i].distance-d);
-                    if(dist<best){best=dist;nearest=i;}
-                }
-                if(best>=450)return wave;
-                const g=map2Gates[nearest];
-                const open=map2PreferredGateOpening(g,nearest);
-                const t=THREE.MathUtils.smoothstep(best,280,450);
+                let next=map2Gates.findIndex(g=>g.distance>=d);
+                if(next<0)next=map2Gates.length-1;
+                const prev=Math.max(0,next-1);
+                const a=map2Gates[prev],b=map2Gates[next];
+                const pa=map2PreferredGateOpening(a,prev);
+                const pb=map2PreferredGateOpening(b,next);
+                if(a===b)return {x:pa.x,y:pa.y};
+
+                const span=Math.max(1,b.distance-a.distance);
+                const t=THREE.MathUtils.clamp((d-a.distance)/span,0,1);
+                const baseX=THREE.MathUtils.lerp(pa.x,pb.x,t);
+                const baseY=THREE.MathUtils.lerp(pa.y,pb.y,t);
+
+                // Keep exact authored openings at both ends, but bend the middle
+                // of each run left/right. Alternating bow direction turns the real
+                // Map4 buildings into a readable S-course instead of a straight lane.
+                const dir=((prev+Math.floor(prev/3))%2)?1:-1;
+                const bow=Math.sin(Math.PI*t);
+                const lateralBow=dir*118*bow;
+                const verticalBow=28*Math.sin(Math.PI*2*t);
                 return {
-                    x:THREE.MathUtils.lerp(open.x,wave.x,t),
-                    y:THREE.MathUtils.lerp(open.y,wave.y,t)
+                    x:THREE.MathUtils.clamp(baseX+lateralBow,-205,205),
+                    y:THREE.MathUtils.clamp(baseY+verticalBow,-190,135)
                 };
             };
             // Expose the authored obstacle passage for QA and rival planning.
