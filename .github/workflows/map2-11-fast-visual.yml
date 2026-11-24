@@ -23,7 +23,7 @@ jobs:
           grep -n "const ahead=" index.html | tail -5
           grep -n "const target=" index.html | tail -5
           grep -q "const target=state.pos.clone()" index.html
-          grep -q "const ahead=105-v.approach\*28+strike\*50" index.html
+          grep -q "const ahead=155-v.approach\*35+strike\*55" index.html
       - name: Install Chromium
         run: |
           npm install --no-save playwright@1.56.1 three@0.128.0
