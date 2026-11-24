@@ -6,6 +6,7 @@ on:
       - tools/map2-25-through-building-route-modules.py
       - tests/map2-25-through-building-route-modules.cjs
       - tests/map2-19-buildings-are-road.cjs
+      - tests/map2-18-building-obstacles.cjs
       - .github/workflows/map2-25-through-building-route-modules.yml
   workflow_dispatch:
 permissions:
