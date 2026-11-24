@@ -13,20 +13,18 @@ const {chromium}=require('playwright');
   await page.waitForFunction(()=>typeof map2BuildCourse==='function'&&typeof courseSegmentTouch==='function');
   await page.locator('#map-choice-2').click();
   const out=await page.evaluate(()=>{
-    const plain=o=>Object.fromEntries(Object.entries(o).filter(([k,v])=>v===null||['string','number','boolean'].includes(typeof v)));
-    const o=map2Obstacles[0],g=map2Gates[0];
-    return {
-      obstacleCount:map2Obstacles.length,
-      gateCount:map2Gates.length,
-      obstacleKeys:Object.keys(o),
-      obstacle:plain(o),
-      gateKeys:Object.keys(g),
-      gate:plain(g),
-      opening:g.openings?.[0]||null,
-      touch:courseSegmentTouch.toString().slice(0,3000),
-      globals:Object.getOwnPropertyNames(globalThis).filter(k=>/map2.*obstacle|obstacle.*map2|map2.*gate|gate.*map2/i.test(k))
-    };
+    const buildings=(window.starbladeMap2BuildingColliders||[]);
+    return map2Gates.filter(g=>g.kind==='GANTRY').map(g=>{
+      const a={routeProgress:g.distance-220,laneX:g.laneX,laneY:-215};
+      const b={...a,routeProgress:g.distance+220};
+      const blockers=map2Obstacles.filter(o=>courseSegmentTouch(o,a,b,12.5)).map(o=>({
+        d:o.routeProgress,x:o.laneX,y:o.laneY,hd:o.halfDepth,
+        building:!!o.map2BuildingDerived,source:o.sourceRoot||null,type:o.type||null,
+        dist:Math.abs(o.routeProgress-g.distance)
+      }));
+      return {gate:g.distance,laneX:g.laneX,blockers};
+    });
   });
-  console.log('MAP2-18 DIAG '+JSON.stringify(out));
+  console.log('MAP2-18 GANTRY_BLOCKERS '+JSON.stringify(out));
  } finally {await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
