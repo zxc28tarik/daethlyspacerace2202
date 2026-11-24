@@ -96,7 +96,6 @@ assert(html.includes('map2TransitionRoadClone'));
   assert(info.stats?.transitionMaxGapAfter<=1550);
 
   const evidence=path.join(__dirname,'map2-22-evidence');fs.mkdirSync(evidence,{recursive:true});
-  const shot=transitionsShot=undefined;
   await page.evaluate(()=>{
     const t=(window.starbladeMap2TransitionBuildings||[]).find(x=>x.boundary)||(window.starbladeMap2TransitionBuildings||[])[10];
     state.routeProgress=Math.max(0,t.distance-700);state.laneX=t.x;state.laneY=t.y;state.paused=true;
