@@ -118,5 +118,10 @@ if call_anchor not in s:
     raise SystemExit("MAP2-24 call anchor missing")
 s=s.replace(call_anchor,call_new,1)
 
+toe_anchor="if(i<chain.length-1&&Math.abs(localDx)>=55){"
+if toe_anchor not in s:
+    raise SystemExit("MAP2-24 toe-in anchor missing")
+s=s.replace(toe_anchor,"if(i<chain.length-1&&Math.abs(localDx)>=35){",1)
+
 p.write_text(s,encoding="utf-8")
 print("MAP2-24 connected architectural canyons applied")
