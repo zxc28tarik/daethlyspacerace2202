@@ -30,7 +30,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(layout.visualStage.trusses>40,'industrial overhead rhythm should be present');
 
   const depths=await page.evaluate(()=>[...new Set(map2Gates.map(g=>g.depth))].sort((a,b)=>a-b));
-  assert.deepEqual(depths,[460,520,620,700]);
+  assert.deepEqual(depths,[180,210,255,310]);
   const evidence=path.join(__dirname,'map2-08-evidence');fs.mkdirSync(evidence,{recursive:true});
 
   async function capture(progress,name){
@@ -65,7 +65,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   for(const x of [techEntry,hangar,dual,late]){
     assert.equal(x.seg,'TECH');assert(x.onscreen>8,'TECH must visibly surround the player with industry');
   }
-  assert.equal(techEntry.background,0x172127);assert.equal(techEntry.fog,0x26343b);
+  assert.equal(techEntry.background,0x172127);assert.equal(techEntry.fog,0x26343b);\n  assert(html.includes('visualTunnelDepth=[680,540,760,620]'),'long factory tunnels must be visual-only');
   assert.deepEqual(errors,[]);
   console.log('PASS MAP2-08 industrial stage is visible and physical '+JSON.stringify({layout,depths,fast,techEntry,hangar,dual,late}));
  }finally{await browser.close();}
