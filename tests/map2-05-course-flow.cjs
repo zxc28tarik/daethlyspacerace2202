@@ -52,14 +52,18 @@ const layout=await page.evaluate(()=>{
       {routeProgress:g.distance+240,laneX:o.laneX,laneY:o.laneY},12.5);
   });
   return {...result,allClear,allAlternativesClear,gantryOpen,centerBlocked,kitInstances,shared,solidHit,fastClear:!map2Obstacles.some(o=>fast.some(s=>o.routeProgress-o.halfDepth<s.to*MAP2_DISTANCE&&o.routeProgress+o.halfDepth>s.from*MAP2_DISTANCE)),
-    map4Built:planetaryWorldRegions.length,sceneVisible:map2CourseGroup.visible};
+    map4Built:planetaryWorldRegions.length,map4Expected:PLANETARY_REGIONS.length,
+    map4Hidden:!planetaryWorldGroup.visible,sceneVisible:map2CourseGroup.visible};
 });
 assert.equal(layout.distance,175000);assert(Math.abs(layout.actualArc/layout.map1Arc-3.5)<.001);
 assert(layout.closure<.01);assert(layout.structures>200);assert(layout.gates>50);
 assert(layout.allClear,'every opening should pass a pilot-sized sphere');
 assert(layout.allAlternativesClear);assert(layout.gantryOpen);assert(layout.centerBlocked);assert(layout.shared);assert.deepEqual(layout.kitInstances,layout.kitCounts);assert(layout.kitCounts.every(n=>n>0));assert(layout.openings>layout.gates);assert.equal(layout.gateKinds.length,4);
 assert(layout.solidHit,'solid factory panels should collide');assert(layout.fastClear);
-assert.equal(layout.map4Built,original.map4Built);assert(layout.sceneVisible);
+// MAP2-13+ intentionally builds the authoritative Map4 source world once, hidden,
+ // so exact Map4 buildings can be cloned into Map2. The invariant is now source
+ // completeness + invisibility, not "Map4 was never constructed".
+ assert.equal(layout.map4Built,layout.map4Expected);assert(layout.map4Hidden);assert(layout.sceneVisible);
 assert.deepEqual(layout.segments.filter(s=>s.kind==='FAST').map(s=>Math.round((s.to-s.from)*100)),[15,10]);
 // MAP2-05: physical approach rhythm and transition paths, not just gate count.
 const flow=await page.evaluate(()=>{
