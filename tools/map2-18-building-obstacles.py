@@ -22,27 +22,31 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                 return gate.openings[(Math.floor(index/2)+index)%gate.openings.length];
             };
             const map2BuildingPassageAt=(d)=>{
-                if(!map2Gates.length)return {x:0,y:-60};
-                let next=map2Gates.findIndex(g=>g.distance>=d);
-                if(next<0)next=map2Gates.length-1;
-                const prev=Math.max(0,next-1);
-                const a=map2Gates[prev],b=map2Gates[next];
-                const pa=map2PreferredGateOpening(a,prev);
-                const pb=map2PreferredGateOpening(b,next);
-                if(a===b)return {x:pa.x,y:pa.y};
-                const t=THREE.MathUtils.clamp((d-a.distance)/(b.distance-a.distance),0,1);
-                const baseX=THREE.MathUtils.lerp(pa.x,pb.x,t);
-                const baseY=THREE.MathUtils.lerp(pa.y,pb.y,t);
-                // Gate openings themselves remain untouched, but the route between
-                // gates bows alternately left/right. At t=0/1 the added offset is
-                // exactly zero, so every authored gate aperture is still reachable.
-                const dir=((prev+Math.floor(prev/3))%2)?1:-1;
-                const bow=Math.sin(Math.PI*t);
-                const lateralBow=dir*135*bow;
-                const verticalBow=Math.sin(Math.PI*2*t)*38;
+                // Independent smooth S-line between building masses. The wave is
+                // deliberately slower than gate spacing, so it demands steering
+                // without impossible snap changes.
+                const phase=(d/7600)*Math.PI*2;
+                const wave={
+                    x:125*Math.sin(phase),
+                    y:-70+46*Math.sin(phase*.73+1.1)
+                };
+                if(!map2Gates.length)return wave;
+
+                // Close to a real gate, blend the S-line back into one of the gate's
+                // actual openings. New building colliders are already excluded from
+                // the innermost 280 m, giving the ship room to complete this merge.
+                let nearest=0,best=Infinity;
+                for(let i=0;i<map2Gates.length;i++){
+                    const dist=Math.abs(map2Gates[i].distance-d);
+                    if(dist<best){best=dist;nearest=i;}
+                }
+                if(best>=450)return wave;
+                const g=map2Gates[nearest];
+                const open=map2PreferredGateOpening(g,nearest);
+                const t=THREE.MathUtils.smoothstep(best,280,450);
                 return {
-                    x:THREE.MathUtils.clamp(baseX+lateralBow,-205,205),
-                    y:THREE.MathUtils.clamp(baseY+verticalBow,-190,135)
+                    x:THREE.MathUtils.lerp(open.x,wave.x,t),
+                    y:THREE.MathUtils.lerp(open.y,wave.y,t)
                 };
             };
             const map2ProjectedBoxAt=(box,d)=>{
@@ -130,10 +134,13 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                         const roadOverlap=Math.max(0,360-(Math.abs(cx)-hx));
                         if(roadOverlap<=25)return;
                         const volume=hx*hy*hd;
+                        const blocksCentre=Math.abs(cx)<hx+15&&Math.abs(cy)<hy+15;
+                        const centrePressure=blocksCentre?2.6:1;
                         candidates.push({
                             routeProgress:d,laneX:cx,laneY:cy,
                             halfX:hx,halfY:hy,halfDepth:hd,
-                            mesh,root,score:volume*(1+roadOverlap/360),
+                            mesh,root,blocksCentre,
+                            score:volume*(1+roadOverlap/360)*centrePressure,
                             passageX:pass.x,passageY:pass.y
                         });
                     });
