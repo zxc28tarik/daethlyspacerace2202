@@ -82,8 +82,14 @@ assert(html.includes('CORRIDOR_KNIFE'));
       });
     });
 
-    const gaps=road.knots.slice(1).map((k,i)=>k.distance-road.knots[i].distance)
-      .filter((g,i)=>map2Segment(road.knots[i].distance).kind==='TECH'&&map2Segment(road.knots[i+1].distance).kind==='TECH');
+    const techRanges=MAP2_SEGMENTS.filter(s=>s.kind==='TECH').map(s=>({from:s.from*MAP2_DISTANCE,to:s.to*MAP2_DISTANCE}));
+    const techGaps=[];
+    for(const range of techRanges){
+      const knots=road.knots.filter(k=>k.distance>=range.from&&k.distance<=range.to).sort((a,b)=>a.distance-b.distance);
+      let prev=range.from;
+      for(const k of knots){techGaps.push(k.distance-prev);prev=k.distance;}
+      techGaps.push(range.to-prev);
+    }
 
     return {
       sequenceCount:seq.sequenceCount,reordered:seq.reordered,laneSwings:seq.laneSwings,verticalSwings:seq.verticalSwings,
@@ -91,7 +97,7 @@ assert(html.includes('CORRIDOR_KNIFE'));
       framed:allRoad.filter(g=>g.framed).length,
       physical:physical.length,fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
       rootSequenceCount:rootSequence.length,rootsTech:rootSequence.every(r=>r.seg==='TECH'),
-      maxGap:Math.max(...gaps),
+      maxGap:Math.max(...techGaps),
       compMaxGap:comp.maxGapAfter,
       stats:window.starbladeMap2Layout?.visualStage
     };
