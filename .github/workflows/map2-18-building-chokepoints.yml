@@ -21,6 +21,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Locate Map2 build ordering
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("index.html").read_text(encoding="utf-8")
+          for key in ["map2BuildCourse","map2Gates.push","map2Obstacles.push","starbladeMap2Layout","map2CloneExactMap4IndustrialVisualParts"]:
+              print("\n=== "+key+" ===")
+              start=0
+              found=0
+              while True:
+                  i=s.find(key,start)
+                  if i<0: break
+                  line=s.count("\n",0,i)+1
+                  print("line",line)
+                  print(s[max(0,i-500):i+900])
+                  start=i+1
+                  found+=1
+                  if found>=6: break
+          PY
       - name: Apply real-building obstacle layout
         run: python tools/map2-18-building-obstacles.py
       - name: Validate MAP2-18 markers
