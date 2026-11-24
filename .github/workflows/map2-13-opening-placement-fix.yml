@@ -1,0 +1,30 @@
+name: MAP2-13 fix opening station placement
+on:
+  push:
+    branches: [codex/map2-13-exact-map4-station-clones]
+    paths:
+      - tools/map2-13-opening-placement-fix.py
+      - .github/workflows/map2-13-opening-placement-fix.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-13-exact-map4-station-clones
+          fetch-depth: 0
+      - name: Move opening exact station ahead
+        run: python tools/map2-13-opening-placement-fix.py
+      - name: Validate placement
+        run: grep -q "const exactCloneTargets=\[8500\]" index.html
+      - name: Commit placement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-13 move opening Map4 station ahead of player"
+          git push origin HEAD:codex/map2-13-exact-map4-station-clones
