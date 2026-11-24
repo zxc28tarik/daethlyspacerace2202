@@ -22,7 +22,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   const structural=await page.evaluate(()=>{
     const clones=[];
     map2CourseGroup.traverse(o=>{if(o.userData?.map2ExactMap4Clone&&o.name?.startsWith('MAP2_EXACT_MAP4_'))clones.push(o)});
-    const roots=clones.filter(o=>o.parent&&o.parent.parent===map2CourseGroup);
+    const roots=clones.filter(o=>o.name?.startsWith('MAP2_EXACT_MAP4_'));
     let meshPairs=0,sameGeo=0,sameMat=0,namePairs=0;
     for(const clone of roots){
       const source=h4IndustrialGroups.find(g=>g.name===clone.userData.sourceMap4Station);
