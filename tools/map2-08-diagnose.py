@@ -1,12 +1,7 @@
 from pathlib import Path
-import re
-s=Path("index.html").read_text(encoding="utf-8")
-lines=s.splitlines()
-hits=[]
-for i,line in enumerate(lines,1):
-    low=line.lower()
-    if "map2" in low or "keep it low" in low or "industrial passage" in low:
-        hits.append((i,line))
-print("TOTAL_LINES",len(lines),"MAP2_RELATED_LINES",len(hits))
-for i,line in hits:
-    print(f"{i}: {line[:500]}")
+lines=Path("index.html").read_text(encoding="utf-8").splitlines()
+for a,b in [(4180,4265),(13145,13245),(13940,14205),(22320,22395)]:
+    print(f"\n===== LINES {a}-{b} =====")
+    for n in range(a,b+1):
+        if 1<=n<=len(lines):
+            print(f"{n}: {lines[n-1]}")
