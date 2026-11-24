@@ -8,6 +8,34 @@ if stats_anchor not in s:
     raise SystemExit("MAP2-19 stats anchor not found")
 s=s.replace(stats_anchor,stats_new,1)
 
+pass_anchor="""            const map2BuildingPassageAt=(d)=>{
+                if(!map2Gates.length)return {x:0,y:-60};"""
+pass_new="""            const map2BuildingPassageAt=(d)=>{
+                // MAP2-19: once building apertures have been organized, THEY are
+                // the route. The old centre spline remains progress math only.
+                const road=window.starbladeMap2BuildingRoad;
+                if(road?.knots?.length){
+                    const knots=road.knots;
+                    if(d<=knots[0].distance)return {x:knots[0].x,y:knots[0].y};
+                    if(d>=knots[knots.length-1].distance){
+                        const k=knots[knots.length-1];
+                        return {x:k.x,y:k.y};
+                    }
+                    let hi=1;
+                    while(hi<knots.length&&knots[hi].distance<d)hi++;
+                    const a=knots[hi-1],b=knots[hi];
+                    const t=THREE.MathUtils.clamp((d-a.distance)/Math.max(1,b.distance-a.distance),0,1);
+                    const smooth=t*t*(3-2*t);
+                    return {
+                        x:THREE.MathUtils.lerp(a.x,b.x,smooth),
+                        y:THREE.MathUtils.lerp(a.y,b.y,smooth)
+                    };
+                }
+                if(!map2Gates.length)return {x:0,y:-60};"""
+if pass_anchor not in s:
+    raise SystemExit("MAP2-19 passage override anchor not found")
+s=s.replace(pass_anchor,pass_new,1)
+
 anchor="""            const map2BuildPhysicalMap4BuildingObstacles=()=>{"""
 insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
             // The hidden route spline is now only a technical progress backbone.
