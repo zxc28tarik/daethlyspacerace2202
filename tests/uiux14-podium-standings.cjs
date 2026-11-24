@@ -5,6 +5,29 @@ const out=path.join(__dirname,'uiux14-evidence');fs.mkdirSync(out,{recursive:tru
 (async()=>{
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl-software-rendering','--disable-dev-shm-usage']});
 const three=fs.readFileSync(require.resolve('three/build/three.min.js'),'utf8');
+async function assertMapArtwork(page,mapId,selector){
+ const result=await page.evaluate(({mapId,selector})=>{
+   const screen=document.getElementById('gameover-screen');
+   const art=document.getElementById('ui-result-map-art');
+   const source=document.querySelector(selector);
+   const craft=document.querySelector('#ui-podium-places .ui-podium-place .ui-podium-step');
+   return {
+     map:screen.dataset.uiResultArtwork,
+     hidden:art.hidden,
+     imageMatches:art.getAttribute('src')===source.getAttribute('src'),
+     visible:getComputedStyle(art).display!=='none',
+     borderTop:getComputedStyle(craft).borderTopWidth,
+     podiumBackground:getComputedStyle(craft).backgroundImage
+   };
+ },{mapId,selector});
+ assert.equal(result.map,mapId,'completed-map background selector');
+ assert.equal(result.hidden,false,'the map artwork should be shown');
+ assert.equal(result.imageMatches,true,'results must reuse the exact approved card image');
+ assert.equal(result.visible,true,'map art must render behind results');
+ assert.equal(result.borderTop,'0px','number markers are not raised podium blocks');
+ assert.equal(result.podiumBackground,'none','number markers are flat ranking badges');
+ return result;
+}
 try{
 for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390,height:844}]){
  const page=await browser.newPage({viewport:{width:vp.width,height:vp.height}});
@@ -21,6 +44,7 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
    endGame(true);
  });
  assert.equal(await page.locator('#gameover-screen').getAttribute('data-ui-podium-phase'),'intro');
+ const map1Art=await assertMapArtwork(page,'map1','#map-choice-1 .ui-map-retro-race-illustration');
  const order=await page.locator('#ui-podium-places .ui-podium-place').evaluateAll(els=>els.map(el=>({
     rank:Number(el.dataset.rank),name:el.querySelector('.ui-podium-name').textContent,
     img:el.querySelector('img').getAttribute('src').slice(0,24)
@@ -48,6 +72,7 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
  await page.locator('#menu-btn').click();
  assert.equal(await page.locator('#ui-podium-places .ui-podium-place').count(),0);
  assert.equal(await page.locator('#gameover-screen').getAttribute('data-ui-podium-phase'),null);
+ assert.equal(await page.locator('#ui-result-map-art').getAttribute('src'),null,'backdrop is reset in menu');
  await page.locator('#map-choice-4').click();
  await page.locator('#start-btn').click();
  await page.waitForFunction(()=>state.running&&state.activeMap==='map4',null,{timeout:30000});
@@ -66,6 +91,7 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
  })));
  assert.deepEqual(map4.map(x=>x.name),['SEN','VIPER-01','NOVA-X']);
  assert(map4.every(x=>x.metric.includes('PUAN')),'Map4 hunter score podium');
+ const map4Art=await assertMapArtwork(page,'map4','#map-choice-4 .ui-map-retro-city-illustration');
  await page.waitForTimeout(700);
  await page.screenshot({path:path.join(out,vp.name+'-map4-podium.png')});
  await page.locator('#restart-btn').click();
@@ -73,7 +99,7 @@ for(const vp of [{name:'desktop',width:1366,height:768},{name:'mobile',width:390
  assert.equal(await page.locator('#ui-podium-places .ui-podium-place').count(),0);
  assert.equal(await page.locator('#gameover-screen').getAttribute('data-ui-podium-phase'),null);
  assert.deepEqual(errors,[],vp.name+' page errors');
- console.log('PASS '+vp.name+' '+JSON.stringify({order,map4,dims}));
+ console.log('PASS '+vp.name+' '+JSON.stringify({order,map4,map1Art,map4Art,dims}));
  await page.close();
 }
 }finally{await browser.close();}
