@@ -18,8 +18,8 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   await page.locator('#map-choice-2').click();await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
   const layout=await page.evaluate(()=>window.starbladeMap2Layout);
-  assert(layout.visualStage.map4BuildingKits>250,'Map4 building kits must populate most TECH cells');
-  assert(layout.visualStage.map4BuildingMeshes>1500,'Map4 building mesh parts must replace box placeholders');
+  assert(layout.visualStage.map4BuildingKits>300,'Map4 visual kits must populate TECH/FAST/LINK scenery');
+  assert(layout.visualStage.map4BuildingMeshes>900,'active Map4 visual meshes must replace box placeholders');
   assert.equal(await page.evaluate(()=>planetaryWorldRegions.length),0,'Map4 world itself must not be built/modified');
 
   const ev=path.join(__dirname,'map2-12-evidence');fs.mkdirSync(ev,{recursive:true});
@@ -41,34 +41,52 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
       map2UpdateVisibility(p);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);
     },progress);
     const info=await page.evaluate(()=>{
-      const counts={all:0,on:0,refinery:0,factory:0,power:0,outpost:0};
+      const counts={all:0,on:0,vis02:0,vis02On:0,legacyFastBoxes:0,legacyLinkBoxes:0,exactMap4Geometry:0};
       map2CourseGroup.traverse(o=>{
-        const n=o.name||'';if(!n.startsWith('MAP2_MAP4_'))return;
+        const n=o.name||'';
+        if(n.startsWith('MAP2_FAST_SILHOUETTE_'))counts.legacyFastBoxes++;
+        if(n.startsWith('MAP2_LINK_SILHOUETTE_'))counts.legacyLinkBoxes++;
+        const isMap4=n.startsWith('MAP2_MAP4_')||n.startsWith('MAP2_REUSED_H4_KIT_');
+        if(!isMap4)return;
         let vis=true,a=o;while(a){vis=vis&&a.visible;a=a.parent;}if(!vis)return;
         counts.all++;
-        if(n.includes('REFINERY'))counts.refinery++;
-        if(n.includes('FACTORY'))counts.factory++;
-        if(n.includes('POWER'))counts.power++;
-        if(n.includes('OUTPOST'))counts.outpost++;
+        const exact=o.isMesh&&h4Vis02Kits.includes(o.geometry);
+        if(exact)counts.exactMap4Geometry++;
+        if(n.startsWith('MAP2_MAP4_VIS02_'))counts.vis02++;
         const p=new THREE.Vector3();o.getWorldPosition(p);const q=p.clone().project(camera);
-        if(q.z>=-1&&q.z<=1&&Math.abs(q.x)<=1.3&&Math.abs(q.y)<=1.3)counts.on++;
+        const on=q.z>=-1&&q.z<=1&&Math.abs(q.x)<=1.3&&Math.abs(q.y)<=1.3;
+        if(on){counts.on++;if(n.startsWith('MAP2_MAP4_VIS02_'))counts.vis02On++;}
       });
       return {seg:map2Segment(state.routeProgress).kind,counts};
     });
-    assert.equal(info.seg,'TECH');assert(info.counts.on>=8,'reused Map4 buildings must be visible in camera');
+    assert(info.counts.legacyFastBoxes===0&&info.counts.legacyLinkBoxes===0,'legacy black silhouette boxes must be gone');
+    assert(info.counts.exactMap4Geometry>0,'visible scenery must use exact h4Vis02Kits geometry');
+    assert(info.counts.vis02On>=2,'actual Map4 VIS02 buildings must be visible in camera');
     await page.screenshot({path:path.join(ev,name+'.png')});
     return info;
   }
+  const userShot=await settle(7249,'00-user-view-167751m-remaining');
+  assert.equal(userShot.seg,'FAST','the supplied screenshot position should be the first FAST zone');
+  assert(userShot.counts.vis02On>=2,'user screenshot position must show real Map4 buildings');
   const a=await settle(35200,'01-map4-buildings-tech-entry');
   const b=await settle(39750,'02-map4-buildings-dual-factory');
   const c=await settle(45200,'03-map4-buildings-industrial-canyon');
   const families=await page.evaluate(()=>{
-    const names=[];map2CourseGroup.traverse(o=>{if((o.name||'').startsWith('MAP2_MAP4_'))names.push(o.name)});
+    const names=[];let exact=0,blackFast=0,blackLink=0;
+    map2CourseGroup.traverse(o=>{
+      const n=o.name||'';
+      if(n.startsWith('MAP2_MAP4_'))names.push(n);
+      if(o.isMesh&&h4Vis02Kits.includes(o.geometry))exact++;
+      if(n.startsWith('MAP2_FAST_SILHOUETTE_'))blackFast++;
+      if(n.startsWith('MAP2_LINK_SILHOUETTE_'))blackLink++;
+    });
     return {refinery:names.some(n=>n.includes('REFINERY')),factory:names.some(n=>n.includes('FACTORY')),
-      power:names.some(n=>n.includes('POWER')),outpost:names.some(n=>n.includes('OUTPOST'))};
+      power:names.some(n=>n.includes('POWER')),outpost:names.some(n=>n.includes('OUTPOST')),exact,blackFast,blackLink};
   });
-  assert.deepEqual(families,{refinery:true,factory:true,power:true,outpost:true});
+  assert.equal(families.refinery,true);assert.equal(families.factory,true);assert.equal(families.power,true);assert.equal(families.outpost,true);
+  assert(families.exact>300,'many scene meshes must directly reuse h4Vis02Kits');
+  assert.equal(families.blackFast,0);assert.equal(families.blackLink,0);
   assert.deepEqual(errors,[]);
-  console.log('PASS MAP2-12 actual Map4 building kits visible in Map2 '+JSON.stringify({visual:layout.visualStage,a,b,c,families}));
+  console.log('PASS MAP2-12 actual Map4 buildings visible including user 167751m view '+JSON.stringify({visual:layout.visualStage,userShot,a,b,c,families}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
