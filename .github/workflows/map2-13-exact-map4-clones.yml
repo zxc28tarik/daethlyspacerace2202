@@ -22,10 +22,10 @@ jobs:
         run: |
           npm install --no-save playwright@1.56.1 three@0.128.0
           npx playwright install chromium
-      - name: MAP2-11 regression
-        run: node tests/map2-11-keep-it-low-visual.cjs
       - name: MAP2-13 exact Map4 clone QA
         run: node tests/map2-13-exact-map4-clones.cjs
+      - name: MAP2-11 regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
