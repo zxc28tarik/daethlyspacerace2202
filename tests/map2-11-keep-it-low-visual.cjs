@@ -85,8 +85,23 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
 
   await settle(40000,250);
   await page.evaluate(()=>{state.paused=true;map2PatrolReset();for(let i=0;i<6;i++)map2PatrolTick(.05);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);});
-  const approachShot=await page.evaluate(()=>({search:map2PatrolVisual.search?.visible===true,phase:window.starbladeMap2Patrol?.phase,warning:map2PatrolWarning()?.title||null}));
+  const approachShot=await page.evaluate(()=>{
+    const ship=map2PatrolVisual.ship.position.clone().project(camera);
+    const a=map2PatrolVisual.search.geometry.attributes.position;
+    const start=new THREE.Vector3(a.getX(0),a.getY(0),a.getZ(0)).project(camera);
+    const end=new THREE.Vector3(a.getX(1),a.getY(1),a.getZ(1)).project(camera);
+    return {search:map2PatrolVisual.search?.visible===true,phase:window.starbladeMap2Patrol?.phase,
+      warning:map2PatrolWarning()?.title||null,depthTest:map2PatrolVisual.search.material.depthTest,
+      ship:{x:ship.x,y:ship.y,z:ship.z},start:{x:start.x,y:start.y,z:start.z},end:{x:end.x,y:end.y,z:end.z}};
+  });
   assert.equal(approachShot.search,true);assert(approachShot.warning?.includes('YAKLAŞIYOR'));
+  assert.equal(approachShot.depthTest,false,'searchlight must remain readable against roof geometry');
+  assert(Math.abs(approachShot.ship.x)<1&&Math.abs(approachShot.ship.y)<1&&approachShot.ship.z>=-1&&approachShot.ship.z<=1,
+    'patrol fighter must actually be inside the camera frame during approach');
+  assert(Math.abs(approachShot.start.x)<1.05&&Math.abs(approachShot.start.y)<1.05,
+    'searchlight origin must be in frame');
+  assert(Math.abs(approachShot.end.x)<1.05&&Math.abs(approachShot.end.y)<1.05,
+    'searchlight target must be in frame');
   await page.screenshot({path:path.join(evidence,'02-exposed-patrol-search.png')});
 
   await settle(12000,300);
