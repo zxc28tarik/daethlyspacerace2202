@@ -14401,7 +14401,7 @@
                     const targetApproach=active?Math.min(1,lockRatio+(p.shots>0?.18:0)):0;
                     v.approach+=(targetApproach-v.approach)*Math.min(1,dt*(active?5.5:2.2));
                     const strike=v.breakaway>0?Math.sin((v.breakaway/.34)*Math.PI):0;
-                    const ahead=105-v.approach*35+strike*55;
+                    const ahead=62-v.approach*18+strike*42;
                     const f=getRaceFrameAtDistance(Math.min(MAP2_DISTANCE,state.routeProgress+ahead));
                     const sweep=Math.sin(state.raceTime*.85)*82;
                     const attackSide=v.side*(55+80*strike);
