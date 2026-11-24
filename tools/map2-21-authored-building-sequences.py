@@ -35,25 +35,25 @@ insert=r"""            // MAP2-21: authored building sequences.
                         name:'CITY_GATE',
                         types:['LANDMARK','CITY','STATION','INDUSTRIAL','LANDMARK','STATION','STATION','STATION'],
                         x:[-70,-105,-35,80,105,35,-70,-20],
-                        y:[-55,-82,-72,-48,-62,-88,-64,-46]
+                        y:[-35,-96,-42,-116,-54,-104,-44,-88]
                     },
                     {
                         name:'REFINERY_SLALOM',
                         types:['PLANT','STATION','STATION','INDUSTRIAL','STATION','PLANT','STATION','STATION'],
                         x:[85,112,35,-90,-118,-30,75,105],
-                        y:[-24,-42,-68,-92,-58,-22,-48,-72]
+                        y:[-24,-88,-36,-108,-52,-20,-94,-42]
                     },
                     {
                         name:'LOW_FACTORY_RUN',
                         types:['CITY','STATION','STATION','PLANT','STATION','INDUSTRIAL','STATION','STATION'],
                         x:[-45,45,105,42,-65,-115,-48,25],
-                        y:[-112,-122,-96,-82,-114,-126,-88,-66]
+                        y:[-126,-82,-132,-76,-122,-68,-116,-86]
                     },
                     {
                         name:'CITY_EXIT_CANYON',
                         types:['CITY','STATION','STATION','STATION','STATION','STATION','STATION','STATION'],
                         x:[72,22,-82,-108,-38,62,108,18],
-                        y:[-54,-44,-62,-92,-76,-36,-52,-66]
+                        y:[-42,-94,-48,-108,-54,-28,-88,-46]
                     }
                 ],
                 [
@@ -61,25 +61,25 @@ insert=r"""            // MAP2-21: authored building sequences.
                         name:'OUTPOST_ENTRY',
                         types:['LANDMARK','STATION','CITY','STATION','INDUSTRIAL','STATION','STATION'],
                         x:[20,-72,-108,-42,58,102,28],
-                        y:[-64,-82,-102,-72,-46,-62,-76]
+                        y:[-42,-96,-48,-110,-56,-92,-44]
                     },
                     {
                         name:'SPACEPORT_RUN',
                         types:['SPACEPORT','STATION','STATION','STATION','CITY','STATION','STATION'],
                         x:[-98,-48,22,88,112,52,-32],
-                        y:[-34,-42,-56,-32,-22,-52,-72]
+                        y:[-28,-82,-38,-102,-24,-88,-44]
                     },
                     {
                         name:'CORRIDOR_KNIFE',
                         types:['CORRIDOR','STATION','INDUSTRIAL','STATION','STATION','STATION','STATION'],
                         x:[92,42,-72,-112,-62,38,92],
-                        y:[-72,-98,-112,-82,-62,-46,-72]
+                        y:[-58,-112,-66,-124,-72,-34,-92]
                     },
                     {
                         name:'LAUNCH_EXIT',
                         types:['SPACEPORT','STATION','STATION','STATION','STATION','STATION','STATION'],
                         x:[-82,-22,62,108,48,-42,-98],
-                        y:[-32,-46,-56,-26,-42,-62,-76]
+                        y:[-30,-86,-38,-104,-46,-94,-48]
                     }
                 ]
             ];
@@ -112,13 +112,16 @@ insert=r"""            // MAP2-21: authored building sequences.
 
                     const slots=[];
                     let slotIndex=0;
+                    let stationTake=0;
                     const margin=900;
                     const first=range.from+margin;
                     const last=range.to-margin;
                     defs.forEach((def,sequenceIndex)=>{
                         def.types.forEach((type,localIndex)=>{
                             const bucket=buckets.get(type)||[];
-                            const entry=bucket.shift();
+                            const entry=(type==='STATION'&&bucket.length>1)
+                                ? ((stationTake++%2===0)?bucket.shift():bucket.pop())
+                                : bucket.shift();
                             if(!entry){
                                 console.warn('MAP2-21 missing type',type,'for',def.name);
                                 return;
