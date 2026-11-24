@@ -16585,17 +16585,19 @@
                         const envelope=Math.pow(Math.max(0,Math.sin(Math.PI*t)),.68);
                         const primary=Math.sin((t*4.0+chainIndex*.17)*Math.PI);
                         const secondary=.32*Math.sin((t*9.0+chainIndex*.29)*Math.PI);
-                        const targetX=THREE.MathUtils.clamp(
-                            module.core.x*.28+envelope*(primary+secondary)*158,
-                            -245,245
-                        );
+                        // Smooth additive warp: nearby modules at nearly the
+                        // same route distance receive nearly the same displacement.
+                        // This preserves their pre-existing real-aperture relationship
+                        // instead of forcing each shell toward an independent target.
+                        const rawDx=envelope*(primary+secondary)*132;
+                        const minDx=Math.max(-145,-245-module.core.x);
+                        const maxDx=Math.min(145,245-module.core.x);
+                        const dx=THREE.MathUtils.clamp(rawDx,minDx,maxDx);
                         const yWave=Math.sin((t*6.0+chainIndex*.23)*Math.PI);
-                        const targetY=THREE.MathUtils.clamp(
-                            module.core.y*.45-33+envelope*yWave*56,
-                            -175,105
-                        );
-                        const dx=THREE.MathUtils.clamp(targetX-module.core.x,-160,160);
-                        const dy=THREE.MathUtils.clamp(targetY-module.core.y,-78,78);
+                        const rawDy=envelope*yWave*52;
+                        const minDy=Math.max(-70,-175-module.core.y);
+                        const maxDy=Math.min(70,105-module.core.y);
+                        const dy=THREE.MathUtils.clamp(rawDy,minDy,maxDy);
                         if(Math.abs(dx)<10&&Math.abs(dy)<8)continue;
 
                         map2MoveRouteBuildingGroup(moduleRoots,module.centerDistance,dx,dy);

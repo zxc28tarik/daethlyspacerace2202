@@ -47,6 +47,16 @@ assert(html.includes('REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES'));
       maxSlopeX=Math.max(maxSlopeX,jx/gap);
       maxSlopeY=Math.max(maxSlopeY,jy/gap);
     }
+    let maxWarpSlopeX=0,maxWarpSlopeY=0;
+    for(const row of (s?.chains||[])){
+      const mm=(s.moved||[]).filter(m=>m.chainIndex===row.chainIndex).sort((u,v)=>u.d-v.d);
+      for(let i=1;i<mm.length;i++){
+        const gap=mm[i].d-mm[i-1].d;
+        if(gap<=1)continue;
+        maxWarpSlopeX=Math.max(maxWarpSlopeX,Math.abs(mm[i].dx-mm[i-1].dx)/gap);
+        maxWarpSlopeY=Math.max(maxWarpSlopeY,Math.abs(mm[i].dy-mm[i-1].dy)/gap);
+      }
+    }
     const blocked=[];
     for(const m of route.modules.filter(m=>m.chicane)){
       let prev=null,hit=false;
@@ -64,7 +74,7 @@ assert(html.includes('REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES'));
       taggedFast:tagged.filter(x=>Number.isFinite(x.d)&&map2Segment(x.d).kind==='FAST').length,
       routeModules:route?.modules?.length,
       anchors:route?.routeAnchors?.length,
-      maxJumpX,maxJumpY,maxGap,maxSlopeX,maxSlopeY,
+      maxJumpX,maxJumpY,maxGap,maxSlopeX,maxSlopeY,maxWarpSlopeX,maxWarpSlopeY,
       blocked,
       physical:physical.length,
       fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
@@ -90,8 +100,8 @@ assert(html.includes('REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES'));
   assert.equal(info.taggedFast,0,'FAST sectors may not receive chicane buildings');
   assert(info.maxJumpX<=330,'real-aperture anchor handoffs must remain bounded laterally');
   assert(info.maxJumpY<=310,'real-aperture anchor handoffs must remain bounded vertically');
-  assert(info.maxSlopeX<=.72,'lateral handoffs must stay gradual relative to their longitudinal spacing');
-  assert(info.maxSlopeY<=.72,'vertical handoffs must stay gradual relative to their longitudinal spacing');
+  assert(info.maxWarpSlopeX<=.55,'authored chicane displacement must change gradually between neighbouring modules');
+  assert(info.maxWarpSlopeY<=.35,'authored vertical displacement must change gradually between neighbouring modules');
   assert.equal(info.blocked.length,0,'shifted buildings may not close their own route tube');
   assert(info.physical>=180,'real Map4 building physics must remain substantial');
   assert.equal(info.fastPhysical,0,'FAST remains free from building collision');
