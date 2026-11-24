@@ -64,7 +64,7 @@ insert=r"""            // MAP2-22: transition building handoffs.
                         // This is an actual final Map4 W05 station clone, not a box
                         // or procedural obstacle. The existing source geometry and
                         // materials are reused exactly.
-                        const sourceIndex=(ordinal*3+range.rangeIndex*2)%6;
+                        const sourceIndex=(ordinal*5+range.rangeIndex*2)%6;
                         const clone=map2CloneExactMap4Station(sourceIndex,d,x,y);
                         clone.name=clone.name+'_HANDOFF_'+ordinal;
                         clone.userData.map2TransitionRoadClone=true;
