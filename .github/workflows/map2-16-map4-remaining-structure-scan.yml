@@ -1,0 +1,27 @@
+name: MAP2-16 scan remaining Map4 structures
+on:
+  push:
+    branches: [codex/map2-16-scan-remaining-map4-structures]
+    paths:
+      - tests/map2-16-map4-remaining-structure-scan.cjs
+      - .github/workflows/map2-16-map4-remaining-structure-scan.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-16-scan-remaining-map4-structures
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Scan remaining final Map4 structure groups
+        run: node tests/map2-16-map4-remaining-structure-scan.cjs
