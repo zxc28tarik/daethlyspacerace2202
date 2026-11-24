@@ -26,6 +26,14 @@ assert(html.includes("BUILDINGS_ARE_THE_ROAD"));
 
   const info=await page.evaluate(()=>{
     const road=window.starbladeMap2BuildingRoad;
+    const project=(box,d)=>{
+      const frame=getRaceFrameAtDistance(d),min=box.min,max=box.max;
+      const corners=[[min.x,min.y,min.z],[min.x,min.y,max.z],[min.x,max.y,min.z],[min.x,max.y,max.z],[max.x,min.y,min.z],[max.x,min.y,max.z],[max.x,max.y,min.z],[max.x,max.y,max.z]];
+      let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity;
+      const p=new THREE.Vector3(),r=new THREE.Vector3();
+      for(const cc of corners){p.set(cc[0],cc[1],cc[2]);r.copy(p).sub(frame.center);const x=r.dot(frame.right),y=r.dot(frame.up),z=r.dot(frame.tangent);minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z);}
+      return {minX,maxX,minY,maxY,minZ,maxZ};
+    };
     const lookup=new Map();
     map2CourseGroup.traverse(o=>{if(o.name)lookup.set(o.name,o);});
 
@@ -43,7 +51,7 @@ assert(html.includes("BUILDINGS_ARE_THE_ROAD"));
         root.traverse(mesh=>{
           if(!mesh.isMesh||mesh.isInstancedMesh||!mesh.visible)return;
           const box=new THREE.Box3().setFromObject(mesh);if(box.isEmpty())return;
-          const q=map2ProjectedBoxAt(box,g.d);
+          const q=project(box,g.d);
           const hx=(q.maxX-q.minX)/2,hy=(q.maxY-q.minY)/2,hd=(q.maxZ-q.minZ)/2;
           if(hx<25||hy<24||hd<10||q.maxZ<-320||q.minZ>320)return;
           solids.push(q);
