@@ -65,7 +65,8 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   for(const x of [techEntry,hangar,dual,late]){
     assert.equal(x.seg,'TECH');assert(x.onscreen>8,'TECH must visibly surround the player with industry');
   }
-  assert.equal(techEntry.background,0x172127);assert.equal(techEntry.fog,0x26343b);\n  assert(html.includes('visualTunnelDepth=[680,540,760,620]'),'long factory tunnels must be visual-only');
+  assert.equal(techEntry.background,0x172127);assert.equal(techEntry.fog,0x26343b);
+  assert(html.includes('visualTunnelDepth=[680,540,760,620]'),'long factory tunnels must be visual-only');
   assert.deepEqual(errors,[]);
   console.log('PASS MAP2-08 industrial stage is visible and physical '+JSON.stringify({layout,depths,fast,techEntry,hangar,dual,late}));
  }finally{await browser.close();}
