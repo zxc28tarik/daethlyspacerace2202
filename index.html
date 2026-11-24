@@ -14368,7 +14368,7 @@
             const v=map2PatrolVisual;
             if(visible&&!v.ship){
                 v.ship=createEnemyFighterMesh(true,false);
-                v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(2.8);
+                v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(3.7);
                 const patrolBeaconMat=new THREE.MeshBasicMaterial({color:0xff9b63});
                 for(const bx of [-2.7,2.7]){
                     const beacon=new THREE.Mesh(new THREE.SphereGeometry(.55,8,6),patrolBeaconMat);
