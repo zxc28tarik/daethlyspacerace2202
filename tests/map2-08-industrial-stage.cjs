@@ -35,7 +35,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
 
   async function capture(progress,name){
     await page.evaluate(p=>{state.paused=false;state.routeProgress=p;state.laneX=0;state.laneY=0;},progress);
-    await page.waitForTimeout(260);
+    await page.waitForTimeout(560);
     await page.evaluate(()=>{state.paused=true;map2UpdateVisibility(state.routeProgress);});
     const info=await page.evaluate(()=>{
       scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);
