@@ -31,7 +31,7 @@ assert(html.includes("BUILDINGS_ARE_THE_ROAD"));
 
     const rows=road.groups.filter(g=>g.open).map(g=>{
       const roots=(g.rootNames||[]).map(n=>lookup.get(n)).filter(Boolean);
-      const p=map2BuildingPassageAt(g.d);
+      const p=window.starbladeMap2BuildingPassageAt(g.d);
       const a={routeProgress:g.d-150,laneX:g.x,laneY:g.y};
       const b={...a,routeProgress:g.d+150};
       const blockedByBuilding=(window.starbladeMap2BuildingColliders||[])
