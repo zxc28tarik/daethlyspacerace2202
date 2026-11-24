@@ -115,6 +115,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'searchlight must terminate on the actually rendered player craft');
   assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)>.055,
     'patrol fighter must be large enough to read on screen');
+  assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
   assert(approachShot.ship.z<.995,'patrol fighter must not sit at near-far-plane distance');
   await page.screenshot({path:path.join(evidence,'02-exposed-patrol-search.png')});
 
