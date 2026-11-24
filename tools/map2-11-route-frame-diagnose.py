@@ -8,3 +8,6 @@ for term in terms:
         for n in range(max(1,h-8),min(len(L),h+18)+1):
             print(f"{n}: {L[n-1]}")
         print("---")
+
+print("\n--- PLAYER ROUTE/CAMERA 19815-19910 ---")
+for n in range(19815,19911): print(f"{n}: {L[n-1]}")
