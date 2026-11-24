@@ -13952,7 +13952,7 @@
         const map2CourseGroup=new THREE.Group();
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
-        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,map4BuildingKits:0,map4BuildingMeshes:0};
+        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,map4BuildingKits:0,map4BuildingMeshes:0,map4RoadPieces:0};
         function map2BuildCourse(){
             if(map2Sections.length)return;
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
@@ -14074,18 +14074,25 @@
                 map2VisualStageStats.map4BuildingMeshes++;
                 return copy;
             };
-            const map2AddMap4BuildingKit=(d,baseX,family,id)=>{
+            const map2AddMap4BuildingKit=(d,baseX,family,id,size=390,turn=0)=>{
                 const style={refinery:0,factory:1,power:3,outpost:2}[family];
                 const bounds=factorySources[style];
                 const g=makeCourseLocalGroup(d,baseX,-256);
                 const mesh=copyFactory(style,id);
-                // Uniform scaling preserves the original building proportions.
-                const scale=500/Math.max(bounds.size.x,bounds.size.y,bounds.size.z);
+                // Copy the real Map4 factory as one road piece. No new box shell,
+                // no reconstructed "similar" building: exact C17 geometry/material.
+                const scale=size/Math.max(bounds.size.x,bounds.size.y,bounds.size.z);
                 mesh.scale.setScalar(scale);
                 mesh.position.set(-bounds.center.x*scale,-bounds.min.y*scale,-bounds.center.z*scale);
+                mesh.rotation.y=turn;
                 g.name='MAP2_MAP4_BUILDING_'+family.toUpperCase()+'_'+id;
-                g.userData.map4ReusedBuilding=true;g.add(mesh);sectionAt(d).add(g);
+                g.userData.map4ReusedBuilding=true;
+                g.userData.map2RouteProgress=d;
+                g.userData.map2LaneX=baseX;
+                g.userData.map2RoadPiece=Math.abs(baseX)<=430;
+                g.add(mesh);sectionAt(d).add(g);
                 map2VisualStageStats.map4BuildingKits++;
+                if(g.userData.map2RoadPiece)map2VisualStageStats.map4RoadPieces++;
                 return g;
             };
             for(let d=310,cell=0;d<MAP2_DISTANCE-200;d+=620,cell++){
@@ -14102,8 +14109,14 @@
                         const family=families[(cell+(side>0?1:0))%families.length];
                         // The old single rectangular placeholder is replaced by an
                         // actual Map4 building recipe, positioned outside the flight aperture.
-                        map2AddMap4BuildingKit(d+side*70,side*(690+Math.abs(stagger)*.28),
-                            family,cell+'_'+(side>0?'R':'L'));
+                        map2AddMap4BuildingKit(
+                            d+side*70,
+                            side*(278+Math.abs(stagger)*.42),
+                            family,
+                            'ROAD_TECH_'+cell+'_'+(side>0?'R':'L'),
+                            350+(cell%3)*24,
+                            side*(cell%3-1)*.045
+                        );
                         if(cell%2===0){
                             addVisualStack(d-120,side*(655+(cell%3)*38),20,42+(cell%3)*8,390+(cell%4)*70,
                                 map2VisualMats.steel,'MAP2_VISUAL_STACK_'+cell+'_'+side);
@@ -14174,17 +14187,42 @@
                     // buildings at the flanks instead of black placeholder cuboids.
                     for(const side of [-1,1]){
                         const family=(cell+side>0)?'factory':'outpost';
-                        map2AddMap4BuildingKit(d+side*55,
-                            side*(930+(cell%3)*95),family,'FAST_'+cell+'_'+(side>0?'R':'L'));
+                        map2AddMap4BuildingKit(
+                            d+side*55,
+                            side*(610+(cell%3)*70),
+                            family,
+                            'FAST_EDGE_'+cell+'_'+(side>0?'R':'L'),
+                            390+(cell%2)*35,
+                            side*.035
+                        );
                         map2VisualStageStats.fastMarkers++;
                     }
-                }else if(kind==='LINK' && cell%3===0){
-                    for(const side of [-1,1]){
-                        const family=side>0?'refinery':'outpost';
-                        map2AddMap4BuildingKit(d,side*790,family,
-                            'LINK_'+cell+'_'+(side>0?'R':'L'));
-                        map2VisualStageStats.sideBlocks++;
+                }else if(kind==='LINK'){
+                    // LINK is no longer empty scenery. Copy Map4 buildings one-by-one
+                    // directly onto the road, alternating sides to form a fly-through street.
+                    const side=cell%2?1:-1;
+                    const families=['refinery','factory','power','outpost'];
+                    const family=families[cell%families.length];
+                    map2AddMap4BuildingKit(
+                        d,
+                        side*(245+(cell%4)*24),
+                        family,
+                        'ROAD_LINK_'+cell+'_'+(side>0?'R':'L'),
+                        345+(cell%3)*20,
+                        side*(cell%3-1)*.05
+                    );
+                    if(cell%4===0){
+                        const other=families[(cell+2)%families.length];
+                        map2AddMap4BuildingKit(
+                            d+145,
+                            -side*(330+(cell%3)*18),
+                            other,
+                            'ROAD_LINK_PAIR_'+cell,
+                            300+(cell%2)*24,
+                            -side*.04
+                        );
                     }
+                    map2VisualStageStats.sideBlocks++;
                 }
             }
             const addSolid=(d,x,y,w,h,depth,mat,kind)=>{
@@ -14291,22 +14329,22 @@
                             addVisualBlock(d+z,350,35,34,430,42,map2VisualMats.steel,'MAP2_HANGAR_RIB_R_'+i+'_'+z);
                             map2VisualStageStats.gateDetails+=2;
                         }
-                        addVisualBlock(d-70,-510,55,190,540,360,map2VisualMats.shell,'MAP2_HANGAR_TOWER_L_'+i);
-                        addVisualBlock(d+70,510,55,190,540,360,map2VisualMats.shell,'MAP2_HANGAR_TOWER_R_'+i);
+                        map2AddMap4BuildingKit(d-70,-410,'factory','GATE_HANGAR_L_'+i,430,.04);
+                        map2AddMap4BuildingKit(d+70,410,'refinery','GATE_HANGAR_R_'+i,430,-.04);
                         map2VisualStageStats.silhouetteTowers+=2;
                     }else if(style===1){
                         addVisualPipe(d,0,350,16,690,map2VisualMats.pipe,'MAP2_GANTRY_PIPE_A_'+i,'side');
                         addVisualPipe(d,0,382,11,690,map2VisualMats.pipe,'MAP2_GANTRY_PIPE_B_'+i,'side');
-                        addVisualBlock(d-35,-500,95,120,650,250,map2VisualMats.steel,'MAP2_GANTRY_PYLON_L_'+i);
-                        addVisualBlock(d+35,500,95,120,650,250,map2VisualMats.steel,'MAP2_GANTRY_PYLON_R_'+i);
+                        map2AddMap4BuildingKit(d-35,-405,'power','GATE_GANTRY_L_'+i,445,.03);
+                        map2AddMap4BuildingKit(d+35,405,'factory','GATE_GANTRY_R_'+i,445,-.03);
                         map2VisualStageStats.gateDetails+=2;map2VisualStageStats.silhouetteTowers+=2;
                     }else if(style===2){
                         addVisualTank(d-180,-455,-70,64,250,map2VisualMats.tank,'MAP2_DUAL_TANK_L_'+i);
                         addVisualTank(d+180,455,-70,64,250,map2VisualMats.tank,'MAP2_DUAL_TANK_R_'+i);
                         addVisualPipe(d,-455,90,12,420,map2VisualMats.pipe,'MAP2_DUAL_PIPE_L_'+i);
                         addVisualPipe(d,455,90,12,420,map2VisualMats.pipe,'MAP2_DUAL_PIPE_R_'+i);
-                        addVisualBlock(d-150,-585,20,210,480,420,map2VisualMats.warm,'MAP2_DUAL_FACTORY_MASS_L_'+i);
-                        addVisualBlock(d+150,585,20,210,480,420,map2VisualMats.shell,'MAP2_DUAL_FACTORY_MASS_R_'+i);
+                        map2AddMap4BuildingKit(d-150,-420,'refinery','GATE_DUAL_L_'+i,420,.045);
+                        map2AddMap4BuildingKit(d+150,420,'outpost','GATE_DUAL_R_'+i,420,-.045);
                         map2VisualStageStats.gateDetails+=4;map2VisualStageStats.silhouetteTowers+=2;
                     }else{
                         for(const side of [-1,1])for(const y of [150,205,260]){
@@ -14314,8 +14352,8 @@
                                 'MAP2_SLOT_FIN_'+i+'_'+side+'_'+y);
                             map2VisualStageStats.gateDetails++;
                         }
-                        addVisualBlock(d-110,-455,70,135,600,330,map2VisualMats.dark,'MAP2_SLOT_MACHINE_L_'+i);
-                        addVisualBlock(d+110,455,70,135,600,330,map2VisualMats.dark,'MAP2_SLOT_MACHINE_R_'+i);
+                        map2AddMap4BuildingKit(d-110,-400,'outpost','GATE_SLOT_L_'+i,405,.05);
+                        map2AddMap4BuildingKit(d+110,400,'power','GATE_SLOT_R_'+i,405,-.05);
                         addVisualBlock(d,0,420,760,34,210,map2VisualMats.steel,'MAP2_SLOT_CROWN_'+i);
                         map2VisualStageStats.silhouetteTowers+=2;map2VisualStageStats.gateDetails++;
                     }
