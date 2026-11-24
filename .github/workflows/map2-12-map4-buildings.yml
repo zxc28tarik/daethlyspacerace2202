@@ -30,5 +30,7 @@ jobs:
         if: always()
         with:
           name: map2-12-browser-evidence
-          path: tests/map2-12-evidence/
+          path: |
+            tests/map2-12-evidence/
+            index.html
           if-no-files-found: warn
