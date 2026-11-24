@@ -90,9 +90,17 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     const a=map2PatrolVisual.search.geometry.attributes.position;
     const start=new THREE.Vector3(a.getX(0),a.getY(0),a.getZ(0)).project(camera);
     const end=new THREE.Vector3(a.getX(1),a.getY(1),a.getZ(1)).project(camera);
+    const player=playerRig.position.clone().project(camera);
+    const box=new THREE.Box3().setFromObject(map2PatrolVisual.ship),pts=[];
+    for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])
+      pts.push(new THREE.Vector3(x,y,z).project(camera));
+    const bbox={w:Math.max(...pts.map(p=>p.x))-Math.min(...pts.map(p=>p.x)),
+      h:Math.max(...pts.map(p=>p.y))-Math.min(...pts.map(p=>p.y))};
     return {search:map2PatrolVisual.search?.visible===true,phase:window.starbladeMap2Patrol?.phase,
       warning:map2PatrolWarning()?.title||null,depthTest:map2PatrolVisual.search.material.depthTest,
-      ship:{x:ship.x,y:ship.y,z:ship.z},start:{x:start.x,y:start.y,z:start.z},end:{x:end.x,y:end.y,z:end.z}};
+      lineLength:Math.hypot(start.x-end.x,start.y-end.y),bbox,
+      ship:{x:ship.x,y:ship.y,z:ship.z},player:{x:player.x,y:player.y,z:player.z},
+      start:{x:start.x,y:start.y,z:start.z},end:{x:end.x,y:end.y,z:end.z}};
   });
   assert.equal(approachShot.search,true);assert(approachShot.warning?.includes('YAKLAŞIYOR'));
   assert.equal(approachShot.depthTest,false,'searchlight must remain readable against roof geometry');
@@ -102,6 +110,11 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'searchlight origin must be in frame');
   assert(Math.abs(approachShot.end.x)<1.05&&Math.abs(approachShot.end.y)<1.05,
     'searchlight target must be in frame');
+  assert(Math.abs(approachShot.end.x-approachShot.player.x)<.015&&Math.abs(approachShot.end.y-approachShot.player.y)<.015,
+    'searchlight must terminate on the actually rendered player craft');
+  assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)>.055,
+    'patrol fighter must be large enough to read on screen');
+  assert(approachShot.ship.z<.995,'patrol fighter must not sit at near-far-plane distance');
   await page.screenshot({path:path.join(evidence,'02-exposed-patrol-search.png')});
 
   await settle(12000,300);
