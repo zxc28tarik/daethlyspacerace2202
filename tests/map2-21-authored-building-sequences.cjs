@@ -27,6 +27,7 @@ assert(html.includes('CORRIDOR_KNIFE'));
   const info=await page.evaluate(()=>{
     const seq=window.starbladeMap2AuthoredSequences;
     const road=window.starbladeMap2BuildingRoad;
+    const coreKnots=road.coreKnots||road.knots;
     const comp=window.starbladeMap2BuildingChainCompaction;
     const expected=[
       [
@@ -85,7 +86,7 @@ assert(html.includes('CORRIDOR_KNIFE'));
     const techRanges=MAP2_SEGMENTS.filter(s=>s.kind==='TECH').map(s=>({from:s.from*MAP2_DISTANCE,to:s.to*MAP2_DISTANCE}));
     const techGaps=[];
     for(const range of techRanges){
-      const knots=road.knots.filter(k=>k.distance>=range.from&&k.distance<=range.to).sort((a,b)=>a.distance-b.distance);
+      const knots=coreKnots.filter(k=>k.distance>=range.from&&k.distance<=range.to).sort((a,b)=>a.distance-b.distance);
       let prev=range.from;
       for(const k of knots){techGaps.push(k.distance-prev);prev=k.distance;}
       techGaps.push(range.to-prev);
@@ -93,7 +94,7 @@ assert(html.includes('CORRIDOR_KNIFE'));
 
     return {
       sequenceCount:seq.sequenceCount,reordered:seq.reordered,laneSwings:seq.laneSwings,verticalSwings:seq.verticalSwings,
-      chains,seqNames,roadGroups:allRoad.length,knots:road.knots.length,
+      chains,seqNames,roadGroups:allRoad.length,knots:coreKnots.length,totalKnots:road.knots.length,
       framed:allRoad.filter(g=>g.framed).length,
       physical:physical.length,fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
       rootSequenceCount:rootSequence.length,rootsTech:rootSequence.every(r=>r.seg==='TECH'),
@@ -107,7 +108,8 @@ assert(html.includes('CORRIDOR_KNIFE'));
 
   assert.equal(info.sequenceCount,8,'exactly eight authored TECH sequences are expected');
   assert.equal(info.roadGroups,60,'all 60 existing building groups must participate');
-  assert.equal(info.knots,60,'one real aperture knot per existing group');
+  assert.equal(info.knots,60,'one core real aperture knot per authored building group');
+  assert(info.totalKnots>=info.knots,'later real-building handoffs may add extra knots');
   assert(info.reordered>=35,'the uniform MAP2-20 order must be substantially rearranged');
   assert(info.laneSwings>=10,'authored route should contain repeated left/right building transitions');
   assert(info.verticalSwings>=6,'authored route should contain meaningful altitude transitions');
