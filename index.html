@@ -328,7 +328,7 @@
             font-size:12px;line-height:1.44;color:#c1d1dc;}
         #flight-help-screen .grid > div strong{color:var(--ui-cyan);}
         #flight-help-screen #h4-power-help{grid-column:span 2;border-color:rgba(228,171,93,.29);}
-        body[data-ui-mode="map4"] #ui-map1-pause-note{display:none!important;}
+        body[data-ui-mode="map4"] #ui-map1-pause-note,body[data-ui-mode="map2"] #ui-map1-pause-note{display:none!important;}
         #ui-map1-pause-note{font:400 12px/1.5 'Share Tech Mono',monospace;color:#e0b97e;}
         .ui-resume-btn{width:100%;min-height:48px;}
         /* In-game: preserve 3D scene. Strengthen readability, soften unused ornament. */
@@ -3437,7 +3437,8 @@
 
 
         const MAP_MODES = Object.freeze({ MAP1: 'map1', MAP2: 'map2', MAP4: 'map4' });
-        const MAP_AVAILABLE = Object.freeze({ map1: true, map2: true, map4: false }); // Demo only: Map4 retained.
+        const DEMO_MAP4_ENABLED=false; // Single reversible demo gate. All Map4 code and assets retained.
+        const MAP_AVAILABLE = Object.freeze({ map1: true, map2: true, map4: DEMO_MAP4_ENABLED });
 
         // H4-04 — authoritatively time-gated hunt race. IMPORTANT: the real
         // crossing time, NOT the discounted time, decides eligibility.
@@ -20606,6 +20607,7 @@
         }
 
         function findMagneticLockTarget() {
+            if(map2Active()){state.lockedTarget=null;state.lastLockedTarget=null;return;}
             let bestTarget = null;
             const laserReady = state.combatEnabled || state.activeMap === MAP_MODES.MAP4 || state.obstacleLaserTimer > 0;
             const previousSource = state.lockedTarget && (state.lockedTarget.source || state.lockedTarget);
@@ -21687,7 +21689,6 @@
         function uiSetRaceResultBackdrop(mapId){
             const imageByMap={
                 map1:'#map-choice-1 .ui-map-retro-race-illustration',
-                map2:'#map-choice-4 .ui-map-retro-city-illustration',
                 map4:'#map-choice-4 .ui-map-retro-city-illustration'
             };
             const srcNode=document.querySelector(imageByMap[mapId]||'#ui-never-match');
@@ -22060,7 +22061,7 @@
             const launch = document.getElementById('start-btn');
             launch.disabled = !ready;
             const isMap4=mapId===MAP_MODES.MAP4;
-            document.getElementById('map1-instructions').classList.toggle('hidden',isMap4);
+            document.getElementById('map1-instructions').classList.toggle('hidden',isMap4||map2Active());
             document.getElementById('map4-instructions').classList.toggle('hidden',!isMap4);
             uiUpdateQuickBriefing(mapId);
             document.getElementById('h4-power-help').classList.toggle('hidden',!isMap4);
@@ -22082,6 +22083,7 @@
         document.getElementById('ui-side-map1').addEventListener('click',()=>selectMap(MAP_MODES.MAP1));
         document.getElementById('ui-side-map4').addEventListener('click',()=>selectMap(MAP_MODES.MAP4));
         document.getElementById('ui-side-guide').addEventListener('click',()=>{
+            if(map2Active()){document.getElementById('ui-quick-mission-title').scrollIntoView({block:'nearest'});return;}
             const guide=document.getElementById(state.activeMap===MAP_MODES.MAP4?
                 'map4-instructions':'map1-instructions');
             guide.open=!guide.open;
@@ -22174,6 +22176,14 @@
         });
         uiApplyDisplaySettings();
         uiRefreshSettingsControls();
+        // Restore Map4 access by changing only DEMO_MAP4_ENABLED; preserve its menu node and artwork.
+        if(DEMO_MAP4_ENABLED){
+            const card=document.getElementById('map-choice-4'),side=document.getElementById('ui-side-map4');
+            for(const el of [card,side]){el.disabled=false;el.removeAttribute('aria-disabled');}
+            card.classList.remove('ui-map-locked');
+            const badge=card.querySelector('.ui-map-status');badge.className='ui-map-status ui-map-status--wip';badge.textContent='OYNA · PROTOTİP';
+            side.querySelector('small').textContent='HARİTA 04 · OYNANABİLİR';
+        }
         selectMap(MAP_MODES.MAP1);
         // Return from either results screen to the chooser without launching a race.
         function returnToMapSelection() {
