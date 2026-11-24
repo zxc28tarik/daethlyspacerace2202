@@ -70,6 +70,19 @@ assert(html.includes('passageHalfX=48'));
     const centre=building.length-left-right;
     const bins=new Set(building.map(o=>Math.floor(o.routeProgress/420)));
 
+    const gantryIntrusions=map2Gates.filter(g=>g.kind==='GANTRY').flatMap(g=>{
+      const a={routeProgress:g.distance-220,laneX:g.laneX,laneY:-215};
+      const b={...a,routeProgress:g.distance+220};
+      return building.filter(o=>courseSegmentTouch(o,a,b,12.5)).map(o=>({
+        gate:g.distance,
+        obstacle:o.routeProgress,
+        hd:o.halfDepth,
+        x:o.laneX,y:o.laneY,hx:o.halfX,hy:o.halfY,
+        sourceRoot:o.sourceRoot,
+        visual:o.mesh?.name||''
+      }));
+    });
+
     // Count actual direction changes in the deliberately preserved passage.
     const ordered=[...building].sort((a,b)=>a.routeProgress-b.routeProgress);
     let signChanges=0,lastSign=0;
@@ -84,7 +97,7 @@ assert(html.includes('passageHalfX=48'));
       totalObstacles:map2Obstacles.length,
       originalObstacleEstimate:map2Obstacles.length-building.length,
       rows,
-      bins:bins.size,centerlineBlocked,lowLaneBlocked,overhead,left,right,centre,signChanges,
+      bins:bins.size,centerlineBlocked,lowLaneBlocked,overhead,left,right,centre,signChanges,gantryIntrusions,
       stats:window.starbladeMap2Layout?.visualStage||null,
       fast:building.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length
     };
@@ -98,6 +111,7 @@ assert(html.includes('passageHalfX=48'));
   assert(info.rows.every(x=>x.seg==='TECH'&&x.hit),'every derived building collider must be physically hittable in TECH');
   assert(info.rows.every(x=>!x.passageBlocked),'the deliberate narrow passage must remain open');
   assert(info.rows.every(x=>x.visible&&x.physical),'colliders must come from visible real building meshes');
+  assert.equal(info.gantryIntrusions.length,0,'real building placement must not close authored GANTRY low passages');
   assert(info.rows.every(x=>x.visualDistance<=95),'physics must stay inside/very close to rendered building mass');
   assert(info.centerlineBlocked>=4,'some real buildings must force the player off the centre line');
   assert(info.left>=5&&info.right>=5,'real building obstacles must pressure both sides of the route');
