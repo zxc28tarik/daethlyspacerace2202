@@ -154,7 +154,7 @@ insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
                     };
                     const found=map2FindBuildingRoadAperture(roots,d,continuity);
                     if(!found.aperture){
-                        records.push({d,roots:roots.length,open:false,solids:found.solids});
+                        records.push({d,roots:roots.length,open:false,solids:found.solids,rootNames:roots.map(r=>r.name)});
                         continue;
                     }
 
@@ -187,6 +187,7 @@ insert=r"""            // MAP2-19: BUILDINGS ARE THE ROAD.
                     previous=routeTarget;
                     records.push({
                         d,roots:roots.length,open:true,solids:found.solids,
+                        rootNames:roots.map(r=>r.name),
                         sourceX:found.aperture.x,sourceY:found.aperture.y,
                         x:routeTarget.x,y:routeTarget.y,shift
                     });
