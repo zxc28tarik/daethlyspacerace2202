@@ -1,0 +1,61 @@
+name: MAP2-17 full industrial district and coverage
+on:
+  push:
+    branches: [codex/map2-17-measure-and-fill-industrial]
+    paths:
+      - tools/map2-17-fill-with-map4-industrial-visuals.py
+      - tests/map2-17-full-industrial-coverage.cjs
+      - tests/map2-17-coverage-scan.cjs
+      - .github/workflows/map2-17-coverage-scan.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply-and-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-17-measure-and-fill-industrial
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply full 985-mesh Map4 industrial district
+        run: python tools/map2-17-fill-with-map4-industrial-visuals.py
+      - name: Validate exact industrial source markers
+        run: |
+          grep -q "MAP2_EXACT_MAP4_INDUSTRIAL_PART_" index.html
+          grep -q "MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS" index.html
+          grep -q "exactMap4IndustrialVisualParts" index.html
+          grep -q "exactMap4IndustrialVisualMeshes" index.html
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-17 exact industrial + coverage QA
+        run: node tests/map2-17-full-industrial-coverage.cjs
+      - name: MAP2-16 remaining buildings regression
+        run: node tests/map2-16-remaining-map4-buildings.cjs
+      - name: MAP2-15 city regression
+        run: node tests/map2-15-map4-city-district-reuse.cjs
+      - name: MAP2-14 dense W05 regression
+        run: node tests/map2-14-dense-map4-road-buildings.cjs
+      - name: MAP2-13 exact station regression
+        run: node tests/map2-13-exact-map4-clones.cjs
+      - name: MAP2-11 KEEP IT LOW regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: Commit full industrial district
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-17 paste all 985 Map4 industrial visual meshes while preserving 70-80 fill"
+          git push origin HEAD:codex/map2-17-measure-and-fill-industrial
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-17-industrial-coverage-evidence
+          path: tests/map2-17-evidence/
+          if-no-files-found: warn
