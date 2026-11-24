@@ -328,9 +328,9 @@ speed_new="""                if(map2Pilot){
                         );
                         // Moderate speed only when the craft is genuinely late to a
                         // real building aperture. We do not globally slow the race.
-                        if(map2BuildingPlan.inModule&&buildingError>82)
+                        if(map2BuildingPlan.inModule&&buildingError>105)
                             cap=Math.min(cap,RACE_SPEEDS.BRAKE);
-                        else if(buildingError>58)
+                        else if(buildingError>68)
                             cap=Math.min(cap,RACE_SPEEDS.NORMAL);
                         map2Pilot.buildingPlan={...map2BuildingPlan,lateralError:buildingError};
                     }
