@@ -1,25 +1,11 @@
 from pathlib import Path
-s=Path("index.html").read_text(encoding="utf-8")
-terms=[
-    "map2LogicalBuildingGroups",
-    "map2GateSelections",
-    "map2GateExits",
-    "map2BuildingPassageAt(",
-    "function updateRival",
-    "function updateRacers",
-    "map2SelectGateOpening",
-    "gateTarget",
-    "targetLane"
-]
-lines=s.splitlines()
-for term in terms:
-    print("\n===== TERM",term,"=====")
-    hits=0
-    for i,line in enumerate(lines):
-        if term in line:
-            hits+=1
-            a=max(0,i-18);b=min(len(lines),i+30)
-            print(f"--- HIT {hits} lines {a+1}-{b} ---")
-            for j in range(a,b):
-                print(f"{j+1}: {lines[j]}")
-            if hits>=8: break
+lines=Path("index.html").read_text(encoding="utf-8").splitlines()
+for a,b,label in [
+    (19840,20040,"MAP2 AI GATE PLANNER"),
+    (21970,22190,"RIVAL STEERING"),
+    (15040,15195,"BUILDING ROAD ORGANIZER"),
+    (14380,14570,"BUILDING HELPERS")
+]:
+    print(f"\n===== {label} {a}-{b} =====")
+    for i in range(a-1,min(b,len(lines))):
+        print(f"{i+1}: {lines[i]}")
