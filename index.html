@@ -14092,11 +14092,12 @@
                 gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
                 closure:map2RouteCurve.getPointAt(0).distanceTo(map2RouteCurve.getPointAt(1))};
         }
-        // MAP2-04: altitude patrol. Isolated from all existing combat collections.
-        const MAP2_PATROL=Object.freeze({ceiling:220,lockSeconds:.85,shotInterval:.7,damage:12,beamSeconds:.13});
-        const map2PatrolVisual={ship:null,beam:null,flash:0};
+        // MAP2-04/07: altitude patrol. Gameplay damage stays fixed; MAP2-07 adds readable approach/lock/breakaway motion.
+        const MAP2_PATROL=Object.freeze({ceiling:220,lockSeconds:.85,approachSeconds:.42,shotInterval:.7,damage:12,beamSeconds:.13});
+        const map2PatrolVisual={ship:null,beam:null,flash:0,breakaway:0,side:1,approach:0};
         function map2PatrolReset(){
-            state.map2Patrol=null;map2PatrolVisual.flash=0;
+            state.map2Patrol=null;
+            map2PatrolVisual.flash=0;map2PatrolVisual.breakaway=0;map2PatrolVisual.side=1;map2PatrolVisual.approach=0;
             if(map2PatrolVisual.ship)map2PatrolVisual.ship.visible=false;
             if(map2PatrolVisual.beam)map2PatrolVisual.beam.visible=false;
             window.starbladeMap2Patrol=null;
@@ -14137,28 +14138,47 @@
             if(v.ship){
                 v.ship.visible=visible;
                 v.flash=fired?MAP2_PATROL.beamSeconds:Math.max(0,v.flash-dt);
+                if(fired){v.breakaway=.34;v.side=(p.shots%2)?1:-1;}
+                else v.breakaway=Math.max(0,v.breakaway-dt);
                 v.beam.visible=visible&&v.flash>0;
                 if(visible){
-                    const f=getRaceFrameAtDistance(Math.min(MAP2_DISTANCE,state.routeProgress+255));
-                    const x=state.laneX*.35+Math.sin(state.raceTime*.9)*75;
-                    v.ship.position.copy(f.center).addScaledVector(f.right,x).addScaledVector(f.up,325);
+                    const active=!!p.active;
+                    const lockRatio=active?Math.min(1,p.lock/MAP2_PATROL.lockSeconds):0;
+                    const targetApproach=active?Math.min(1,lockRatio+(p.shots>0?.18:0)):0;
+                    v.approach+=(targetApproach-v.approach)*Math.min(1,dt*(active?5.5:2.2));
+                    const strike=v.breakaway>0?Math.sin((v.breakaway/.34)*Math.PI):0;
+                    const ahead=370-v.approach*190+strike*95;
+                    const f=getRaceFrameAtDistance(Math.min(MAP2_DISTANCE,state.routeProgress+ahead));
+                    const sweep=Math.sin(state.raceTime*.85)*82;
+                    const attackSide=v.side*(55+80*strike);
+                    const x=state.laneX*(.25+.25*v.approach)+sweep*(1-v.approach*.55)+
+                        attackSide*(v.approach*.35+strike*.65);
+                    const altitude=430-v.approach*145+strike*90;
+                    v.ship.position.copy(f.center).addScaledVector(f.right,x).addScaledVector(f.up,altitude);
                     const pf=getRaceFrameAtDistance(state.routeProgress);
                     const target=pf.center.clone().addScaledVector(pf.right,state.laneX).addScaledVector(pf.up,state.laneY);
-                    v.ship.lookAt(target);
+                    const aim=target.clone().addScaledVector(pf.up,active?0:55);
+                    v.ship.lookAt(aim);
                     if(v.beam.visible){
                         const a=v.beam.geometry.attributes.position;
                         a.setXYZ(0,v.ship.position.x,v.ship.position.y,v.ship.position.z);
                         a.setXYZ(1,target.x,target.y,target.z);a.needsUpdate=true;
                     }
+                }else{
+                    v.approach=0;v.breakaway=0;
                 }
             }
-            window.starbladeMap2Patrol={active:p.active,lock:p.lock,shots:p.shots,hits:p.hits,visible,ceiling:MAP2_PATROL.ceiling};
+            const phase=!p.active?'patrol':p.shots>0?'attack':p.lock<MAP2_PATROL.approachSeconds?'approach':'lock';
+            window.starbladeMap2Patrol={active:p.active,lock:p.lock,shots:p.shots,hits:p.hits,visible,
+                ceiling:MAP2_PATROL.ceiling,approach:v.approach,breakaway:v.breakaway,phase};
         }
         function map2PatrolWarning(){
             if(!map2Active()||state.finished||state.playerDNF||map2Segment(state.routeProgress).kind!=='TECH'||
                 state.laneY<=MAP2_PATROL.ceiling)return null;
-            const p=state.map2Patrol;
-            return {tone:'urgent',title:p&&p.shots>0?'DEVRİYE ATEŞİ · ALÇAL':'DEVRİYE KİLİDİ · ALÇAL',detail:'Yapıların üstünde kalma · açıklıklardan geç'};
+            const p=state.map2Patrol,lock=p?p.lock:0,shots=p?p.shots:0;
+            if(shots>0)return {tone:'urgent',title:'DEVRİYE ATEŞİ · ALÇAL',detail:'Yapıların üstünde kalma · açıklıklardan geç'};
+            if(lock<MAP2_PATROL.approachSeconds)return {tone:'caution',title:'DEVRİYE YAKLAŞIYOR · ALÇAL',detail:'Çatı çizgisinin altına in · açıklığa yönel'};
+            return {tone:'urgent',title:'DEVRİYE KİLİDİ · ALÇAL',detail:'Ateş açmadan önce çatı çizgisinin altına in'};
         }
 
         function activeCourseObstacles(){return map2Active()?map2Obstacles:staticObstacles;}
