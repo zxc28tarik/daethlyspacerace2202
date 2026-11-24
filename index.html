@@ -13961,7 +13961,7 @@
         const map2CourseGroup=new THREE.Group();
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
-        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0};
+        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0,exactMap4CityDistrictClones:0,exactMap4CityMeshes:0};
         function map2BuildCourse(){
             if(map2Sections.length)return;
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
@@ -14049,6 +14049,46 @@
                 map2VisualStageStats.exactMap4Meshes+=meshes;
                 return clone;
             };
+
+            // MAP2-15: reuse the FINAL visible Map4 urban combat district as another
+            // authoritative source. This includes the real city towers, crowns,
+            // stepped tops, antenna silhouettes, facade ribs/windows and street-level
+            // architectural detail. We clone the complete group, then strip only its
+            // Map4 collision metadata so Map2 gameplay remains controlled by Map2.
+            const map2CloneExactMap4CityDistrict=(d,side=0,up=0)=>{
+                const source=h4City02DistrictGroup;
+                if(!source||source.name!=='MAP4_CITY02_REAL_URBAN_DISTRICT')
+                    throw new Error('MAP2-15 requires final Map4 urban district source');
+                const sourceAt=MAP4_CITY_ARENA.centerProgress;
+                const clone=source.clone(true);
+                clone.name='MAP2_EXACT_MAP4_CITY_DISTRICT_AT_'+Math.round(d);
+                clone.visible=true;
+                clone.userData.map2ExactMap4CityClone=true;
+                clone.userData.sourceMap4District=source.name;
+                clone.userData.sourceProgress=sourceAt;
+                clone.userData.map2TargetDistance=d;
+                clone.userData.map2TargetSide=side;
+                clone.userData.map2TargetUp=up;
+                const transform=map2FrameMatrix(d,side,up)
+                    .multiply(map4SourceFrameMatrix(sourceAt).invert());
+                clone.applyMatrix4(transform);
+                let meshes=0;
+                clone.traverse(obj=>{
+                    obj.userData.map2ExactMap4CityClone=true;
+                    if(obj.isMesh||obj.isInstancedMesh){
+                        meshes++;
+                        obj.userData.map2VisualOnly=true;
+                        obj.userData.visualOnly=true;
+                        if(obj.userData.h4Collider)obj.userData.h4Collider=null;
+                        if(obj.userData.h4CityPhysical)obj.userData.h4CityPhysical=false;
+                    }
+                });
+                sectionAt(d).add(clone);
+                map2VisualStageStats.exactMap4CityDistrictClones++;
+                map2VisualStageStats.exactMap4CityMeshes+=meshes;
+                return clone;
+            };
+
             // MAP2-08: build an actual industrial district around the physical gates.
             // These meshes are visual context only. The obstacle list below remains the
             // sole authority for collision, so FAST lanes stay physically clear.
@@ -14223,6 +14263,23 @@
                         map2CloneExactMap4Station(exactCloneOrdinal++%6,flankD,flankSide,-28);
                     }
                 }
+            });
+
+            // Add full Map4 city districts between industrial stretches. Each city copy
+            // spans roughly two kilometres of authored urban fabric, so keep generous
+            // separation and never let its centre or shoulders overlap a FAST segment.
+            const cityDistrictTargets=[];
+            for(let seed=24500;seed<MAP2_DISTANCE-9000;seed+=30000){
+                let d=seed;
+                for(let tries=0;tries<8;tries++,d+=1800){
+                    const clear=[d-1800,d,d+1800].every(x=>
+                        x>4000&&x<MAP2_DISTANCE-4000&&map2Segment(x).kind!=='FAST');
+                    if(clear){cityDistrictTargets.push(d);break;}
+                }
+            }
+            cityDistrictTargets.forEach((d,i)=>{
+                const side=(i%3===0?0:(i%2?-110:110));
+                map2CloneExactMap4CityDistrict(d,side,-8);
             });
             const addSolid=(d,x,y,w,h,depth,mat,kind)=>{
                 const g=makeCourseLocalGroup(d,x,y);
