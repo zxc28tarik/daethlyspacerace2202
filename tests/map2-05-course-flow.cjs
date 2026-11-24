@@ -81,7 +81,10 @@ const flow=await page.evaluate(()=>{
       const routeClear=(p,q)=>{
         const nodes=[{routeProgress:from,laneX:p.x,laneY:p.y}];
         const run=Math.max(1,to-from);
-        const blend=Math.min(480,run*.42);
+        // The building passage already terminates on the authored gate openings.
+        // Only bridge the short gate-depth offset used by this legacy test; a long
+        // second blend would drag the valid slalom back through nearby structures.
+        const blend=Math.min(170,run*.16);
         const smooth=t=>t*t*(3-2*t);
         for(let d=from+90;d<to;d+=90){
           const lane=starbladeMap2BuildingPassageAt(d);
