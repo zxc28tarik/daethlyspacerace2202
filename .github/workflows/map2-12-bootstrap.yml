@@ -21,10 +21,11 @@ jobs:
         run: python tools/map2-12-map4-building-patch.py
       - name: Validate source markers
         run: |
-          grep -q "MAP2_MAP4_REFINERY" index.html
-          grep -q "MAP2_MAP4_FACTORY" index.html
-          grep -q "MAP2_MAP4_POWER" index.html
-          grep -q "MAP2_MAP4_OUTPOST" index.html
+          grep -q "map2AddMap4BuildingKit" index.html
+          grep -q "family==='refinery'" index.html
+          grep -q "family==='factory'" index.html
+          grep -q "family==='power'" index.html
+          grep -q "map4BuildingKits" index.html
           ! grep -q "MAP2_VISUAL_FACTORY_" index.html
       - name: Commit game patch
         run: |
