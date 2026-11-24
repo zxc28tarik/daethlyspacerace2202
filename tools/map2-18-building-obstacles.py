@@ -135,7 +135,7 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                         if(roadOverlap<=25)return;
                         const volume=hx*hy*hd;
                         const blocksCentre=Math.abs(cx)<hx+15&&Math.abs(cy)<hy+15;
-                        const centrePressure=blocksCentre?2.6:1;
+                        const centrePressure=blocksCentre?(Math.abs(cy)<175?4.4:2.6):1;
                         candidates.push({
                             routeProgress:d,laneX:cx,laneY:cy,
                             halfX:hx,halfY:hy,halfDepth:hd,
