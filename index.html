@@ -16388,6 +16388,32 @@
             // accidentally sealing the intended gate apertures.
             map2BuildPhysicalMap4BuildingObstacles();
 
+            // MAP2-27: the render sector is now the union of the original
+            // chunk and the real building module/collider spans it contains.
+            // A long building must not vanish while a pilot is still inside.
+            const sectionSet=new Set(map2Sections);
+            const extend=(obj,from,to)=>{
+                let owner=obj;
+                while(owner&&!sectionSet.has(owner))owner=owner.parent;
+                if(!owner||!Number.isFinite(from)||!Number.isFinite(to))return;
+                owner.userData.architectureFrom=Math.min(owner.userData.architectureFrom??owner.userData.from,from);
+                owner.userData.architectureTo=Math.max(owner.userData.architectureTo??owner.userData.to,to);
+            };
+            const roots=map2ExactBuildingRoots();
+            for(const root of roots){
+                const d=root.userData.map2TargetDistance;
+                if(!Number.isFinite(d))continue;
+                extend(root,root.userData.map2ThroughEntrance??d,root.userData.map2ThroughExit??d);
+            }
+            for(const obstacle of map2Obstacles){
+                if(!obstacle.map2BuildingDerived)continue;
+                const d=obstacle.routeProgress,half=obstacle.halfDepth||0;
+                extend(obstacle.mesh,d-half,d+half);
+            }
+            map2VisualStageStats.architectureExtendedSections=map2Sections.filter(g=>
+                (g.userData.architectureFrom??g.userData.from)<g.userData.from||
+                (g.userData.architectureTo??g.userData.to)>g.userData.to).length;
+
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
                 gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
@@ -16549,7 +16575,11 @@
         function map2UpdateVisibility(progress){
             map2CourseGroup.visible=map2Active();
             if(!map2Active())return;
-            for(const g of map2Sections)g.visible=g.userData.to>=progress-900&&g.userData.from<=progress+6500;
+            for(const g of map2Sections){
+                const from=g.userData.architectureFrom??g.userData.from;
+                const to=g.userData.architectureTo??g.userData.to;
+                g.visible=to>=progress-900&&from<=progress+6500;
+            }
             finishGateGroup.visible=progress>=MAP2_DISTANCE-4000;
         }
 
