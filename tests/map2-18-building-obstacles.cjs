@@ -25,10 +25,14 @@ assert(html.includes('passageHalfX=48'));
 
   const info=await page.evaluate(()=>{
     const building=window.starbladeMap2BuildingColliders||[];
-    const visibleChain=mesh=>{
+    const visibleAuthored=(mesh,rootName)=>{
       let n=mesh;
-      while(n&&n!==map2CourseGroup.parent){if(!n.visible)return false;n=n.parent;}
-      return true;
+      while(n){
+        if(!n.visible)return false;
+        if(n.name===rootName)return true;
+        n=n.parent;
+      }
+      return false;
     };
     const rows=building.map(o=>{
       const a={routeProgress:o.routeProgress-o.halfDepth-25,laneX:o.laneX,laneY:o.laneY};
@@ -47,7 +51,7 @@ assert(html.includes('passageHalfX=48'));
       return {
         d:o.routeProgress,x:o.laneX,y:o.laneY,hx:o.halfX,hy:o.halfY,hd:o.halfDepth,
         hit,passageBlocked,seg:map2Segment(o.routeProgress).kind,
-        visible:visibleChain(o.mesh),physical:!!o.mesh?.userData?.map2PhysicalBuilding,
+        visible:visibleAuthored(o.mesh,o.sourceRoot),physical:!!o.mesh?.userData?.map2PhysicalBuilding,
         visualDistance,sourceRoot:o.sourceRoot,passageX:o.passageX,passageY:o.passageY
       };
     });
