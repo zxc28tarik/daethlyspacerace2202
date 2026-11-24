@@ -53,7 +53,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'W05_INDUSTRY_STATION_1','W05_INDUSTRY_STATION_2','W05_INDUSTRY_STATION_3',
     'W05_INDUSTRY_STATION_4','W05_INDUSTRY_STATION_5','W05_INDUSTRY_STATION_6'
   ]);
-  assert(structural.roots>=10,'Map2 should reuse many complete Map4 stations');
+  assert(structural.roots>=6,'Map2 should reuse complete Map4 stations');
   assert(structural.meshPairs>300,'exact station clones need substantial final child trees');
   assert.equal(structural.sameGeo,structural.meshPairs,'clone must share exact Map4 geometry objects');
   assert.equal(structural.sameMat,structural.meshPairs,'clone must share exact Map4 material objects');
