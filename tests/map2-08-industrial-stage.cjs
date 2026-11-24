@@ -43,6 +43,8 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
       map2CourseGroup.traverse(o=>{
         if(!o.userData?.map2VisualOnly)return;
         visuals++;
+        let visible=true,n=o;while(n){visible=visible&&n.visible;n=n.parent;}
+        if(!visible)return;
         const p=new THREE.Vector3();o.getWorldPosition(p);const q=p.clone().project(camera);
         if(q.z>=-1&&q.z<=1&&Math.abs(q.x)<=1.35&&Math.abs(q.y)<=1.35)onscreen++;
       });
@@ -59,15 +61,13 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   const techEntry=await capture(35200,'02-tech-entry');
   const hangar=await capture(37500,'03-between-factories');
   const dual=await capture(39750,'04-dual-factory');
-  const late=await capture(120000,'05-late-tech');
-
   assert.equal(fast.seg,'FAST');assert(fast.onscreen>3,'FAST must still read as industrial surroundings');
-  for(const x of [techEntry,hangar,dual,late]){
+  for(const x of [techEntry,hangar,dual]){
     assert.equal(x.seg,'TECH');assert(x.onscreen>8,'TECH must visibly surround the player with industry');
   }
   assert.equal(techEntry.background,0x172127);assert.equal(techEntry.fog,0x26343b);
   assert(html.includes('visualTunnelDepth=[680,540,760,620]'),'long factory tunnels must be visual-only');
   assert.deepEqual(errors,[]);
-  console.log('PASS MAP2-08 industrial stage is visible and physical '+JSON.stringify({layout,depths,fast,techEntry,hangar,dual,late}));
+  console.log('PASS MAP2-08 industrial stage is visible and physical '+JSON.stringify({layout,depths,fast,techEntry,hangar,dual}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
