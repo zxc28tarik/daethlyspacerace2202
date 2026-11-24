@@ -1,0 +1,84 @@
+name: MAP2-28 architectural chicane chains
+on:
+  push:
+    branches: [codex/map2-28-architectural-chicane-chains]
+    paths:
+      - index.html
+      - tools/map2-28-architectural-chicane-chains.py
+      - tests/map2-28-architectural-chicane-chains.cjs
+      - .github/workflows/map2-28-architectural-chicane-chains.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 115
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-28-architectural-chicane-chains
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply MAP2-28 if needed
+        run: python tools/map2-28-architectural-chicane-chains.py
+      - name: Validate markers
+        run: |
+          grep -q "map2AuthorArchitecturalChicaneChains" index.html
+          grep -q "REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES" index.html
+          grep -q "architecturalChicaneDirectionChanges" index.html
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-28 architectural chicane QA
+        run: node tests/map2-28-architectural-chicane-chains.cjs
+      - name: MAP2-27 central-road regression
+        run: node tests/map2-27-retire-legacy-central-road.cjs
+      - name: MAP2-26 long-chain regression
+        run: node tests/map2-26-long-industrial-building-chains.cjs
+      - name: MAP2-25 through-building regression
+        run: node tests/map2-25-through-building-route-modules.cjs
+      - name: MAP2-24 canyon regression
+        run: node tests/map2-24-connected-architectural-canyons.cjs
+      - name: MAP2-23 alignment regression
+        run: node tests/map2-23-architectural-handoff-alignment.cjs
+      - name: MAP2-22 handoff regression
+        run: node tests/map2-22-transition-building-handoffs.cjs
+      - name: MAP2-21 authored sequence regression
+        run: node tests/map2-21-authored-building-sequences.cjs
+      - name: MAP2-20 chain regression
+        run: node tests/map2-20-continuous-building-chains.cjs
+      - name: MAP2-19 building-road regression
+        run: node tests/map2-19-buildings-are-road.cjs
+      - name: MAP2-18 building physics regression
+        run: node tests/map2-18-building-obstacles.cjs
+      - name: MAP2-05 full route + fleet regression
+        run: node tests/map2-05-course-flow.cjs
+      - name: MAP2-17 coverage regression
+        run: node tests/map2-17-full-industrial-coverage.cjs
+      - name: MAP2-16 remaining buildings regression
+        run: node tests/map2-16-remaining-map4-buildings.cjs
+      - name: MAP2-14 W05 density regression
+        run: node tests/map2-14-dense-map4-road-buildings.cjs
+      - name: MAP2-11 KEEP IT LOW regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: Persist generated index only when changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "index already contains MAP2-28"
+          else
+            git commit -m "MAP2-28 author long real-building chicane chains"
+            git push origin HEAD:codex/map2-28-architectural-chicane-chains
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-28-architectural-chicane-evidence
+          path: tests/map2-28-evidence/
+          if-no-files-found: warn

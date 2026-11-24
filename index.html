@@ -16518,6 +16518,174 @@
             };
             map2RetireLegacyRoadVisuals();
 
+
+            // MAP2-28: turn the longest real Map4 building chains into authored
+            // architectural chicanes. We move complete existing building groups
+            // together with their real aperture navigation anchors; no placeholder
+            // road, wall or procedural building is created.
+            const map2AuthorArchitecturalChicaneChains=()=>{
+                const route=window.starbladeMap2ThroughRoute;
+                const chains=window.starbladeMap2LongBuildingChains;
+                const road=window.starbladeMap2BuildingRoad;
+                if(!route?.modules?.length||!chains?.chains?.length||!road?.knots?.length)return null;
+
+                const roots=map2ExactBuildingRoots();
+                const rootByName=new Map(roots.map(r=>[r.name,r]));
+                const movedRootNames=new Set();
+                const selectedChains=chains.chains
+                    .filter(c=>c.span>=10000)
+                    .slice(0,6);
+                const moved=[];
+                const chainRows=[];
+                let maxLateralShift=0,maxVerticalShift=0;
+
+                const gateClearance=d=>map2Gates.length
+                    ?Math.min(...map2Gates.map(g=>Math.abs(g.distance-d)))
+                    :99999;
+                const techEdgeClearance=d=>{
+                    const seg=MAP2_SEGMENTS.find(s=>
+                        s.kind==='TECH'&&d>=s.from*MAP2_DISTANCE&&d<=s.to*MAP2_DISTANCE
+                    );
+                    if(!seg)return 0;
+                    return Math.min(
+                        d-seg.from*MAP2_DISTANCE,
+                        seg.to*MAP2_DISTANCE-d
+                    );
+                };
+                const shiftPoint=(p,dx,dy)=>{
+                    if(!p)return;
+                    p.x+=dx;p.y+=dy;
+                };
+
+                selectedChains.forEach((chain,chainIndex)=>{
+                    const candidates=route.modules
+                        .filter(m=>
+                            m.centerDistance>=chain.from+650&&
+                            m.centerDistance<=chain.to-650&&
+                            map2Segment(m.centerDistance).kind==='TECH'&&
+                            gateClearance(m.centerDistance)>=560&&
+                            techEdgeClearance(m.centerDistance)>=700
+                        )
+                        .sort((a,b)=>a.centerDistance-b.centerDistance);
+                    const row={chainIndex,from:chain.from,to:chain.to,span:chain.span,
+                        candidates:candidates.length,moved:0,left:0,right:0,directionChanges:0,
+                        firstMoved:null,lastMoved:null};
+                    let priorSign=0;
+
+                    for(const module of candidates){
+                        const moduleRoots=module.rootNames
+                            .map(n=>rootByName.get(n))
+                            .filter(Boolean)
+                            .filter(r=>!movedRootNames.has(r.name));
+                        if(!moduleRoots.length)continue;
+
+                        const t=THREE.MathUtils.clamp(
+                            (module.centerDistance-chain.from)/Math.max(1,chain.span),0,1
+                        );
+                        const envelope=Math.pow(Math.max(0,Math.sin(Math.PI*t)),.68);
+                        const primary=Math.sin((t*4.0+chainIndex*.17)*Math.PI);
+                        const secondary=.32*Math.sin((t*9.0+chainIndex*.29)*Math.PI);
+                        const targetX=THREE.MathUtils.clamp(
+                            module.core.x*.28+envelope*(primary+secondary)*158,
+                            -245,245
+                        );
+                        const yWave=Math.sin((t*6.0+chainIndex*.23)*Math.PI);
+                        const targetY=THREE.MathUtils.clamp(
+                            module.core.y*.45-33+envelope*yWave*56,
+                            -175,105
+                        );
+                        const dx=THREE.MathUtils.clamp(targetX-module.core.x,-160,160);
+                        const dy=THREE.MathUtils.clamp(targetY-module.core.y,-78,78);
+                        if(Math.abs(dx)<10&&Math.abs(dy)<8)continue;
+
+                        map2MoveRouteBuildingGroup(moduleRoots,module.centerDistance,dx,dy);
+                        for(const r of moduleRoots){
+                            movedRootNames.add(r.name);
+                            r.userData.map2ArchitecturalChicane=true;
+                            r.userData.map2ArchitecturalChicaneChain=chainIndex;
+                            r.userData.map2ArchitecturalChicaneShiftX=dx;
+                            r.userData.map2ArchitecturalChicaneShiftY=dy;
+                            if(Number.isFinite(r.userData.map2SequenceLaneX))r.userData.map2SequenceLaneX+=dx;
+                            if(Number.isFinite(r.userData.map2SequenceLaneY))r.userData.map2SequenceLaneY+=dy;
+                        }
+
+                        shiftPoint(module.entrance,dx,dy);
+                        shiftPoint(module.core,dx,dy);
+                        shiftPoint(module.exit,dx,dy);
+                        module.points.forEach(p=>shiftPoint(p,dx,dy));
+                        module.chicane=true;
+                        module.chicaneChain=chainIndex;
+                        module.chicaneShiftX=dx;
+                        module.chicaneShiftY=dy;
+
+                        for(const k of road.knots){
+                            if(k.moduleId===module.id||
+                               (!k.moduleId&&Math.abs(k.distance-module.centerDistance)<=42)){
+                                k.x+=dx;k.y+=dy;
+                                k.map2ArchitecturalChicane=true;
+                                k.chicaneChain=chainIndex;
+                            }
+                        }
+                        for(const k of route.moduleAnchors){
+                            if(k.moduleId!==module.id)continue;
+                            k.x+=dx;k.y+=dy;
+                            k.map2ArchitecturalChicane=true;
+                            k.chicaneChain=chainIndex;
+                        }
+
+                        const sign=module.core.x<-55?-1:module.core.x>55?1:0;
+                        if(sign<0)row.left++;
+                        if(sign>0)row.right++;
+                        if(sign&&priorSign&&sign!==priorSign)row.directionChanges++;
+                        if(sign)priorSign=sign;
+                        row.moved++;
+                        row.firstMoved??=module.centerDistance;
+                        row.lastMoved=module.centerDistance;
+                        maxLateralShift=Math.max(maxLateralShift,Math.abs(dx));
+                        maxVerticalShift=Math.max(maxVerticalShift,Math.abs(dy));
+                        moved.push({
+                            id:module.id,chainIndex,d:module.centerDistance,
+                            dx,dy,x:module.core.x,y:module.core.y,
+                            roots:moduleRoots.map(r=>r.name)
+                        });
+                    }
+                    if(row.moved)chainRows.push(row);
+                });
+
+                road.knots.sort((a,b)=>a.distance-b.distance);
+                route.routeAnchors=road.knots;
+                road.philosophy='REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES';
+                route.philosophy='BUILDINGS_HAVE_ENTRANCE_INTERIOR_EXIT_AND_CHICANE_FLOW';
+
+                const summary={
+                    philosophy:'REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES',
+                    selectedChains:selectedChains.length,
+                    activeChains:chainRows.length,
+                    movedModules:moved.length,
+                    movedRoots:movedRootNames.size,
+                    maxLateralShift,maxVerticalShift,
+                    leftModules:moved.filter(m=>m.x<-55).length,
+                    rightModules:moved.filter(m=>m.x>55).length,
+                    directionChanges:chainRows.reduce((n,r)=>n+r.directionChanges,0),
+                    longestMovedSpan:chainRows.reduce((mx,r)=>
+                        Math.max(mx,(r.lastMoved??r.from)-(r.firstMoved??r.from)),0),
+                    chains:chainRows,
+                    moved
+                };
+                window.starbladeMap2ArchitecturalChicanes=summary;
+                Object.assign(map2VisualStageStats,{
+                    architecturalChicaneChains:summary.activeChains,
+                    architecturalChicaneModules:summary.movedModules,
+                    architecturalChicaneRoots:summary.movedRoots,
+                    architecturalChicaneMaxLateralShift:summary.maxLateralShift,
+                    architecturalChicaneMaxVerticalShift:summary.maxVerticalShift,
+                    architecturalChicaneDirectionChanges:summary.directionChanges,
+                    architecturalChicaneLongestSpan:summary.longestMovedSpan
+                });
+                return summary;
+            };
+            map2AuthorArchitecturalChicaneChains();
+
             // MAP2-18: only after all authored gates and original physical solids
             // exist, derive collision directly from the visible Map4 building meshes.
             // This ordering lets the real buildings act as obstacles without
