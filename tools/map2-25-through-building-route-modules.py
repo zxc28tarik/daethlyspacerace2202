@@ -21,7 +21,7 @@ s=s.replace(stats_anchor,stats_new,1)
 bias_anchor="const bias=coreSpan>150?0:((linked%3)-1)*10;"
 if bias_anchor not in s:
     raise SystemExit("MAP2-25 canyon bias anchor missing")
-s=s.replace(bias_anchor,"const bias=coreSpan>150?0:((linked%3)-1)*4;",1)
+s=s.replace(bias_anchor,"const bias=coreSpan>150?0:((linked%3)-1)*2;",1)
 
 # Build multi-point route tubes through the actual depth of real Map4 buildings.
 fn_anchor="""            const map2BuildPhysicalMap4BuildingObstacles=()=>{"""
