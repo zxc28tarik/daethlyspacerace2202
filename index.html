@@ -2607,6 +2607,90 @@
             #gameover-screen #ui-results-extra{transition:none!important;transform:none!important;}
         }
 
+
+        /* UIUX15 — Real map-specific artwork behind the result lineup.
+           No physical 1/2/3 podium blocks; the real game craft are seen from above. */
+        #gameover-screen.ui-map-result-scene{
+            isolation:isolate;background:#081527!important;overflow:hidden;
+        }
+        #gameover-screen > .ui-result-map-art{
+            position:absolute;inset:0;z-index:0;width:100%;height:100%;
+            display:block;object-fit:cover;object-position:center 48%;
+            filter:saturate(.9) contrast(.98) brightness(.81);
+            pointer-events:none;user-select:none;
+        }
+        #gameover-screen > .ui-result-map-art[hidden]{display:none!important;}
+        #gameover-screen.ui-map-result-scene::before{
+            content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+            background:linear-gradient(180deg,rgba(2,10,22,.28) 0%,
+                rgba(3,12,26,.35) 29%,rgba(4,13,25,.58) 66%,
+                rgba(3,9,19,.88) 100%);
+        }
+        #gameover-screen .ui-results-shell{
+            position:relative;z-index:2;box-sizing:border-box;
+            width:min(1090px,calc(100vw - 28px))!important;
+            max-width:1090px!important;max-height:95dvh;overflow-y:auto;
+            padding:clamp(12px,1.6vw,24px)!important;
+        }
+        #gameover-screen .ui-race-podium{margin:8px 0 14px!important;}
+        #gameover-screen .ui-podium-heading{display:none!important;}
+        #gameover-screen .ui-podium-places{
+            grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);
+            gap:clamp(10px,3.2vw,44px);align-items:center;
+            max-width:1030px;margin:0 auto;
+        }
+        #gameover-screen .ui-podium-place{gap:5px;}
+        #gameover-screen .ui-podium-craft{
+            height:clamp(92px,17vh,164px);background:none;
+        }
+        #gameover-screen .ui-podium-craft img{
+            width:100%;max-width:320px;object-fit:contain;
+            filter:drop-shadow(0 8px 12px rgba(0,0,0,.66));
+        }
+        #gameover-screen .ui-podium-label{
+            width:100%;min-width:0;display:flex;align-items:center;
+            justify-content:center;gap:9px;padding:5px 9px;
+            border-bottom:1px solid var(--ui-podium-edge,#abbfc9);
+            background:linear-gradient(90deg,transparent,rgba(6,19,35,.66),transparent);
+        }
+        #gameover-screen .ui-podium-step,
+        #gameover-screen .ui-podium-place[data-rank] .ui-podium-step{
+            height:auto!important;width:auto;min-width:22px;flex:none;
+            margin:0!important;padding:0;border:0!important;background:none!important;
+            font:850 clamp(18px,2.5vw,28px)/1 'Orbitron',system-ui,sans-serif;
+            color:var(--ui-podium-edge,#cddce2);
+        }
+        #gameover-screen .ui-podium-name{
+            font-size:clamp(10px,1.4vw,16px);width:auto;
+            min-width:0;line-height:1.45;
+        }
+        #gameover-screen .ui-podium-meta{
+            color:#d0dee2;text-shadow:0 2px 8px rgba(0,0,0,.85);
+        }
+        #gameover-screen .ui-podium-status{color:#dee4e5;text-shadow:0 2px 7px #000;}
+        #gameover-screen #race-standings-container{
+            background:rgba(4,15,28,.70)!important;
+        }
+        #gameover-screen #ui-results-extra{
+            border-radius:6px;background:linear-gradient(180deg,
+                rgba(3,13,24,.15),rgba(3,12,22,.45));
+        }
+        @media(max-width:640px){
+            #gameover-screen .ui-results-shell{
+                width:calc(100vw - 16px)!important;max-height:96dvh;
+                padding:12px 7px!important;
+            }
+            #gameover-screen .ui-podium-places{gap:3px;}
+            #gameover-screen .ui-podium-craft{height:clamp(76px,14vh,110px);}
+            #gameover-screen .ui-podium-label{gap:4px;padding:5px 2px;}
+            #gameover-screen .ui-podium-name{font-size:10px;}
+            #gameover-screen .ui-podium-step,
+            #gameover-screen .ui-podium-place[data-rank] .ui-podium-step{
+                font-size:18px;
+            }
+            #gameover-screen .ui-podium-meta{font-size:9px;}
+        }
+
         /* UIUX14b: offline-safe results table grids; do not rely on Tailwind CDN. */
         #gameover-screen #race-standings-head,
         #gameover-screen #race-standings-list>div{
@@ -3009,6 +3093,7 @@
 
     <!-- OYUN SONU EKRANI -->
     <div id="gameover-screen" class="ScreenOverlay hidden">
+        <img id="ui-result-map-art" class="ui-result-map-art" alt="" aria-hidden="true" decoding="async" hidden>
         <div class="hud-box ui-screen-shell ui-results-shell max-w-2xl w-full mx-4 p-6 sm:p-8 text-center">
             <div class="ui-topline"><span>GÖREV SONU / SONUÇ RAPORU</span><span class="ui-meta-code">UÇUŞ TELEMETRİSİ</span></div>
             <div class="ui-results-context">
@@ -21454,11 +21539,36 @@
             if(uiPodiumTimer!==null){clearTimeout(uiPodiumTimer);uiPodiumTimer=null;}
             const screen=document.getElementById('gameover-screen');
             delete screen.dataset.uiPodiumPhase;
+            screen.classList.remove('ui-map-result-scene');
+            delete screen.dataset.uiResultArtwork;
+            const artwork=document.getElementById('ui-result-map-art');
+            artwork.hidden=true;
+            artwork.removeAttribute('src');
             const stage=document.getElementById('ui-race-podium');
             stage.hidden=true;
             document.getElementById('ui-podium-places').replaceChildren();
             document.getElementById('ui-podium-status').textContent='';
             document.getElementById('ui-results-reveal-wrap').removeAttribute('aria-hidden');
+        }
+        // UIUX15: reuse the exact approved illustration from the completed map's selection card.
+        // No artwork duplication, remote dependency or new loading path is introduced.
+        function uiSetRaceResultBackdrop(mapId){
+            const imageByMap={
+                map1:'#map-choice-1 .ui-map-retro-race-illustration',
+                map4:'#map-choice-4 .ui-map-retro-city-illustration'
+            };
+            const srcNode=document.querySelector(imageByMap[mapId]||'#ui-never-match');
+            const target=document.getElementById('ui-result-map-art');
+            const screen=document.getElementById('gameover-screen');
+            if(!srcNode || !(srcNode.currentSrc||srcNode.src)){
+                target.hidden=true;
+                target.removeAttribute('src');
+                return;
+            }
+            target.src=srcNode.currentSrc||srcNode.src;
+            target.hidden=false;
+            screen.classList.add('ui-map-result-scene');
+            screen.dataset.uiResultArtwork=mapId;
         }
         function uiPodiumFallbackShip(entry){
             const index=entry.isPlayer?-1:Math.max(0,racers.findIndex(r=>r.name===entry.name));
@@ -21503,8 +21613,10 @@
                 const halfHeight=dimension*.67;
                 const camera=new THREE.OrthographicCamera(-halfHeight*2.4,halfHeight*2.4,
                     halfHeight,-halfHeight,.01,dimension*10+80);
-                camera.position.set(center.x+dimension*.65,center.y+dimension*.99,
-                    center.z+dimension*1.2);
+                // Elevated near-vertical view: top hull, wings and nose, not a face-on craft.
+                camera.position.set(center.x,center.y+dimension*2.5,
+                    center.z+dimension*.12);
+                camera.up.set(0,0,1);
                 camera.lookAt(center);
                 camera.updateProjectionMatrix();
                 painter.render(scene,camera);
@@ -21538,6 +21650,7 @@
             const stage=document.getElementById('ui-race-podium');
             const places=document.getElementById('ui-podium-places');
             stage.hidden=false;
+            uiSetRaceResultBackdrop(mapId);
             screen.dataset.uiPodiumPhase='intro';
             document.getElementById('ui-results-reveal-wrap').setAttribute('aria-hidden','true');
             let painter=null;
@@ -21573,7 +21686,9 @@
                         ?formatRaceTime(entry.finishTime):'DNF';
                 const step=document.createElement('div');step.className='ui-podium-step';
                 step.textContent=String(rank);
-                place.append(ship,name,metric,step);
+                const label=document.createElement('div');label.className='ui-podium-label';
+                label.append(step,name);
+                place.append(ship,label,metric);
                 places.appendChild(place);
             }
             if(painter){
