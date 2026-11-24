@@ -52,14 +52,18 @@ const layout=await page.evaluate(()=>{
       {routeProgress:g.distance+240,laneX:o.laneX,laneY:o.laneY},12.5);
   });
   return {...result,allClear,allAlternativesClear,gantryOpen,centerBlocked,kitInstances,shared,solidHit,fastClear:!map2Obstacles.some(o=>fast.some(s=>o.routeProgress-o.halfDepth<s.to*MAP2_DISTANCE&&o.routeProgress+o.halfDepth>s.from*MAP2_DISTANCE)),
-    map4Built:planetaryWorldRegions.length,sceneVisible:map2CourseGroup.visible};
+    map4Built:planetaryWorldRegions.length,map4Expected:PLANETARY_REGIONS.length,
+    map4Hidden:!planetaryWorldGroup.visible,sceneVisible:map2CourseGroup.visible};
 });
 assert.equal(layout.distance,175000);assert(Math.abs(layout.actualArc/layout.map1Arc-3.5)<.001);
 assert(layout.closure<.01);assert(layout.structures>200);assert(layout.gates>50);
 assert(layout.allClear,'every opening should pass a pilot-sized sphere');
 assert(layout.allAlternativesClear);assert(layout.gantryOpen);assert(layout.centerBlocked);assert(layout.shared);assert.deepEqual(layout.kitInstances,layout.kitCounts);assert(layout.kitCounts.every(n=>n>0));assert(layout.openings>layout.gates);assert.equal(layout.gateKinds.length,4);
 assert(layout.solidHit,'solid factory panels should collide');assert(layout.fastClear);
-assert.equal(layout.map4Built,original.map4Built);assert(layout.sceneVisible);
+// MAP2-13+ intentionally builds the authoritative Map4 source world once, hidden,
+ // so exact Map4 buildings can be cloned into Map2. The invariant is now source
+ // completeness + invisibility, not "Map4 was never constructed".
+ assert.equal(layout.map4Built,layout.map4Expected);assert(layout.map4Hidden);assert(layout.sceneVisible);
 assert.deepEqual(layout.segments.filter(s=>s.kind==='FAST').map(s=>Math.round((s.to-s.from)*100)),[15,10]);
 // MAP2-05: physical approach rhythm and transition paths, not just gate count.
 const flow=await page.evaluate(()=>{
@@ -69,24 +73,56 @@ const flow=await page.evaluate(()=>{
     const gates=map2Gates.filter(g=>g.distance>=start&&g.distance<end);
     const intervals=gates.slice(1).map((g,i)=>g.distance-gates[i].distance);
     let worstShift=0,clear=true,minimumRun=Infinity;
+    const failures=[];
     for(let i=1;i<gates.length;i++){
       const a=gates[i-1],b=gates[i];
       const from=a.distance+a.depth/2+40,to=b.distance-b.depth/2-40;
       minimumRun=Math.min(minimumRun,to-from);
+      const routeClear=(p,q)=>{
+        const nodes=[{routeProgress:from,laneX:p.x,laneY:p.y}];
+        const run=Math.max(1,to-from);
+        // The building passage already terminates on the authored gate openings.
+        // Only bridge the short gate-depth offset used by this legacy test; a long
+        // second blend would drag the valid slalom back through nearby structures.
+        const blend=Math.min(170,run*.16);
+        const smooth=t=>t*t*(3-2*t);
+        for(let d=from+90;d<to;d+=90){
+          const lane=starbladeMap2BuildingPassageAt(d);
+          let x=lane.x,y=lane.y;
+          if(d<from+blend){
+            const t=smooth((d-from)/blend);
+            x=p.x+(x-p.x)*t;y=p.y+(y-p.y)*t;
+          }
+          if(d>to-blend){
+            const t=smooth((d-(to-blend))/blend);
+            x=x+(q.x-x)*t;y=y+(q.y-y)*t;
+          }
+          nodes.push({routeProgress:d,laneX:x,laneY:y});
+        }
+        nodes.push({routeProgress:to,laneX:q.x,laneY:q.y});
+        for(let n=1;n<nodes.length;n++){
+          if(map2Obstacles.some(o=>courseSegmentTouch(o,nodes[n-1],nodes[n],12.5)))return false;
+        }
+        return true;
+      };
       for(const p of a.openings){
         const choices=b.openings.map(q=>({q,shift:Math.hypot(q.x-p.x,q.y-p.y)}))
           .sort((x,y)=>x.shift-y.shift);
-        const reachable=choices.find(({q})=>!map2Obstacles.some(o=>courseSegmentTouch(o,
-          {routeProgress:from,laneX:p.x,laneY:p.y},{routeProgress:to,laneX:q.x,laneY:q.y},12.5)));
-        if(!reachable)clear=false;else worstShift=Math.max(worstShift,reachable.shift);
+        const reachable=choices.find(({q})=>routeClear(p,q));
+        if(!reachable){
+          clear=false;
+          failures.push({fromGate:a.distance,toGate:b.distance,from:{x:p.x,y:p.y},
+            choices:choices.map(({q,shift})=>({x:q.x,y:q.y,shift}))});
+        }else worstShift=Math.max(worstShift,reachable.shift);
       }
     }
     const entryMargins=gates.slice(0,3).every(g=>g.flowStage==='ENTRY'&&g.openings.every(p=>p.hx>=(g.kind==='DUAL_FACTORY'?81:84)&&p.hy>=72));
     return {count:gates.length,entryDistance:gates[0].distance-start,exitDistance:end-gates.at(-1).distance,
       intervals,entryMargins,firstStages:gates.slice(0,3).map(g=>g.flowStage),
-      laterStages:gates.slice(3).every(g=>g.flowStage==='TECH'),minimumRun,worstShift,clear};
+      laterStages:gates.slice(3).every(g=>g.flowStage==='TECH'),minimumRun,worstShift,clear,failures};
   });
 });
+console.log('MAP2-05 FLOW PRECHECK',JSON.stringify(flow));
 assert.equal(flow.length,2);
 for(const f of flow){
   assert(f.count>=30);
@@ -100,7 +136,9 @@ for(const f of flow){
 console.log('PASS MAP2-05 transition rhythm and reachable openings',JSON.stringify(flow));
 await page.locator('#map-choice-1').click();
 const restored=await page.evaluate(()=>({map:state.activeMap,length:RACE_ROUTE_NOMINAL_DISTANCE,asteroids:asteroids.length,solids:staticObstacles.length,items:itemBoxes.length,arc:raceRouteCurve.getLength(),map4Built:planetaryWorldRegions.length}));
-assert.deepEqual(restored,original);
+assert.deepEqual({...restored,map4Built:original.map4Built},original);
+assert.equal(restored.map4Built,layout.map4Expected);
+assert.equal(await page.evaluate(()=>planetaryWorldGroup.visible),false);
 await page.locator('#map-choice-2').click();
 await page.locator('#start-btn').click();
 await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});

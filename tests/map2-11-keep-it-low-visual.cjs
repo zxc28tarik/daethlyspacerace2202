@@ -20,7 +20,11 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
 
   const layout=await page.evaluate(()=>window.starbladeMap2Layout);
-  assert.equal(layout.distance,175000);assert.equal(layout.structures,382);assert.equal(layout.gates,68);assert.equal(layout.openings,85);
+  assert.equal(layout.distance,175000);
+  assert.equal(layout.structures,382+layout.visualStage.map4BuildingColliders,
+    'base 382 obstacles plus real Map4 building obstacles must be present');
+  assert(layout.visualStage.map4BuildingColliders>=30,'real Map4 buildings must contribute physical obstacles');
+  assert.equal(layout.gates,68);assert.equal(layout.openings,85);
   assert(layout.visualStage.rooflineRails>100,'roofline warning language should repeat through TECH');
   assert.equal(layout.visualStage.safeApertureLights,170,'each of 85 openings needs two low-safe lights');
 

@@ -1,0 +1,23 @@
+name: MAP2-18 obstacle diagnostic
+on:
+  push:
+    branches: [codex/map2-18-building-obstacle-chokepoints]
+    paths:
+      - tests/map2-18-obstacle-diagnostic.cjs
+      - .github/workflows/map2-18-obstacle-diagnostic.yml
+  workflow_dispatch:
+jobs:
+  diag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-18-building-obstacle-chokepoints
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - run: node tests/map2-18-obstacle-diagnostic.cjs
