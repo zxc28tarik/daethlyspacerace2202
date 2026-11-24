@@ -11,7 +11,8 @@ stats_anchor="canyonPredictedMaxJumpAfter:0"
 stats_new=("canyonPredictedMaxJumpAfter:0,"
            "throughBuildingModules:0,throughBuildingAnchors:0,"
            "throughBuildingFramedAnchors:0,throughBuildingDeepModules:0,"
-           "throughBuildingMaxDepth:0,throughBuildingRouteKnots:0")
+           "throughBuildingMaxDepth:0,throughBuildingRouteKnots:0,"
+           "throughBuildingLegacySafetyRejects:0")
 if stats_anchor not in s:
     raise SystemExit("MAP2-25 stats anchor missing")
 s=s.replace(stats_anchor,stats_new,1)
@@ -331,6 +332,90 @@ steer_new="""                if (gatePlan && (map2Pilot||gatePlan.gap < 1650)) {
 if steer_anchor not in s:
     raise SystemExit("MAP2-25 steering anchor missing")
 s=s.replace(steer_anchor,steer_new,1)
+
+# MAP2-25 collision compatibility: preserve one real through-route safety
+# corridor from every authored gate opening to the nearest next opening. Building
+# visuals stay untouched; only a derived collider candidate is rejected if it
+# would close that already-valid visible flight corridor.
+collider_anchor="""            const map2BuildPhysicalMap4BuildingObstacles=()=>{
+                const roots=map2ExactBuildingRoots();
+                const candidates=[];"""
+collider_new=r"""            const map2BuildPhysicalMap4BuildingObstacles=()=>{
+                const roots=map2ExactBuildingRoots();
+                const candidates=[];
+                const legacySafetySegments=[];
+                for(const seg of MAP2_SEGMENTS.filter(s=>s.kind==='TECH')){
+                    const start=seg.from*MAP2_DISTANCE,end=seg.to*MAP2_DISTANCE;
+                    const gates=map2Gates.filter(g=>g.distance>=start&&g.distance<end);
+                    for(let gi=1;gi<gates.length;gi++){
+                        const a=gates[gi-1],b=gates[gi];
+                        const from=a.distance+a.depth/2+40;
+                        const to=b.distance-b.depth/2-40;
+                        const run=Math.max(1,to-from);
+                        const blend=Math.min(170,run*.16);
+                        const smooth=t=>t*t*(3-2*t);
+                        for(const p of a.openings){
+                            const q=b.openings.slice().sort((u,v)=>
+                                Math.hypot(u.x-p.x,u.y-p.y)-Math.hypot(v.x-p.x,v.y-p.y)
+                            )[0];
+                            if(!q)continue;
+                            const nodes=[{routeProgress:from,laneX:p.x,laneY:p.y}];
+                            for(let d=from+90;d<to;d+=90){
+                                const lane=map2BuildingPassageAt(d);
+                                let x=lane.x,y=lane.y;
+                                if(d<from+blend){
+                                    const t=smooth((d-from)/blend);
+                                    x=p.x+(x-p.x)*t;y=p.y+(y-p.y)*t;
+                                }
+                                if(d>to-blend){
+                                    const t=smooth((d-(to-blend))/blend);
+                                    x=x+(q.x-x)*t;y=y+(q.y-y)*t;
+                                }
+                                nodes.push({routeProgress:d,laneX:x,laneY:y});
+                            }
+                            nodes.push({routeProgress:to,laneX:q.x,laneY:q.y});
+                            for(let ni=1;ni<nodes.length;ni++)
+                                legacySafetySegments.push([nodes[ni-1],nodes[ni]]);
+                        }
+                    }
+                }
+                let legacySafetyRejects=0;"""
+if collider_anchor not in s:
+    raise SystemExit("MAP2-25 collider builder anchor missing")
+s=s.replace(collider_anchor,collider_new,1)
+
+candidate_anchor="""                        const roadOverlap=Math.max(0,360-(Math.abs(cx)-hx));
+                        if(roadOverlap<=25)return;
+                        const volume=hx*hy*hd;"""
+candidate_new=r"""                        const roadOverlap=Math.max(0,360-(Math.abs(cx)-hx));
+                        if(roadOverlap<=25)return;
+
+                        const safetyProbe={
+                            routeProgress:d,laneX:cx,laneY:cy,
+                            halfX:hx,halfY:hy,halfDepth:hd,
+                            radius:Math.hypot(hx,hy,hd),
+                            type:'WRECK_BOX',moveType:'STATIC',active:true
+                        };
+                        if(legacySafetySegments.some(([sa,sb])=>
+                            courseSegmentTouch(safetyProbe,sa,sb,12.5)
+                        )){
+                            legacySafetyRejects++;
+                            return;
+                        }
+
+                        const volume=hx*hy*hd;"""
+if candidate_anchor not in s:
+    raise SystemExit("MAP2-25 collider candidate anchor missing")
+s=s.replace(candidate_anchor,candidate_new,1)
+
+return_anchor="""                map2VisualStageStats.map4BuildingOverheads=overhead;
+                return physical;"""
+return_new=r"""                map2VisualStageStats.map4BuildingOverheads=overhead;
+                map2VisualStageStats.throughBuildingLegacySafetyRejects=legacySafetyRejects;
+                return physical;"""
+if return_anchor not in s:
+    raise SystemExit("MAP2-25 collider stats anchor missing")
+s=s.replace(return_anchor,return_new,1)
 
 p.write_text(s,encoding="utf-8")
 print("MAP2-25 through-building modules + rival navigation applied")
