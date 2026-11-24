@@ -14393,16 +14393,18 @@
                     const targetApproach=active?Math.min(1,lockRatio+(p.shots>0?.18:0)):0;
                     v.approach+=(targetApproach-v.approach)*Math.min(1,dt*(active?5.5:2.2));
                     const strike=v.breakaway>0?Math.sin((v.breakaway/.34)*Math.PI):0;
-                    const ahead=285-v.approach*120+strike*80;
+                    const ahead=105-v.approach*35+strike*55;
                     const f=getRaceFrameAtDistance(Math.min(MAP2_DISTANCE,state.routeProgress+ahead));
                     const sweep=Math.sin(state.raceTime*.85)*82;
                     const attackSide=v.side*(55+80*strike);
                     const x=state.laneX*(.25+.25*v.approach)+sweep*(1-v.approach*.55)+
                         attackSide*(v.approach*.35+strike*.65);
-                    const altitude=345-v.approach*75+strike*70;
+                    const altitude=340-v.approach*35+strike*55;
                     v.ship.position.copy(f.center).addScaledVector(f.right,x).addScaledVector(f.up,altitude);
                     const pf=getRaceFrameAtDistance(state.routeProgress);
-                    const target=pf.center.clone().addScaledVector(pf.right,state.laneX).addScaledVector(pf.up,state.laneY);
+                    // MAP2-11: target the exact rendered player position instead of
+                    // reconstructing it separately from route coordinates.
+                    const target=state.pos.clone();
                     const aim=target.clone().addScaledVector(pf.up,active?0:55);
                     v.ship.lookAt(aim);
                     if(v.search&&active&&!v.beam.visible){
