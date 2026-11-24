@@ -1,0 +1,16 @@
+name: MAP2-08 visual-stage diagnostics
+on:
+  push:
+    branches: [codex/map2-08-visual-stage-rebuild]
+    paths:
+      - tools/map2-08-diagnose.py
+      - .github/workflows/map2-08-diagnose.yml
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Map 2 scene wiring
+        run: python tools/map2-08-diagnose.py
