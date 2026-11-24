@@ -104,6 +104,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     });
     return {search:map2PatrolVisual.search?.visible===true,phase:window.starbladeMap2Patrol?.phase,
       warning:map2PatrolWarning()?.title||null,depthTest:map2PatrolVisual.search.material.depthTest,
+      renderScale:map2PatrolVisual.ship.scale.x,
       lineLength:Math.hypot(start.x-end.x,start.y-end.y),bbox,beacons,
       ship:{x:ship.x,y:ship.y,z:ship.z},player:{x:player.x,y:player.y,z:player.z},
       start:{x:start.x,y:start.y,z:start.z},end:{x:end.x,y:end.y,z:end.z}};
@@ -123,6 +124,8 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'patrol fighter must be large enough to read on screen');
   assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)<.35,
     'patrol fighter must not dominate the whole race view');
+  assert(approachShot.renderScale>=3.5&&approachShot.renderScale<=4,
+    'patrol render scale must remain in the readable visual-only range');
   assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
   assert(approachShot.ship.y+approachShot.bbox.h/2<1.02,'patrol fighter should not be clipped above the frame');
   assert.equal(approachShot.beacons.length,2,'patrol needs two readable wing beacons');
