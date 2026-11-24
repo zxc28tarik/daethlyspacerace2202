@@ -1,0 +1,33 @@
+name: MAP2-11 downloadable offline HTML
+on:
+  push:
+    branches: [codex/map2-11-keep-it-low-visual-language]
+    paths:
+      - .github/workflows/map2-11-downloadable-html.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-11-keep-it-low-visual-language
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install offline build dependencies
+        run: npm install --no-save three@0.128.0 tailwindcss@3.4.17
+      - name: Build MAP2-11 single-file HTML
+        run: |
+          node tools/build-gfx01-bundle.cjs
+          test -s dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+          cp dist/Uzay_Yarisi_Guncel_Oynanabilir.html DEATHLY_SPACE_RACE_MAP2_11_OYNANABILIR.html
+          sha256sum DEATHLY_SPACE_RACE_MAP2_11_OYNANABILIR.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deathly-space-race-map2-11-html
+          path: DEATHLY_SPACE_RACE_MAP2_11_OYNANABILIR.html
+          if-no-files-found: error
