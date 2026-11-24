@@ -13574,7 +13574,7 @@
         }
         function upcomingWreckGate(progress, lookAhead = 2400) {
             if(state.activeMap===MAP_MODES.MAP4) return null;
-            if(map2Active())return map2Gates.find(g=>g.distance+185>=progress&&g.distance-progress<=lookAhead)||null;
+            if(map2Active())return map2Gates.find(g=>g.distance+g.depth/2+35>=progress&&g.distance-progress<=lookAhead)||null;
             for (const [distance, mode] of chokepointPlan) {
                 if (distance+185 < progress) continue;
                 if (distance-progress > lookAhead) return null;
@@ -13982,32 +13982,64 @@
                 return mesh;
             };
             const detailMat=H4_MATERIALS.steel;
+            const gateKinds=['HANGAR','GANTRY','DUAL_FACTORY','MACHINE_SLOT'];
+            const kitCounts=[0,0,0,0];
+            const kitBounds=h4Vis02Kits.map(geo=>{
+                const b=new THREE.Box3().setFromBufferAttribute(geo.attributes.position);
+                return {size:b.getSize(new THREE.Vector3()),center:b.getCenter(new THREE.Vector3())};
+            });
+            // Read-only Map4 VIS02 meshes: fit machinery into the front fifth of each solid pier.
+            // Solid backing is visible, and the collision envelope remains conservative.
+            function mountKit(mesh,style){
+                const bounds=kitBounds[style];
+                const detail=new THREE.Mesh(h4Vis02Kits[style],h4Vis02Mat);
+                detail.scale.set(.82/bounds.size.x,.84/bounds.size.y,.20/bounds.size.z);
+                detail.position.set(-bounds.center.x*detail.scale.x,-bounds.center.y*detail.scale.y,.40-bounds.center.z*detail.scale.z);
+                detail.name='MAP2_REUSED_H4_KIT_'+style;detail.userData.map2KitStyle=style;
+                const core=new THREE.Mesh(H4_MESHES.structure,mesh.material);
+                core.scale.set(1,1,.80);core.position.z=-.10;
+                mesh.material=mesh.material.clone();mesh.material.visible=false;
+                mesh.add(core,detail);kitCounts[style]++;
+            }
             let serial=0;
             for(const seg of MAP2_SEGMENTS.filter(s=>s.kind==='TECH')){
                 for(let d=seg.from*MAP2_DISTANCE+800;d<seg.to*MAP2_DISTANCE-800;d+=1700){
                     const i=serial++;
-                    // Three-fifths of the 720-wide route occupied by actual industrial structures.
-                    const center=[0,-48,48,0][i%4], opening=center+[0,-25,25][i%3];
-                    const hx=[86,73,94,80][i%4],hy=[75,70,83][i%3],oy=[-40,-55,-30][i%3];
-                    const left=center-216,right=center+216,low=-218,high=216,depth=[160,240,310][i%3];
-                    const panels=[
-                        [left,opening-hx,low,high],
-                        [opening+hx,right,low,high],
-                        [opening-hx,opening+hx,oy+hy,high],
-                        [opening-hx,opening+hx,low,oy-hy]
-                    ];
-                    for(let j=0;j<panels.length;j++){
-                        const [a,b,c,e]=panels[j];
-                        const mesh=addSolid(d,(a+b)/2,(c+e)/2,b-a,e-c,depth,
-                            j===2?H4_MATERIALS.steel:deckMat,'FACTORY_'+i+'_'+j);
-                        // Map4 facade detail is on the outside-facing solid faces.
-                        h4ArchitecturalDetail(mesh,'building');
+                    // Actual physical obstacles occupy three fifths of the 720-wide route.
+                    const style=i%4,kind=gateKinds[style];
+                    const center=[0,-42,0,42][style],left=center-216,right=center+216,low=-218,high=216;
+                    const depth=[210,180,255,310][style];
+                    const openings=style===2?
+                        [{x:-105,y:-38,hx:76,hy:85},{x:105,y:-38,hx:76,hy:85}]:
+                        [{x:center+[0,-18,0,12][style],y:[-40,-90,0,-15][style],hx:[94,100,0,72][style],hy:[83,110,0,64][style]}];
+                    const primary=openings[style===2&&Math.floor(i/4)%2?1:0];
+                    const opening=primary.x,oy=primary.y,hx=primary.hx,hy=primary.hy;
+                    // Disjoint solid columns and lintels, with actual empty openings.
+                    // Gantry omits the bottom sill: a genuine open underpass.
+                    const panels=[];
+                    let cursor=left;
+                    for(const gap of openings){
+                        const a=gap.x-gap.hx,b=gap.x+gap.hx;
+                        if(a>cursor)panels.push([cursor,a,low,high,'PIER']);
+                        if(gap.y+gap.hy<high)panels.push([a,b,gap.y+gap.hy,high,'BEAM']);
+                        if(style!==1&&gap.y-gap.hy>low)panels.push([a,b,low,gap.y-gap.hy,'SILL']);
+                        cursor=b;
                     }
-                    map2Gates.push({distance:d,mode:'CENTER_ONLY',laneX:opening,laneY:oy,clearX:hx,clearY:hy});
-                    // Paired real city walls on selected tight approaches, leaving central passage clear.
-                    if(i%4===1){
+                    if(cursor<right)panels.push([cursor,right,low,high,'PIER']);
+                    for(let j=0;j<panels.length;j++){
+                        const [a,b,c,e,role]=panels[j];
+                        const mesh=addSolid(d,(a+b)/2,(c+e)/2,b-a,e-c,depth,
+                            role==='BEAM'?H4_MATERIALS.steel:deckMat,kind+'_'+i+'_'+role+'_'+j);
+                        if(role==='PIER')mountKit(mesh,style);
+                        else h4ArchitecturalDetail(mesh,'building');
+                    }
+                    map2Gates.push({distance:d,mode:'CENTER_ONLY',laneX:opening,laneY:oy,clearX:hx,clearY:hy,
+                        kind,depth,openings});
+                    // Actual route curvature determines paired city walls.
+                    const turnAngle=getRaceFrameAtDistance(d-650).tangent.angleTo(getRaceFrameAtDistance(d+650).tangent);
+                    if(turnAngle>.095||i%7===1){
                         for(const side of [-1,1]){
-                            const m=addSolid(d-430,side*316,-15,76,408,210,detailMat,'CITY_TURN_'+i);
+                            const m=addSolid(d-430,side*306,-18,82,400,180,detailMat,'CITY_TURN_'+i);
                             h4ArchitecturalDetail(m,'tower');
                         }
                     }
@@ -14026,7 +14058,7 @@
             }
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
-                gates:map2Gates.length,items:map2Items.length,
+                gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),
                 closure:map2RouteCurve.getPointAt(0).distanceTo(map2RouteCurve.getPointAt(1))};
         }
         function activeCourseObstacles(){return map2Active()?map2Obstacles:staticObstacles;}
