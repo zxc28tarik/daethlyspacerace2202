@@ -145,8 +145,15 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   await page.screenshot({path:path.join(evidence,'02-exposed-patrol-search.png')});
 
   await settle(12000,300);
-  const fast=await page.evaluate(()=>{map2PatrolTick(.1);return {seg:map2Segment(state.routeProgress).kind,search:!!map2PatrolVisual.search?.visible,warning:map2PatrolWarning()};});
+  const fast=await page.evaluate(()=>{
+    map2PatrolTick(.1);
+    const guide=document.getElementById('ui-first-flight');
+    return {seg:map2Segment(state.routeProgress).kind,search:!!map2PatrolVisual.search?.visible,warning:map2PatrolWarning(),
+      guideHidden:guide.classList.contains('hidden'),
+      guideTitle:document.getElementById('ui-first-flight-title')?.textContent||''};
+  });
   assert.equal(fast.seg,'FAST');assert.equal(fast.search,false);assert.equal(fast.warning,null);
+  if(!fast.guideHidden)assert.notEqual(fast.guideTitle,'ALÇAK UÇ','FAST guidance must not show a low-flight threat');
   await page.screenshot({path:path.join(evidence,'03-fast-no-roofline-threat.png')});
 
   assert.deepEqual(errors,[]);
