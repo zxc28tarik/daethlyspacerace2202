@@ -92,7 +92,11 @@ assert(html.includes('passageHalfX=45'));
       if(s)lastSign=s;
     }
 
+    const road=window.starbladeMap2BuildingRoad;
+    const buildingRoadDeviations=road?.knots?.filter(k=>Math.abs(k.x)>60||Math.abs(k.y+55)>42).length||0;
     return {
+      buildingRoadActive:!!road,
+      buildingRoadDeviations,
       count:building.length,
       totalObstacles:map2Obstacles.length,
       originalObstacleEstimate:map2Obstacles.length-building.length,
@@ -113,7 +117,11 @@ assert(html.includes('passageHalfX=45'));
   assert(info.rows.every(x=>x.visible&&x.physical),'colliders must come from visible real building meshes');
   assert.equal(info.gantryIntrusions.length,0,'real building placement must not close authored GANTRY low passages');
   assert(info.rows.every(x=>x.visualDistance<=95),'physics must stay inside/very close to rendered building mass');
-  assert(info.centerlineBlocked>=2,'real buildings must force multiple departures from the centre line');
+  if(info.buildingRoadActive){
+    assert(info.buildingRoadDeviations>=8,'building-defined road must depart repeatedly from the obsolete centre line');
+  }else{
+    assert(info.centerlineBlocked>=2,'real buildings must force multiple departures from the centre line');
+  }
   assert(info.overhead>=20,'real Map4 architecture must also create substantial vertical/overhead pressure');
   assert(info.left>=5&&info.right>=5,'real building obstacles must pressure both sides of the route');
   assert(info.signChanges>=4,'preserved passage must change side repeatedly to create slalom pressure');
