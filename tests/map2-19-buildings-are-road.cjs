@@ -81,6 +81,8 @@ assert(html.includes("BUILDINGS_ARE_THE_ROAD"));
     });
 
     const knots=road.knots||[];
+    const through=window.starbladeMap2ThroughRoute||null;
+    const throughKnots=knots.filter(k=>k.source==='THROUGH_BUILDING');
     const deviations=knots.filter(k=>Math.abs(k.x)>60||Math.abs(k.y+55)>42).length;
     const gaps=knots.slice(1).map((k,i)=>k.distance-knots[i].distance);
     const physical=window.starbladeMap2BuildingColliders||[];
@@ -92,6 +94,10 @@ assert(html.includes("BUILDINGS_ARE_THE_ROAD"));
       openGroups:rows.length,
       closedGroups:road.groups.filter(g=>!g.open).length,
       knotCount:knots.length,
+      throughActive:!!through,
+      throughKnotCount:throughKnots.length,
+      throughAllTech:throughKnots.every(k=>map2Segment(k.distance).kind==='TECH'),
+      throughAllReal:throughKnots.every(k=>!!k.moduleId&&['ENTRY','INTERIOR','EXIT'].includes(k.role)),
       deviations,
       rows,
       shellCount:rows.filter(r=>r.shell).length,
@@ -109,7 +115,14 @@ assert(html.includes("BUILDINGS_ARE_THE_ROAD"));
   assert.equal(info.philosophy,'BUILDINGS_ARE_THE_ROAD');
   assert(info.groupCount>=55,'major copied building complexes must be organized as route groups');
   assert(info.openGroups>=50,'most route groups must expose a real pilot-sized aperture');
-  assert.equal(info.knotCount,info.openGroups);
+  if(info.throughActive){
+    assert(info.throughKnotCount>=info.openGroups*2,'MAP2-25+ must add real entrance/interior/exit depth knots');
+    assert.equal(info.knotCount,info.openGroups+info.throughKnotCount,'centre building knots plus real through-building knots must account for the full route');
+    assert(info.throughAllTech,'through-building depth knots stay inside TECH');
+    assert(info.throughAllReal,'every extra route knot must belong to a real building module role');
+  }else{
+    assert.equal(info.knotCount,info.openGroups);
+  }
   assert.equal(info.fastKnots,0,'building-road knots belong only to TECH sectors');
   assert.equal(info.fastPhysical,0,'FAST zones remain open');
   assert(info.deviations>=8,'the building-defined road must visibly leave the old centre lane');
