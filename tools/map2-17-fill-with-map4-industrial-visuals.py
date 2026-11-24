@@ -49,12 +49,12 @@ insert="""            const map2FindNonFastStructureTarget=(seed,pad=1000)=>{
             const map2NearestMap4Progress=(worldPoint,from,to)=>{
                 let best=from,bestDist=Infinity;
                 for(let d=from;d<=to;d+=250){
-                    const dist=getRaceFrameAtDistance(d).center.distanceToSquared(worldPoint);
+                    const dist=h4WorldPosition(d,0,0).distanceToSquared(worldPoint);
                     if(dist<bestDist){bestDist=dist;best=d;}
                 }
                 const lo=Math.max(from,best-250),hi=Math.min(to,best+250);
                 for(let d=lo;d<=hi;d+=25){
-                    const dist=getRaceFrameAtDistance(d).center.distanceToSquared(worldPoint);
+                    const dist=h4WorldPosition(d,0,0).distanceToSquared(worldPoint);
                     if(dist<bestDist){bestDist=dist;best=d;}
                 }
                 return best;
@@ -86,8 +86,27 @@ insert="""            const map2FindNonFastStructureTarget=(seed,pad=1000)=>{
                     if(!childMeshes)return;
 
                     const box=new THREE.Box3().setFromObject(child);
-                    if(box.isEmpty())return;
-                    box.getCenter(center);
+                    if(!box.isEmpty()){
+                        box.getCenter(center);
+                    }else{
+                        // Some final industrial batches have no usable aggregate
+                        // Box3 despite containing meshes/instances. Recover a real
+                        // source point from the first drawable descendant.
+                        let found=false;
+                        child.traverse(o=>{
+                            if(found||!(o.isMesh||o.isInstancedMesh))return;
+                            o.updateMatrixWorld(true);
+                            if(o.isInstancedMesh&&o.count>0){
+                                const im=new THREE.Matrix4();
+                                o.getMatrixAt(0,im);
+                                center.setFromMatrixPosition(im).applyMatrix4(o.matrixWorld);
+                            }else{
+                                o.getWorldPosition(center);
+                            }
+                            found=true;
+                        });
+                        if(!found)child.getWorldPosition(center);
+                    }
                     const sourceAt=map2NearestMap4Progress(center,sourceFrom,sourceTo);
                     const chunk=Math.max(0,Math.min(chunkCount-1,
                         Math.floor((sourceAt-sourceFrom)/chunkSpan)));
