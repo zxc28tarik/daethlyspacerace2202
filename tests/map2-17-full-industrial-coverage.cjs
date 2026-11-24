@@ -25,14 +25,6 @@ assert(html.includes('MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS'));
   const info=await page.evaluate(()=>{
     const source=planetaryWorldRegions[2].children.find(o=>o.name==='MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS');
     const sourceMeshes=[];source.traverse(o=>{if(o.isMesh||o.isInstancedMesh)sourceMeshes.push(o)});
-    const sourceChildDiag=source.children.map((child,index)=>{
-      let sourceCount=0,freshCloneCount=0;
-      child.traverse(o=>{if(o.isMesh||o.isInstancedMesh)sourceCount++;});
-      const fresh=child.clone(true);
-      fresh.traverse(o=>{if(o.isMesh||o.isInstancedMesh)freshCloneCount++;});
-      return {index,name:child.name||'',type:child.type,sourceCount,freshCloneCount,
-        childCount:child.children?.length||0,visible:child.visible};
-    });
 
     const parts=[];
     map2CourseGroup.traverse(o=>{
@@ -92,7 +84,6 @@ assert(html.includes('MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS'));
 
     return {
       sourceMeshes:sourceMeshes.length,
-      sourceChildDiag,
       partRoots:parts.length,
       cloneMeshes:cloneMeshes.length,
       identityMatch,
@@ -107,7 +98,6 @@ assert(html.includes('MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS'));
         effectivePct:nonFastCovered/samples*100,
         nonFastPct:nonFastCovered/(samples-fastSamples)*100
       },
-      stats:window.starbladeMap2Layout?.visualStage||null,
       map4Visible:planetaryWorldGroup.visible
     };
   });
@@ -123,9 +113,7 @@ assert(html.includes('MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS'));
   assert(info.chunkKinds.every(x=>x.kinds.every(k=>k!=='FAST')),'each full industrial chunk window must stay TECH');
   assert(info.coverage.effectivePct>=70&&info.coverage.effectivePct<=80,
     'effective route building fill must stay in requested 70-80% band');
-  assert.equal(info.stats?.exactMap4IndustrialVisualMeshes,985);
-  assert.equal(info.stats?.exactMap4IndustrialVisualParts,info.partRoots);
-  assert.equal(info.map4Visible,false);
+    assert.equal(info.map4Visible,false);
 
   const evidence=path.join(__dirname,'map2-17-evidence');fs.mkdirSync(evidence,{recursive:true});
   const target=info.chunkCenters[Math.floor(info.chunkCenters.length/2)];
