@@ -5,6 +5,8 @@ on:
     paths:
       - tools/map2-19-buildings-are-road.py
       - tests/map2-19-buildings-are-road.cjs
+      - tests/map2-18-building-obstacles.cjs
+      - tests/map2-05-course-flow.cjs
       - .github/workflows/map2-19-buildings-are-road.yml
   workflow_dispatch:
 permissions:
