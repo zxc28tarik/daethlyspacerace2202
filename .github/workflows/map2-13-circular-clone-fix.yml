@@ -1,0 +1,33 @@
+name: MAP2-13 fix circular clone metadata
+on:
+  push:
+    branches: [codex/map2-13-exact-map4-station-clones]
+    paths:
+      - tools/map2-13-circular-clone-fix.py
+      - .github/workflows/map2-13-circular-clone-fix.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-13-exact-map4-station-clones
+          fetch-depth: 0
+      - name: Apply circular clone fix
+        run: python tools/map2-13-circular-clone-fix.py
+      - name: Validate exact clone path
+        run: |
+          grep -q "const colliderMetadata=\[\]" index.html
+          grep -q "source.clone(true)" index.html
+          grep -q "obj.userData.h4Collider=collider" index.html
+      - name: Commit game fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-13 clone final Map4 groups without circular metadata"
+          git push origin HEAD:codex/map2-13-exact-map4-station-clones
