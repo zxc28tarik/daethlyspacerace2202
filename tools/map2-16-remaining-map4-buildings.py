@@ -99,7 +99,7 @@ layout_new=layout_anchor+"""
             // Transfer the remaining building-like Map4 landmarks once each.
             // Natural mesa/crash/wreck landmarks are intentionally excluded.
             const remainingMap4Buildings=[
-                ['MAP4_STONEGATE_1950',17000,0],
+                ['MAP4_STONEGATE_1950',40500,180],
                 ['MAP4_OBSERVATION_10100',29500,-90],
                 ['MAP4_REFINERY_17200',46500,120],
                 ['MAP4_FACTORY_23800',65500,0],
