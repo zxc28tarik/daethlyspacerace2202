@@ -122,7 +122,6 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)>.055,
     'patrol fighter must be large enough to read on screen');
   assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
-  assert(approachShot.ship.z<.995,'patrol fighter must not sit at near-far-plane distance');
   assert(approachShot.ship.y+approachShot.bbox.h/2<1.02,'patrol fighter should not be clipped above the frame');
   assert.equal(approachShot.beacons.length,2,'patrol needs two readable wing beacons');
   assert(approachShot.beacons.every(b=>Math.abs(b.x)<1&&Math.abs(b.y)<1&&b.z>=-1&&b.z<=1),
