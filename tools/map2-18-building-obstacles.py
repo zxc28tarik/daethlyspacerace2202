@@ -124,6 +124,11 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                         hd=Math.min(230,hd*.72);
                         if(hx<22||hy<22||hd<10)return;
 
+                        // Preserve the entire authored gate approach volume, not just
+                        // the gate centre. A deep building mass whose AABB reaches a
+                        // gate can otherwise close GANTRY/dual openings from afar.
+                        if(map2Gates.some(g=>Math.abs(g.distance-d)<260+hd))return;
+
                         const pass=map2BuildingPassageAt(d);
                         const passageHalfX=48,passageHalfY=42;
                         const blocksPassage=
