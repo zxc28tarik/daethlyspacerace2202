@@ -1,0 +1,14 @@
+name: MAP2-12 inspect active Map4 visual buildings
+on:
+  push:
+    branches: [codex/map2-12-map4-building-reuse]
+    paths:
+      - tools/map2-12-real-map4-visual-diagnose.py
+      - .github/workflows/map2-12-real-map4-visual-diagnose.yml
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/map2-12-real-map4-visual-diagnose.py
