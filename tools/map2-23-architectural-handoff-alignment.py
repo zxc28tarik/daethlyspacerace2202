@@ -72,7 +72,7 @@ insert=r"""            // MAP2-23: architectural handoff alignment.
 
                         // The route-local heading points the architecture toward the
                         // next opening. Clamp to keep buildings believable/upright.
-                        let yaw=Math.atan2(dx,dd)*1.55;
+                        let yaw=Math.atan2(dx,dd)*1.90;
                         yaw=THREE.MathUtils.clamp(yaw,-THREE.MathUtils.degToRad(18),THREE.MathUtils.degToRad(18));
 
                         // On strong side-to-side handoffs, toe the two neighbouring
@@ -81,9 +81,9 @@ insert=r"""            // MAP2-23: architectural handoff alignment.
                         const localDx=next.hint.x-cur.hint.x;
                         const localDd=Math.max(1,next.d-cur.d);
                         const localHeading=Math.atan2(localDx,localDd);
-                        if(i<chain.length-1&&Math.abs(localDx)>=70){
+                        if(i<chain.length-1&&Math.abs(localDx)>=55){
                             yaw=THREE.MathUtils.clamp(
-                                yaw+localHeading*.32,
+                                yaw+localHeading*.42,
                                 -THREE.MathUtils.degToRad(20),
                                 THREE.MathUtils.degToRad(20)
                             );
