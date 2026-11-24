@@ -73,6 +73,7 @@ const flow=await page.evaluate(()=>{
     const gates=map2Gates.filter(g=>g.distance>=start&&g.distance<end);
     const intervals=gates.slice(1).map((g,i)=>g.distance-gates[i].distance);
     let worstShift=0,clear=true,minimumRun=Infinity;
+    const failures=[];
     for(let i=1;i<gates.length;i++){
       const a=gates[i-1],b=gates[i];
       const from=a.distance+a.depth/2+40,to=b.distance-b.depth/2-40;
@@ -105,15 +106,20 @@ const flow=await page.evaluate(()=>{
         const choices=b.openings.map(q=>({q,shift:Math.hypot(q.x-p.x,q.y-p.y)}))
           .sort((x,y)=>x.shift-y.shift);
         const reachable=choices.find(({q})=>routeClear(p,q));
-        if(!reachable)clear=false;else worstShift=Math.max(worstShift,reachable.shift);
+        if(!reachable){
+          clear=false;
+          failures.push({fromGate:a.distance,toGate:b.distance,from:{x:p.x,y:p.y},
+            choices:choices.map(({q,shift})=>({x:q.x,y:q.y,shift}))});
+        }else worstShift=Math.max(worstShift,reachable.shift);
       }
     }
     const entryMargins=gates.slice(0,3).every(g=>g.flowStage==='ENTRY'&&g.openings.every(p=>p.hx>=(g.kind==='DUAL_FACTORY'?81:84)&&p.hy>=72));
     return {count:gates.length,entryDistance:gates[0].distance-start,exitDistance:end-gates.at(-1).distance,
       intervals,entryMargins,firstStages:gates.slice(0,3).map(g=>g.flowStage),
-      laterStages:gates.slice(3).every(g=>g.flowStage==='TECH'),minimumRun,worstShift,clear};
+      laterStages:gates.slice(3).every(g=>g.flowStage==='TECH'),minimumRun,worstShift,clear,failures};
   });
 });
+console.log('MAP2-05 FLOW PRECHECK',JSON.stringify(flow));
 assert.equal(flow.length,2);
 for(const f of flow){
   assert(f.count>=30);
