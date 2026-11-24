@@ -1,0 +1,28 @@
+name: MAP2-11 apply close-approach patrol scale
+on:
+  push:
+    branches: [codex/map2-11-keep-it-low-visual-language]
+    paths:
+      - tools/map2-11-close-scale.py
+      - .github/workflows/map2-11-close-scale.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-11-keep-it-low-visual-language
+          fetch-depth: 0
+      - run: python tools/map2-11-close-scale.py
+      - name: Validate scale
+        run: grep -q "setScalar(1.2)" index.html
+      - name: Commit correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-11 scale patrol for close approach"
+          git push origin HEAD:codex/map2-11-keep-it-low-visual-language
