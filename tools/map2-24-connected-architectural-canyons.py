@@ -43,7 +43,8 @@ insert=r"""            // MAP2-24: connected architectural canyons.
                     // Exact midpoint is the architectural handoff spine. Keep only
                     // a tiny alternating offset so adjacent W05 shells do not read
                     // as mechanically copy-pasted.
-                    const bias=((linked%3)-1)*10;
+                    const coreSpan=Math.abs(next.hint.x-prev.hint.x);
+                    const bias=coreSpan>150?0:((linked%3)-1)*10;
                     const targetX=THREE.MathUtils.clamp((prev.hint.x+next.hint.x)*.5+bias,-128,128);
                     const targetY=THREE.MathUtils.clamp((prev.hint.y+next.hint.y)*.5,-132,72);
                     const dx=targetX-cur.hint.x;
