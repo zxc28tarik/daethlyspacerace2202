@@ -66,7 +66,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     return info;
   }
   const userShot=await settle(7249,'00-user-view-167751m-remaining');
-  assert.equal(userShot.seg,'FAST','the supplied screenshot position should be the first FAST zone');
+  assert.equal(userShot.seg,'LINK','the supplied screenshot position is the opening LINK segment');
   assert(userShot.counts.vis02On>=2,'user screenshot position must show real Map4 buildings');
   const a=await settle(35200,'01-map4-buildings-tech-entry');
   const b=await settle(39750,'02-map4-buildings-dual-factory');
