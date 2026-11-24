@@ -1,0 +1,33 @@
+name: MAP2-12 replace FAST silhouettes
+on:
+  push:
+    branches: [codex/map2-12-map4-building-reuse]
+    paths:
+      - tools/map2-12-fast-silhouette-fix.py
+      - .github/workflows/map2-12-fast-silhouette-fix.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-12-map4-building-reuse
+          fetch-depth: 0
+      - name: Replace FAST/LINK black silhouettes
+        run: python tools/map2-12-fast-silhouette-fix.py
+      - name: Validate placeholders are gone
+        run: |
+          ! grep -q "MAP2_FAST_SILHOUETTE_" index.html
+          ! grep -q "MAP2_LINK_SILHOUETTE_" index.html
+          grep -q "FAST_'+cell" index.html
+      - name: Commit game patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-12 replace FAST silhouettes with Map4 buildings"
+          git push origin HEAD:codex/map2-12-map4-building-reuse
