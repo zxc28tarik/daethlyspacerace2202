@@ -49,6 +49,11 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                     y:THREE.MathUtils.lerp(open.y,wave.y,t)
                 };
             };
+            // Expose the authored obstacle passage for QA and rival planning.
+            // It is a read-only route function; the obstacles remain the actual
+            // visible Map4 building meshes.
+            window.starbladeMap2BuildingPassageAt=map2BuildingPassageAt;
+
             const map2ProjectedBoxAt=(box,d)=>{
                 const frame=getRaceFrameAtDistance(d);
                 const min=box.min,max=box.max;
