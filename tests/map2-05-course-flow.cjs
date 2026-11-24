@@ -136,7 +136,9 @@ for(const f of flow){
 console.log('PASS MAP2-05 transition rhythm and reachable openings',JSON.stringify(flow));
 await page.locator('#map-choice-1').click();
 const restored=await page.evaluate(()=>({map:state.activeMap,length:RACE_ROUTE_NOMINAL_DISTANCE,asteroids:asteroids.length,solids:staticObstacles.length,items:itemBoxes.length,arc:raceRouteCurve.getLength(),map4Built:planetaryWorldRegions.length}));
-assert.deepEqual(restored,original);
+assert.deepEqual({...restored,map4Built:original.map4Built},original);
+assert.equal(restored.map4Built,layout.map4Expected);
+assert.equal(await page.evaluate(()=>planetaryWorldGroup.visible),false);
 await page.locator('#map-choice-2').click();
 await page.locator('#start-btn').click();
 await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
