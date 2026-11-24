@@ -31,8 +31,18 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
 
   const evidence=path.join(__dirname,'map2-10-evidence');fs.mkdirSync(evidence,{recursive:true});
   async function capture(progress,name){
+    // Do not teleport tens of kilometres and judge a half-settled camera.
+    // Stage into the final 1.2 km so camera + section visibility update like real flight.
+    const lead=Math.max(0,progress-1200);
+    await page.evaluate(p=>{state.paused=false;state.routeProgress=p;state.laneX=0;state.laneY=0;},lead);
+    await page.waitForTimeout(450);
+    for(let step=1;step<=12;step++){
+      const at=lead+(progress-lead)*(step/12);
+      await page.evaluate(p=>{state.paused=false;state.routeProgress=p;state.laneX=0;state.laneY=0;},at);
+      await page.waitForTimeout(70);
+    }
     await page.evaluate(p=>{state.paused=false;state.routeProgress=p;state.laneX=0;state.laneY=0;},progress);
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(320);
     await page.evaluate(()=>{state.paused=true;map2UpdateVisibility(state.routeProgress);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);});
     const info=await page.evaluate(()=>{
       const compositionPrefixes=['MAP2_CHOKE_WALL_','MAP2_TURN_FRAME_','MAP2_TURN_TOWER_',
