@@ -26,9 +26,11 @@ assert(html.includes('map2ChainCompacted'));
   const info=await page.evaluate(()=>{
     const comp=window.starbladeMap2BuildingChainCompaction;
     const road=window.starbladeMap2BuildingRoad;
+    const coreKnots=road.coreKnots||road.knots;
+    const coreGroups=road.groups.filter(g=>!g.transition);
     const ranges=MAP2_SEGMENTS.filter(s=>s.kind==='TECH').map(s=>({from:s.from*MAP2_DISTANCE,to:s.to*MAP2_DISTANCE}));
     const chainRows=ranges.map(range=>{
-      const knots=road.knots.filter(k=>k.distance>=range.from&&k.distance<=range.to).sort((a,b)=>a.distance-b.distance);
+      const knots=coreKnots.filter(k=>k.distance>=range.from&&k.distance<=range.to).sort((a,b)=>a.distance-b.distance);
       const gaps=[];let prev=range.from;
       for(const k of knots){gaps.push(k.distance-prev);prev=k.distance;}
       gaps.push(range.to-prev);
@@ -53,7 +55,7 @@ assert(html.includes('map2ChainCompacted'));
     const knotDeviations=road.knots.filter(k=>Math.abs(k.x)>60||Math.abs(k.y+55)>42).length;
 
     return {
-      comp,roadGroups:road.groups.length,knots:road.knots.length,
+      comp,roadGroups:coreGroups.length,knots:coreKnots.length,totalKnots:road.knots.length,
       framed:window.starbladeMap2Layout?.visualStage?.routeBuildingFramedApertures,
       chainRows,compactedRoots:roots.length,uniqueRoots:rootNames.size,
       rootsTech:roots.every(r=>r.seg==='TECH'),
@@ -68,8 +70,9 @@ assert(html.includes('map2ChainCompacted'));
   assert(info.comp.moved>=55,'nearly every TECH building group should participate in the new chain cadence');
   assert(info.comp.maxGapBefore>=3500,'pre-compaction route should contain multi-kilometre aperture gaps');
   assert(info.comp.maxGapAfter<=2250,'building aperture cadence must stay near 2 km or tighter');
-  assert.equal(info.roadGroups,60,'MAP2-20 must not create fake/new route groups');
-  assert.equal(info.knots,60,'one real aperture knot per existing building group');
+  assert.equal(info.roadGroups,60,'MAP2-20 core must retain the original 60 real route groups');
+  assert.equal(info.knots,60,'MAP2-20 core keeps one real aperture knot per original building group');
+  assert(info.totalKnots>=info.knots,'later real-building handoffs may add extra knots without changing the MAP2-20 core');
   assert.deepEqual(info.chainRows.map(r=>r.count),[32,28],'both TECH chains keep their existing group counts');
   assert(info.chainRows.every(r=>r.maxGap<=2250),'no TECH chain may return to multi-kilometre empty flight');
   assert(info.rootsTech,'all longitudinally moved building roots must stay inside TECH');

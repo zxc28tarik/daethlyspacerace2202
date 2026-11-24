@@ -13961,7 +13961,7 @@
         const map2CourseGroup=new THREE.Group();
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
-        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0,exactMap4CityDistrictClones:0,exactMap4CityMeshes:0,exactMap4LandmarkClones:0,exactMap4LandmarkMeshes:0,exactMap4CorridorClusters:0,exactMap4CorridorMeshes:0,exactMap4IndustrialVisualParts:0,exactMap4IndustrialVisualMeshes:0,map4BuildingColliders:0,map4BuildingColliderBins:0,map4BuildingCenterBlocks:0,map4BuildingSideBlocks:0,map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0,routeBuildingFramedApertures:0,chainCompactedGroups:0,chainLongitudinalMoves:0,chainMaxShift:0,chainMaxGapBefore:0,chainMaxGapAfter:0,authoredSequences:0,sequenceReorderedGroups:0,sequenceLaneSwings:0,sequenceVerticalSwings:0};
+        const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0,exactMap4CityDistrictClones:0,exactMap4CityMeshes:0,exactMap4LandmarkClones:0,exactMap4LandmarkMeshes:0,exactMap4CorridorClusters:0,exactMap4CorridorMeshes:0,exactMap4IndustrialVisualParts:0,exactMap4IndustrialVisualMeshes:0,map4BuildingColliders:0,map4BuildingColliderBins:0,map4BuildingCenterBlocks:0,map4BuildingSideBlocks:0,map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0,routeBuildingFramedApertures:0,chainCompactedGroups:0,chainLongitudinalMoves:0,chainMaxShift:0,chainMaxGapBefore:0,chainMaxGapAfter:0,authoredSequences:0,sequenceReorderedGroups:0,sequenceLaneSwings:0,sequenceVerticalSwings:0,transitionBuildingClones:0,transitionBuildingKnots:0,transitionMaxGapBefore:0,transitionMaxGapAfter:0};
         function map2BuildCourse(){
             if(map2Sections.length)return;
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
@@ -14798,6 +14798,87 @@
                 return plan;
             };
 
+            // MAP2-22: transition building handoffs.
+            // The authored MAP2-21 complexes remain the major beats, but one extra
+            // genuine Map4 W05 station is inserted between adjacent beats inside
+            // each sequence. This halves the empty flight between real buildings.
+            const map2TransitionSafeDistance=(a,b,seed=0)=>{
+                const lo=a+(b-a)*.32,hi=a+(b-a)*.68;
+                let best=(a+b)*.5,bestClear=-Infinity;
+                for(let i=0;i<=8;i++){
+                    const t=i/8;
+                    const d=THREE.MathUtils.lerp(lo,hi,t);
+                    if(map2Segment(d).kind!=='TECH')continue;
+                    const gateClear=map2Gates.length
+                        ? Math.min(...map2Gates.map(g=>Math.abs(g.distance-d)))
+                        : 99999;
+                    const edgeClear=Math.min(d-a,b-d);
+                    // Prefer positions away from existing authored gate collision,
+                    // then favour the midpoint for even visual cadence.
+                    const score=Math.min(gateClear,900)+edgeClear*.20-Math.abs(t-.5)*35+(seed%3)*.01;
+                    if(score>bestClear){bestClear=score;best=d;}
+                }
+                return best;
+            };
+
+            const map2AddTransitionBuildingHandoffs=()=>{
+                const authored=window.starbladeMap2AuthoredSequences;
+                if(!authored?.plan?.length)return [];
+                const transitions=[];
+                let ordinal=0,maxBefore=0;
+
+                for(const range of authored.plan){
+                    const slots=range.slots.slice().sort((a,b)=>a.distance-b.distance);
+                    for(let i=0;i<slots.length-1;i++){
+                        const a=slots[i],b=slots[i+1];
+                        // Bridge sequence boundaries too: TECH should feel like one
+                        // continuous built environment. Only the actual FAST sectors
+                        // are allowed to break the building chain.
+                        const gap=b.distance-a.distance;
+                        maxBefore=Math.max(maxBefore,gap);
+                        const d=map2TransitionSafeDistance(a.distance,b.distance,ordinal);
+                        if(map2Segment(d).kind!=='TECH')continue;
+
+                        const midpointX=(a.x+b.x)*.5;
+                        const midpointY=(a.y+b.y)*.5;
+                        const lateralKick=((ordinal+range.rangeIndex)%2?1:-1)*24;
+                        const verticalKick=(ordinal%3===1?-14:(ordinal%3===2?12:0));
+                        const x=THREE.MathUtils.clamp(midpointX+lateralKick,-132,132);
+                        const y=THREE.MathUtils.clamp(midpointY+verticalKick,-138,72);
+
+                        // This is an actual final Map4 W05 station clone, not a box
+                        // or procedural obstacle. The existing source geometry and
+                        // materials are reused exactly.
+                        const sourceIndex=(ordinal*5+range.rangeIndex*2)%6;
+                        const clone=map2CloneExactMap4Station(sourceIndex,d,x,y);
+                        clone.name=clone.name+'_HANDOFF_'+ordinal;
+                        clone.userData.map2TransitionRoadClone=true;
+                        clone.userData.map2TransitionFrom=a.sequence;
+                        clone.userData.map2TransitionTo=b.sequence;
+                        clone.userData.map2TransitionBoundary=a.sequence!==b.sequence;
+                        clone.userData.map2TransitionOrdinal=ordinal;
+                        clone.userData.map2SequenceLaneX=x;
+                        clone.userData.map2SequenceLaneY=y;
+                        clone.traverse(o=>{
+                            o.userData.map2TransitionRoadClone=true;
+                            o.userData.map2TransitionOrdinal=ordinal;
+                        });
+                        transitions.push({
+                            distance:d,x,y,sourceIndex,
+                            sequence:a.sequence,toSequence:b.sequence,
+                            boundary:a.sequence!==b.sequence,
+                            name:clone.name
+                        });
+                        ordinal++;
+                    }
+                }
+
+                window.starbladeMap2TransitionBuildings=transitions;
+                map2VisualStageStats.transitionBuildingClones=transitions.length;
+                map2VisualStageStats.transitionMaxGapBefore=maxBefore;
+                return transitions;
+            };
+
             const map2OrganizeBuildingsAsRoad=()=>{
                 const all=map2ExactBuildingRoots()
                     .filter(root=>{
@@ -14848,7 +14929,11 @@
                     };
                     const found=map2FindBuildingRoadAperture(roots,d,continuity);
                     if(!found.aperture){
-                        records.push({d,roots:roots.length,open:false,solids:found.solids,rootNames:roots.map(r=>r.name)});
+                        records.push({
+                            d,roots:roots.length,open:false,solids:found.solids,
+                            transition:roots.some(r=>r.userData?.map2TransitionRoadClone),
+                            rootNames:roots.map(r=>r.name)
+                        });
                         continue;
                     }
 
@@ -14883,6 +14968,7 @@
                     records.push({
                         d,roots:roots.length,open:true,solids:found.solids,
                         rootNames:roots.map(r=>r.name),
+                        transition:roots.some(r=>r.userData?.map2TransitionRoadClone),
                         sequence:roots[0]?.userData?.map2SequenceName||null,
                         sequenceIndex:roots[0]?.userData?.map2SequenceIndex??null,
                         sequenceSlot:roots[0]?.userData?.map2SequenceSlot??null,
@@ -14898,13 +14984,33 @@
                 const knots=records.filter(r=>r.open)
                     .map(r=>({distance:r.d,x:r.x,y:r.y}))
                     .sort((a,b)=>a.distance-b.distance);
+                const coreKnots=records.filter(r=>r.open&&!r.transition)
+                    .map(r=>({distance:r.d,x:r.x,y:r.y}))
+                    .sort((a,b)=>a.distance-b.distance);
+                const transitionKnots=records.filter(r=>r.open&&r.transition)
+                    .map(r=>({distance:r.d,x:r.x,y:r.y}))
+                    .sort((a,b)=>a.distance-b.distance);
+
                 window.starbladeMap2BuildingRoad={
                     groups:records,
                     knots,
+                    coreKnots,
+                    transitionKnots,
                     techOnly:true,
                     philosophy:'BUILDINGS_ARE_THE_ROAD'
                 };
 
+                let transitionMaxGapAfter=0;
+                for(const seg of MAP2_SEGMENTS.filter(s=>s.kind==='TECH')){
+                    const from=seg.from*MAP2_DISTANCE,to=seg.to*MAP2_DISTANCE;
+                    const ks=knots.filter(k=>k.distance>=from&&k.distance<=to);
+                    let prev=from;
+                    for(const k of ks){transitionMaxGapAfter=Math.max(transitionMaxGapAfter,k.distance-prev);prev=k.distance;}
+                    transitionMaxGapAfter=Math.max(transitionMaxGapAfter,to-prev);
+                }
+
+                map2VisualStageStats.transitionBuildingKnots=transitionKnots.length;
+                map2VisualStageStats.transitionMaxGapAfter=transitionMaxGapAfter;
                 map2VisualStageStats.routeBuildingGroups=records.length;
                 map2VisualStageStats.routeBuildingShells=shells;
                 map2VisualStageStats.routeBuildingApertures=apertures;
@@ -15469,8 +15575,12 @@
             // built only from the existing real Map4 groups.
             map2ArrangeAuthoredBuildingSequences();
 
-            // MAP2-19: now discover and align the real hole inside each sequenced
-            // complex. The resulting aperture sequence is the visible road.
+            // MAP2-22: insert genuine Map4 stations between adjacent authored
+            // building beats so the visible road hands off building-to-building.
+            map2AddTransitionBuildingHandoffs();
+
+            // MAP2-19: now discover and align the real hole inside every major and
+            // transition complex. The resulting aperture sequence is the visible road.
             map2OrganizeBuildingsAsRoad();
 
             // MAP2-18: only after all authored gates and original physical solids
