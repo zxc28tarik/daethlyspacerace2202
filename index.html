@@ -18048,6 +18048,84 @@
             }
         }
 
+        // MAP2-03: route-specific pilot decisions. No modifications to Map1/Map4 flight.
+        const map2TurnCache=new Map();
+        function map2TurnSeverity(progress,speed){
+            const first=Math.max(0,Math.floor(progress/250));
+            const last=Math.min(Math.floor(MAP2_DISTANCE/250),first+Math.ceil(Math.max(550,speed*.95)/250));
+            let severity=0;
+            for(let k=first;k<=last;k++){
+                if(!map2TurnCache.has(k)){
+                    const d=k*250;
+                    const a=map2RouteCurve.getTangentAt(Math.max(0,d-250)/MAP2_DISTANCE);
+                    const b=map2RouteCurve.getTangentAt(Math.min(MAP2_DISTANCE,d+450)/MAP2_DISTANCE);
+                    map2TurnCache.set(k,a.angleTo(b));
+                }
+                severity=Math.max(severity,map2TurnCache.get(k));
+            }
+            return severity;
+        }
+        function map2PilotPlan(ship,gate,maxLateralSpeed){
+            const turn=map2TurnSeverity(ship.routeProgress,ship.currentSpeed);
+            const cautious=ship.profile==='CAUTIOUS',aggressive=ship.profile==='AGGRESSIVE';
+            const turnBrake=turn>(cautious?.16:aggressive?.23:.19);
+            const turnLimit=turnBrake?RACE_SPEEDS.BRAKE:turn>(cautious?.07:aggressive?.12:.095)?RACE_SPEEDS.NORMAL:Infinity;
+            if(!gate){ship.map2GateChoice=null;return {gatePlan:null,turn,turnBrake,turnLimit};}
+            if(!ship.map2GateChoice||ship.map2GateChoice.distance!==gate.distance){
+                let best=null;
+                const next=map2Gates.find(g=>g.distance>gate.distance);
+                const peers=racers.filter(p=>p!==ship&&!p.finished&&!p.dnf&&Math.abs(p.routeProgress-ship.routeProgress)<550);
+                const index=Number.isFinite(ship.hunterPilotIndex)?ship.hunterPilotIndex:0;
+                gate.openings.forEach((opening,openingIndex)=>{
+                    const mx=Math.max(0,opening.hx-ship.radius-13);
+                    const my=Math.max(0,opening.hy-ship.radius-13);
+                    // Candidate lanes are genuinely inside the aperture. Keep a committed
+                    // choice until the rear of the structure is cleared.
+                    const slots=[[0,0],[-.80,0],[.80,0],[0,-.82],[0,.82],[-.64,-.68],[.64,-.68],[-.64,.68],[.64,.68]];
+                    slots.forEach(([sx,sy],slot)=>{
+                        const x=opening.x+mx*sx,y=opening.y+my*sy;
+                        let cost=Math.hypot(x-ship.laneX,y-ship.laneY);
+                        cost+=Math.hypot(x-ship.laneX-(ship.vx||0)*.20,y-ship.laneY-(ship.vy||0)*.20)*.20;
+                        if(next)cost+=.18*Math.min(...next.openings.map(p=>Math.hypot(x-p.x,y-p.y)));
+                        for(const p of peers){
+                            const choice=p.map2GateChoice;
+                            const px=choice&&choice.distance===gate.distance?choice.x:p.laneX;
+                            const py=choice&&choice.distance===gate.distance?choice.y:p.laneY;
+                            const gap=Math.hypot(x-px,y-py);
+                            cost+=Math.max(0,54-gap)*2.8*(1-Math.min(1,Math.abs(p.routeProgress-ship.routeProgress)/550));
+                        }
+                        if(!state.finished&&!state.playerDNF&&Math.abs(state.routeProgress-ship.routeProgress)<300){
+                            cost+=Math.max(0,45-Math.hypot(x-state.laneX,y-state.laneY))*1.6;
+                        }
+                        // Stable, small individual preference without changing motor power.
+                        cost+=((slot+openingIndex*3+index*5)%9)*.4;
+                        if(cautious)cost+=Math.hypot(sx,sy)*8;
+                        if(!best||cost<best.cost)best={distance:gate.distance,openingIndex,slot,x,y,cost};
+                    });
+                });
+                ship.map2GateChoice=best;
+                ship.aiStats.map2GateSelections=(ship.aiStats.map2GateSelections||0)+1;
+                if(gate.openings.length>1){
+                    const key='map2DualOpening'+best.openingIndex;
+                    ship.aiStats[key]=(ship.aiStats[key]||0)+1;
+                }
+            }
+            const c=ship.map2GateChoice,p=gate.openings[c.openingIndex];
+            const gap=gate.distance-ship.routeProgress;
+            const entry=gap-gate.depth/2-ship.radius;
+            const error=Math.hypot(c.x-ship.laneX,c.y-ship.laneY);
+            const time=Math.max(0,entry)/Math.max(RACE_SPEEDS.BRAKE,ship.currentSpeed);
+            const achievable=Math.max(0,time-.26)*maxLateralSpeed*.67;
+            const outside=Math.abs(ship.laneX-p.x)>p.hx-ship.radius-8||
+                Math.abs(ship.laneY-p.y)>p.hy-ship.radius-8;
+            const shouldBrake=entry>0&&error>Math.max(24,achievable+12)&&(outside||error>65);
+            const gateLimit=shouldBrake?RACE_SPEEDS.BRAKE:
+                entry<650&&entry>0&&error>30?RACE_SPEEDS.NORMAL:Infinity;
+            return {turn,turnBrake,turnLimit,gateLimit,gatePlan:{
+                x:c.x,y:c.y,gap,entry,lateralError:error,shouldBrake,opening:p,openingIndex:c.openingIndex
+            }};
+        }
+
         // Hızlı geçit hizalama: geçit hattına varış süresine göre yanal hedefe yönelir.
         function getGateApproachPlan(ship, gate, dt, maxLateralSpeed) {
             if (!gate) return null;
@@ -19764,7 +19842,8 @@
                 }
 
                 const gateAhead = upcomingWreckGate(r.routeProgress,2500);
-                const gatePlan = getGateApproachPlan(r,gateAhead,dt,maxLateralSpeed);
+                const map2Pilot=map2Active()?map2PilotPlan(r,gateAhead,maxLateralSpeed):null;
+                const gatePlan=map2Pilot?map2Pilot.gatePlan:getGateApproachPlan(r,gateAhead,dt,maxLateralSpeed);
 
                 // C.1 — Önündeki Aktif Asteroitleri Algılama ve Bilinçli Kaçınma Kararı (En Yüksek Öncelik)
                 let mostUrgentThreat = null;
@@ -20050,6 +20129,16 @@
                     }
                 }
 
+                // MAP2: anticipate turns and misaligned openings before spending boost energy.
+                if(map2Pilot){
+                    const cap=Math.min(map2Pilot.turnLimit,map2Pilot.gateLimit??Infinity);
+                    r.map2SpeedLimit=cap;
+                    if(cap<=RACE_SPEEDS.NORMAL)r.isBoosting=false;
+                    r.isBraking=cap<=RACE_SPEEDS.BRAKE;
+                    if(map2Pilot.turnBrake)r.aiStats.map2CurveBrakeSeconds=(r.aiStats.map2CurveBrakeSeconds||0)+dt;
+                    if(map2Pilot.gatePlan?.shouldBrake)r.aiStats.map2GateBrakeSeconds=(r.aiStats.map2GateBrakeSeconds||0)+dt;
+                }
+
                 // A — Oyuncuyla Birebir Aynı Motor, Boost, Fren ve Enerji Fiziği
                 let desiredSpeed = r.baseSpeed; // 3000 KM/S
                 if (r.isBraking) {
@@ -20073,6 +20162,7 @@
                     // Fren yalnızca kalan yol ve yanal erişim yetersizse açılır.
                     desiredSpeed=Math.min(desiredSpeed,RACE_SPEEDS.NORMAL*0.82);
                 }
+                if(map2Pilot)desiredSpeed=Math.min(desiredSpeed,r.map2SpeedLimit);
                 // Aynı slipstream enerji hesabı AI sürücüleri için de geçerli.
                 applySlipstreamEnergy(r,dt,false);
                 r.aiStats.boostSeconds += (r.isBoosting && r.energy>4 ? dt : 0);
@@ -20090,7 +20180,7 @@
                     activeTargetY = r.overtakeTargetY;
                 } else {
                     // Dairesel bonuslar silindi; AI yalnızca mevcut eşya kutularına yönelir.
-                    const box = itemBoxes.find(b => !b.claimed.has(r.name) &&
+                    const box = activeCourseItems().find(b => !b.claimed.has(r.name) &&
                         b.routeProgress-r.routeProgress >= 30 && b.routeProgress-r.routeProgress < 1100);
                     if (box) {
                         activeTargetX = box.laneX;
@@ -20156,10 +20246,10 @@
                     if(r.routeProgress>49000)activeTargetY=Math.max(activeTargetY,980);
                 }
                 // Gerçek enkaz açıklığı, bonus/sollama/asteroit kararlarından önce gelir.
-                if (gatePlan && gatePlan.gap < 1650) {
+                if (gatePlan && (map2Pilot||gatePlan.gap < 1650)) {
                     // Kalabalık yarışta gemiler aynı noktaya kilitlenmesin:
                     // Her bot geçidin güvenli boşluğu içinde farklı yatay şerit seçer.
-                    activeTargetX=gatePlan.x + (rIdx - 2) * 28;
+                    activeTargetX=gatePlan.x + (map2Pilot?0:(rIdx - 2) * 28);
                     activeTargetY=gatePlan.y;
                     // Bu geçişte agresif sollama oyuncuyla metal gövde arasında sıkıştırmasın.
                     r.overtakeTarget=null;
@@ -20185,6 +20275,9 @@
 
                 // Aynı ilerleme düzlemindeki gemilerin birbirine çarpmadan geçmesi için yumuşak yanal ayrım (Separation)
                 const applySeparation = (otherProg, otherX, otherY) => {
+                    // Reserved Map2 aperture lanes already account for nearby traffic.
+                    // Do not let steering separation drive a ship through a solid pier.
+                    if(map2Pilot&&gatePlan&&gatePlan.entry<440)return;
                     if (Math.abs(otherProg - r.routeProgress) < 24) {
                         const sepX = r.laneX - otherX;
                         const sepY = r.laneY - otherY;
@@ -20206,7 +20299,7 @@
                     applySeparation(racers[j].routeProgress, racers[j].laneX, racers[j].laneY);
                 }
                 // Enkaz geçidinin güvenli dikdörtgeninden asla zorla çıkma.
-                if (gatePlan && gatePlan.gap < 380 && gatePlan.gap > -185) {
+                if (!map2Pilot && gatePlan && gatePlan.gap < 380 && gatePlan.gap > -185) {
                     const clearanceX = Math.max(0,gateForPilot.clearX-r.radius-15);
                     const clearanceY = Math.max(0,gateForPilot.clearY-r.radius-15);
                     const nextX = r.laneX + desiredVx*dt;
@@ -20233,6 +20326,14 @@
                 }
                 const nextRacerProgress = map4Advance(prevRacerProgress,r.currentSpeed,dt,r);
                 r.aiStats.distance += Math.max(0,nextRacerProgress-prevRacerProgress);
+                if(map2Pilot&&gateAhead){
+                    const exit=gateAhead.distance+gateAhead.depth/2+35;
+                    if(prevRacerProgress<exit&&nextRacerProgress>=exit){
+                        r.aiStats.map2GateExits=(r.aiStats.map2GateExits||0)+1;
+                    }
+                }
+                if(map2Pilot&&map2Segment(prevRacerProgress).kind==='FAST'&&r.isBoosting)
+                    r.aiStats.map2FastBoostSeconds=(r.aiStats.map2FastBoostSeconds||0)+dt;
 
                 // Rakip Bitiş Çizgisi Geçişi ve İnterpolasyonlu Bitiş Zamanı Hesabı
                 if (nextRacerProgress >= RACE_ROUTE_NOMINAL_DISTANCE &&
@@ -22105,7 +22206,7 @@
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
                 : isMap4 ? 'Harita 4: dört aşama, 60 sn avcı arenası, uzaya yükseliş ve 4–5 dk hedef.'
-                : map2Active()?'Harita 2: 175 km, tek tur, sanayi geçişleri (ilk pist prototipi).':'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
+                : map2Active()?'Harita 2: 175 km, tek tur, sanayi geçişleri.':'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
             status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
         }
         document.getElementById('map-choice-1').addEventListener('click', () => selectMap(MAP_MODES.MAP1));
