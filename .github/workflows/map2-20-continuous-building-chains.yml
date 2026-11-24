@@ -1,0 +1,65 @@
+name: MAP2-20 continuous building chains
+on:
+  push:
+    branches: [codex/map2-20-continuous-building-chains]
+    paths:
+      - tools/map2-20-continuous-building-chains.py
+      - tests/map2-20-continuous-building-chains.cjs
+      - tests/map2-19-buildings-are-road.cjs
+      - tests/map2-18-building-obstacles.cjs
+      - tests/map2-05-course-flow.cjs
+      - .github/workflows/map2-20-continuous-building-chains.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply-and-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-20-continuous-building-chains
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply MAP2-20 continuous chains
+        run: python tools/map2-20-continuous-building-chains.py
+      - name: Validate MAP2-20 markers
+        run: |
+          grep -q "map2CompactBuildingRoadChains" index.html
+          grep -q "map2ChainCompacted" index.html
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-20 continuous-building-chain QA
+        run: node tests/map2-20-continuous-building-chains.cjs
+      - name: MAP2-19 buildings-are-road regression
+        run: node tests/map2-19-buildings-are-road.cjs
+      - name: MAP2-18 real-building collision regression
+        run: node tests/map2-18-building-obstacles.cjs
+      - name: MAP2-05 route + full fleet regression
+        run: node tests/map2-05-course-flow.cjs
+      - name: MAP2-17 exact 985-mesh / coverage regression
+        run: node tests/map2-17-full-industrial-coverage.cjs
+      - name: MAP2-16 remaining buildings regression
+        run: node tests/map2-16-remaining-map4-buildings.cjs
+      - name: MAP2-14 W05 density regression
+        run: node tests/map2-14-dense-map4-road-buildings.cjs
+      - name: MAP2-11 KEEP IT LOW regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: Commit MAP2-20 continuous-chain layout
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-20 compact real Map4 complexes into continuous TECH chains"
+          git push origin HEAD:codex/map2-20-continuous-building-chains
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-20-continuous-building-chains-evidence
+          path: tests/map2-20-evidence/
+          if-no-files-found: warn
