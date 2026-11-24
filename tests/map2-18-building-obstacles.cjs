@@ -1,0 +1,116 @@
+// MAP2-18 real Map4 building obstacle/chokepoint QA
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const {pathToFileURL}=require('node:url');
+const {chromium}=require('playwright');
+const html=fs.readFileSync('index.html','utf8');
+for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[1].trim())new vm.Script(m[1]);
+assert(html.includes('map2BuildPhysicalMap4BuildingObstacles'));
+assert(html.includes('map2PhysicalBuilding'));
+assert(html.includes('passageHalfX=48'));
+
+(async()=>{
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl-software-rendering','--disable-dev-shm-usage']});
+ try{
+  const three=fs.readFileSync(require.resolve('three/build/three.min.js'),'utf8');
+  const page=await browser.newPage({viewport:{width:1440,height:810}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/cdnjs.cloudflare.com/ajax/libs/three.js/**',r=>r.fulfill({status:200,contentType:'text/javascript',body:three}));
+  await page.route('**/cdn.tailwindcss.com/**',r=>r.fulfill({status:200,contentType:'text/javascript',body:''}));
+  await page.goto(pathToFileURL(path.resolve('index.html')).toString(),{waitUntil:'domcontentloaded',timeout:60000});
+  await page.waitForFunction(()=>typeof map2BuildCourse==='function'&&typeof courseSegmentTouch==='function');
+  await page.locator('#map-choice-2').click();
+  await page.locator('#start-btn').click();
+  await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
+
+  const info=await page.evaluate(()=>{
+    const building=window.starbladeMap2BuildingColliders||[];
+    const visibleChain=mesh=>{
+      let n=mesh;
+      while(n&&n!==map2CourseGroup.parent){if(!n.visible)return false;n=n.parent;}
+      return true;
+    };
+    const rows=building.map(o=>{
+      const a={routeProgress:o.routeProgress-o.halfDepth-25,laneX:o.laneX,laneY:o.laneY};
+      const b={...a,routeProgress:o.routeProgress+o.halfDepth+25};
+      const hit=courseSegmentTouch(o,a,b,12.5);
+      const pa={routeProgress:o.routeProgress-o.halfDepth-25,laneX:o.passageX,laneY:o.passageY};
+      const pb={...pa,routeProgress:o.routeProgress+o.halfDepth+25};
+      const passageBlocked=building.some(q=>courseSegmentTouch(q,pa,pb,12.5));
+
+      const frame=getRaceFrameAtDistance(o.routeProgress);
+      const physicalPoint=frame.center.clone()
+        .addScaledVector(frame.right,o.laneX)
+        .addScaledVector(frame.up,o.laneY);
+      const meshBox=new THREE.Box3().setFromObject(o.mesh);
+      const visualDistance=meshBox.isEmpty()?Infinity:meshBox.distanceToPoint(physicalPoint);
+      return {
+        d:o.routeProgress,x:o.laneX,y:o.laneY,hx:o.halfX,hy:o.halfY,hd:o.halfDepth,
+        hit,passageBlocked,seg:map2Segment(o.routeProgress).kind,
+        visible:visibleChain(o.mesh),physical:!!o.mesh?.userData?.map2PhysicalBuilding,
+        visualDistance,sourceRoot:o.sourceRoot,passageX:o.passageX,passageY:o.passageY
+      };
+    });
+
+    const centerlineBlocked=building.filter(o=>{
+      const a={routeProgress:o.routeProgress-o.halfDepth-25,laneX:0,laneY:0};
+      return courseSegmentTouch(o,a,{...a,routeProgress:o.routeProgress+o.halfDepth+25},12.5);
+    }).length;
+    const lowLaneBlocked=building.filter(o=>{
+      const a={routeProgress:o.routeProgress-o.halfDepth-25,laneX:0,laneY:-150};
+      return courseSegmentTouch(o,a,{...a,routeProgress:o.routeProgress+o.halfDepth+25},12.5);
+    }).length;
+    const overhead=building.filter(o=>o.laneY>110).length;
+    const left=building.filter(o=>o.laneX<-100).length;
+    const right=building.filter(o=>o.laneX>100).length;
+    const centre=building.length-left-right;
+    const bins=new Set(building.map(o=>Math.floor(o.routeProgress/420)));
+
+    // Count actual direction changes in the deliberately preserved passage.
+    const ordered=[...building].sort((a,b)=>a.routeProgress-b.routeProgress);
+    let signChanges=0,lastSign=0;
+    for(const o of ordered){
+      const s=Math.sign(o.passageX);
+      if(s&&lastSign&&s!==lastSign)signChanges++;
+      if(s)lastSign=s;
+    }
+
+    return {
+      count:building.length,
+      totalObstacles:map2Obstacles.length,
+      originalObstacleEstimate:map2Obstacles.length-building.length,
+      rows,
+      bins:bins.size,centerlineBlocked,lowLaneBlocked,overhead,left,right,centre,signChanges,
+      stats:window.starbladeMap2Layout?.visualStage||null,
+      fast:building.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length
+    };
+  });
+  console.log('MAP2-18 BUILDING_PHYSICS '+JSON.stringify(info));
+
+  assert(info.count>=30,'real Map4 building masses should add a substantial physical layer');
+  assert.equal(info.originalObstacleEstimate,382,'MAP2-18 must add on top of the established 382 physical obstacles');
+  assert.equal(info.fast,0,'FAST zones must remain free of building-derived colliders');
+  assert(info.bins>=20,'building physics should be distributed across many route slices');
+  assert(info.rows.every(x=>x.seg==='TECH'&&x.hit),'every derived building collider must be physically hittable in TECH');
+  assert(info.rows.every(x=>!x.passageBlocked),'the deliberate narrow passage must remain open');
+  assert(info.rows.every(x=>x.visible&&x.physical),'colliders must come from visible real building meshes');
+  assert(info.rows.every(x=>x.visualDistance<=95),'physics must stay inside/very close to rendered building mass');
+  assert(info.centerlineBlocked>=4,'some real buildings must force the player off the centre line');
+  assert(info.left>=5&&info.right>=5,'real building obstacles must pressure both sides of the route');
+  assert(info.signChanges>=4,'preserved passage must change side repeatedly to create slalom pressure');
+  assert.equal(info.stats?.map4BuildingColliders,info.count);
+  assert.equal(info.stats?.map4BuildingColliderBins,info.bins);
+
+  const evidence=path.join(__dirname,'map2-18-evidence');fs.mkdirSync(evidence,{recursive:true});
+  const sample=info.rows.find(x=>Math.abs(x.x)<180)||info.rows[0];
+  await page.evaluate(p=>{
+    state.routeProgress=Math.max(0,p-900);state.laneX=0;state.laneY=-40;
+    state.paused=true;map2UpdateVisibility(state.routeProgress);
+    scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);
+  },sample.d);
+  await page.waitForTimeout(350);
+  await page.screenshot({path:path.join(evidence,'00-real-building-chokepoint.png')});
+  assert.deepEqual(errors,[]);
+  console.log('PASS MAP2-18 real Map4 buildings are physical chokepoints');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
