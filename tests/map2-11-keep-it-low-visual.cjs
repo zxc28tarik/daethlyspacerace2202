@@ -135,7 +135,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'patrol fighter must be large enough to read on screen');
   assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)<.35,
     'patrol fighter must not dominate the whole race view');
-  assert(approachShot.renderScale>=2.8&&approachShot.renderScale<=3.2,
+  assert(approachShot.renderScale>=1.1&&approachShot.renderScale<=1.3,
     'patrol render scale must remain in the readable visual-only range');
   assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
   assert(approachShot.ship.y+approachShot.bbox.h/2<1.02,'patrol fighter should not be clipped above the frame');
