@@ -27,7 +27,7 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                 // without impossible snap changes.
                 const phase=(d/7600)*Math.PI*2;
                 const wave={
-                    x:125*Math.sin(phase),
+                    x:160*Math.sin(phase),
                     y:-70+46*Math.sin(phase*.73+1.1)
                 };
                 if(!map2Gates.length)return wave;
@@ -123,6 +123,16 @@ insert=r"""            // MAP2-18: turn the real Map4 architecture already place
                         hy=Math.min(205,hy*.72);
                         hd=Math.min(230,hd*.72);
                         if(hx<22||hy<22||hd<10)return;
+
+                        // Physics must live on the visible building itself. On very
+                        // sharp route bends, a route-local projection can drift away
+                        // from the source mesh; reject that candidate instead of ever
+                        // creating an invisible-feeling collision volume.
+                        const physicalFrame=getRaceFrameAtDistance(d);
+                        const physicalCenter=physicalFrame.center.clone()
+                            .addScaledVector(physicalFrame.right,cx)
+                            .addScaledVector(physicalFrame.up,cy);
+                        if(box.distanceToPoint(physicalCenter)>80)return;
 
                         // Preserve the entire authored gate approach volume, not just
                         // the gate centre. A deep building mass whose AABB reaches a
