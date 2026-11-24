@@ -14368,7 +14368,7 @@
             const v=map2PatrolVisual;
             if(visible&&!v.ship){
                 v.ship=createEnemyFighterMesh(true,false);
-                v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(4.1);scene.add(v.ship);
+                v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(2.8);scene.add(v.ship);
                 const geo=new THREE.BufferGeometry();
                 geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
                 v.beam=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xff593c,transparent:true,opacity:.95,depthWrite:false}));
@@ -14399,7 +14399,7 @@
                     const attackSide=v.side*(55+80*strike);
                     const x=state.laneX*(.25+.25*v.approach)+sweep*(1-v.approach*.55)+
                         attackSide*(v.approach*.35+strike*.65);
-                    const altitude=340-v.approach*35+strike*55;
+                    const altitude=300-v.approach*20+strike*55;
                     v.ship.position.copy(f.center).addScaledVector(f.right,x).addScaledVector(f.up,altitude);
                     const pf=getRaceFrameAtDistance(state.routeProgress);
                     // MAP2-11: target the exact rendered player position instead of
