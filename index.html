@@ -14036,38 +14036,56 @@
                 mesh.scale.setScalar(r);mesh.userData.map2VisualOnly=true;
                 g.userData.map2VisualOnly=true;g.name=name;g.add(mesh);sectionAt(d).add(g);return g;
             };
-            // MAP2-12: reuse the authored MAP4 landmark building recipes verbatim.
-            // No new building design is invented here; these are the same refinery,
-            // factory, power and outpost compositions used by h4CreateLandmark().
+            // MAP2-13: source the final, actually rendered C17 factory instances,
+            // not VIS02 silhouettes or newly assembled primitives. The original
+            // world is initialized on its own route and remains hidden/locked.
+            const savedMap=state.activeMap,savedDistance=RACE_ROUTE_NOMINAL_DISTANCE;
+            try{
+                state.activeMap=MAP_MODES.MAP4;RACE_ROUTE_NOMINAL_DISTANCE=50000;
+                buildPlanetaryWorld();
+            }finally{
+                state.activeMap=savedMap;RACE_ROUTE_NOMINAL_DISTANCE=savedDistance;
+                planetaryWorldGroup.visible=false;
+            }
+            const finalFactories=h4Gfx11c17Root.children.filter(o=>o.isInstancedMesh&&
+                o.userData.h4Gfx11c17Service===false);
+            if(finalFactories.length!==4)throw new Error('MAP2 final Map4 factory sources missing');
+            const factorySources=finalFactories.map(source=>{
+                const bounds=new THREE.Box3().setFromBufferAttribute(source.geometry.attributes.position);
+                return {source,size:bounds.getSize(new THREE.Vector3()),center:bounds.getCenter(new THREE.Vector3()),min:bounds.min.clone()};
+            });
+            // Copy one real rendered instance with the exact geometry, material,
+            // vertex colors and instance tint. Never alter the source.
+            const copyFactory=(style,id)=>{
+                const src=factorySources[style].source;
+                const copy=new THREE.InstancedMesh(src.geometry,src.material,1);
+                const idx=Array.from(String(id)).reduce((n,c)=>n+c.charCodeAt(0),0)%src.count;
+                const m=new THREE.Matrix4();src.getMatrixAt(idx,m);
+                const q=new THREE.Quaternion(),p=new THREE.Vector3(),scale=new THREE.Vector3();
+                m.decompose(p,q,scale);
+                const color=new THREE.Color();
+                if(src.instanceColor){src.getColorAt(idx,color);copy.setColorAt(0,color);}
+                copy.setMatrixAt(0,new THREE.Matrix4());
+                copy.instanceMatrix.needsUpdate=true;
+                if(copy.instanceColor)copy.instanceColor.needsUpdate=true;
+                copy.name='MAP2_MAP4_FINAL_'+style+'_'+id;
+                copy.userData={map4ReusedBuilding:true,map4Source:src.name,map4SourceIndex:idx,map2VisualOnly:true};
+                copy.frustumCulled=false;
+                map2VisualStageStats.map4BuildingMeshes++;
+                return copy;
+            };
             const map2AddMap4BuildingKit=(d,baseX,family,id)=>{
-                // Use the ACTUAL active Map4 VIS02 authored skyline geometry.
-                // This is the same geometry/material pair h4Vis02DressIndustry()
-                // installs into Map4, not the older H4_MESHES box recipes.
                 const style={refinery:0,factory:1,power:3,outpost:2}[family];
-                const g=makeCourseLocalGroup(d,baseX,18);
-                const mesh=new THREE.Mesh(h4Vis02Kits[style],h4Vis02Mat);
-                const height=family==='power'?610:family==='factory'?520:family==='refinery'?570:500;
-                const width=family==='factory'?520:family==='power'?460:490;
-                mesh.scale.set(width,height,470);
-                mesh.name='MAP2_MAP4_VIS02_'+family.toUpperCase()+'_'+id;
-                mesh.userData.map2VisualOnly=true;
-                mesh.userData.map4ReusedBuilding=true;
-                mesh.userData.map4Source='h4Vis02Kits['+style+']';
-                mesh.castShadow=false;mesh.receiveShadow=false;
+                const bounds=factorySources[style];
+                const g=makeCourseLocalGroup(d,baseX,-256);
+                const mesh=copyFactory(style,id);
+                // Uniform scaling preserves the original building proportions.
+                const scale=500/Math.max(bounds.size.x,bounds.size.y,bounds.size.z);
+                mesh.scale.setScalar(scale);
+                mesh.position.set(-bounds.center.x*scale,-bounds.min.y*scale,-bounds.center.z*scale);
                 g.name='MAP2_MAP4_BUILDING_'+family.toUpperCase()+'_'+id;
-                g.userData.map2VisualOnly=true;g.userData.map4ReusedBuilding=true;
-                g.add(mesh);
-                // Reuse Map4's own roof-cap/aerial language so the silhouette reads
-                // as a building from the player camera rather than a dark cuboid.
-                const cap=new THREE.Mesh(h4Vis02PanelGeo,h4Vis02FacadeMats[0]);
-                cap.scale.set(width*.54,42,300);cap.position.y=height*.50;
-                cap.name='MAP2_MAP4_ROOF_CAP_'+id;g.add(cap);
-                const aerial=new THREE.Mesh(h4Vis02PanelGeo,h4Vis02FacadeMats[2]);
-                aerial.scale.set(18,160,18);aerial.position.set(width*.18,height*.68,0);
-                aerial.name='MAP2_MAP4_AERIAL_'+id;g.add(aerial);
-                sectionAt(d).add(g);
+                g.userData.map4ReusedBuilding=true;g.add(mesh);sectionAt(d).add(g);
                 map2VisualStageStats.map4BuildingKits++;
-                map2VisualStageStats.map4BuildingMeshes+=3;
                 return g;
             };
             for(let d=310,cell=0;d<MAP2_DISTANCE-200;d+=620,cell++){
@@ -14214,23 +14232,15 @@
             const detailMat=H4_MATERIALS.steel;
             const gateKinds=['HANGAR','GANTRY','DUAL_FACTORY','MACHINE_SLOT'];
             const kitCounts=[0,0,0,0];
-            const kitBounds=h4Vis02Kits.map(geo=>{
-                const b=new THREE.Box3().setFromBufferAttribute(geo.attributes.position);
-                return {size:b.getSize(new THREE.Vector3()),center:b.getCenter(new THREE.Vector3())};
-            });
-            // Read-only Map4 VIS02 meshes: fit machinery into the front fifth of each solid pier.
-            // Solid backing is visible, and the collision envelope remains conservative.
+            // Put the same final factory geometry directly on the physical
+            // route piers. Only the instance transform changes to fit the gate.
             function mountKit(mesh,style){
-                const bounds=kitBounds[style];
-                const detail=new THREE.Mesh(h4Vis02Kits[style],h4Vis02Mat);
-                // Fill the visible pier volume with the actual Map4 authored kit.
-                // Collider data stays unchanged; the black backing cuboid is removed.
-                detail.scale.set(.96/bounds.size.x,.96/bounds.size.y,.86/bounds.size.z);
+                const bounds=factorySources[style],detail=copyFactory(style,mesh.name);
+                detail.scale.set(.98/bounds.size.x,.98/bounds.size.y,.98/bounds.size.z);
                 detail.position.set(-bounds.center.x*detail.scale.x,
                     -bounds.center.y*detail.scale.y,-bounds.center.z*detail.scale.z);
                 detail.name='MAP2_REUSED_H4_KIT_'+style;
                 detail.userData.map2KitStyle=style;
-                detail.userData.map4Source='h4Vis02Kits['+style+']';
                 mesh.material=mesh.material.clone();mesh.material.visible=false;
                 mesh.add(detail);kitCounts[style]++;
             }
@@ -14275,13 +14285,6 @@
                     // MAP2-08: long factory envelope is visual-only. The short physical
                     // gate stays conservative so curved routes between gates remain valid.
                     const visualTunnelDepth=[680,540,760,620][style];
-                    addVisualBlock(d,-318,8,150,480,visualTunnelDepth,map2VisualMats.dark,
-                        'MAP2_GATE_SHELL_L_'+i);
-                    addVisualBlock(d,318,8,150,480,visualTunnelDepth,map2VisualMats.dark,
-                        'MAP2_GATE_SHELL_R_'+i);
-                    addVisualBlock(d,0,292,790,104,visualTunnelDepth,map2VisualMats.shell,
-                        'MAP2_GATE_SHELL_TOP_'+i);
-                    map2VisualStageStats.sideBlocks+=2;map2VisualStageStats.trusses++;
                     if(style===0){
                         for(const z of [-220,220]){
                             addVisualBlock(d+z,-350,35,34,430,42,map2VisualMats.steel,'MAP2_HANGAR_RIB_L_'+i+'_'+z);
