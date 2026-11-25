@@ -19,8 +19,11 @@ assert(html.includes('MAP2-35: architectural decision sightlines'));
   await page.goto(pathToFileURL(path.resolve('index.html')).toString(),{waitUntil:'domcontentloaded',timeout:60000});
   await page.waitForFunction(()=>typeof map2BuildCourse==='function');
   await page.locator('#map-choice-2').click();await page.locator('#start-btn').click();
-  await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&
-    window.starbladeMap2DecisionSightlines?.complexCount>=1,null,{timeout:30000});
+  await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
+  await page.waitForTimeout(900);
+  if(!await page.evaluate(()=>!!window.starbladeMap2DecisionSightlines)){
+    throw new Error('MAP2-35 summary missing; page errors: '+JSON.stringify(errors));
+  }
 
   const info=await page.evaluate(()=>{
     const s=window.starbladeMap2DecisionSightlines;
