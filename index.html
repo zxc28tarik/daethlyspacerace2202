@@ -16520,29 +16520,25 @@
 
 
             // MAP2-28: turn the longest real Map4 building chains into authored
-            // architectural chicanes. We move complete existing building groups
-            // together with their real aperture navigation anchors; no placeholder
-            // road, wall or procedural building is created.
+            // architectural chicanes. The established MAP2-19 building-road groups
+            // remain the authoritative backbone; we relocate whole real complexes,
+            // then propagate the same smooth displacement into every through-building
+            // and bridge module between them. No placeholder road/building is created.
             const map2AuthorArchitecturalChicaneChains=()=>{
                 const route=window.starbladeMap2ThroughRoute;
                 const chains=window.starbladeMap2LongBuildingChains;
                 const road=window.starbladeMap2BuildingRoad;
-                if(!route?.modules?.length||!chains?.chains?.length||!road?.knots?.length)return null;
+                if(!route?.modules?.length||!chains?.chains?.length||!road?.groups?.length||!road?.knots?.length)return null;
 
                 const roots=map2ExactBuildingRoots();
                 const rootByName=new Map(roots.map(r=>[r.name,r]));
-                // Preserve the MAP2-19/20 base building-road backbone. MAP2-28
-                // bends the *connector architecture* between those established
-                // road complexes, so the old high-quality centre-to-centre
-                // continuity remains intact while the player still has to fly
-                // through newly displaced real Map4 bridge buildings.
-                const baseRoadRootNames=new Set(
-                    (road.groups||[]).flatMap(g=>g.rootNames||[])
-                );
-                const movedRootNames=new Set();
                 const selectedChains=chains.chains
                     .filter(c=>c.span>=10000)
                     .slice(0,6);
+                const movedRootNames=new Set();
+                const movedModuleIds=new Set();
+                const groupShiftByRoot=new Map();
+                const chainShiftRows=[];
                 const moved=[];
                 const chainRows=[];
                 let maxLateralShift=0,maxVerticalShift=0;
@@ -16555,116 +16551,209 @@
                         s.kind==='TECH'&&d>=s.from*MAP2_DISTANCE&&d<=s.to*MAP2_DISTANCE
                     );
                     if(!seg)return 0;
-                    return Math.min(
-                        d-seg.from*MAP2_DISTANCE,
-                        seg.to*MAP2_DISTANCE-d
-                    );
+                    return Math.min(d-seg.from*MAP2_DISTANCE,seg.to*MAP2_DISTANCE-d);
                 };
                 const shiftPoint=(p,dx,dy)=>{
                     if(!p)return;
                     p.x+=dx;p.y+=dy;
                 };
+                const clampTarget=(desired,base,prev,continuity,maxMove,lo,hi)=>{
+                    let min=Math.max(lo,base-maxMove);
+                    let max=Math.min(hi,base+maxMove);
+                    if(Number.isFinite(prev)){
+                        min=Math.max(min,prev-continuity);
+                        max=Math.min(max,prev+continuity);
+                    }
+                    if(min>max){
+                        const fallback=Number.isFinite(prev)
+                            ?THREE.MathUtils.clamp(base,prev-continuity,prev+continuity)
+                            :base;
+                        return THREE.MathUtils.clamp(fallback,lo,hi);
+                    }
+                    return THREE.MathUtils.clamp(desired,min,max);
+                };
 
+                // 1) Author a continuous macro path on the existing real building
+                // groups. Adjacent groups inside 2.5 km are explicitly constrained to
+                // <=66 lateral / <=51 vertical separation, preserving MAP2-25 handoffs.
                 selectedChains.forEach((chain,chainIndex)=>{
-                    const candidates=route.modules
-                        .filter(m=>
-                            m.centerDistance>=chain.from+650&&
-                            m.centerDistance<=chain.to-650&&
-                            map2Segment(m.centerDistance).kind==='TECH'&&
-                            m.rootNames?.length&&
-                            m.rootNames.every(n=>!baseRoadRootNames.has(n))&&
-                            gateClearance(m.centerDistance)>=560&&
-                            techEdgeClearance(m.centerDistance)>=700
-                        )
-                        .sort((a,b)=>a.centerDistance-b.centerDistance);
-                    const row={chainIndex,from:chain.from,to:chain.to,span:chain.span,
-                        candidates:candidates.length,moved:0,left:0,right:0,directionChanges:0,
-                        firstMoved:null,lastMoved:null};
-                    let priorSign=0;
+                    const groups=(road.groups||[])
+                        .filter(g=>g.open&&g.d>=chain.from&&g.d<=chain.to&&map2Segment(g.d).kind==='TECH')
+                        .sort((a,b)=>a.d-b.d);
+                    if(groups.length<2)return;
 
-                    for(const module of candidates){
-                        const moduleRoots=module.rootNames
-                            .map(n=>rootByName.get(n))
-                            .filter(Boolean)
-                            .filter(r=>!movedRootNames.has(r.name));
-                        if(!moduleRoots.length)continue;
+                    let prev=null;
+                    const shifts=[];
+                    for(let i=0;i<groups.length;i++){
+                        const g=groups[i];
+                        const t=groups.length<=1?.5:i/(groups.length-1);
+                        const edgeEnvelope=Math.pow(Math.max(0,Math.sin(Math.PI*t)),.78);
+                        const gateBlend=THREE.MathUtils.clamp((gateClearance(g.d)-180)/520,0,1);
+                        const techBlend=THREE.MathUtils.clamp((techEdgeClearance(g.d)-120)/620,0,1);
+                        const envelope=(i===0||i===groups.length-1)?0:edgeEnvelope*gateBlend*techBlend;
 
-                        const t=THREE.MathUtils.clamp(
-                            (module.centerDistance-chain.from)/Math.max(1,chain.span),0,1
+                        const phase=chainIndex*.173;
+                        const desiredX=THREE.MathUtils.lerp(
+                            g.x,
+                            178*Math.sin((t*2.25+phase)*Math.PI*2),
+                            envelope*.86
                         );
-                        const envelope=Math.pow(Math.max(0,Math.sin(Math.PI*t)),.68);
-                        const primary=Math.sin((t*4.0+chainIndex*.17)*Math.PI);
-                        const secondary=.32*Math.sin((t*9.0+chainIndex*.29)*Math.PI);
-                        // Smooth additive warp: nearby modules at nearly the
-                        // same route distance receive nearly the same displacement.
-                        // This preserves their pre-existing real-aperture relationship
-                        // instead of forcing each shell toward an independent target.
-                        const rawDx=envelope*(primary+secondary)*132;
-                        const minDx=Math.max(-145,-245-module.core.x);
-                        const maxDx=Math.min(145,245-module.core.x);
-                        const dx=THREE.MathUtils.clamp(rawDx,minDx,maxDx);
-                        const yWave=Math.sin((t*6.0+chainIndex*.23)*Math.PI);
-                        const rawDy=envelope*yWave*52;
-                        const minDy=Math.max(-70,-175-module.core.y);
-                        const maxDy=Math.min(70,105-module.core.y);
-                        const dy=THREE.MathUtils.clamp(rawDy,minDy,maxDy);
-                        if(Math.abs(dx)<10&&Math.abs(dy)<8)continue;
+                        const desiredY=THREE.MathUtils.lerp(
+                            g.y,
+                            -68+72*Math.sin((t*2.70+phase*.73)*Math.PI*2),
+                            envelope*.76
+                        );
+                        const linked=prev&&g.d-prev.d<=2500;
+                        const targetX=clampTarget(
+                            desiredX,g.x,linked?prev.x:NaN,66,145,-220,220
+                        );
+                        const targetY=clampTarget(
+                            desiredY,g.y,linked?prev.y:NaN,51,64,-170,85
+                        );
+                        const dx=targetX-g.x,dy=targetY-g.y;
 
-                        map2MoveRouteBuildingGroup(moduleRoots,module.centerDistance,dx,dy);
-                        for(const r of moduleRoots){
+                        const groupRoots=(g.rootNames||[]).map(n=>rootByName.get(n)).filter(Boolean);
+                        if(groupRoots.length&&(Math.abs(dx)>1||Math.abs(dy)>1)){
+                            map2MoveRouteBuildingGroup(groupRoots,g.d,dx,dy);
+                            for(const r of groupRoots){
+                                movedRootNames.add(r.name);
+                                groupShiftByRoot.set(r.name,{dx,dy,d:g.d,chainIndex});
+                                r.userData.map2ArchitecturalChicane=true;
+                                r.userData.map2ArchitecturalChicaneChain=chainIndex;
+                                r.userData.map2ArchitecturalChicaneShiftX=dx;
+                                r.userData.map2ArchitecturalChicaneShiftY=dy;
+                                if(Number.isFinite(r.userData.map2SequenceLaneX))r.userData.map2SequenceLaneX+=dx;
+                                if(Number.isFinite(r.userData.map2SequenceLaneY))r.userData.map2SequenceLaneY+=dy;
+                            }
+                        }else{
+                            for(const r of groupRoots)groupShiftByRoot.set(r.name,{dx,dy,d:g.d,chainIndex});
+                        }
+
+                        g.x=targetX;g.y=targetY;
+                        g.map2ArchitecturalChicane=true;
+                        g.chicaneChain=chainIndex;
+
+                        // The centre building knot is the MAP2-19 authoritative
+                        // passage and must move exactly with the real complex.
+                        for(const k of road.knots){
+                            if(k.source==='THROUGH_BUILDING')continue;
+                            if(Math.abs(k.distance-g.d)>1)continue;
+                            k.x=targetX;k.y=targetY;
+                            k.map2ArchitecturalChicane=true;
+                            k.chicaneChain=chainIndex;
+                        }
+
+                        shifts.push({d:g.d,dx,dy,x:targetX,y:targetY});
+                        prev={d:g.d,x:targetX,y:targetY};
+                        maxLateralShift=Math.max(maxLateralShift,Math.abs(dx));
+                        maxVerticalShift=Math.max(maxVerticalShift,Math.abs(dy));
+                    }
+                    chainShiftRows.push({chainIndex,from:chain.from,to:chain.to,span:chain.span,shifts});
+                });
+
+                const interpolatedShiftAt=(d,chainRow)=>{
+                    const s=chainRow?.shifts||[];
+                    if(!s.length)return {dx:0,dy:0};
+                    if(d<=s[0].d)return {dx:s[0].dx,dy:s[0].dy};
+                    if(d>=s[s.length-1].d)return {dx:s[s.length-1].dx,dy:s[s.length-1].dy};
+                    let lo=0,hi=s.length-1;
+                    while(lo+1<hi){
+                        const mid=(lo+hi)>>1;
+                        if(s[mid].d<=d)lo=mid;else hi=mid;
+                    }
+                    const a=s[lo],b=s[hi];
+                    const t=THREE.MathUtils.clamp((d-a.d)/Math.max(1,b.d-a.d),0,1);
+                    return {
+                        dx:THREE.MathUtils.lerp(a.dx,b.dx,t),
+                        dy:THREE.MathUtils.lerp(a.dy,b.dy,t)
+                    };
+                };
+
+                // 2) Propagate the macro displacement into every through-building
+                // module. Base modules inherit their own complex shift; inserted exact
+                // bridge modules interpolate between neighbouring real complexes.
+                const modules=route.modules.slice().sort((a,b)=>a.centerDistance-b.centerDistance);
+                for(const module of modules){
+                    const chainRow=chainShiftRows.find(c=>module.centerDistance>=c.from&&module.centerDistance<=c.to);
+                    if(!chainRow)continue;
+
+                    const direct=(module.rootNames||[])
+                        .map(n=>groupShiftByRoot.get(n))
+                        .filter(Boolean);
+                    let dx,dy;
+                    if(direct.length){
+                        dx=direct.reduce((n,q)=>n+q.dx,0)/direct.length;
+                        dy=direct.reduce((n,q)=>n+q.dy,0)/direct.length;
+                    }else{
+                        ({dx,dy}=interpolatedShiftAt(module.centerDistance,chainRow));
+                    }
+                    if(Math.abs(dx)<1&&Math.abs(dy)<1)continue;
+
+                    const moduleRoots=(module.rootNames||[]).map(n=>rootByName.get(n)).filter(Boolean);
+                    const rootsToMove=moduleRoots.filter(r=>!movedRootNames.has(r.name));
+                    if(rootsToMove.length){
+                        map2MoveRouteBuildingGroup(rootsToMove,module.centerDistance,dx,dy);
+                        for(const r of rootsToMove){
                             movedRootNames.add(r.name);
                             r.userData.map2ArchitecturalChicane=true;
-                            r.userData.map2ArchitecturalChicaneChain=chainIndex;
+                            r.userData.map2ArchitecturalChicaneChain=chainRow.chainIndex;
                             r.userData.map2ArchitecturalChicaneShiftX=dx;
                             r.userData.map2ArchitecturalChicaneShiftY=dy;
                             if(Number.isFinite(r.userData.map2SequenceLaneX))r.userData.map2SequenceLaneX+=dx;
                             if(Number.isFinite(r.userData.map2SequenceLaneY))r.userData.map2SequenceLaneY+=dy;
                         }
-
-                        shiftPoint(module.entrance,dx,dy);
-                        shiftPoint(module.core,dx,dy);
-                        shiftPoint(module.exit,dx,dy);
-                        module.points.forEach(p=>shiftPoint(p,dx,dy));
-                        module.chicane=true;
-                        module.chicaneChain=chainIndex;
-                        module.chicaneShiftX=dx;
-                        module.chicaneShiftY=dy;
-
-                        for(const k of road.knots){
-                            if(k.moduleId===module.id||
-                               (!k.moduleId&&Math.abs(k.distance-module.centerDistance)<=42)){
-                                k.x+=dx;k.y+=dy;
-                                k.map2ArchitecturalChicane=true;
-                                k.chicaneChain=chainIndex;
-                            }
-                        }
-
-
-                        for(const k of route.moduleAnchors){
-                            if(k.moduleId!==module.id)continue;
-                            k.x+=dx;k.y+=dy;
-                            k.map2ArchitecturalChicane=true;
-                            k.chicaneChain=chainIndex;
-                        }
-
-                        const sign=module.core.x<-55?-1:module.core.x>55?1:0;
-                        if(sign<0)row.left++;
-                        if(sign>0)row.right++;
-                        if(sign&&priorSign&&sign!==priorSign)row.directionChanges++;
-                        if(sign)priorSign=sign;
-                        row.moved++;
-                        row.firstMoved??=module.centerDistance;
-                        row.lastMoved=module.centerDistance;
-                        maxLateralShift=Math.max(maxLateralShift,Math.abs(dx));
-                        maxVerticalShift=Math.max(maxVerticalShift,Math.abs(dy));
-                        moved.push({
-                            id:module.id,chainIndex,d:module.centerDistance,
-                            dx,dy,x:module.core.x,y:module.core.y,
-                            roots:moduleRoots.map(r=>r.name)
-                        });
                     }
-                    if(row.moved)chainRows.push(row);
-                });
+
+                    shiftPoint(module.entrance,dx,dy);
+                    shiftPoint(module.core,dx,dy);
+                    shiftPoint(module.exit,dx,dy);
+                    module.points.forEach(p=>shiftPoint(p,dx,dy));
+                    module.chicane=true;
+                    module.chicaneChain=chainRow.chainIndex;
+                    module.chicaneShiftX=dx;
+                    module.chicaneShiftY=dy;
+                    movedModuleIds.add(module.id);
+
+                    for(const k of road.knots){
+                        if(k.moduleId!==module.id)continue;
+                        k.x+=dx;k.y+=dy;
+                        k.map2ArchitecturalChicane=true;
+                        k.chicaneChain=chainRow.chainIndex;
+                    }
+                    for(const k of route.moduleAnchors){
+                        if(k.moduleId!==module.id)continue;
+                        k.x+=dx;k.y+=dy;
+                        k.map2ArchitecturalChicane=true;
+                        k.chicaneChain=chainRow.chainIndex;
+                    }
+
+                    maxLateralShift=Math.max(maxLateralShift,Math.abs(dx));
+                    maxVerticalShift=Math.max(maxVerticalShift,Math.abs(dy));
+                    moved.push({
+                        id:module.id,chainIndex:chainRow.chainIndex,d:module.centerDistance,
+                        dx,dy,x:module.core.x,y:module.core.y,
+                        roots:moduleRoots.map(r=>r.name)
+                    });
+                }
+
+                // 3) Summarize the actual flown module path after all moves.
+                for(const chainRow of chainShiftRows){
+                    const mm=moved.filter(m=>m.chainIndex===chainRow.chainIndex).sort((a,b)=>a.d-b.d);
+                    if(!mm.length)continue;
+                    let priorSign=0,directionChanges=0,left=0,right=0;
+                    for(const m of mm){
+                        const sign=m.x<-55?-1:m.x>55?1:0;
+                        if(sign<0)left++;
+                        if(sign>0)right++;
+                        if(sign&&priorSign&&sign!==priorSign)directionChanges++;
+                        if(sign)priorSign=sign;
+                    }
+                    chainRows.push({
+                        chainIndex:chainRow.chainIndex,from:chainRow.from,to:chainRow.to,span:chainRow.span,
+                        candidates:mm.length,moved:mm.length,left,right,directionChanges,
+                        firstMoved:mm[0].d,lastMoved:mm[mm.length-1].d
+                    });
+                }
 
                 road.knots.sort((a,b)=>a.distance-b.distance);
                 route.routeAnchors=road.knots;
@@ -16675,7 +16764,7 @@
                     philosophy:'REAL_MAP4_BUILDINGS_FORM_LONG_CHICANES',
                     selectedChains:selectedChains.length,
                     activeChains:chainRows.length,
-                    movedModules:moved.length,
+                    movedModules:movedModuleIds.size,
                     movedRoots:movedRootNames.size,
                     maxLateralShift,maxVerticalShift,
                     leftModules:moved.filter(m=>m.x<-55).length,
