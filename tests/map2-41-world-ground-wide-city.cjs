@@ -61,11 +61,24 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert.equal(info.misses,0);assert.equal(info.badPads,0);assert.equal(info.wrongSource,0);
   assert(info.r.frontage.length>1500);assert(info.cityBatches>0);
   assert(info.gaps.every(x=>x<=421));assert.equal(info.r.lateralScale,2);
+  // MAP2-43: verify the adaptive near skyline without changing physical FAST areas.
+  const n=info.r.naturalRead;
+  assert(n&&n.records.length>800,'continuous adaptive facade records missing');
+  assert(n.openSectorRecords>230&&n.bendRecords>0,'open sectors and bends must be covered');
+  assert(n.records.every(r=>Number.isFinite(r.clearance)&&Number.isFinite(r.yaw)
+    &&r.depth>=420&&r.height>=580),'invalid frontage transform');
+  assert(n.minClearance>=n.flightEnvelope-1,'visual facade intersects reachable flight envelope');
+  for(const side of [-1,1])for(const seg of info.r.naturalRead.records.filter(r=>r.side===side&&r.kind!=='TECH')){
+    assert(seg.clearance>=n.flightEnvelope-1,'open-sector facade encroachment');
+  }
+  console.log('MAP2-43 METRICS '+JSON.stringify({records:n.records.length,
+    openSectorRecords:n.openSectorRecords,bendRecords:n.bendRecords,
+    minClearance:n.minClearance,flightEnvelope:n.flightEnvelope}));
   assert(Math.abs(info.horizontal/info.vertical-2)<.01);
   assert(info.map4Hidden&&info.wrap);assert.equal(info.gates,68);assert.equal(info.fastPhysical,0);
   const dir=path.join(__dirname,'map2-41-evidence');fs.mkdirSync(dir,{recursive:true});
   fs.writeFileSync(path.join(dir,'world-city.json'),JSON.stringify(info,null,2));
-  for(const d of [1500,18000,42000,69000,103000,135000,169000]){
+  for(const d of [1500,8200,18000,34300,35700,42000,69000,95600,103000,113100,114400,135000,169000]){
    await page.evaluate(d=>{
     const q=map2Segment(d).kind==='TECH'?starbladeMap2BuildingPassageAt(d):{x:0,y:0};
     const f=getRaceFrameAtDistance(d);
