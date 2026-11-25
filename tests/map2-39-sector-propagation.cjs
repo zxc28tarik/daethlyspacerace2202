@@ -29,7 +29,12 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
     const play=window.starbladeMap2PlayablePassages;
     const physical=window.starbladeMap2BuildingColliders||[];
     const wideUrban=physical.filter(o=>o.map2WideUrbanFrontage===true);
-    const propagatedPhysical=physical.filter(o=>o.map2WideUrbanFrontage!==true);
+    const escapeShell=physical.filter(o=>o.map2WideUrbanEscapeShell===true);
+    // MAP2-42/44 aggregate frontage and outer-only escape shells deliberately
+    // have no one-to-one source mesh/section owner. MAP2-39 ownership applies
+    // only to its original propagated real-building collider layer.
+    const propagatedPhysical=physical.filter(o=>
+      o.map2WideUrbanFrontage!==true&&o.map2WideUrbanEscapeShell!==true);
     const ids=[...golden.blocks,...full.extraBlocks].map(b=>b.id);
     const bad=[],missingTargets=[];
     for(const c of [...play.complexes,...full.extraComplexes]){
@@ -72,7 +77,7 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
     return {full,apertures,uncovered,uniqueIds:new Set(ids).size===ids.length,bad,primary,missingTargets,wrong,
       goldenCount:golden.blockCount,goldenComplexes:play.complexes.length,
       fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
-      wideUrban:wideUrban.length,wideUrbanFast,
+      wideUrban:wideUrban.length,escapeShell:escapeShell.length,wideUrbanFast,
       wideSummaryPhysical:wideSummary?.physicalColliders??null,
       gates:map2Gates.length,map4Hidden:!planetaryWorldGroup.visible};
   });
@@ -91,6 +96,7 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
   assert.equal(info.wideUrban,info.wideSummaryPhysical,
     'MAP2-42 frontage accounting must match the public course summary');
   assert.equal(info.wideUrbanFast,0,'MAP2-42 frontage must never enter FAST sectors');
+  assert(info.escapeShell>=0,'MAP2-44 outer escape shell accounting should be explicit');
   assert.equal(info.fastPhysical,0);assert.equal(info.gates,68);assert(info.map4Hidden);
   assert(info.full.extraComplexes.every(c=>c.passages.length>=2&&
     c.passages.every(p=>p.routeCostMetrics?.length>0)));
