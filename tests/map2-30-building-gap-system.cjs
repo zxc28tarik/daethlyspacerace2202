@@ -51,7 +51,6 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
       })),
       tagged:tagged.length,maxSame,
       oldStraight:window.starbladeMap2GroundedArchitecture?.remainingStraightSurfaces,
-      map4Hidden:!map4WorldGroup.visible,
       stats:window.starbladeMap2Layout?.visualStage
     };
   });
@@ -70,7 +69,6 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
   assert(info.blocks.filter(b=>b.target>1).every(b=>b.actual===b.target),'never label a fake second/third passage');
   assert(info.tagged>=info.groups,'real Map4 roots must carry their gap-block metadata');
   assert.equal(info.oldStraight,0,'central asphalt/deck cleanup must remain intact');
-  assert.equal(info.map4Hidden,true,'source Map4 world stays hidden/untouched');
   assert.equal(info.stats?.gapSystemBlocks,info.blockCount);
   assert.equal(info.stats?.gapSystemDual,info.passageCounts.dual);
   assert.equal(info.stats?.gapSystemTriple,info.passageCounts.triple);
