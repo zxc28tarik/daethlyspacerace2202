@@ -7,6 +7,7 @@ on:
       - tools/map2-29-grounded-building-route.py
       - tools/map2-29b-modular-ground-refinement.py
       - tests/map2-29-grounded-building-route.cjs
+      - tests/map2-29c-independent-ground-audit.cjs
       - .github/workflows/map2-29-grounded-building-route.yml
   workflow_dispatch:
 permissions:
@@ -41,6 +42,8 @@ jobs:
           npx playwright install chromium
       - name: MAP2-29 grounded route QA
         run: node tests/map2-29-grounded-building-route.cjs
+      - name: MAP2-29C independent structural audit
+        run: node tests/map2-29c-independent-ground-audit.cjs
       - name: MAP2-28 chicane regression
         run: node tests/map2-28-architectural-chicane-chains.cjs
       - name: MAP2-27 central-road regression
