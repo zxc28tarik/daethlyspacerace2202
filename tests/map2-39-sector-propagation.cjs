@@ -93,8 +93,8 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
   assert.deepEqual(info.apertures,[]);assert.equal(info.uncovered,0);
   assert.deepEqual(info.missingTargets,[]);assert.deepEqual(info.wrong,[]);
   assert(info.wideUrban>=150,'MAP2-42 must contribute a substantial physical city frontage');
-  assert.equal(info.wideUrban,info.wideSummaryPhysical,
-    'MAP2-42 frontage accounting must match the public course summary');
+  assert.equal(info.wideUrban+info.escapeShell,info.wideSummaryPhysical,
+    'MAP2-42 frontage plus MAP2-44 escape-shell accounting must match the public course summary');
   assert.equal(info.wideUrbanFast,0,'MAP2-42 frontage must never enter FAST sectors');
   assert(info.escapeShell>=0,'MAP2-44 outer escape shell accounting should be explicit');
   assert.equal(info.fastPhysical,0);assert.equal(info.gates,68);assert(info.map4Hidden);
