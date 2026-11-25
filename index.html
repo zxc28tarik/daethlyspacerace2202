@@ -16789,6 +16789,263 @@
             };
             map2AuthorArchitecturalChicaneChains();
 
+            // MAP2-29B: modular structural ground
+            // MAP2-29: grounded architectural route.
+            // The copied Map4 buildings are no longer allowed to hover around a
+            // straight visual road. Their own local structural bases define a
+            // smoothed ground profile; small vertical corrections seat each complex
+            // onto that profile, while short industrial foundation/connector slabs
+            // fill only the architecture-to-architecture handoffs. This is NOT a
+            // replacement asphalt ribbon: the buildings remain the route.
+            const map2GroundArchitecturalRoute=()=>{
+                const road=window.starbladeMap2BuildingRoad;
+                const route=window.starbladeMap2ThroughRoute;
+                if(!road?.groups?.length||!road?.knots?.length||!route?.modules?.length)return null;
+
+                const roots=map2ExactBuildingRoots();
+                const rootByName=new Map(roots.map(r=>[r.name,r]));
+                const rows=[];
+                const median=arr=>{
+                    if(!arr.length)return NaN;
+                    const a=arr.slice().sort((x,y)=>x-y);
+                    const m=(a.length-1)/2,lo=Math.floor(m),hi=Math.ceil(m);
+                    return (a[lo]+a[hi])*.5;
+                };
+                const percentile=(arr,p)=>{
+                    if(!arr.length)return NaN;
+                    const a=arr.slice().sort((x,y)=>x-y);
+                    return a[Math.min(a.length-1,Math.max(0,Math.round((a.length-1)*p)))];
+                };
+
+                // 1) Measure the REAL copied building mass instead of trusting the
+                // clone origin. A low percentile ignores one-off hanging pipes,
+                // antennae and deep decorative fragments.
+                for(const g of road.groups.slice().sort((a,b)=>a.d-b.d)){
+                    if(!g.open||map2Segment(g.d).kind!=='TECH')continue;
+                    const groupRoots=(g.rootNames||[]).map(n=>rootByName.get(n)).filter(Boolean);
+                    if(!groupRoots.length)continue;
+                    const solids=map2CollectRouteSolids(groupRoots,g.d);
+                    if(!solids.length)continue;
+                    const lows=solids.map(q=>q.minY).filter(Number.isFinite);
+                    const minXs=solids.map(q=>q.minX).filter(Number.isFinite);
+                    const maxXs=solids.map(q=>q.maxX).filter(Number.isFinite);
+                    const minZs=solids.map(q=>q.minZ).filter(Number.isFinite);
+                    const maxZs=solids.map(q=>q.maxZ).filter(Number.isFinite);
+                    const baseBefore=percentile(lows,.18);
+                    if(!Number.isFinite(baseBefore))continue;
+                    rows.push({
+                        g,roots:groupRoots,d:g.d,x:g.x,y:g.y,baseBefore,
+                        minX:Math.min(...minXs),maxX:Math.max(...maxXs),
+                        minZ:Math.min(...minZs),maxZ:Math.max(...maxZs)
+                    });
+                }
+                if(rows.length<2)return null;
+
+                // 2) Derive a local SUPPORT datum from neighbouring real building
+                // bases, but DO NOT move the copied building shell or the flight tube.
+                // MAP2-25/28 already authored a flyable entrance/interior/exit path.
+                // Grounding is visual/structural: foundations rise to the existing
+                // architecture instead of dragging architecture up/down to a road.
+                let grounded=0,movedGroups=0,maxVerticalCorrection=0,maxRawFloatGap=0,maxResidualSupport=0;
+                for(const row of rows){
+                    const neighbours=rows.filter(q=>
+                        map2Segment(q.d).kind==='TECH'&&Math.abs(q.d-row.d)<=2600
+                    );
+                    const localMedian=median(neighbours.map(q=>q.baseBefore));
+                    const neighbourFloor=Number.isFinite(localMedian)?localMedian:row.baseBefore;
+
+                    // Always keep support below the building. Limit its depth so an
+                    // isolated source fragment never creates a kilometre-high plinth.
+                    let target=Math.min(
+                        row.baseBefore-24,
+                        neighbourFloor-12,
+                        row.y-96
+                    );
+                    target=Math.max(target,row.baseBefore-170);
+
+                    row.rawGround=target;
+                    row.targetGround=target;
+                    row.dy=0;
+                    row.baseAfter=row.baseBefore;
+                    row.supportGap=Math.max(24,row.baseAfter-row.targetGround);
+                    grounded++;
+                    maxRawFloatGap=Math.max(maxRawFloatGap,row.supportGap);
+
+                    for(const root of row.roots){
+                        root.userData.map2GroundedArchitecture=true;
+                        root.userData.map2GroundShiftY=0;
+                        root.userData.map2GroundBaseY=row.baseAfter;
+                        root.userData.map2GroundTargetY=row.targetGround;
+                    }
+                }
+
+                // Deliberately no route/root Y mutation here. This keeps the exact
+                // MAP2-25 building handoffs, MAP2-28 chicane tube and AI navigation
+                // unchanged while the new structural bases remove the floating look.
+
+                // 3) Kill any remaining straight TECH road surface helper. MAP2-27
+                // already removed the known deck class; this catches older aliases.
+                const legacySurface=/(?:VISUAL_DECK|ROAD_SURFACE|ASPHALT|PAVEMENT|TRACK_SURFACE|LANE_STRIP|CENTER_STRIP)/i;
+                let extraStraightSurfacesRemoved=0;
+                for(const section of map2Sections){
+                    for(const root of section.children.slice()){
+                        if(!root.userData?.map2VisualOnly)continue;
+                        if(root.name?.startsWith('MAP2_ARCH_'))continue;
+                        const d=Number(root.userData?.map2Distance??root.userData?.map2TargetDistance??root.userData?.routeProgress);
+                        if(!Number.isFinite(d)||map2Segment(d).kind!=='TECH')continue;
+                        if(!legacySurface.test(root.name||''))continue;
+                        section.remove(root);
+                        extraStraightSurfacesRemoved++;
+                    }
+                }
+
+                // 4) Structural ground comes from the architecture footprint, not
+                // from a road ribbon. Each complex gets a local foundation touching
+                // its measured base. Short staggered plates bridge only nearby
+                // building handoffs and follow the actual chicane x/y.
+                // MAP2-29B: modular structural ground.
+                // A single giant slab under every complex read like a replacement road.
+                // Split the support into compact pads positioned under the measured
+                // architectural footprint, and keep inter-building links narrow.
+                let foundations=0,foundationPads=0,connectors=0;
+                const foundationRows=[];
+                rows.forEach((row,i)=>{
+                    const rawW=THREE.MathUtils.clamp(row.maxX-row.minX,220,900);
+                    const rawD=THREE.MathUtils.clamp(row.maxZ-row.minZ,260,900);
+                    const cols=THREE.MathUtils.clamp(Math.ceil(rawW/520),1,2);
+                    const depthRows=THREE.MathUtils.clamp(Math.ceil(rawD/650),1,2);
+                    const padW=THREE.MathUtils.clamp((rawW/cols)*.64,180,330);
+                    const padD=THREE.MathUtils.clamp((rawD/depthRows)*.64,220,360);
+                    const minX=THREE.MathUtils.clamp(row.minX,-620,620);
+                    const maxX=THREE.MathUtils.clamp(row.maxX,-620,620);
+                    const minZ=THREE.MathUtils.clamp(row.minZ,-360,360);
+                    const maxZ=THREE.MathUtils.clamp(row.maxZ,-360,360);
+                    const supportH=THREE.MathUtils.clamp(Math.max(28,row.supportGap+24),28,190);
+                    const supportY=row.baseAfter-supportH*.50;
+                    let pads=0;
+
+                    for(let rz=0;rz<depthRows;rz++){
+                        const localZ=depthRows===1?(minZ+maxZ)*.5:
+                            THREE.MathUtils.lerp(minZ+padD*.42,maxZ-padD*.42,rz);
+                        let d=row.d+localZ;
+                        if(d<0||d>MAP2_DISTANCE||map2Segment(d).kind!=='TECH')d=row.d;
+
+                        for(let cx=0;cx<cols;cx++){
+                            const x=cols===1?(minX+maxX)*.5:
+                                THREE.MathUtils.lerp(minX+padW*.42,maxX-padW*.42,cx);
+                            const g=addVisualBlock(
+                                d,x,supportY,
+                                padW,supportH,padD,
+                                ((i+cx+rz)%4===0)?map2VisualMats.shell:map2VisualMats.dark,
+                                'MAP2_ARCH_FOUNDATION_'+i+'_'+rz+'_'+cx
+                            );
+                            g.userData.map2ArchitecturalGround=true;
+                            g.userData.map2GroundPad=true;
+                            g.userData.map2GroundGroup=i;
+                            g.userData.map2GroundTop=row.baseAfter;
+                            g.userData.map2GroundTarget=row.targetGround;
+                            g.userData.map2Distance=d;
+                            foundationPads++;pads++;
+                        }
+                    }
+
+                    foundationRows.push({
+                        d:row.d,x:row.x,base:row.baseAfter,target:row.targetGround,
+                        width:rawW,depth:rawD,height:supportH,pads
+                    });
+                    foundations++;
+                });
+
+                for(let i=0;i<rows.length-1;i++){
+                    const a=rows[i],b=rows[i+1];
+                    const gap=b.d-a.d;
+                    if(gap<520||gap>1750)continue;
+                    if(map2Segment((a.d+b.d)*.5).kind!=='TECH')continue;
+
+                    // One or two short service bridges, never a continuous road strip.
+                    const count=1;
+                    for(let j=1;j<=count;j++){
+                        const t=j/(count+1);
+                        const d=THREE.MathUtils.lerp(a.d,b.d,t);
+                        if(map2Segment(d).kind!=='TECH')continue;
+                        const q=map2BuildingPassageAt(d);
+                        const ground=THREE.MathUtils.lerp(a.baseAfter,b.baseAfter,t);
+                        const w=THREE.MathUtils.clamp(170+Math.abs(b.x-a.x)*.20,170,250);
+                        const depth=THREE.MathUtils.clamp(gap/(count+1)*.34,170,300);
+                        const g=addVisualBlock(
+                            d,q.x,ground-14,
+                            w,20,depth,
+                            ((i+j)%3===0)?map2VisualMats.shell:map2VisualMats.dark,
+                            'MAP2_ARCH_CONNECTOR_'+i+'_'+j
+                        );
+                        g.userData.map2ArchitecturalGround=true;
+                        g.userData.map2BuildingConnector=true;
+                        g.userData.map2Distance=d;
+                        connectors++;
+                    }
+                }
+
+                // Re-scan after additions: no legacy straight TECH road surface may
+                // survive. Foundations/connectors are intentionally excluded.
+                const remainingStraight=[];
+                for(const section of map2Sections){
+                    for(const root of section.children){
+                        if(root.name?.startsWith('MAP2_ARCH_'))continue;
+                        const d=Number(root.userData?.map2Distance??root.userData?.map2TargetDistance??root.userData?.routeProgress);
+                        if(!Number.isFinite(d)||map2Segment(d).kind!=='TECH')continue;
+                        if(root.userData?.map2VisualOnly&&legacySurface.test(root.name||''))
+                            remainingStraight.push({name:root.name,d});
+                    }
+                }
+
+                // Connection quality is measured on the actual building route knots,
+                // after grounding, not on the old centre spline.
+                const techKnots=road.knots.filter(k=>map2Segment(k.distance).kind==='TECH')
+                    .slice().sort((a,b)=>a.distance-b.distance);
+                let maxVerticalHandoff=0,badVerticalHandoffs=0;
+                for(let i=1;i<techKnots.length;i++){
+                    const a=techKnots[i-1],b=techKnots[i];
+                    if(b.distance-a.distance>2500)continue;
+                    const dy=Math.abs(b.y-a.y);
+                    maxVerticalHandoff=Math.max(maxVerticalHandoff,dy);
+                    if(dy>92)badVerticalHandoffs++;
+                }
+
+                const summary={
+                    philosophy:'BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON',
+                    measuredGroups:rows.length,groundedGroups:grounded,movedGroups,
+                    foundations,foundationPads,connectors,
+                    maxVerticalCorrection,maxRawFloatGap,maxResidualSupport,
+                    extraStraightSurfacesRemoved,
+                    remainingStraightSurfaces:remainingStraight.length,
+                    remainingStraight,
+                    maxVerticalHandoff,badVerticalHandoffs,
+                    foundationsData:foundationRows,
+                    groups:rows.map(r=>({
+                        d:r.d,x:r.x,y:r.y,baseBefore:r.baseBefore,baseAfter:r.baseAfter,
+                        targetGround:r.targetGround,dy:r.dy,supportGap:r.supportGap,
+                        roots:r.roots.map(x=>x.name)
+                    }))
+                };
+                window.starbladeMap2GroundedArchitecture=summary;
+                Object.assign(map2VisualStageStats,{
+                    groundedArchitectureGroups:grounded,
+                    architectureMovedGroups:movedGroups,
+                    architectureFoundations:foundations,
+                    architectureFoundationPads:foundationPads,
+                    architectureConnectors:connectors,
+                    architectureMaxVerticalCorrection:maxVerticalCorrection,
+                    architectureMaxRawFloatGap:maxRawFloatGap,
+                    architectureMaxResidualSupport:maxResidualSupport,
+                    architectureStraightSurfacesRemoved:extraStraightSurfacesRemoved,
+                    architectureStraightSurfacesRemaining:remainingStraight.length,
+                    architectureMaxVerticalHandoff:maxVerticalHandoff,
+                    architectureBadVerticalHandoffs:badVerticalHandoffs
+                });
+                return summary;
+            };
+            map2GroundArchitecturalRoute();
+
             // MAP2-18: only after all authored gates and original physical solids
             // exist, derive collision directly from the visible Map4 building meshes.
             // This ordering lets the real buildings act as obstacles without
