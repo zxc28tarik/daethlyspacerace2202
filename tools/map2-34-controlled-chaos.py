@@ -117,9 +117,14 @@ block=r'''
                 });
                 return summary;
             };
-            map2AuthorControlledChaos();
 '''
+
 s=s.replace(anchor,anchor+block+"\n",1)
+
+physical_call="            map2BuildPhysicalMap4BuildingObstacles();\n"
+if s.count(physical_call)!=1:
+    raise SystemExit(f"MAP2-34 physical-call anchor expected 1, got {s.count(physical_call)}")
+s=s.replace(physical_call,physical_call+"            // MAP2-34: now that real building colliders exist, apply route-safe asymmetry.\\n            map2AuthorControlledChaos();\\n",1)
 s=s.replace("            // MAP2-32/33: building roles and playable multi-passage complexes",
             "            // MAP2-34: controlled architectural chaos\n            // MAP2-32/33: building roles and playable multi-passage complexes",1)
 
