@@ -100,7 +100,7 @@ assert(html.includes('architectureFoundationPads'));
   assert.equal(s.philosophy,'BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON');
   assert(s.measuredGroups>=80,'most real building groups must participate in ground measurement');
   assert.equal(s.foundations,s.measuredGroups,'every measured building group gets structural support');
-  assert(s.foundationPads>=s.foundations,'modular ground must use one or more compact pads per supported group');
+  assert(s.foundationPads>=s.foundations&&s.foundationPads<=520,'modular ground must support every group without creating an excessive pad carpet');
   assert(s.connectors>=20&&s.connectors<=140,'building handoffs need sparse short service bridges, not a continuous strip');
   assert.equal(s.groundedGroups,s.measuredGroups,'every measured building group must receive structural ground support');
   assert.equal(s.movedGroups,0,'grounding must not move the authored building route vertically');
