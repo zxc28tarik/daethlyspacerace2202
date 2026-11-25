@@ -36,6 +36,7 @@ assert(html.includes('architectureFoundationPads'));
       const box=new THREE.Box3().setFromObject(o);
       const row={name:o.name,d:Number(o.userData?.map2Distance),minY:box.min.y,maxY:box.max.y,
         minX:box.min.x,maxX:box.max.x,minZ:box.min.z,maxZ:box.max.z,
+        localW:Math.abs(mesh.scale.x),localD:Math.abs(mesh.scale.z),
         connector:!!o.userData?.map2BuildingConnector,pad:!!o.userData?.map2GroundPad,
         group:o.userData?.map2GroundGroup};
       allGround.push(row);
@@ -96,10 +97,10 @@ assert(html.includes('architectureFoundationPads'));
       missingPadGroups,padTopErrors,wrongZone,old,
       mergedRuns:merged.length,longestGroundRun:longest,groundCoveragePct:coveragePct,
       minFlightClearance,badFlightClearance,
-      maxPadSpanX:Math.max(0,...pads.map(p=>p.maxX-p.minX)),
-      maxPadSpanZ:Math.max(0,...pads.map(p=>p.maxZ-p.minZ)),
-      maxLinkSpanX:Math.max(0,...links.map(p=>p.maxX-p.minX)),
-      maxLinkSpanZ:Math.max(0,...links.map(p=>p.maxZ-p.minZ)),
+      maxPadLocalW:Math.max(0,...pads.map(p=>p.localW)),
+      maxPadLocalD:Math.max(0,...pads.map(p=>p.localD)),
+      maxLinkLocalW:Math.max(0,...links.map(p=>p.localW)),
+      maxLinkLocalD:Math.max(0,...links.map(p=>p.localD)),
       stats:window.starbladeMap2Layout?.visualStage||null
     };
   });
@@ -115,8 +116,8 @@ assert(html.includes('architectureFoundationPads'));
   assert(audit.longestGroundRun<3200,'architectural supports must not merge into a kilometre-scale road ribbon');
   assert(audit.groundCoveragePct<72,'ground support may not visually cover most of TECH as a continuous road');
   assert.deepEqual(audit.badFlightClearance,[]);
-  assert(audit.maxPadSpanX<=360&&audit.maxPadSpanZ<=390);
-  assert(audit.maxLinkSpanX<=280&&audit.maxLinkSpanZ<=330);
+  assert(audit.maxPadLocalW<=330.001&&audit.maxPadLocalD<=360.001);
+  assert(audit.maxLinkLocalW<=250.001&&audit.maxLinkLocalD<=300.001);
   assert.equal(audit.stats?.architectureFoundationPads,audit.pads);
   assert.equal(audit.stats?.architectureConnectors,audit.links);
 
