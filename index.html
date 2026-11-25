@@ -16531,6 +16531,14 @@
 
                 const roots=map2ExactBuildingRoots();
                 const rootByName=new Map(roots.map(r=>[r.name,r]));
+                // Preserve the MAP2-19/20 base building-road backbone. MAP2-28
+                // bends the *connector architecture* between those established
+                // road complexes, so the old high-quality centre-to-centre
+                // continuity remains intact while the player still has to fly
+                // through newly displaced real Map4 bridge buildings.
+                const baseRoadRootNames=new Set(
+                    (road.groups||[]).flatMap(g=>g.rootNames||[])
+                );
                 const movedRootNames=new Set();
                 const selectedChains=chains.chains
                     .filter(c=>c.span>=10000)
@@ -16563,6 +16571,8 @@
                             m.centerDistance>=chain.from+650&&
                             m.centerDistance<=chain.to-650&&
                             map2Segment(m.centerDistance).kind==='TECH'&&
+                            m.rootNames?.length&&
+                            m.rootNames.every(n=>!baseRoadRootNames.has(n))&&
                             gateClearance(m.centerDistance)>=560&&
                             techEdgeClearance(m.centerDistance)>=700
                         )
@@ -16629,17 +16639,6 @@
                             }
                         }
 
-                        // MAP2-19 owns the centre building-road group records.
-                        // Keep those records on the same moved aperture so the
-                        // historical "building knot == active passage" invariant
-                        // remains true after the MAP2-28 architectural warp.
-                        const movedNames=new Set(moduleRoots.map(r=>r.name));
-                        for(const g of (road.groups||[])){
-                            if(!(g.rootNames||[]).some(n=>movedNames.has(n)))continue;
-                            g.x+=dx;g.y+=dy;
-                            g.map2ArchitecturalChicane=true;
-                            g.chicaneChain=chainIndex;
-                        }
 
                         for(const k of route.moduleAnchors){
                             if(k.moduleId!==module.id)continue;
