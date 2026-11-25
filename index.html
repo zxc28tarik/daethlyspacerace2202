@@ -18489,6 +18489,184 @@
             };
             map2BuildWorldCity();
 
+            // MAP2-42: rebuild the widened TECH course as a real urban canyon.
+            // MAP2-41 doubled lateral freedom, so the old centre architecture could
+            // be bypassed through empty side space. Reuse ORIGINAL Map4 city meshes
+            // as a near frontage inside the new width; collision is an aggregate of
+            // those continuously overlapping buildings, never an invisible guide line.
+            const map2BuildWideUrbanCourse=()=>{
+                const world=window.starbladeMap2WorldCity;
+                if(!world)throw new Error('MAP2-42 requires MAP2-41 world city');
+                const source=h4City02DistrictGroup;
+                const prototypes=source.children
+                    .filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
+                    .map(m=>({body:m,crown:source.getObjectByName(
+                        m.name.replace('PHYSICAL_BUILDING','TOWER_CROWN'))}));
+                if(!prototypes.length)throw new Error('MAP2-42 requires original Map4 building meshes');
+
+                const floorY=world.floorY;
+                const dummy=new THREE.Object3D(),batches=new Map();
+                const geometrySize=(g)=>{
+                    if(!g.boundingBox)g.computeBoundingBox();
+                    return g.boundingBox.getSize(new THREE.Vector3());
+                };
+                const fittedScale=(part,w,h,d)=>{
+                    const z=geometrySize(part.geometry);
+                    return new THREE.Vector3(
+                        w/Math.max(.001,z.x),h/Math.max(.001,z.y),d/Math.max(.001,z.z));
+                };
+                const enqueue=(section,part,pos,rotation,scale)=>{
+                    const mk=Array.isArray(part.material)
+                        ?part.material.map(m=>m.uuid).join(':'):part.material.uuid;
+                    const key=section.uuid+':'+part.geometry.uuid+':'+mk;
+                    let batch=batches.get(key);
+                    if(!batch){batch={section,part,matrices:[]};batches.set(key,batch);}
+                    dummy.position.copy(pos);dummy.quaternion.copy(rotation);dummy.scale.copy(scale);
+                    dummy.updateMatrix();batch.matrices.push(dummy.matrix.clone());
+                };
+
+                // Preserve every already validated primary and alternate passage.
+                // A new frontage collider is moved outward or omitted if it touches
+                // any authored route segment.
+                const allComplexes=[
+                    ...(window.starbladeMap2PlayablePassages?.complexes||[]),
+                    ...(window.starbladeMap2FullGapSystem?.extraComplexes||[])
+                ];
+                const obstacleHitsAuthoredRoute=(o)=>{
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-90);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+90);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=85){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,14))return true;
+                        prev=node;
+                    }
+                    for(const complex of allComplexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const a=nodes[i-1],b=nodes[i];
+                                if(Math.max(a.routeProgress,b.routeProgress)<from||
+                                   Math.min(a.routeProgress,b.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,a,b,14))return true;
+                            }
+                        }
+                    }
+                    return false;
+                };
+
+                const techSegments=MAP2_SEGMENTS.filter(s=>s.kind==='TECH');
+                const visualRecords=[],physicalRecords=[];
+                let visualInstances=0,skippedForRoute=0,movedOutward=0;
+
+                // Dense near frontage: enough overlap that the pilot never reads the
+                // widened road as a floating strip. Slight asymmetric setbacks avoid
+                // a sterile, perfectly repeated wall.
+                for(const seg of techSegments){
+                    const from=seg.from*MAP2_DISTANCE,to=seg.to*MAP2_DISTANCE;
+                    let row=0;
+                    for(let d=from+180;d<to-180;d+=430,row++){
+                        const f=getRaceFrameAtDistance(d);
+                        const rotation=new THREE.Quaternion().setFromRotationMatrix(
+                            new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()));
+                        for(const side of [-1,1]){
+                            const p=prototypes[(row*11+(side>0?7:0)+Math.floor(d/2500))%prototypes.length];
+                            const width=245+((row+(side>0?2:0))%4)*15;
+                            const height=780+((row*3+(side>0?1:0))%5)*55;
+                            const depth=470+((row+(side>0?3:0))%3)*35;
+                            const setback=585+((row*17+(side>0?29:0))%68);
+                            const x=side*setback;
+                            const laneY=floorY+height*.5;
+                            const pos=f.center.clone().addScaledVector(f.right,x).addScaledVector(f.up,laneY);
+                            enqueue(sectionAt(d),p.body,pos,rotation,fittedScale(p.body,width,height,depth));
+                            if(p.crown){
+                                const crownH=72+((row+(side>0?1:0))%3)*18;
+                                const cp=pos.clone().addScaledVector(f.up,height*.5+crownH*.5);
+                                enqueue(sectionAt(d),p.crown,cp,rotation,
+                                    fittedScale(p.crown,width*.78,crownH,depth*.72));
+                            }
+                            visualInstances++;
+                            visualRecords.push({d,side,x,width,height,depth,source:p.body.name});
+                        }
+                    }
+                }
+
+                // Physics is coarser than the visual instancing for FPS. Each long box
+                // corresponds to several overlapping real Map4 towers, producing a
+                // continuous physical frontage while keeping collision checks bounded.
+                const physical=window.starbladeMap2BuildingColliders||[];
+                for(const seg of techSegments){
+                    const from=seg.from*MAP2_DISTANCE,to=seg.to*MAP2_DISTANCE;
+                    let block=0;
+                    for(let d=from+560;d<to-560;d+=1290,block++){
+                        for(const side of [-1,1]){
+                            const halfX=145,halfDepth=690,height=920;
+                            let accepted=null;
+                            const base=side*(610+((block*23+(side>0?13:0))%42));
+                            for(const push of [0,55,105]){
+                                const x=base+side*push;
+                                const o={
+                                    routeProgress:d,laneX:x,laneY:floorY+height*.5,
+                                    halfX,halfY:height*.5,halfDepth,
+                                    radius:Math.hypot(halfX,height*.5,halfDepth),
+                                    type:'WRECK_BOX',moveType:'STATIC',active:true,
+                                    touchingShips:new Set(),hitTimes:Object.create(null),
+                                    map2BuildingDerived:true,map2WideUrbanFrontage:true,
+                                    sourceRoot:'MAP4_CITY02_FRONTAGE_AGGREGATE'
+                                };
+                                if(!obstacleHitsAuthoredRoute(o)){accepted=o;if(push)movedOutward++;break;}
+                            }
+                            if(!accepted){skippedForRoute++;continue;}
+                            const f=getRaceFrameAtDistance(d);
+                            const wp=f.center.clone().addScaledVector(f.right,accepted.laneX)
+                                .addScaledVector(f.up,accepted.laneY);
+                            accepted.mesh={position:wp};
+                            map2Obstacles.push(accepted);
+                            physical.push(accepted);
+                            physicalRecords.push({
+                                d,side,x:accepted.laneX,halfX:accepted.halfX,
+                                halfDepth:accepted.halfDepth,height
+                            });
+                        }
+                    }
+                }
+                window.starbladeMap2BuildingColliders=physical;
+
+                for(const {section,part,matrices} of batches.values()){
+                    const mesh=new THREE.InstancedMesh(part.geometry,part.material,matrices.length);
+                    matrices.forEach((m,i)=>mesh.setMatrixAt(i,m));
+                    mesh.instanceMatrix.needsUpdate=true;
+                    mesh.frustumCulled=false;
+                    mesh.name='MAP2_WIDE_URBAN_FRONTAGE_'+part.name;
+                    mesh.userData.map2WideUrbanFrontage=true;
+                    mesh.userData.map2UsesOriginalMap4Geometry=true;
+                    section.add(mesh);
+                }
+
+                const summary={
+                    philosophy:'WIDE_ROAD_IS_DEFINED_BY_BUILDINGS_NOT_LINES',
+                    techOnly:true,visualSpacing:430,physicalSpacing:1290,
+                    visualInstances,physicalColliders:physicalRecords.length,
+                    skippedForRoute,movedOutward,batches:batches.size,
+                    visualRecords,physicalRecords,
+                    originalMap4Source:true,fastPhysical:0
+                };
+                window.starbladeMap2WideUrbanCourse=summary;
+                Object.assign(map2VisualStageStats,{
+                    wideUrbanVisualInstances:visualInstances,
+                    wideUrbanPhysicalColliders:physicalRecords.length,
+                    wideUrbanSkippedForRoute:skippedForRoute,
+                    wideUrbanMovedOutward:movedOutward,
+                    wideUrbanBatches:batches.size
+                });
+                return summary;
+            };
+            map2BuildWideUrbanCourse();
+
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
                 gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
