@@ -5,6 +5,7 @@ on:
     paths:
       - index.html
       - tools/map2-29-grounded-building-route.py
+      - tools/map2-29b-modular-ground-refinement.py
       - tests/map2-29-grounded-building-route.cjs
       - .github/workflows/map2-29-grounded-building-route.yml
   workflow_dispatch:
@@ -24,12 +25,16 @@ jobs:
           node-version: '20'
       - name: Apply MAP2-29 if needed
         run: python tools/map2-29-grounded-building-route.py
+      - name: Apply MAP2-29B modular-ground refinement
+        run: python tools/map2-29b-modular-ground-refinement.py
       - name: Validate MAP2-29 markers
         run: |
           grep -q "map2GroundArchitecturalRoute" index.html
           grep -q "BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON" index.html
           grep -q "MAP2_ARCH_FOUNDATION_" index.html
           grep -q "MAP2_ARCH_CONNECTOR_" index.html
+          grep -q "MAP2-29B: modular structural ground" index.html
+          grep -q "architectureFoundationPads" index.html
       - name: Install browser dependencies
         run: |
           npm install --no-save playwright@1.56.1 three@0.128.0
