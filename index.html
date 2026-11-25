@@ -18384,6 +18384,111 @@
                 (g.userData.architectureFrom??g.userData.from)<g.userData.from||
                 (g.userData.architectureTo??g.userData.to)>g.userData.to).length;
 
+            // MAP2-41: continuous world terrain and real Map4 city frontage.
+            // World surface is not a race road. All architecture remains above it.
+            const map2BuildWorldCity=()=>{
+                const padMeshes=[];
+                map2CourseGroup.updateMatrixWorld(true);
+                map2CourseGroup.traverse(o=>{
+                    if(o.userData?.map2GroundPad){
+                        const m=o.children.find(c=>c.isMesh);
+                        if(m)padMeshes.push({m,box:new THREE.Box3().setFromObject(m)});
+                    }
+                });
+                const floorY=Math.min(-470,...padMeshes.map(p=>p.box.min.y-12));
+                const bounds=new THREE.Box3().setFromPoints(map2RouteCurve.getPoints(320));
+                const margin=11000;
+                const width=bounds.max.x-bounds.min.x+2*margin;
+                const depth=bounds.max.z-bounds.min.z+2*margin;
+                const geo=new THREE.PlaneGeometry(width,depth,96,96);
+                geo.rotateX(-Math.PI/2);
+                const colors=[],positions=geo.attributes.position;
+                const c=new THREE.Color();
+                for(let i=0;i<positions.count;i++){
+                    const x=positions.getX(i),z=positions.getZ(i);
+                    const t=.5+.22*Math.sin(x*.0008+z*.00035)+.18*Math.sin(z*.0011-x*.0005);
+                    c.setRGB(.135+t*.035,.158+t*.036,.165+t*.034);
+                    colors.push(c.r,c.g,c.b);
+                }
+                geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+                const ground=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
+                    vertexColors:true,roughness:1,metalness:0
+                }));
+                ground.name='MAP2_CONTINUOUS_WORLD_TERRAIN';
+                ground.position.set((bounds.min.x+bounds.max.x)/2,floorY,(bounds.min.z+bounds.max.z)/2);
+                ground.userData.map2WorldTerrain=true;
+                map2CourseGroup.add(ground);
+                // Extend existing measured foundations down to the shared world datum.
+                // Preserve their upper faces and every authored flyable aperture.
+                for(const {m,box} of padMeshes){
+                    const top=box.max.y,oldH=box.max.y-box.min.y;
+                    if(oldH<=0||top<=floorY)continue;
+                    const newH=top-floorY;
+                    m.scale.y*=newH/oldH;
+                    m.position.y-=(newH-oldH)*.5;
+                    m.updateMatrix();m.updateMatrixWorld(true);
+                }
+                // Real Map4 city tower meshes and their authored crowns: reuse geometry,
+                // materials and relative dimensions, never mutate the source district.
+                const district=h4City02DistrictGroup;
+                const prototypes=district.children.filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
+                    .map(m=>({body:m,crown:district.getObjectByName(m.name.replace('PHYSICAL_BUILDING','TOWER_CROWN'))}));
+                if(!prototypes.length)throw new Error('MAP2-41 requires original Map4 city tower meshes');
+                const spacing=420,frontage=[],dummy=new THREE.Object3D();
+                const batches=new Map();
+                const enqueue=(section,part,position,rotation,scale)=>{
+                    const key=section.uuid+':'+part.geometry.uuid+':'+part.material.uuid;
+                    let batch=batches.get(key);
+                    if(!batch){batch={section,part,matrices:[]};batches.set(key,batch);}
+                    dummy.position.copy(position);dummy.quaternion.copy(rotation);dummy.scale.copy(scale);
+                    dummy.updateMatrix();batch.matrices.push(dummy.matrix.clone());
+                };
+                const sideRows=[{side:-1,row:0},{side:1,row:0},{side:-1,row:1},{side:1,row:1}];
+                for(const {side,row} of sideRows){
+                    for(let i=0;i<Math.ceil(MAP2_DISTANCE/spacing);i++){
+                        const offset=row?spacing*.5:0;
+                        const d=(i*spacing+offset)%MAP2_DISTANCE;
+                        const p=prototypes[(i*7+row*13+(side>0?19:0))%prototypes.length];
+                        const f=getRaceFrameAtDistance(d);
+                        const sx=p.body.scale.x*(row?3.8:2.55);
+                        const sz=Math.max(spacing*.86,p.body.scale.z*(row?4.0:3.35));
+                        const sy=Math.max(row?850:640,p.body.scale.y*(row?1.8:1.35));
+                        const inner=(row?1450:830)+(i%5)*17;
+                        const x=side*(inner+sx*.5);
+                        const pos=f.center.clone().addScaledVector(f.right,x);
+                        pos.y=floorY+sy*.5;
+                        const rotation=new THREE.Quaternion().setFromRotationMatrix(
+                            new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()));
+                        const section=sectionAt(d);
+                        enqueue(section,p.body,pos,rotation,new THREE.Vector3(sx,sy,sz));
+                        if(p.crown){
+                            const cs=new THREE.Vector3(sx*p.crown.scale.x/p.body.scale.x,
+                                p.crown.scale.y*1.5,sz*p.crown.scale.z/p.body.scale.z);
+                            const cp=pos.clone();cp.y=floorY+sy+cs.y*.5;
+                            enqueue(section,p.crown,cp,rotation,cs);
+                        }
+                        frontage.push({d,side,row,inner,width:sx,depth:sz,height:sy,source:p.body.name});
+                    }
+                }
+                for(const {section,part,matrices} of batches.values()){
+                    const mesh=new THREE.InstancedMesh(part.geometry,part.material,matrices.length);
+                    matrices.forEach((m,i)=>mesh.setMatrixAt(i,m));
+                    mesh.instanceMatrix.needsUpdate=true;
+                    mesh.frustumCulled=false; // section visibility owns culling in Three r128
+                    mesh.name='MAP2_WORLD_CITY_'+part.name;
+                    mesh.userData.map2WorldCity=true;
+                    mesh.userData.map2VisualOnly=true;
+                    section.add(mesh);
+                }
+                let retiredGuides=0;
+                for(const section of map2Sections)for(const o of section.children.slice()){
+                    if(o.userData?.map2OpenSectorGuide){section.remove(o);retiredGuides++;}
+                }
+                window.starbladeMap2WorldCity={floorY,width,depth,foundations:padMeshes.length,
+                    spacing,frontage,batches:batches.size,retiredGuides,lateralScale:2};
+            };
+            map2BuildWorldCity();
+
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
                 gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
@@ -18666,7 +18771,9 @@
             for(const g of map2Sections){
                 const from=g.userData.architectureFrom??g.userData.from;
                 const to=g.userData.architectureTo??g.userData.to;
-                g.visible=to>=progress-900&&from<=progress+6500;
+                // MAP2-41: keep the neighboring city in view including the closed-loop seam.
+                g.visible=[progress,progress-MAP2_DISTANCE,progress+MAP2_DISTANCE].some(p=>
+                    to>=p-2400&&from<=p+9000);
             }
             finishGateGroup.visible=progress>=MAP2_DISTANCE-4000;
         }
@@ -23742,9 +23849,10 @@
                 return evaluatePlanetaryBoundary(laneX,laneY,wingHalfSpan,roll,routeProgress);
             const wingCos = Math.cos(roll) * wingHalfSpan;
             const wingSin = Math.sin(roll) * wingHalfSpan;
-            const left = Math.hypot(laneX - wingCos, laneY - wingSin);
-            const right = Math.hypot(laneX + wingCos, laneY + wingSin);
-            const radial = Math.hypot(laneX, laneY);
+            const lateralScale=map2Active()?2:1; // MAP2-41: lateral width only; keep patrol altitude
+            const left = Math.hypot((laneX - wingCos)/lateralScale, laneY - wingSin);
+            const right = Math.hypot((laneX + wingCos)/lateralScale, laneY + wingSin);
+            const radial = Math.hypot(laneX/lateralScale, laneY);
             const contactRadius = Math.max(radial, left, right);
             const ratio=getCorridorRadiusAt(routeProgress)/state.tubeRadius;
             const edge={
@@ -23785,7 +23893,8 @@
 
         function clampToSoftBoundary(ship) {
             // Koridor fiziksel olarak 360; merkez 394.6'ya kadar çıkabilir.
-            const radius = Math.hypot(ship.laneX, ship.laneY);
+            const lateralScale=map2Active()?2:1;
+            const radius = Math.hypot(ship.laneX/lateralScale, ship.laneY);
             const limit=state.activeMap===MAP_MODES.MAP4 ?
                 map4BoundaryProfile(ship.routeProgress).maxRadius :
                 BOUNDARY_RULES.maxRadius*getCorridorRadiusAt(ship.routeProgress)/state.tubeRadius;
@@ -23795,10 +23904,17 @@
                 ship.laneY *= ratio;
                 // Yanal enerji dışarıya doğru büyüyüp sert duvarda birikmesin.
                 if (typeof ship.vx === 'number' && typeof ship.vy === 'number') {
-                    const outward = (ship.vx*ship.laneX + ship.vy*ship.laneY) / limit;
-                    if (outward > 0) {
-                        ship.vx -= outward * ship.laneX / limit;
-                        ship.vy -= outward * ship.laneY / limit;
+                    if(map2Active()){
+                        const nx=ship.laneX/(lateralScale*lateralScale),ny=ship.laneY;
+                        const len=Math.hypot(nx,ny)||1;
+                        const outward=(ship.vx*nx+ship.vy*ny)/len;
+                        if(outward>0){ship.vx-=outward*nx/len;ship.vy-=outward*ny/len;}
+                    }else{
+                        const outward = (ship.vx*ship.laneX + ship.vy*ship.laneY) / limit;
+                        if (outward > 0) {
+                            ship.vx -= outward * ship.laneX / limit;
+                            ship.vy -= outward * ship.laneY / limit;
+                        }
                     }
                 }
             }
