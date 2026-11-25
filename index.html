@@ -19089,8 +19089,9 @@
                 const a=anchors[anchors.length-1];
                 return {distance:d,x:a.x,y:a.y,moduleId:a.moduleId||null,role:a.role||null};
             }
-            let hi=1;
-            while(hi<anchors.length&&anchors[hi].distance<d)hi++;
+            // MAP2-45: logarithmic lookup in the ordered, validated route anchors.
+            let lo=1,hi=anchors.length-1;
+            while(lo<hi){const mid=(lo+hi)>>>1;if(anchors[mid].distance<d)lo=mid+1;else hi=mid;}
             const a=anchors[hi-1],b=anchors[hi];
             const t=THREE.MathUtils.clamp((d-a.distance)/Math.max(1,b.distance-a.distance),0,1);
             const smooth=t*t*(3-2*t);
@@ -19339,6 +19340,52 @@
             return {tone:'urgent',title:'DEVRİYE KİLİDİ · ALÇAL',detail:'Ateş açmadan önce çatı çizgisinin altına in'};
         }
 
+        // MAP2-45: progress-indexed static collision broadphase. The swept
+        // narrowphase, damage and original obstacle order remain unchanged.
+        const MAP2_CONTACT_BIN=1000;
+        let map2ContactIndex=null;
+        const map2ContactPrevious=new Map();
+        const map2ContactStats={queries:0,fullScanCandidates:0,indexCandidates:0,maxCandidates:0};
+        function map2BuildContactIndex(){
+            const bins=new Map(),order=new Map(),dynamic=[];
+            map2Obstacles.forEach((o,i)=>{
+                order.set(o,i);
+                if(o.moveType!=='STATIC'||!Number.isFinite(o.routeProgress)){
+                    dynamic.push(o);return;
+                }
+                const half=o.type==='WRECK_BOX'?o.halfDepth:o.radius;
+                if(!Number.isFinite(half)){dynamic.push(o);return;}
+                const first=Math.floor((o.routeProgress-half)/MAP2_CONTACT_BIN);
+                const last=Math.floor((o.routeProgress+half)/MAP2_CONTACT_BIN);
+                for(let bin=first;bin<=last;bin++){
+                    if(!bins.has(bin))bins.set(bin,[]);
+                    bins.get(bin).push(o);
+                }
+            });
+            map2ContactIndex={bins,order,dynamic,length:map2Obstacles.length};
+            return map2ContactIndex;
+        }
+        function map2ContactCandidates(previous,current,radius,shipId=null){
+            if(!map2ContactIndex||map2ContactIndex.length!==map2Obstacles.length)
+                map2BuildContactIndex();
+            const index=map2ContactIndex;
+            const low=Math.min(previous.routeProgress,current.routeProgress)-radius-8;
+            const high=Math.max(previous.routeProgress,current.routeProgress)+radius+8;
+            if(!Number.isFinite(low)||!Number.isFinite(high))return map2Obstacles;
+            const result=new Set(index.dynamic);
+            for(let i=Math.floor(low/MAP2_CONTACT_BIN);i<=Math.floor(high/MAP2_CONTACT_BIN);i++)
+                for(const o of index.bins.get(i)||[])result.add(o);
+            // Keep last-frame contacts so the existing leave-contact semantics
+            // work even when the ship moves into a completely different bin.
+            if(shipId!==null)for(const o of map2ContactPrevious.get(shipId)||[])
+                if(index.order.has(o))result.add(o);
+            const list=Array.from(result).sort((a,b)=>index.order.get(a)-index.order.get(b));
+            map2ContactStats.queries++;
+            map2ContactStats.fullScanCandidates+=map2Obstacles.length;
+            map2ContactStats.indexCandidates+=list.length;
+            map2ContactStats.maxCandidates=Math.max(map2ContactStats.maxCandidates,list.length);
+            return list;
+        }
         function activeCourseObstacles(){return map2Active()?map2Obstacles:staticObstacles;}
         function activeCourseItems(){return map2Active()?map2Items:itemBoxes;}
         function map2UpdateVisibility(progress){
@@ -19348,13 +19395,18 @@
                 const from=g.userData.architectureFrom??g.userData.from;
                 const to=g.userData.architectureTo??g.userData.to;
                 // MAP2-41: keep the neighboring city in view including the closed-loop seam.
-                g.visible=[progress,progress-MAP2_DISTANCE,progress+MAP2_DISTANCE].some(p=>
-                    to>=p-2400&&from<=p+9000);
+                // Same seam-safe visibility window, without per-section array/closure allocation.
+                const visibleAt=p=>to>=p-2400&&from<=p+9000;
+                g.visible=visibleAt(progress)||visibleAt(progress-MAP2_DISTANCE)||visibleAt(progress+MAP2_DISTANCE);
             }
             finishGateGroup.visible=progress>=MAP2_DISTANCE-4000;
         }
 
         function resetItemAndBarrierCourse() {
+            if(map2Active()){
+                map2ContactIndex=null;map2ContactPrevious.clear();
+                for(const key of Object.keys(map2ContactStats))map2ContactStats[key]=0;
+            }
             activeCourseObstacles().forEach(o=>{
                 o.touchingShips.clear();o.hitTimes=Object.create(null);
                 o.active=true; o.durability=o.maxDurability===undefined?Infinity:o.maxDurability;
@@ -19527,8 +19579,12 @@
         function applyStaticObstacleContact(shipId,ship,previousState,isPlayer) {
             if(ship.finished||ship.dnf||(isPlayer&&state.playerDNF))return;
             const shipRadius=isPlayer?10:(ship.radius||12.5);
-            for(const o of activeCourseObstacles()){
-                if(!o.active)continue;
+            const indexed=map2Active();
+            const obstacles=indexed?map2ContactCandidates(previousState,ship,shipRadius,shipId):activeCourseObstacles();
+            const previousContacts=indexed?new Set():null;
+            if(indexed)map2ContactPrevious.set(shipId,previousContacts);
+            for(const o of obstacles){
+                if(!o.active){if(previousContacts&&o.touchingShips.has(shipId))previousContacts.add(o);continue;}
                 // AI-34: önce ucuz rota aralığı; sweep hesaplaması yalnızca adaylarda.
                 const pad = o.type === 'WRECK_BOX' ? o.halfDepth + shipRadius + 8 : o.radius + shipRadius + 8;
                 if (Math.max(previousState.routeProgress, ship.routeProgress) < o.routeProgress - pad ||
@@ -19538,6 +19594,7 @@
                 }
                 const touching=courseSegmentTouch(o,previousState,ship,shipRadius);
                 if(!touching){o.touchingShips.delete(shipId);continue;}
+                if(previousContacts)previousContacts.add(o);
                 if(o.touchingShips.has(shipId))continue;
                 o.touchingShips.add(shipId);
                 const last=o.hitTimes[shipId];
