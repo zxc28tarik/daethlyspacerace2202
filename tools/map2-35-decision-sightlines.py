@@ -112,15 +112,17 @@ block=r'''
                         THREE.MathUtils.clamp(block.span*.26,190,430);
                     complex.decisionLeadDistance=Math.max(block.from,focus-lead);
                     complex.minBranchSeparation=minSeparation;
+                    const revealDistance=focus-complex.decisionLeadDistance;
                     complex.sightlineClass=
-                        minSeparation>=300?'WIDE_READ':
-                        minSeparation>=190?'CLEAR_SPLIT':'LATE_REVEAL';
+                        revealDistance>=340?'WIDE_READ':
+                        revealDistance>=220?'CLEAR_SPLIT':'LATE_REVEAL';
+                    complex.revealDistance=revealDistance;
                     complex.sightlineRoots=accepted;
                     rows.push({
                         id:complex.id,passages:complex.passages.length,
                         roots:blockRoots.length,accepted:accepted.length,
                         minBranchSeparation:minSeparation,sightlineClass:complex.sightlineClass,
-                        decisionLeadDistance:complex.decisionLeadDistance,
+                        decisionLeadDistance:complex.decisionLeadDistance,revealDistance:complex.revealDistance,
                         yaws:accepted.map(x=>x.yawDeg)
                     });
                 }
