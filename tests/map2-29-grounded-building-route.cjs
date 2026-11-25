@@ -51,8 +51,9 @@ assert(html.includes('MAP2_ARCH_CONNECTOR_'));
       maxLocalYJump=Math.max(maxLocalYJump,Math.abs(a[i].y-a[i-1].y));
     }
     const groundedRoots=[];
-    map2ExactBuildingRoots().forEach(r=>{
-      if(r.userData?.map2GroundedArchitecture)groundedRoots.push({
+    map2CourseGroup.traverse(r=>{
+      if(!r.userData?.map2GroundedArchitecture)return;
+      groundedRoots.push({
         name:r.name,d:r.userData.map2TargetDistance,
         dy:r.userData.map2GroundShiftY,
         base:r.userData.map2GroundBaseY,
