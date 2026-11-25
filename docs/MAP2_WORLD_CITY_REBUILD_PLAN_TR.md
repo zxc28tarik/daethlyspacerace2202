@@ -13,8 +13,13 @@ Kullanıcı geri bildirimi: yol havada; gerçek dünya zemini yok; yan binalar k
 - Haritanın başlangıç/bitiş birleşiminde görünürlük devam eder.
 - Ölçek seçimi ilk denemedir; gerçek uçuş görüntüleri, kapı geçişleri ve performans görülmeden onaylanmış sayılmaz.
 
-## MAP2-42: merkez şehir mimarisi
-Orijinal Map4 yapı kümeleri arasındaki geçitleri genişleyen gerçek hacme göre tekrar kur. Bina kütleleri yolu oluşturur, 2-3 seçenekli ayrımlar ve okunabilir giriş/çıkış. Dış dekor şeritleri merkez engellerin yerine geçmez.
+## MAP2-42: merkez şehir mimarisi — kaynak koduna uygulandı, tarayıcı QA bekleniyor
+- MAP2-41 ile iki katına çıkan yatay alanın TECH bölümlerine orijinal Map4 şehir bina gövde/taç geometrilerinden yoğun yakın cephe eklendi.
+- Yakın cephe yaklaşık 430 m görsel ritimle ilerler; sağ/sol geri çekilmeleri küçük ve asimetriktir, böylece oyuncu sürekli bina dokusu görür ama steril tekrar hissi azalır.
+- Fizik daha seyrek toplulaştırılmış bina hacimleriyle çalışır; görsel yoğunluğu bire bir collider sayısına çevrilmez ve FPS maliyeti sınırlanır.
+- Mevcut gerçek bina açıklığı ana rotası ve doğrulanmış 2-3 kollu alternatif geçitler korunur. Yeni bir bina hacmi bu hatlardan birine değerse dışarı itilir; hâlâ çakışıyorsa hiç eklenmez.
+- FAST bölgelerine yeni fiziksel bina engeli eklenmez. Dışarıdan kestirme kaçış azaltılırken iki tam gaz bölgesi korunur.
+- Harita 4 kaynakları değiştirilmez; yalnızca geometri ve materyal referansları yeniden kullanılır.
 
 ## MAP2-43: doğal rota okuması
 Girişten sonraki açıklık görünür; sahte çizgiler yerine paralel cepheler, köşelerde cephe yönelimi ve doğal siluet. Olası rota her zaman en az bir gerçek geçişle bağlanır. FAST alanında açık şehir kanyonu.
