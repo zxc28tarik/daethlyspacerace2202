@@ -26,6 +26,11 @@ Kullanıcı geri bildirimi: yol havada; gerçek dünya zemini yok; yan binalar k
 ## MAP2-43: doğal rota okuması
 Girişten sonraki açıklık görünür; sahte çizgiler yerine paralel cepheler, köşelerde cephe yönelimi ve doğal siluet. Olası rota her zaman en az bir gerçek geçişle bağlanır. FAST alanında açık şehir kanyonu.
 
+- Uygulama (MAP2-43): MAP2-41 yakın dış şehir sırası gerçek sağ/sol ofset eğrisinin kiriş yönüne çevrildi; viraj içi siluet alçaltıldı, dışı yükseltildi. Sektör girişlerinde yüksekliğe yumuşak geçiş eklendi.
+- Aynı Map4 gövde ve taç geometrileri, aynı instancing grupları; yeni fiziksel FAST engeli yok. Mevcut iç TECH mimarisi ve geçit kolları değişmedi.
+- Yerel örnekleme ile genişletilmiş uçuş zarfı kontrolü ve her iki FAST giriş/çıkışı için gerçek kamera ekran görüntüsü noktaları QA'ya eklendi.
+- Durum: kod ve test kaydedildi; yeni commit için Chromium/WebGL sonucu ve insan gözüyle rota okunabilirliği henüz doğrulanmadı. MAP2-44'te görsel/fiziksel hacim eşleşmesi ayrıca ele alınacak.
+
 ## MAP2-44: fiziksel engel ve alternatif yol tutarlılığı
 Genişleyen alanın bina dışından kestirme kaçışa dönüşmesini engelle; fiziksel yapı/rota açıklığı birbiriyle tutarlı; yan yapılar yaklaşılabilir olacaksa collider ekle. Gemi boyutu ve fren mesafesiyle clearance doğrula.
 
