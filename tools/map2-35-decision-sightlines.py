@@ -79,7 +79,7 @@ block=r'''
                         root.updateMatrix();root.updateMatrixWorld(true);
                         refreshRoot(root.name);
 
-                        if(routeBlocked(complex)){
+                        if(play.complexes.some(routeBlocked)){
                             root.quaternion.copy(old);
                             root.updateMatrix();root.updateMatrixWorld(true);
                             refreshRoot(root.name);
@@ -127,9 +127,86 @@ block=r'''
                     });
                 }
 
+                // Measure actual architectural visibility independently from authored
+                // lead distances. This runs once at course construction, not per frame.
+                // World-space rays are tested against the original Map4 shell meshes.
+                const rootBounds=roots.map(root=>{
+                    root.updateMatrixWorld(true);
+                    return {root,box:new THREE.Box3().setFromObject(root)};
+                }).filter(x=>!x.box.isEmpty());
+                const raycaster=new THREE.Raycaster();
+                const worldAt=(d,x,y)=>{
+                    const f=getRaceFrameAtDistance(d);
+                    return f.center.clone().addScaledVector(f.right,x).addScaledVector(f.up,y);
+                };
+                const visible=(origin,target)=>{
+                    const direction=target.clone().sub(origin);
+                    const length=direction.length();
+                    if(length<1)return true;
+                    raycaster.set(origin,direction.multiplyScalar(1/length));
+                    raycaster.near=0.5;
+                    raycaster.far=Math.max(.5,length-6);
+                    for(const entry of rootBounds){
+                        if(!raycaster.ray.intersectsBox(entry.box))continue;
+                        const hits=raycaster.intersectObject(entry.root,true);
+                        if(hits.some(h=>h.distance<raycaster.far))return false;
+                    }
+                    return true;
+                };
+                for(const complex of play.complexes){
+                    const row=rows.find(r=>r.id===complex.id);
+                    if(!row)continue;
+                    const focus=complex.focusDistance;
+                    const available=Math.min(720,Math.max(0,focus-complex.from));
+                    const distances=Array.from(new Set([40,80,120,160,220,280,340,430,520,620,720,available]
+                        .filter(d=>d>0&&d<=available))).sort((a,b)=>a-b);
+                    const probes=distances.map(distance=>{
+                        const d=focus-distance;
+                        const q=map2BuildingPassageAt(d);
+                        const f=getRaceFrameAtDistance(d);
+                        const origin=worldAt(d,q.x,q.y+5.1).addScaledVector(f.tangent,-18.2);
+                        const visibleIds=[];
+                        for(const passage of complex.passages){
+                            const center=passage.nodes.reduce((a,b)=>
+                                Math.abs(b.routeProgress-focus)<Math.abs(a.routeProgress-focus)?b:a);
+                            // Center plus two lateral samples: a tiny slit alone is
+                            // not enough to count the opening as visually readable.
+                            const offset=Math.min(36,Math.max(8,Number(passage.width||0)*.15));
+                            const targets=[-offset,0,offset].map(dx=>
+                                worldAt(center.routeProgress,center.laneX+dx,center.laneY));
+                            const inView=targets.map(target=>{
+                                const v=target.clone().sub(origin);
+                                const forward=v.dot(f.tangent);
+                                return forward>0&&Math.abs(v.dot(f.right))<=forward*1.2&&
+                                    Math.abs(v.dot(f.up))<=forward*.67&&visible(origin,target);
+                            });
+                            if(inView[1]&&(inView[0]||inView[2]))visibleIds.push(passage.id);
+                        }
+                        return {distance,visibleIds,allVisible:visibleIds.length===complex.passages.length};
+                    });
+                    const branches=complex.passages.map(p=>{
+                        const seen=probes.filter(q=>q.visibleIds.includes(p.id));
+                        return {id:p.id,maxVisibleDistance:Math.max(0,...seen.map(q=>q.distance))};
+                    });
+                    const all=probes.filter(q=>q.allVisible);
+                    const measuredAllVisibleDistance=Math.max(0,...all.map(q=>q.distance));
+                    const observedClass=measuredAllVisibleDistance>=340?'WIDE_READ':
+                        measuredAllVisibleDistance>=220?'CLEAR_SPLIT':
+                        measuredAllVisibleDistance>0?'LATE_REVEAL':'OCCLUDED';
+                    const evidence={method:'WORLD_SPACE_MAP4_MESH_RAYS',probes,branches,
+                        measuredAllVisibleDistance,observedClass};
+                    complex.visibilityEvidence=evidence;
+                    row.visibilityEvidence=evidence;
+                }
                 const classCounts={};
                 rows.forEach(r=>classCounts[r.sightlineClass]=(classCounts[r.sightlineClass]||0)+1);
+                const observedClassCounts={};
+                rows.forEach(r=>{
+                    const cls=r.visibilityEvidence?.observedClass||'UNMEASURED';
+                    observedClassCounts[cls]=(observedClassCounts[cls]||0)+1;
+                });
                 const summary={
+                    observedClassCounts,
                     philosophy:'REAL_BUILDINGS_FRAME_ROUTE_CHOICES_NO_FLOATING_ARROWS',
                     complexes:rows,
                     complexCount:rows.length,
@@ -147,9 +224,12 @@ block=r'''
                     Object.assign(window.starbladeMap2Layout.visualStage,sightStats);
                 return summary;
             };
-            queueMicrotask(()=>map2ShapeDecisionSightlines());
 
 '''
 s=s.replace(anchor,block+anchor,1)
+chaos_call="            queueMicrotask(()=>map2AuthorControlledChaos());"
+if s.count(chaos_call)!=1:
+    raise SystemExit("MAP2-35 expects exactly one MAP2-34 deferred call")
+s=s.replace(chaos_call,chaos_call+"\n            queueMicrotask(()=>map2ShapeDecisionSightlines());",1)
 p.write_text(s,encoding="utf-8")
 print("Applied MAP2-35 real-building decision sightline shaping")

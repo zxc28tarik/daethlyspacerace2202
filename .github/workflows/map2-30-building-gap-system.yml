@@ -16,6 +16,9 @@ on:
       - docs/MAP2_BUILDING_GAP_CHAOS_MASTER_PLAN_TR.md
       - .github/workflows/map2-30-building-gap-system.yml
   workflow_dispatch:
+concurrency:
+  group: map2-30-building-gap-system
+  cancel-in-progress: false
 permissions:
   contents: write
 jobs:

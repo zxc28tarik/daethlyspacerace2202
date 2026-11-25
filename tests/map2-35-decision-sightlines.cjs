@@ -70,6 +70,20 @@ assert(html.includes('MAP2-35: architectural decision sightlines'));
   assert(info.leads.every(x=>Number.isFinite(x.lead)&&x.lead<x.focus),'every choice must expose a pre-decision lead point');
   assert(info.leads.every(x=>x.separation>=155),'published passages must remain visually/physically distinct');
   assert(Object.keys(info.summary.classCounts).length>=2,'not every choice should have identical readability');
+  // Authored lead and actual geometry evidence are separate contracts.
+  assert.equal(Object.values(info.summary.observedClassCounts).reduce((a,b)=>a+b,0),9);
+  for(const c of info.summary.complexes){
+    const e=c.visibilityEvidence;
+    assert.equal(e.method,'WORLD_SPACE_MAP4_MESH_RAYS');
+    assert(e.probes.length>0,'each complex must have physical sightline probes');
+    assert.equal(e.branches.length,c.passages);
+    assert(e.probes.every((p,i)=>p.distance>0&&p.distance<=720&&
+      (!i||p.distance>e.probes[i-1].distance)&&p.visibleIds.length<=c.passages&&
+      p.allVisible===(p.visibleIds.length===c.passages)));
+    assert.equal(e.measuredAllVisibleDistance,Math.max(0,...e.probes.filter(p=>p.allVisible).map(p=>p.distance)));
+    assert(e.branches.every(b=>b.maxVisibleDistance===Math.max(0,...e.probes.filter(p=>p.visibleIds.includes(b.id)).map(p=>p.distance))));
+    assert(['WIDE_READ','CLEAR_SPLIT','LATE_REVEAL','OCCLUDED'].includes(e.observedClass));
+  }
   assert.equal(info.oldStraight,0);
   assert.equal(info.stats?.decisionSightlineComplexes,9);
   assert.equal(info.stats?.decisionSightlineRoots,info.summary.shapedRoots);
@@ -101,6 +115,7 @@ assert(html.includes('MAP2-35: architectural decision sightlines'));
     await page.waitForTimeout(180);
     await page.screenshot({path:path.join(dir,String(i).padStart(2,'0')+'-'+s.id+'.png')});
   }
-  console.log('PASS MAP2-35 real architecture frames route decisions');
+  fs.writeFileSync(path.join(dir,'visibility-report.json'),JSON.stringify(info.summary,null,2));
+  console.log('PASS MAP2-35 geometry visibility evidence and branch safety');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
