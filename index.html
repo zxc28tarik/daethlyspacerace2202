@@ -18667,6 +18667,84 @@
             };
             map2BuildWideUrbanCourse();
 
+            // MAP2-42 final reconciliation. Some alternate passages are authored by
+            // deferred architectural passes after the initial frontage placement.
+            // Recheck against the FINAL branch graph, push a conflicting aggregate
+            // collider outward when possible, otherwise remove only that collider.
+            // Visual Map4 frontage remains continuous either way.
+            const map2ReconcileWideUrbanPassages=()=>{
+                const sys=window.starbladeMap2WideUrbanCourse;
+                const physical=window.starbladeMap2BuildingColliders||[];
+                if(!sys||!physical.length)return null;
+                const complexes=[
+                    ...(window.starbladeMap2PlayablePassages?.complexes||[]),
+                    ...(window.starbladeMap2FullGapSystem?.extraComplexes||[])
+                ];
+                const touchesFinalRoute=(o)=>{
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-90);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+90);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=85){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,14))return true;
+                        prev=node;
+                    }
+                    for(const complex of complexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const a=nodes[i-1],b=nodes[i];
+                                if(Math.max(a.routeProgress,b.routeProgress)<from||
+                                   Math.min(a.routeProgress,b.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,a,b,14))return true;
+                            }
+                        }
+                    }
+                    return false;
+                };
+
+                let moved=0,removed=0;
+                const candidates=physical.filter(o=>o.map2WideUrbanFrontage).slice();
+                for(const o of candidates){
+                    if(!touchesFinalRoute(o))continue;
+                    const side=Math.sign(o.laneX)||1,base=o.laneX;
+                    let resolved=false;
+                    for(const push of [45,90,135]){
+                        o.laneX=base+side*push;
+                        const f=getRaceFrameAtDistance(o.routeProgress);
+                        o.mesh.position.copy(f.center)
+                            .addScaledVector(f.right,o.laneX)
+                            .addScaledVector(f.up,o.laneY);
+                        if(!touchesFinalRoute(o)){
+                            const rec=sys.physicalRecords.find(r=>
+                                Math.abs(r.d-o.routeProgress)<1&&r.side===side&&Math.abs(r.x-base)<2);
+                            if(rec){rec.x=o.laneX;rec.reconciled=true;}
+                            moved++;resolved=true;break;
+                        }
+                    }
+                    if(resolved)continue;
+                    o.laneX=base;
+                    const pi=physical.indexOf(o);if(pi>=0)physical.splice(pi,1);
+                    const oi=map2Obstacles.indexOf(o);if(oi>=0)map2Obstacles.splice(oi,1);
+                    const ri=sys.physicalRecords.findIndex(r=>
+                        Math.abs(r.d-o.routeProgress)<1&&r.side===side&&Math.abs(r.x-base)<2);
+                    if(ri>=0)sys.physicalRecords.splice(ri,1);
+                    removed++;
+                }
+                sys.physicalColliders=sys.physicalRecords.length;
+                sys.reconciledMoved=moved;
+                sys.reconciledRemoved=removed;
+                map2VisualStageStats.wideUrbanPhysicalColliders=sys.physicalColliders;
+                map2VisualStageStats.wideUrbanReconciledMoved=moved;
+                map2VisualStageStats.wideUrbanReconciledRemoved=removed;
+                return {moved,removed,remaining:sys.physicalColliders};
+            };
+            queueMicrotask(()=>queueMicrotask(()=>map2ReconcileWideUrbanPassages()));
+
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
                 gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
