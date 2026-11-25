@@ -1,0 +1,65 @@
+name: MAP2-29 grounded building route
+on:
+  push:
+    branches: [codex/map2-29-grounded-building-route]
+    paths:
+      - index.html
+      - tools/map2-29-grounded-building-route.py
+      - tests/map2-29-grounded-building-route.cjs
+      - .github/workflows/map2-29-grounded-building-route.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-29-grounded-building-route
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply MAP2-29 if needed
+        run: python tools/map2-29-grounded-building-route.py
+      - name: Validate MAP2-29 markers
+        run: |
+          grep -q "map2GroundArchitecturalRoute" index.html
+          grep -q "BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON" index.html
+          grep -q "MAP2_ARCH_FOUNDATION_" index.html
+          grep -q "MAP2_ARCH_CONNECTOR_" index.html
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-29 grounded route QA
+        run: node tests/map2-29-grounded-building-route.cjs
+      - name: MAP2-28 chicane regression
+        run: node tests/map2-28-architectural-chicane-chains.cjs
+      - name: MAP2-27 central-road regression
+        run: node tests/map2-27-architectural-road-cleanup.cjs
+      - name: MAP2-25 through-building regression
+        run: node tests/map2-25-through-building-route-modules.cjs
+      - name: MAP2-19 buildings-are-road regression
+        run: node tests/map2-19-buildings-are-road.cjs
+      - name: MAP2-11 KEEP IT LOW regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: Persist generated index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "index already contains MAP2-29"
+          else
+            git commit -m "MAP2-29 ground real buildings and replace straight TECH road"
+            git push origin HEAD:codex/map2-29-grounded-building-route
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-29-grounded-route-evidence
+          path: tests/map2-29-evidence/
+          if-no-files-found: warn
