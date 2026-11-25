@@ -22,8 +22,8 @@ block=r"""                // MAP2-29B: modular structural ground.
                 rows.forEach((row,i)=>{
                     const rawW=THREE.MathUtils.clamp(row.maxX-row.minX,220,900);
                     const rawD=THREE.MathUtils.clamp(row.maxZ-row.minZ,260,900);
-                    const cols=THREE.MathUtils.clamp(Math.ceil(rawW/390),1,3);
-                    const depthRows=THREE.MathUtils.clamp(Math.ceil(rawD/500),1,2);
+                    const cols=THREE.MathUtils.clamp(Math.ceil(rawW/520),1,2);
+                    const depthRows=THREE.MathUtils.clamp(Math.ceil(rawD/650),1,2);
                     const padW=THREE.MathUtils.clamp((rawW/cols)*.64,180,330);
                     const padD=THREE.MathUtils.clamp((rawD/depthRows)*.64,220,360);
                     const minX=THREE.MathUtils.clamp(row.minX,-620,620);
@@ -69,11 +69,11 @@ block=r"""                // MAP2-29B: modular structural ground.
                 for(let i=0;i<rows.length-1;i++){
                     const a=rows[i],b=rows[i+1];
                     const gap=b.d-a.d;
-                    if(gap<420||gap>1900)continue;
+                    if(gap<520||gap>1750)continue;
                     if(map2Segment((a.d+b.d)*.5).kind!=='TECH')continue;
 
                     // One or two short service bridges, never a continuous road strip.
-                    const count=gap>1250?2:1;
+                    const count=1;
                     for(let j=1;j<=count;j++){
                         const t=j/(count+1);
                         const d=THREE.MathUtils.lerp(a.d,b.d,t);
