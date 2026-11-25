@@ -16789,6 +16789,7 @@
             };
             map2AuthorArchitecturalChicaneChains();
 
+            // MAP2-29B: modular structural ground
             // MAP2-29: grounded architectural route.
             // The copied Map4 buildings are no longer allowed to hover around a
             // straight visual road. Their own local structural bases define a
@@ -16902,26 +16903,55 @@
                 // from a road ribbon. Each complex gets a local foundation touching
                 // its measured base. Short staggered plates bridge only nearby
                 // building handoffs and follow the actual chicane x/y.
-                let foundations=0,connectors=0;
+                // MAP2-29B: modular structural ground.
+                // A single giant slab under every complex read like a replacement road.
+                // Split the support into compact pads positioned under the measured
+                // architectural footprint, and keep inter-building links narrow.
+                let foundations=0,foundationPads=0,connectors=0;
                 const foundationRows=[];
                 rows.forEach((row,i)=>{
-                    const footprintW=THREE.MathUtils.clamp((row.maxX-row.minX)+120,360,1080);
-                    const footprintD=THREE.MathUtils.clamp((row.maxZ-row.minZ)+140,320,1180);
+                    const rawW=THREE.MathUtils.clamp(row.maxX-row.minX,220,900);
+                    const rawD=THREE.MathUtils.clamp(row.maxZ-row.minZ,260,900);
+                    const cols=THREE.MathUtils.clamp(Math.ceil(rawW/520),1,2);
+                    const depthRows=THREE.MathUtils.clamp(Math.ceil(rawD/650),1,2);
+                    const padW=THREE.MathUtils.clamp((rawW/cols)*.64,180,330);
+                    const padD=THREE.MathUtils.clamp((rawD/depthRows)*.64,220,360);
+                    const minX=THREE.MathUtils.clamp(row.minX,-620,620);
+                    const maxX=THREE.MathUtils.clamp(row.maxX,-620,620);
+                    const minZ=THREE.MathUtils.clamp(row.minZ,-360,360);
+                    const maxZ=THREE.MathUtils.clamp(row.maxZ,-360,360);
                     const supportH=THREE.MathUtils.clamp(Math.max(28,row.supportGap+24),28,190);
                     const supportY=row.baseAfter-supportH*.50;
-                    const g=addVisualBlock(
-                        row.d,row.x,supportY,
-                        footprintW,supportH,footprintD,
-                        map2VisualMats.dark,
-                        'MAP2_ARCH_FOUNDATION_'+i
-                    );
-                    g.userData.map2ArchitecturalGround=true;
-                    g.userData.map2GroundTop=row.baseAfter;
-                    g.userData.map2GroundTarget=row.targetGround;
-                    g.userData.map2Distance=row.d;
+                    let pads=0;
+
+                    for(let rz=0;rz<depthRows;rz++){
+                        const localZ=depthRows===1?(minZ+maxZ)*.5:
+                            THREE.MathUtils.lerp(minZ+padD*.42,maxZ-padD*.42,rz);
+                        let d=row.d+localZ;
+                        if(d<0||d>MAP2_DISTANCE||map2Segment(d).kind!=='TECH')d=row.d;
+
+                        for(let cx=0;cx<cols;cx++){
+                            const x=cols===1?(minX+maxX)*.5:
+                                THREE.MathUtils.lerp(minX+padW*.42,maxX-padW*.42,cx);
+                            const g=addVisualBlock(
+                                d,x,supportY,
+                                padW,supportH,padD,
+                                ((i+cx+rz)%4===0)?map2VisualMats.shell:map2VisualMats.dark,
+                                'MAP2_ARCH_FOUNDATION_'+i+'_'+rz+'_'+cx
+                            );
+                            g.userData.map2ArchitecturalGround=true;
+                            g.userData.map2GroundPad=true;
+                            g.userData.map2GroundGroup=i;
+                            g.userData.map2GroundTop=row.baseAfter;
+                            g.userData.map2GroundTarget=row.targetGround;
+                            g.userData.map2Distance=d;
+                            foundationPads++;pads++;
+                        }
+                    }
+
                     foundationRows.push({
                         d:row.d,x:row.x,base:row.baseAfter,target:row.targetGround,
-                        width:footprintW,depth:footprintD,height:supportH
+                        width:rawW,depth:rawD,height:supportH,pads
                     });
                     foundations++;
                 });
@@ -16929,21 +16959,23 @@
                 for(let i=0;i<rows.length-1;i++){
                     const a=rows[i],b=rows[i+1];
                     const gap=b.d-a.d;
-                    if(gap<=0||gap>2200)continue;
+                    if(gap<520||gap>1750)continue;
                     if(map2Segment((a.d+b.d)*.5).kind!=='TECH')continue;
-                    const count=THREE.MathUtils.clamp(Math.ceil(gap/720),1,3);
+
+                    // One or two short service bridges, never a continuous road strip.
+                    const count=1;
                     for(let j=1;j<=count;j++){
                         const t=j/(count+1);
                         const d=THREE.MathUtils.lerp(a.d,b.d,t);
+                        if(map2Segment(d).kind!=='TECH')continue;
                         const q=map2BuildingPassageAt(d);
                         const ground=THREE.MathUtils.lerp(a.baseAfter,b.baseAfter,t);
-                        const lateral=Math.abs(b.x-a.x);
-                        const w=THREE.MathUtils.clamp(260+lateral*.42,260,430);
-                        const depth=THREE.MathUtils.clamp(gap/(count+1)*.66,240,480);
+                        const w=THREE.MathUtils.clamp(170+Math.abs(b.x-a.x)*.20,170,250);
+                        const depth=THREE.MathUtils.clamp(gap/(count+1)*.34,170,300);
                         const g=addVisualBlock(
-                            d,q.x,ground-18,
-                            w,28,depth,
-                            (i+j)%3===0?map2VisualMats.shell:map2VisualMats.dark,
+                            d,q.x,ground-14,
+                            w,20,depth,
+                            ((i+j)%3===0)?map2VisualMats.shell:map2VisualMats.dark,
                             'MAP2_ARCH_CONNECTOR_'+i+'_'+j
                         );
                         g.userData.map2ArchitecturalGround=true;
@@ -16982,7 +17014,7 @@
                 const summary={
                     philosophy:'BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON',
                     measuredGroups:rows.length,groundedGroups:grounded,movedGroups,
-                    foundations,connectors,
+                    foundations,foundationPads,connectors,
                     maxVerticalCorrection,maxRawFloatGap,maxResidualSupport,
                     extraStraightSurfacesRemoved,
                     remainingStraightSurfaces:remainingStraight.length,
@@ -17000,6 +17032,7 @@
                     groundedArchitectureGroups:grounded,
                     architectureMovedGroups:movedGroups,
                     architectureFoundations:foundations,
+                    architectureFoundationPads:foundationPads,
                     architectureConnectors:connectors,
                     architectureMaxVerticalCorrection:maxVerticalCorrection,
                     architectureMaxRawFloatGap:maxRawFloatGap,
