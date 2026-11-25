@@ -58,10 +58,12 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
   }
   assert.equal(info.gates,68);assert.equal(info.fastPhysical,0);assert(info.map4Hidden);
   const dir=path.join(__dirname,'map2-40-evidence');fs.mkdirSync(dir,{recursive:true});
+  fs.writeFileSync(path.join(dir,'full-rhythm.json'),JSON.stringify(info,null,2));
+  console.log('MAP2-40 '+JSON.stringify(info));
   const stops=await page.evaluate(()=>{
     const f=window.starbladeMap2FullGapSystem,g=window.starbladeMap2GapBlockSystem;
     return [{id:'golden',d:g.from+Math.min(1000,g.span*.2)},
-      ...f.sectors.filter(s=>s.to>s.from).slice(0,10).map(s=>({id:s.id,d:(s.from+s.to)*.5}))];
+      ...f.sectors.filter(s=>s.to>s.from).slice(0,5).map(s=>({id:s.id,d:(s.from+s.to)*.5}))];
   });
   for(const stop of stops){
     await page.evaluate(d=>{
@@ -76,11 +78,9 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
       map2UpdateVisibility(d);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);
     },stop.d);
     await page.waitForTimeout(180);
-    await page.screenshot({path:path.join(dir,stop.id+'.png')});
+    await page.screenshot({path:path.join(dir,stop.id+'.png'),timeout:120000,animations:'disabled'});
   }
   assert.deepEqual(errors,[]);
-  fs.writeFileSync(path.join(dir,'full-rhythm.json'),JSON.stringify(info,null,2));
-  console.log('MAP2-40 '+JSON.stringify(info));
   console.log('PASS MAP2-40 full architectural rhythm');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});

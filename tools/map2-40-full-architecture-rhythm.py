@@ -43,6 +43,17 @@ block=r'''
                 }
                 for(const c of complexes)for(const p of c.passages)
                     for(let i=1;i<p.nodes.length;i++)pushSeg(p.id+':'+i,p.nodes[i-1],p.nodes[i],10.5);
+                for(const g of window.starbladeMap2BuildingRoad.groups.filter(g=>g.open)){
+                    const a={routeProgress:g.d-150,laneX:g.x,laneY:g.y};
+                    pushSeg('aperture:'+g.d,a,{...a,routeProgress:g.d+150},12.5);
+                }
+                const sections=new Set(map2Sections);
+                const ownerOf=o=>{while(o&&!sections.has(o))o=o.parent;return o;};
+                const owned=o=>{
+                    const g=ownerOf(o.mesh);if(!g)return false;
+                    return (g.userData.architectureFrom??g.userData.from)<=o.routeProgress-(o.halfDepth||0)&&
+                        (g.userData.architectureTo??g.userData.to)>=o.routeProgress+(o.halfDepth||0);
+                };
                 const hits=colliders=>new Set(safeSegments.filter(x=>colliders.some(o=>
                     courseSegmentTouch(o,x.a,x.b,x.r))).map(x=>x.id));
                 const rhythm=[],changes=[],used=new Set();
@@ -96,7 +107,7 @@ block=r'''
                                 o.halfDepth=Math.min(230,Math.max(10,(q.maxZ-q.minZ)*.5*.72));
                                 o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
                             }
-                            if([...hits(changed)].every(id=>before.has(id))){accepted=deg*factor;break;}
+                            if(changed.every(owned)&&[...hits(changed)].every(id=>before.has(id))){accepted=deg*factor;break;}
                         }
                         if(!accepted){restore();continue;}
                         used.add(n);root.userData.map2FullRhythmYaw=accepted;

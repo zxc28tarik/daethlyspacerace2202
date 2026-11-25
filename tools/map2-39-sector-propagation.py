@@ -128,7 +128,7 @@ block=r'''
                 }
                 const allComplexes=[...goldenPlay.complexes,...extraComplexes];
                 const primary=[];
-                for(const m of (window.starbladeMap2ThroughRoute?.modules||[]).filter(m=>m.chicane)){
+                for(const m of (window.starbladeMap2ThroughRoute?.modules||[])){
                     let prev=null;
                     for(let d=m.entrance.distance;d<=m.exit.distance+1;d+=70){
                         const dd=Math.min(d,m.exit.distance),q=map2BuildingPassageAt(dd);
@@ -137,7 +137,23 @@ block=r'''
                         prev=now;
                     }
                 }
+                // Protect the older MAP2-19 aperture contract too: a straight
+                // 300 m pilot tube through every original building group.
+                for(const g of all){
+                    const a={routeProgress:g.d-150,laneX:g.x,laneY:g.y};
+                    primary.push([a,{...a,routeProgress:g.d+150}]);
+                }
+                const sections=new Set(map2Sections);
+                const ownerOf=o=>{while(o&&!sections.has(o))o=o.parent;return o;};
+                const owned=o=>{
+                    const g=ownerOf(o.mesh);
+                    if(!g)return false;
+                    const from=g.userData.architectureFrom??g.userData.from;
+                    const to=g.userData.architectureTo??g.userData.to;
+                    return from<=o.routeProgress-(o.halfDepth||0)&&to>=o.routeProgress+(o.halfDepth||0);
+                };
                 const safe=changed=>{
+                    if(changed.some(o=>!owned(o)))return false;
                     for(const [a,b] of primary)
                         if(changed.some(o=>courseSegmentTouch(o,a,b,12.5)))return false;
                     for(const c of allComplexes)for(const p of c.passages)

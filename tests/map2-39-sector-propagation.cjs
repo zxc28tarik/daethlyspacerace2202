@@ -41,7 +41,7 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
       }
     }
     const primary=[];
-    for(const m of (window.starbladeMap2ThroughRoute?.modules||[]).filter(m=>m.chicane)){
+    for(const m of (window.starbladeMap2ThroughRoute?.modules||[])){
       let prev=null;
       for(let d=m.entrance.distance;d<=m.exit.distance+1;d+=70){
         const dd=Math.min(d,m.exit.distance),q=starbladeMap2BuildingPassageAt(dd);
@@ -50,8 +50,19 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
         prev=now;
       }
     }
+    const apertures=window.starbladeMap2BuildingRoad.groups.filter(g=>g.open).filter(g=>{
+      const a={routeProgress:g.d-150,laneX:g.x,laneY:g.y};
+      return physical.some(o=>courseSegmentTouch(o,a,{...a,routeProgress:g.d+150},12.5));
+    }).map(g=>g.d);
+    const sections=new Set(map2Sections);
+    const owner=o=>{while(o&&!sections.has(o))o=o.parent;return o;};
+    const uncovered=physical.filter(o=>{
+      const g=owner(o.mesh);if(!g)return true;
+      return (g.userData.architectureFrom??g.userData.from)>o.routeProgress-(o.halfDepth||0)||
+        (g.userData.architectureTo??g.userData.to)<o.routeProgress+(o.halfDepth||0);
+    }).length;
     const wrong=full.sectors.filter(s=>s.groupDistances.some(d=>map2Segment(d).kind!=='TECH'));
-    return {full,uniqueIds:new Set(ids).size===ids.length,bad,primary,missingTargets,wrong,
+    return {full,apertures,uncovered,uniqueIds:new Set(ids).size===ids.length,bad,primary,missingTargets,wrong,
       goldenCount:golden.blockCount,goldenComplexes:play.complexes.length,
       fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
       gates:map2Gates.length,map4Hidden:!planetaryWorldGroup.visible};
@@ -65,6 +76,7 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
   assert(info.uniqueIds);
   assert.equal(info.goldenCount,22);assert.equal(info.goldenComplexes,9);
   assert.deepEqual(info.bad,[]);assert.deepEqual(info.primary,[]);
+  assert.deepEqual(info.apertures,[]);assert.equal(info.uncovered,0);
   assert.deepEqual(info.missingTargets,[]);assert.deepEqual(info.wrong,[]);
   assert.equal(info.fastPhysical,0);assert.equal(info.gates,68);assert(info.map4Hidden);
   assert(info.full.extraComplexes.every(c=>c.passages.length>=2&&
