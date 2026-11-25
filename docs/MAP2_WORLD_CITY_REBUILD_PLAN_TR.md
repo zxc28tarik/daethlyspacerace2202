@@ -5,7 +5,7 @@ Kullanıcı geri bildirimi: yol havada; gerçek dünya zemini yok; yan binalar k
 ## Korunanlar
 175 km tek tur, iki FAST bölgesi (%15 + %10), KEEP IT LOW devriye kuralı, Map4 kaynakları ve diğer haritalar. FAST merkezine engel eklenmez.
 
-## MAP2-41: altyapı — kaynak koduna uygulandı, tarayıcı QA bekleniyor
+## MAP2-41: altyapı — Chromium/WebGL QA geçti
 - Harita tamamını, çevresiyle birlikte kaplayan yatay dünya zemini; eski yapay yol şeridi değil.
 - Önceden var olan temeller üst yüzlerini koruyarak ortak zemin seviyesine kadar uzatılır.
 - Harita 4'ün orijinal şehir kulelerinin gövde/taç geometri ve materyalleri iki tarafta ikişer kademede instancing ile kullanılır. Yakın sıra geçiş hacmi dışında. FAST bölgelerinin yanında da şehir var.
@@ -13,13 +13,15 @@ Kullanıcı geri bildirimi: yol havada; gerçek dünya zemini yok; yan binalar k
 - Haritanın başlangıç/bitiş birleşiminde görünürlük devam eder.
 - Ölçek seçimi ilk denemedir; gerçek uçuş görüntüleri, kapı geçişleri ve performans görülmeden onaylanmış sayılmaz.
 
-## MAP2-42: merkez şehir mimarisi — kaynak koduna uygulandı, tarayıcı QA bekleniyor
+## MAP2-42: merkez şehir mimarisi — Chromium/WebGL QA ve tam yarış regresyonu geçti
 - MAP2-41 ile iki katına çıkan yatay alanın TECH bölümlerine orijinal Map4 şehir bina gövde/taç geometrilerinden yoğun yakın cephe eklendi.
 - Yakın cephe yaklaşık 430 m görsel ritimle ilerler; sağ/sol geri çekilmeleri küçük ve asimetriktir, böylece oyuncu sürekli bina dokusu görür ama steril tekrar hissi azalır.
 - Fizik daha seyrek toplulaştırılmış bina hacimleriyle çalışır; görsel yoğunluğu bire bir collider sayısına çevrilmez ve FPS maliyeti sınırlanır.
 - Mevcut gerçek bina açıklığı ana rotası ve doğrulanmış 2-3 kollu alternatif geçitler korunur. Yeni bir bina hacmi bu hatlardan birine değerse dışarı itilir; hâlâ çakışıyorsa hiç eklenmez.
 - FAST bölgelerine yeni fiziksel bina engeli eklenmez. Dışarıdan kestirme kaçış azaltılırken iki tam gaz bölgesi korunur.
 - Harita 4 kaynakları değiştirilmez; yalnızca geometri ve materyal referansları yeniden kullanılır.
+- Doğrulanan son ölçüm: 568 yakın bina örneği, 188 fiziksel yan cephe collider'ı, ana rota çakışması 0, alternatif geçit çakışması 0, FAST fiziksel engeli 0.
+- MAP2-41, MAP2-40, MAP2-39 ve KEEP IT LOW tam yarış regresyonları aynı commit üzerinde PASS.
 
 ## MAP2-43: doğal rota okuması
 Girişten sonraki açıklık görünür; sahte çizgiler yerine paralel cepheler, köşelerde cephe yönelimi ve doğal siluet. Olası rota her zaman en az bir gerçek geçişle bağlanır. FAST alanında açık şehir kanyonu.
