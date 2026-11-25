@@ -8,9 +8,11 @@ on:
       - tools/map2-30-building-gap-system.py
       - tools/map2-32-33-building-roles-playable-passages.py
       - tools/map2-34-controlled-chaos.py
+      - tools/map2-35-decision-sightlines.py
       - tests/map2-30-building-gap-system.cjs
       - tests/map2-32-33-building-roles-playable-passages.cjs
       - tests/map2-34-controlled-chaos.cjs
+      - tests/map2-35-decision-sightlines.cjs
       - docs/MAP2_BUILDING_GAP_CHAOS_MASTER_PLAN_TR.md
       - .github/workflows/map2-30-building-gap-system.yml
   workflow_dispatch:
@@ -34,6 +36,8 @@ jobs:
         run: python tools/map2-32-33-building-roles-playable-passages.py
       - name: Apply MAP2-34
         run: python tools/map2-34-controlled-chaos.py
+      - name: Apply MAP2-35
+        run: python tools/map2-35-decision-sightlines.py
       - name: Validate MAP2-30 markers
         run: |
           grep -q "map2BuildBuildingGapBlockSystem" index.html
@@ -43,6 +47,8 @@ jobs:
         run: |
           npm install --no-save playwright@1.56.1 three@0.128.0
           npx playwright install chromium
+      - name: MAP2-35 decision-sightline QA
+        run: node tests/map2-35-decision-sightlines.cjs
       - name: MAP2-34 controlled-chaos QA
         run: node tests/map2-34-controlled-chaos.cjs
       - name: MAP2-32/33 playable branch QA
@@ -67,9 +73,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
           if git diff --cached --quiet; then
-            echo "index already contains MAP2-34"
+            echo "index already contains MAP2-35"
           else
-            git commit -m "MAP2-34 author controlled asymmetry in golden TECH sector"
+            git commit -m "MAP2-35 shape multi-route decision sightlines"
             git push origin HEAD:codex/map2-30-building-gap-system
           fi
 
@@ -78,4 +84,11 @@ jobs:
         with:
           name: map2-34-controlled-chaos-evidence
           path: tests/map2-34-evidence/
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-35-decision-sightline-evidence
+          path: tests/map2-35-evidence/
           if-no-files-found: warn
