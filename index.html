@@ -18384,6 +18384,688 @@
                 (g.userData.architectureFrom??g.userData.from)<g.userData.from||
                 (g.userData.architectureTo??g.userData.to)>g.userData.to).length;
 
+            // MAP2-41: continuous world terrain and real Map4 city frontage.
+            // World surface is not a race road. All architecture remains above it.
+            const map2BuildWorldCity=()=>{
+                const padMeshes=[];
+                map2CourseGroup.updateMatrixWorld(true);
+                map2CourseGroup.traverse(o=>{
+                    if(o.userData?.map2GroundPad){
+                        const m=o.children.find(c=>c.isMesh);
+                        if(m)padMeshes.push({m,box:new THREE.Box3().setFromObject(m)});
+                    }
+                });
+                const floorY=Math.min(-470,...padMeshes.map(p=>p.box.min.y-12));
+                const bounds=new THREE.Box3().setFromPoints(map2RouteCurve.getPoints(320));
+                const margin=11000;
+                const width=bounds.max.x-bounds.min.x+2*margin;
+                const depth=bounds.max.z-bounds.min.z+2*margin;
+                const geo=new THREE.PlaneGeometry(width,depth,96,96);
+                geo.rotateX(-Math.PI/2);
+                const colors=[],positions=geo.attributes.position;
+                const c=new THREE.Color();
+                for(let i=0;i<positions.count;i++){
+                    const x=positions.getX(i),z=positions.getZ(i);
+                    const t=.5+.22*Math.sin(x*.0008+z*.00035)+.18*Math.sin(z*.0011-x*.0005);
+                    c.setRGB(.135+t*.035,.158+t*.036,.165+t*.034);
+                    colors.push(c.r,c.g,c.b);
+                }
+                geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+                const ground=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
+                    vertexColors:true,roughness:1,metalness:0
+                }));
+                ground.name='MAP2_CONTINUOUS_WORLD_TERRAIN';
+                ground.position.set((bounds.min.x+bounds.max.x)/2,floorY,(bounds.min.z+bounds.max.z)/2);
+                ground.userData.map2WorldTerrain=true;
+                map2CourseGroup.add(ground);
+                // Extend existing measured foundations down to the shared world datum.
+                // Preserve their upper faces and every authored flyable aperture.
+                for(const {m,box} of padMeshes){
+                    const top=box.max.y,oldH=box.max.y-box.min.y;
+                    if(oldH<=0||top<=floorY)continue;
+                    const newH=top-floorY;
+                    m.scale.y*=newH/oldH;
+                    m.position.y-=(newH-oldH)*.5;
+                    m.updateMatrix();m.updateMatrixWorld(true);
+                }
+                // Real Map4 city tower meshes and their authored crowns: reuse geometry,
+                // materials and relative dimensions, never mutate the source district.
+                const district=h4City02DistrictGroup;
+                const prototypes=district.children.filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
+                    .map(m=>({body:m,crown:district.getObjectByName(m.name.replace('PHYSICAL_BUILDING','TOWER_CROWN'))}));
+                if(!prototypes.length)throw new Error('MAP2-41 requires original Map4 city tower meshes');
+                const spacing=420,frontage=[],dummy=new THREE.Object3D();
+                const batches=new Map();
+                const enqueue=(section,part,position,rotation,scale)=>{
+                    const key=section.uuid+':'+part.geometry.uuid+':'+part.material.uuid;
+                    let batch=batches.get(key);
+                    if(!batch){batch={section,part,matrices:[]};batches.set(key,batch);}
+                    dummy.position.copy(position);dummy.quaternion.copy(rotation);dummy.scale.copy(scale);
+                    dummy.updateMatrix();batch.matrices.push(dummy.matrix.clone());
+                };
+                // MAP2-43: a continuous street silhouette, following the actual
+                // offset street chord rather than independent track-normal towers.
+                // Keep the open-sector architectural wings beyond the hard flight
+                // envelope; no new invisible barriers or FAST obstacles.
+                const wrapD=d=>((d%MAP2_DISTANCE)+MAP2_DISTANCE)%MAP2_DISTANCE;
+                const offsetAt=(d,x)=>{
+                    const f=getRaceFrameAtDistance(wrapD(d));
+                    return f.center.clone().addScaledVector(f.right,x);
+                };
+                const naturalRead=[];
+                const flightEnvelope=2*285*COURSE_WIDTH_SCALE+30;
+                const sideRows=[{side:-1,row:0},{side:1,row:0},{side:-1,row:1},{side:1,row:1}];
+                for(const {side,row} of sideRows){
+                    for(let i=0;i<Math.ceil(MAP2_DISTANCE/spacing);i++){
+                        const offset=row?spacing*.5:0;
+                        const d=(i*spacing+offset)%MAP2_DISTANCE;
+                        const p=prototypes[(i*7+row*13+(side>0?19:0))%prototypes.length];
+                        const f=getRaceFrameAtDistance(d);
+                        const sx=p.body.scale.x*(row?3.8:2.55);
+                        let sz=Math.max(spacing*.86,p.body.scale.z*(row?4.0:3.35));
+                        let sy=Math.max(row?850:640,p.body.scale.y*(row?1.8:1.35));
+                        let inner=(row?1450:830)+(i%5)*17;
+                        let x=side*(inner+sx*.5);
+                        let pos=f.center.clone().addScaledVector(f.right,x);
+                        let rotation=new THREE.Quaternion().setFromRotationMatrix(
+                            new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()));
+                        if(!row){
+                            const seg=map2Segment(d);
+                            const before=getRaceFrameAtDistance(wrapD(d-650));
+                            const after=getRaceFrameAtDistance(wrapD(d+650));
+                            const turn=Math.atan2(after.tangent.dot(before.right),
+                                after.tangent.dot(before.tangent));
+                            const bend=Math.min(1,Math.abs(turn)/.24);
+                            const innerTurn=side*turn>0;
+                            const edgeDistance=Math.min(d-seg.from*MAP2_DISTANCE,
+                                seg.to*MAP2_DISTANCE-d);
+                            const approach=1-THREE.MathUtils.smoothstep(edgeDistance,0,2100);
+                            // A lower inside silhouette exposes the next street; the
+                            // outside corner stays tall enough to read as a turn.
+                            sy=Math.round(THREE.MathUtils.clamp(sy*(1+(innerTurn?-.27:.32)*bend)
+                                +approach*(seg.kind==='TECH'?140:90),580,1510));
+                            inner=Math.max(830,flightEnvelope+16)+(i%5)*9
+                                +(innerTurn?Math.round(60*bend):0);
+                            const baseDepth=sz;
+                            let clearance=0,attempts=0;
+                            for(;attempts<12;attempts++){
+                                x=side*(inner+sx*.5);
+                                const a=offsetAt(d-spacing*.5,x),b=offsetAt(d+spacing*.5,x);
+                                const forward=b.clone().sub(a).normalize();
+                                const right=new THREE.Vector3().crossVectors(forward,WORLD_UP_VECTOR).normalize();
+                                pos=offsetAt(d,x);
+                                rotation.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+                                    right,WORLD_UP_VECTOR,forward.clone().negate()));
+                                // Overlap adjacent offset-street chords so the
+                                // outer side of a corner does not open into sky.
+                                sz=Math.max(baseDepth,a.distanceTo(b)*1.12,spacing*1.08);
+                                clearance=Infinity;
+                                for(let dd=-650;dd<=650;dd+=130){
+                                    const q=getRaceFrameAtDistance(wrapD(d+dd));
+                                    for(const wx of [-1,1])for(const wz of [-1,1]){
+                                        const corner=pos.clone().addScaledVector(right,wx*sx*.5)
+                                            .addScaledVector(forward,wz*sz*.5);
+                                        const delta=corner.sub(q.center);
+                                        if(Math.abs(delta.dot(q.tangent))>sz+400)continue;
+                                        clearance=Math.min(clearance,side*delta.dot(q.right));
+                                    }
+                                }
+                                if(clearance>=flightEnvelope)break;
+                                inner+=Math.max(25,flightEnvelope-clearance+10);
+                            }
+                            naturalRead.push({d,side,kind:seg.kind,turn,bend,innerTurn,approach,
+                                clearance,inner,width:sx,depth:sz,height:sy,
+                                yaw:2*Math.acos(Math.min(1,Math.abs(rotation.dot(
+                                    new THREE.Quaternion().setFromRotationMatrix(
+                                        new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()))))))});
+                        }
+                        pos.y=floorY+sy*.5;
+                        const section=sectionAt(d);
+                        enqueue(section,p.body,pos,rotation,new THREE.Vector3(sx,sy,sz));
+                        if(p.crown){
+                            const cs=new THREE.Vector3(sx*p.crown.scale.x/p.body.scale.x,
+                                p.crown.scale.y*1.5,sz*p.crown.scale.z/p.body.scale.z);
+                            const cp=pos.clone();cp.y=floorY+sy+cs.y*.5;
+                            enqueue(section,p.crown,cp,rotation,cs);
+                        }
+                        frontage.push({d,side,row,inner,width:sx,depth:sz,height:sy,source:p.body.name});
+                    }
+                }
+                for(const {section,part,matrices} of batches.values()){
+                    const mesh=new THREE.InstancedMesh(part.geometry,part.material,matrices.length);
+                    matrices.forEach((m,i)=>mesh.setMatrixAt(i,m));
+                    mesh.instanceMatrix.needsUpdate=true;
+                    mesh.frustumCulled=false; // section visibility owns culling in Three r128
+                    mesh.name='MAP2_WORLD_CITY_'+part.name;
+                    mesh.userData.map2WorldCity=true;
+                    mesh.userData.map2VisualOnly=true;
+                    section.add(mesh);
+                }
+                let retiredGuides=0;
+                for(const section of map2Sections)for(const o of section.children.slice()){
+                    if(o.userData?.map2OpenSectorGuide){section.remove(o);retiredGuides++;}
+                }
+                window.starbladeMap2WorldCity={floorY,width,depth,foundations:padMeshes.length,
+                    spacing,frontage,batches:batches.size,retiredGuides,lateralScale:2,
+                    naturalRead:{records:naturalRead,flightEnvelope,
+                        minClearance:Math.min(...naturalRead.map(r=>r.clearance)),
+                        openSectorRecords:naturalRead.filter(r=>r.kind!=='TECH').length,
+                        bendRecords:naturalRead.filter(r=>r.bend>.15).length}};
+            };
+            map2BuildWorldCity();
+
+            // MAP2-42: rebuild the widened TECH course as a real urban canyon.
+            // MAP2-41 doubled lateral freedom, so the old centre architecture could
+            // be bypassed through empty side space. Reuse ORIGINAL Map4 city meshes
+            // as a near frontage inside the new width; collision is an aggregate of
+            // those continuously overlapping buildings, never an invisible guide line.
+            const map2BuildWideUrbanCourse=()=>{
+                const world=window.starbladeMap2WorldCity;
+                if(!world)throw new Error('MAP2-42 requires MAP2-41 world city');
+                const source=h4City02DistrictGroup;
+                const prototypes=source.children
+                    .filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
+                    .map(m=>({body:m,crown:source.getObjectByName(
+                        m.name.replace('PHYSICAL_BUILDING','TOWER_CROWN'))}));
+                if(!prototypes.length)throw new Error('MAP2-42 requires original Map4 building meshes');
+
+                const floorY=world.floorY;
+                const dummy=new THREE.Object3D(),batches=new Map();
+                const geometrySize=(g)=>{
+                    if(!g.boundingBox)g.computeBoundingBox();
+                    return g.boundingBox.getSize(new THREE.Vector3());
+                };
+                const fittedScale=(part,w,h,d)=>{
+                    const z=geometrySize(part.geometry);
+                    return new THREE.Vector3(
+                        w/Math.max(.001,z.x),h/Math.max(.001,z.y),d/Math.max(.001,z.z));
+                };
+                const enqueue=(section,part,pos,rotation,scale)=>{
+                    const mk=Array.isArray(part.material)
+                        ?part.material.map(m=>m.uuid).join(':'):part.material.uuid;
+                    const key=section.uuid+':'+part.geometry.uuid+':'+mk;
+                    let batch=batches.get(key);
+                    if(!batch){batch={section,part,matrices:[]};batches.set(key,batch);}
+                    dummy.position.copy(pos);dummy.quaternion.copy(rotation);dummy.scale.copy(scale);
+                    dummy.updateMatrix();batch.matrices.push(dummy.matrix.clone());
+                };
+
+                // Preserve every already validated primary and alternate passage.
+                // A new frontage collider is moved outward or omitted if it touches
+                // any authored route segment.
+                const allComplexes=[
+                    ...(window.starbladeMap2PlayablePassages?.complexes||[]),
+                    ...(window.starbladeMap2FullGapSystem?.extraComplexes||[])
+                ];
+                const obstacleHitsAuthoredRoute=(o)=>{
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-90);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+90);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=85){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,14))return true;
+                        prev=node;
+                    }
+                    for(const complex of allComplexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const a=nodes[i-1],b=nodes[i];
+                                if(Math.max(a.routeProgress,b.routeProgress)<from||
+                                   Math.min(a.routeProgress,b.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,a,b,14))return true;
+                            }
+                        }
+                    }
+                    return false;
+                };
+
+                const techSegments=MAP2_SEGMENTS.filter(s=>s.kind==='TECH');
+                const visualRecords=[],physicalRecords=[];
+                let visualInstances=0,skippedForRoute=0,movedOutward=0;
+
+                // Dense near frontage: enough overlap that the pilot never reads the
+                // widened road as a floating strip. Slight asymmetric setbacks avoid
+                // a sterile, perfectly repeated wall.
+                for(const seg of techSegments){
+                    const from=seg.from*MAP2_DISTANCE,to=seg.to*MAP2_DISTANCE;
+                    let row=0;
+                    for(let d=from+180;d<to-180;d+=430,row++){
+                        const f=getRaceFrameAtDistance(d);
+                        const rotation=new THREE.Quaternion().setFromRotationMatrix(
+                            new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()));
+                        for(const side of [-1,1]){
+                            const p=prototypes[(row*11+(side>0?7:0)+Math.floor(d/2500))%prototypes.length];
+                            const width=245+((row+(side>0?2:0))%4)*15;
+                            const height=780+((row*3+(side>0?1:0))%5)*55;
+                            const depth=470+((row+(side>0?3:0))%3)*35;
+                            const setback=585+((row*17+(side>0?29:0))%68);
+                            const x=side*setback;
+                            const laneY=floorY+height*.5;
+                            const pos=f.center.clone().addScaledVector(f.right,x).addScaledVector(f.up,laneY);
+                            enqueue(sectionAt(d),p.body,pos,rotation,fittedScale(p.body,width,height,depth));
+                            if(p.crown){
+                                const crownH=72+((row+(side>0?1:0))%3)*18;
+                                const cp=pos.clone().addScaledVector(f.up,height*.5+crownH*.5);
+                                enqueue(sectionAt(d),p.crown,cp,rotation,
+                                    fittedScale(p.crown,width*.78,crownH,depth*.72));
+                            }
+                            visualInstances++;
+                            visualRecords.push({d,side,x,width,height,depth,source:p.body.name});
+                        }
+                    }
+                }
+
+                // Physics is coarser than the visual instancing for FPS. Each long box
+                // corresponds to several overlapping real Map4 towers, producing a
+                // continuous physical frontage while keeping collision checks bounded.
+                const physical=window.starbladeMap2BuildingColliders||[];
+                for(const seg of techSegments){
+                    const from=seg.from*MAP2_DISTANCE,to=seg.to*MAP2_DISTANCE;
+                    let block=0;
+                    for(let d=from+560;d<to-560;d+=1290,block++){
+                        for(const side of [-1,1]){
+                            const halfX=145,halfDepth=690,height=920;
+                            let accepted=null;
+                            const base=side*(610+((block*23+(side>0?13:0))%42));
+                            for(const push of [0,55,105]){
+                                const x=base+side*push;
+                                const o={
+                                    routeProgress:d,laneX:x,laneY:floorY+height*.5,
+                                    halfX,halfY:height*.5,halfDepth,
+                                    radius:Math.hypot(halfX,height*.5,halfDepth),
+                                    type:'WRECK_BOX',moveType:'STATIC',active:true,
+                                    touchingShips:new Set(),hitTimes:Object.create(null),
+                                    map2BuildingDerived:true,map2WideUrbanFrontage:true,
+                                    sourceRoot:'MAP4_CITY02_FRONTAGE_AGGREGATE'
+                                };
+                                if(!obstacleHitsAuthoredRoute(o)){accepted=o;if(push)movedOutward++;break;}
+                            }
+                            if(!accepted){skippedForRoute++;continue;}
+                            const f=getRaceFrameAtDistance(d);
+                            const wp=f.center.clone().addScaledVector(f.right,accepted.laneX)
+                                .addScaledVector(f.up,accepted.laneY);
+                            accepted.mesh={position:wp};
+                            map2Obstacles.push(accepted);
+                            physical.push(accepted);
+                            physicalRecords.push({
+                                d,side,x:accepted.laneX,halfX:accepted.halfX,
+                                halfDepth:accepted.halfDepth,height
+                            });
+                        }
+                    }
+                }
+                window.starbladeMap2BuildingColliders=physical;
+
+                for(const {section,part,matrices} of batches.values()){
+                    const mesh=new THREE.InstancedMesh(part.geometry,part.material,matrices.length);
+                    matrices.forEach((m,i)=>mesh.setMatrixAt(i,m));
+                    mesh.instanceMatrix.needsUpdate=true;
+                    mesh.frustumCulled=false;
+                    mesh.name='MAP2_WIDE_URBAN_FRONTAGE_'+part.name;
+                    mesh.userData.map2WideUrbanFrontage=true;
+                    mesh.userData.map2UsesOriginalMap4Geometry=true;
+                    section.add(mesh);
+                }
+
+                const summary={
+                    philosophy:'WIDE_ROAD_IS_DEFINED_BY_BUILDINGS_NOT_LINES',
+                    techOnly:true,visualSpacing:430,physicalSpacing:1290,
+                    visualInstances,physicalColliders:physicalRecords.length,
+                    skippedForRoute,movedOutward,batches:batches.size,
+                    visualRecords,physicalRecords,
+                    originalMap4Source:true,fastPhysical:0
+                };
+                window.starbladeMap2WideUrbanCourse=summary;
+                Object.assign(map2VisualStageStats,{
+                    wideUrbanVisualInstances:visualInstances,
+                    wideUrbanPhysicalColliders:physicalRecords.length,
+                    wideUrbanSkippedForRoute:skippedForRoute,
+                    wideUrbanMovedOutward:movedOutward,
+                    wideUrbanBatches:batches.size
+                });
+                return summary;
+            };
+            map2BuildWideUrbanCourse();
+
+            // MAP2-42 final reconciliation. Some alternate passages are authored by
+            // deferred architectural passes after the initial frontage placement.
+            // Recheck against the FINAL branch graph, push a conflicting aggregate
+            // collider outward when possible, otherwise remove only that collider.
+            // Visual Map4 frontage remains continuous either way.
+            const map2ReconcileWideUrbanPassages=()=>{
+                const sys=window.starbladeMap2WideUrbanCourse;
+                const physical=window.starbladeMap2BuildingColliders||[];
+                if(!sys||!physical.length)return null;
+                const complexes=[
+                    ...(window.starbladeMap2PlayablePassages?.complexes||[]),
+                    ...(window.starbladeMap2FullGapSystem?.extraComplexes||[])
+                ];
+                const touchesFinalRoute=(o)=>{
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-90);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+90);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=85){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,14))return true;
+                        prev=node;
+                    }
+                    for(const complex of complexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const a=nodes[i-1],b=nodes[i];
+                                if(Math.max(a.routeProgress,b.routeProgress)<from||
+                                   Math.min(a.routeProgress,b.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,a,b,14))return true;
+                            }
+                        }
+                    }
+                    return false;
+                };
+
+                let moved=0,removed=0;
+                const candidates=physical.filter(o=>o.map2WideUrbanFrontage).slice();
+                for(const o of candidates){
+                    if(!touchesFinalRoute(o))continue;
+                    const side=Math.sign(o.laneX)||1,base=o.laneX;
+                    let resolved=false;
+                    for(const push of [45,90,135]){
+                        o.laneX=base+side*push;
+                        const f=getRaceFrameAtDistance(o.routeProgress);
+                        o.mesh.position.copy(f.center)
+                            .addScaledVector(f.right,o.laneX)
+                            .addScaledVector(f.up,o.laneY);
+                        if(!touchesFinalRoute(o)){
+                            const rec=sys.physicalRecords.find(r=>
+                                Math.abs(r.d-o.routeProgress)<1&&r.side===side&&Math.abs(r.x-base)<2);
+                            if(rec){rec.x=o.laneX;rec.reconciled=true;}
+                            moved++;resolved=true;break;
+                        }
+                    }
+                    if(resolved)continue;
+                    o.laneX=base;
+                    const pi=physical.indexOf(o);if(pi>=0)physical.splice(pi,1);
+                    const oi=map2Obstacles.indexOf(o);if(oi>=0)map2Obstacles.splice(oi,1);
+                    const ri=sys.physicalRecords.findIndex(r=>
+                        Math.abs(r.d-o.routeProgress)<1&&r.side===side&&Math.abs(r.x-base)<2);
+                    if(ri>=0)sys.physicalRecords.splice(ri,1);
+                    removed++;
+                }
+                sys.physicalColliders=sys.physicalRecords.length;
+                sys.reconciledMoved=moved;
+                sys.reconciledRemoved=removed;
+                map2VisualStageStats.wideUrbanPhysicalColliders=sys.physicalColliders;
+                map2VisualStageStats.wideUrbanReconciledMoved=moved;
+                map2VisualStageStats.wideUrbanReconciledRemoved=removed;
+                return {moved,removed,remaining:sys.physicalColliders};
+            };
+            queueMicrotask(()=>queueMicrotask(()=>map2ReconcileWideUrbanPassages()));
+
+            // MAP2-44: keep the doubled-width course genuinely architectural.
+            // The near Map4 frontage already defines the usable TECH corridor, but
+            // its aggregate collision boxes used to stop just short of the doubled
+            // soft boundary. A pilot could therefore slip around the OUTSIDE of a
+            // visible building row. Preserve every inner face (so the road never
+            // becomes narrow again) and extend only the outer face beyond the
+            // reachable envelope. Final primary/alternate routes are checked with a
+            // conservative player-sized radius before the shell is sealed.
+            const map2SealWideUrbanEscapePaths=()=>{
+                const sys=window.starbladeMap2WideUrbanCourse;
+                const world=window.starbladeMap2WorldCity;
+                const physical=window.starbladeMap2BuildingColliders||[];
+                if(!sys||!world)return null;
+
+                const shipRadius=BOUNDARY_RULES.playerWingHalfSpan+6;
+                const complexes=[
+                    ...(window.starbladeMap2PlayablePassages?.complexes||[]),
+                    ...(window.starbladeMap2FullGapSystem?.extraComplexes||[])
+                ];
+                const touchesFinalRoute=(o,radius=shipRadius)=>{
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-110);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+110);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=72){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,radius))return true;
+                        prev=node;
+                    }
+                    for(const complex of complexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const a=nodes[i-1],b=nodes[i];
+                                if(Math.max(a.routeProgress,b.routeProgress)<from||
+                                   Math.min(a.routeProgress,b.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,a,b,radius))return true;
+                            }
+                        }
+                    }
+                    return false;
+                };
+                const boundaryOuterAt=d=>2*BOUNDARY_RULES.maxRadius*
+                    getCorridorRadiusAt(d)/state.tubeRadius;
+                const worldEnvelope=world.naturalRead?.flightEnvelope||
+                    (2*BOUNDARY_RULES.maxRadius+30);
+                const updateWorldPosition=o=>{
+                    const f=getRaceFrameAtDistance(o.routeProgress);
+                    o.mesh.position.copy(f.center)
+                        .addScaledVector(f.right,o.laneX)
+                        .addScaledVector(f.up,o.laneY);
+                    o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
+                };
+
+                let clearancePushed=0,clearanceRemoved=0,expanded=0;
+                let maxSealInnerDrift=0,minOuterCoverageMargin=Infinity;
+                const wide=physical.filter(o=>o.map2WideUrbanFrontage).slice();
+                for(const o of wide){
+                    const side=Math.sign(o.laneX)||1;
+                    const rec=sys.physicalRecords.find(r=>
+                        Math.abs(r.d-o.routeProgress)<1&&r.side===side&&!r.escapeShell);
+                    // Player-sized route clearance: widen the route only when the
+                    // old 14-unit QA radius was too optimistic for the real craft.
+                    if(touchesFinalRoute(o,shipRadius)){
+                        const base=o.laneX;
+                        let solved=false;
+                        for(const push of [14,28,44,64,86]){
+                            o.laneX=base+side*push;
+                            updateWorldPosition(o);
+                            if(!touchesFinalRoute(o,shipRadius)){
+                                clearancePushed++;
+                                solved=true;
+                                break;
+                            }
+                        }
+                        if(!solved){
+                            o.laneX=base;
+                            const pi=physical.indexOf(o);if(pi>=0)physical.splice(pi,1);
+                            const oi=map2Obstacles.indexOf(o);if(oi>=0)map2Obstacles.splice(oi,1);
+                            const ri=sys.physicalRecords.indexOf(rec);if(ri>=0)sys.physicalRecords.splice(ri,1);
+                            clearanceRemoved++;
+                            continue;
+                        }
+                    }
+
+                    const beforeInner=Math.abs(o.laneX)-o.halfX;
+                    const beforeOuter=Math.abs(o.laneX)+o.halfX;
+                    const targetOuter=Math.max(
+                        beforeOuter,
+                        boundaryOuterAt(o.routeProgress)+BOUNDARY_RULES.playerWingHalfSpan+24,
+                        worldEnvelope+18
+                    );
+                    const extra=Math.max(0,targetOuter-beforeOuter);
+                    if(extra>0){
+                        o.halfX+=extra*.5;
+                        o.laneX+=side*extra*.5;
+                        updateWorldPosition(o);
+                        expanded++;
+                    }
+                    const afterInner=Math.abs(o.laneX)-o.halfX;
+                    const afterOuter=Math.abs(o.laneX)+o.halfX;
+                    maxSealInnerDrift=Math.max(maxSealInnerDrift,Math.abs(afterInner-beforeInner));
+                    minOuterCoverageMargin=Math.min(minOuterCoverageMargin,
+                        afterOuter-boundaryOuterAt(o.routeProgress)-BOUNDARY_RULES.playerWingHalfSpan);
+                    if(rec){
+                        rec.x=o.laneX;rec.halfX=o.halfX;
+                        rec.map244OuterSealed=true;
+                    }
+                    o.map2WideUrbanOuterSealed=true;
+                }
+
+                // If passage reconciliation removed a coarse block, keep only the
+                // far OUTER escape band continuous across that longitudinal gap.
+                // This never reaches the authored passage lanes.
+                let stitches=0;
+                const techSegments=MAP2_SEGMENTS.filter(s=>s.kind==='TECH');
+                const makeStitch=(side,from,to)=>{
+                    const center=(from+to)*.5;
+                    const boundary=boundaryOuterAt(center);
+                    const inner=Math.max(720,boundary-38);
+                    const halfX=78;
+                    const height=920;
+                    const o={
+                        routeProgress:center,
+                        laneX:side*(inner+halfX),
+                        laneY:world.floorY+height*.5,
+                        halfX,halfY:height*.5,
+                        halfDepth:(to-from)*.5+82,
+                        radius:0,
+                        type:'WRECK_BOX',moveType:'STATIC',active:true,
+                        touchingShips:new Set(),hitTimes:Object.create(null),
+                        map2BuildingDerived:true,map2WideUrbanEscapeShell:true,
+                        sourceRoot:'MAP4_CITY02_OUTER_ESCAPE_SHELL'
+                    };
+                    const f=getRaceFrameAtDistance(center);
+                    const wp=f.center.clone().addScaledVector(f.right,o.laneX)
+                        .addScaledVector(f.up,o.laneY);
+                    o.mesh={position:wp};
+                    o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
+                    if(touchesFinalRoute(o,shipRadius))return false;
+                    map2Obstacles.push(o);physical.push(o);
+                    sys.physicalRecords.push({
+                        d:center,side,x:o.laneX,halfX:o.halfX,
+                        halfDepth:o.halfDepth,height,escapeShell:true
+                    });
+                    stitches++;
+                    return true;
+                };
+
+                let largestRawGap=0;
+                for(const seg of techSegments){
+                    const a=seg.from*MAP2_DISTANCE,b=seg.to*MAP2_DISTANCE;
+                    for(const side of [-1,1]){
+                        const arr=physical.filter(o=>
+                            (o.map2WideUrbanFrontage||o.map2WideUrbanEscapeShell)&&
+                            Math.sign(o.laneX)===side&&
+                            o.routeProgress>=a&&o.routeProgress<=b
+                        ).sort((x,y)=>x.routeProgress-y.routeProgress);
+                        for(let i=1;i<arr.length;i++){
+                            const from=arr[i-1].routeProgress+arr[i-1].halfDepth;
+                            const to=arr[i].routeProgress-arr[i].halfDepth;
+                            const gap=to-from;
+                            largestRawGap=Math.max(largestRawGap,gap);
+                            if(gap>12)makeStitch(side,from,to);
+                        }
+                    }
+                }
+
+                const brakeReaction=.26;
+                const settleTime=Math.log(
+                    (RACE_SPEEDS.BOOST-RACE_SPEEDS.BRAKE)/
+                    (RACE_SPEEDS.NORMAL-RACE_SPEEDS.BRAKE)
+                )/5;
+                const settleDistance=RACE_SPEEDS.BRAKE*settleTime+
+                    (RACE_SPEEDS.BOOST-RACE_SPEEDS.BRAKE)*
+                    (1-Math.exp(-5*settleTime))/5;
+                const brakingDistance=RACE_SPEEDS.BOOST*brakeReaction+settleDistance;
+                const decisionBlocks=physical.filter(o=>o.map2WideUrbanFrontage);
+                const minBrakeDepthMargin=Math.min(...decisionBlocks.map(o=>
+                    2*o.halfDepth-2*brakingDistance
+                ));
+
+                let playerRadiusPrimaryHits=0,playerRadiusBranchHits=0,fastPhysical=0;
+                for(const o of physical.filter(o=>
+                    o.map2WideUrbanFrontage||o.map2WideUrbanEscapeShell)){
+                    if(map2Segment(o.routeProgress).kind==='FAST')fastPhysical++;
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-90);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+90);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=72){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,shipRadius))playerRadiusPrimaryHits++;
+                        prev=node;
+                    }
+                    for(const complex of complexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const p=nodes[i-1],q=nodes[i];
+                                if(Math.max(p.routeProgress,q.routeProgress)<from||
+                                   Math.min(p.routeProgress,q.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,p,q,shipRadius))playerRadiusBranchHits++;
+                            }
+                        }
+                    }
+                }
+
+                // Final longitudinal coverage after optional outer-only stitches.
+                let maxLongitudinalGap=0;
+                for(const seg of techSegments){
+                    const a=seg.from*MAP2_DISTANCE,b=seg.to*MAP2_DISTANCE;
+                    for(const side of [-1,1]){
+                        const arr=physical.filter(o=>
+                            (o.map2WideUrbanFrontage||o.map2WideUrbanEscapeShell)&&
+                            Math.sign(o.laneX)===side&&
+                            o.routeProgress>=a&&o.routeProgress<=b
+                        ).sort((x,y)=>x.routeProgress-y.routeProgress);
+                        for(let i=1;i<arr.length;i++){
+                            const gap=arr[i].routeProgress-arr[i].halfDepth-
+                                (arr[i-1].routeProgress+arr[i-1].halfDepth);
+                            maxLongitudinalGap=Math.max(maxLongitudinalGap,gap);
+                        }
+                    }
+                }
+
+                sys.physicalColliders=sys.physicalRecords.length;
+                const result={
+                    philosophy:'PRESERVE_INNER_ROAD_SEAL_ONLY_THE_OUTER_ESCAPE',
+                    shipRadius,expanded,clearancePushed,clearanceRemoved,stitches,
+                    largestRawGap,maxLongitudinalGap,maxSealInnerDrift,
+                    minOuterCoverageMargin,brakingDistance,minBrakeDepthMargin,
+                    playerRadiusPrimaryHits,playerRadiusBranchHits,fastPhysical,
+                    physicalColliders:sys.physicalColliders
+                };
+                sys.escapeSeal=result;
+                window.starbladeMap2PhysicalConsistency=result;
+                if(typeof map2RebuildObstacleBins==='function')map2RebuildObstacleBins();
+                Object.assign(map2VisualStageStats,{
+                    wideUrbanOuterSealed:expanded,
+                    wideUrbanPlayerClearancePushes:clearancePushed,
+                    wideUrbanEscapeShells:stitches,
+                    wideUrbanPhysicalColliders:sys.physicalColliders
+                });
+                return result;
+            };
+            // MAP2-42's final branch reconciliation is already two microtasks deep.
+            // Run MAP2-44 one step later so it audits the finished passage graph.
+            queueMicrotask(()=>queueMicrotask(()=>queueMicrotask(()=>map2SealWideUrbanEscapePaths())));
+
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
                 gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
@@ -18660,16 +19342,122 @@
 
         function activeCourseObstacles(){return map2Active()?map2Obstacles:staticObstacles;}
         function activeCourseItems(){return map2Active()?map2Items:itemBoxes;}
+
+        // MAP2-45: coarse route bins keep hundreds of building colliders out of
+        // every craft's per-frame narrow-phase loop. Objects are inserted across
+        // their full longitudinal extent plus a conservative cleanup margin, so
+        // contact semantics remain identical while the candidate set stays local.
+        const MAP2_PHYSICS_BIN_SIZE=1800;
+        let map2ObstacleBins=[];
+        let map2PhysicsQueryStamp=0;
+        const map2PhysicsBinStats={
+            binSize:MAP2_PHYSICS_BIN_SIZE,bins:0,obstacles:0,references:0,
+            maxOccupancy:0,queries:0,candidatesExamined:0,maxCandidates:0
+        };
+        function map2RebuildObstacleBins(){
+            const count=Math.ceil(MAP2_DISTANCE/MAP2_PHYSICS_BIN_SIZE)+1;
+            const bins=Array.from({length:count},()=>[]);
+            let references=0,maxOccupancy=0;
+            for(const o of map2Obstacles){
+                if(!o||!Number.isFinite(o.routeProgress))continue;
+                const longitudinal=o.type==='WRECK_BOX'?
+                    Math.max(0,o.halfDepth||0):Math.max(0,o.radius||0);
+                const reach=longitudinal+48;
+                const first=THREE.MathUtils.clamp(
+                    Math.floor((o.routeProgress-reach)/MAP2_PHYSICS_BIN_SIZE),0,count-1);
+                const last=THREE.MathUtils.clamp(
+                    Math.floor((o.routeProgress+reach)/MAP2_PHYSICS_BIN_SIZE),0,count-1);
+                for(let i=first;i<=last;i++){
+                    bins[i].push(o);references++;
+                }
+            }
+            for(const bin of bins)maxOccupancy=Math.max(maxOccupancy,bin.length);
+            map2ObstacleBins=bins;
+            Object.assign(map2PhysicsBinStats,{
+                bins:bins.length,obstacles:map2Obstacles.length,references,maxOccupancy,
+                queries:0,candidatesExamined:0,maxCandidates:0
+            });
+            window.starbladeMap2PhysicsBins=map2PhysicsBinStats;
+            return map2PhysicsBinStats;
+        }
+        function map2ObstacleCandidates(previousState,ship){
+            if(!map2Active()||!map2ObstacleBins.length)return activeCourseObstacles();
+            const lo=Math.max(0,Math.min(previousState.routeProgress,ship.routeProgress));
+            const hi=Math.min(MAP2_DISTANCE,Math.max(previousState.routeProgress,ship.routeProgress));
+            const first=THREE.MathUtils.clamp(
+                Math.floor(lo/MAP2_PHYSICS_BIN_SIZE),0,map2ObstacleBins.length-1);
+            const last=THREE.MathUtils.clamp(
+                Math.floor(hi/MAP2_PHYSICS_BIN_SIZE),0,map2ObstacleBins.length-1);
+            const stamp=++map2PhysicsQueryStamp,out=[];
+            for(let i=first;i<=last;i++)for(const o of map2ObstacleBins[i]){
+                if(o._map245QueryStamp===stamp)continue;
+                o._map245QueryStamp=stamp;out.push(o);
+            }
+            map2PhysicsBinStats.queries++;
+            map2PhysicsBinStats.candidatesExamined+=out.length;
+            map2PhysicsBinStats.maxCandidates=Math.max(map2PhysicsBinStats.maxCandidates,out.length);
+            return out;
+        }
+
         function map2UpdateVisibility(progress){
             map2CourseGroup.visible=map2Active();
             if(!map2Active())return;
+            // MAP2-45: keep nearly the old boost look-ahead, but stop drawing
+            // several kilometres of already-passed city. Normal-speed visibility
+            // is slightly tighter; boost expands it before architecture can pop in.
+            const speed=Math.max(RACE_SPEEDS.NORMAL,state.currentSpeed||0);
+            const behind=THREE.MathUtils.clamp(1450+speed*.35,1700,2050);
+            const ahead=THREE.MathUtils.clamp(7600+speed*1.05,8400,9300);
+            let visibleSections=0;
             for(const g of map2Sections){
                 const from=g.userData.architectureFrom??g.userData.from;
                 const to=g.userData.architectureTo??g.userData.to;
-                g.visible=to>=progress-900&&from<=progress+6500;
+                g.visible=[progress,progress-MAP2_DISTANCE,progress+MAP2_DISTANCE].some(p=>
+                    to>=p-behind&&from<=p+ahead);
+                if(g.visible)visibleSections++;
             }
+            window.starbladeMap2VisibilityPerf={
+                progress,speed,behind,ahead,visibleSections,totalSections:map2Sections.length
+            };
             finishGateGroup.visible=progress>=MAP2_DISTANCE-4000;
         }
+        function map2PerformanceSnapshot(){
+            let totalBatches=0,visibleBatches=0,totalInstances=0,visibleInstances=0;
+            const effectivelyVisible=o=>{
+                let p=o;
+                while(p&&p!==map2CourseGroup){
+                    if(p.visible===false)return false;
+                    p=p.parent;
+                }
+                return map2CourseGroup.visible!==false;
+            };
+            map2CourseGroup.traverse(o=>{
+                if(!o.isInstancedMesh)return;
+                totalBatches++;
+                const count=Number.isFinite(o.count)?o.count:0;
+                totalInstances+=count;
+                if(effectivelyVisible(o)){visibleBatches++;visibleInstances+=count;}
+            });
+            const render=renderer?.info?.render||{};
+            const memory=renderer?.info?.memory||{};
+            const result={
+                visibility:{...(window.starbladeMap2VisibilityPerf||{})},
+                physicsBins:{
+                    ...map2PhysicsBinStats,
+                    averageCandidates:map2PhysicsBinStats.queries?
+                        map2PhysicsBinStats.candidatesExamined/map2PhysicsBinStats.queries:0
+                },
+                instancing:{totalBatches,visibleBatches,totalInstances,visibleInstances},
+                renderer:{
+                    calls:render.calls||0,triangles:render.triangles||0,
+                    points:render.points||0,lines:render.lines||0,
+                    geometries:memory.geometries||0,textures:memory.textures||0
+                }
+            };
+            window.starbladeMap2Performance=result;
+            return result;
+        }
+        window.starbladeMap2PerformanceSnapshot=map2PerformanceSnapshot;
 
         function resetItemAndBarrierCourse() {
             activeCourseObstacles().forEach(o=>{
@@ -18844,7 +19632,9 @@
         function applyStaticObstacleContact(shipId,ship,previousState,isPlayer) {
             if(ship.finished||ship.dnf||(isPlayer&&state.playerDNF))return;
             const shipRadius=isPlayer?10:(ship.radius||12.5);
-            for(const o of activeCourseObstacles()){
+            const contactObstacles=map2Active()?
+                map2ObstacleCandidates(previousState,ship):activeCourseObstacles();
+            for(const o of contactObstacles){
                 if(!o.active)continue;
                 // AI-34: önce ucuz rota aralığı; sweep hesaplaması yalnızca adaylarda.
                 const pad = o.type === 'WRECK_BOX' ? o.halfDepth + shipRadius + 8 : o.radius + shipRadius + 8;
@@ -22744,10 +23534,23 @@
                 urgency:THREE.MathUtils.clamp(lateralError/Math.max(44,achievable),0,2)};
         }
 
+        // MAP2-45: generic race AI must use the same 2x-horizontal ellipse as
+        // Map2 boundary physics. Map1/Map4 retain their original circular metric.
+        function raceLaneEnvelopeMetric(laneX,laneY){
+            return Math.hypot(laneX/(map2Active()?2:1),laneY);
+        }
+        function clampRaceLaneToEnvelope(laneX,laneY,radius,padding=0){
+            const metric=raceLaneEnvelopeMetric(laneX,laneY);
+            const limit=Math.max(1,radius-padding);
+            if(metric<=limit)return {x:laneX,y:laneY,metric,clamped:false};
+            const scale=limit/Math.max(.0001,metric);
+            return {x:laneX*scale,y:laneY*scale,metric,clamped:true};
+        }
+
         // Sollama hedefleri engellerin ve gemi enkazı kapılarının içinde olamaz.
         function scoreRacingLane(laneX, laneY, ship, hazards, gate, safetyMargin) {
             const safeRad = getCorridorRadiusAt(ship.routeProgress+Math.min(350,ship.currentSpeed*0.35))*0.70;
-            if (Math.hypot(laneX,laneY)>safeRad) return -1e6;
+            if (raceLaneEnvelopeMetric(laneX,laneY)>safeRad) return -1e6;
             if(gate && gate.distance-ship.routeProgress<1300) {
                 const marginX=gate.clearX-ship.radius-14,marginY=gate.clearY-ship.radius-14;
                 if(Math.abs(laneX-gate.laneX)>marginX || Math.abs(laneY-gate.laneY)>marginY) return -1e6;
@@ -22806,7 +23609,8 @@
                 const targetRad = state.activeMap===MAP_MODES.MAP4 ?
                     580+i*95 :
                     Math.min(state.tubeRadius * 0.78, Math.max(45, 75 + ((i * 37) % 115)));
-                const targetX = Math.cos(targetAngle) * targetRad;
+                const targetX = Math.cos(targetAngle) * targetRad *
+                    (state.activeMap===MAP_MODES.MAP2?2.0:1);
                 const targetY = Math.sin(targetAngle) * targetRad;
 
                 // Ölçeği değiştirmeden rakiplerin gerçek hızını görselleştiren çift egzoz izi.
@@ -23742,9 +24546,10 @@
                 return evaluatePlanetaryBoundary(laneX,laneY,wingHalfSpan,roll,routeProgress);
             const wingCos = Math.cos(roll) * wingHalfSpan;
             const wingSin = Math.sin(roll) * wingHalfSpan;
-            const left = Math.hypot(laneX - wingCos, laneY - wingSin);
-            const right = Math.hypot(laneX + wingCos, laneY + wingSin);
-            const radial = Math.hypot(laneX, laneY);
+            const lateralScale=map2Active()?2:1; // MAP2-41: lateral width only; keep patrol altitude
+            const left = Math.hypot((laneX - wingCos)/lateralScale, laneY - wingSin);
+            const right = Math.hypot((laneX + wingCos)/lateralScale, laneY + wingSin);
+            const radial = Math.hypot(laneX/lateralScale, laneY);
             const contactRadius = Math.max(radial, left, right);
             const ratio=getCorridorRadiusAt(routeProgress)/state.tubeRadius;
             const edge={
@@ -23785,7 +24590,8 @@
 
         function clampToSoftBoundary(ship) {
             // Koridor fiziksel olarak 360; merkez 394.6'ya kadar çıkabilir.
-            const radius = Math.hypot(ship.laneX, ship.laneY);
+            const lateralScale=map2Active()?2:1;
+            const radius = Math.hypot(ship.laneX/lateralScale, ship.laneY);
             const limit=state.activeMap===MAP_MODES.MAP4 ?
                 map4BoundaryProfile(ship.routeProgress).maxRadius :
                 BOUNDARY_RULES.maxRadius*getCorridorRadiusAt(ship.routeProgress)/state.tubeRadius;
@@ -23795,10 +24601,17 @@
                 ship.laneY *= ratio;
                 // Yanal enerji dışarıya doğru büyüyüp sert duvarda birikmesin.
                 if (typeof ship.vx === 'number' && typeof ship.vy === 'number') {
-                    const outward = (ship.vx*ship.laneX + ship.vy*ship.laneY) / limit;
-                    if (outward > 0) {
-                        ship.vx -= outward * ship.laneX / limit;
-                        ship.vy -= outward * ship.laneY / limit;
+                    if(map2Active()){
+                        const nx=ship.laneX/(lateralScale*lateralScale),ny=ship.laneY;
+                        const len=Math.hypot(nx,ny)||1;
+                        const outward=(ship.vx*nx+ship.vy*ny)/len;
+                        if(outward>0){ship.vx-=outward*nx/len;ship.vy-=outward*ny/len;}
+                    }else{
+                        const outward = (ship.vx*ship.laneX + ship.vy*ship.laneY) / limit;
+                        if (outward > 0) {
+                            ship.vx -= outward * ship.laneX / limit;
+                            ship.vy -= outward * ship.laneY / limit;
+                        }
                     }
                 }
             }
@@ -24435,19 +25248,21 @@
 
                 // Hedef koordinatın yerel daralma sınırları içerisinde olduğundan emin ol
                 const maxSafeRadius = getCorridorRadiusAt(r.routeProgress) * 0.74;
-                const targetDist = Math.hypot(r.targetX, r.targetY);
-                if (targetDist > maxSafeRadius) {
-                    const tAng = Math.atan2(r.targetY, r.targetX);
-                    r.targetX = Math.cos(tAng) * maxSafeRadius;
-                    r.targetY = Math.sin(tAng) * maxSafeRadius;
+                const targetClamp=clampRaceLaneToEnvelope(r.targetX,r.targetY,maxSafeRadius);
+                if(targetClamp.clamped){
+                    r.targetX=targetClamp.x;
+                    r.targetY=targetClamp.y;
                 }
 
                 const gateAhead = upcomingWreckGate(r.routeProgress,2500);
                 const map2Pilot=map2Active()?map2PilotPlan(r,gateAhead,maxLateralSpeed):null;
                 const gatePlan=map2Pilot?map2Pilot.gatePlan:getGateApproachPlan(r,gateAhead,dt,maxLateralSpeed);
+                const map2BrakeLead=window.starbladeMap2PhysicalConsistency?.brakingDistance||560;
+                const map2BuildingLookAhead=Math.min(920,Math.max(
+                    360,map2BrakeLead+80,r.currentSpeed*.50
+                ));
                 const map2BuildingBasePlan=map2Pilot?map2ThroughRouteTargetAt(
-                    r.routeProgress,
-                    Math.min(620,Math.max(220,r.currentSpeed*.22))
+                    r.routeProgress,map2BuildingLookAhead
                 ):null;
                 const map2BuildingPlan=map2Pilot?map2GapRouteTargetAt(r,map2BuildingBasePlan):null;
 
@@ -24468,11 +25283,13 @@
                     const predictedOffset = a.moveType==='STATIC'?0:Math.sin(a.motionPhase + a.motionRate * tti) * a.motionAmplitude;
                     let predAstX = a.moveType==='STATIC'?a.laneX:a.baseLaneX + a.motionAxisX * predictedOffset;
                     let predAstY = a.moveType==='STATIC'?a.laneY:a.baseLaneY + a.motionAxisY * predictedOffset;
-                    const predictedRad = Math.hypot(predAstX, predAstY);
                     const maxPredictedRad = getCorridorRadiusAt(a.routeProgress) - a.radius - 12;
-                    if (predictedRad > maxPredictedRad) {
-                        predAstX *= maxPredictedRad / predictedRad;
-                        predAstY *= maxPredictedRad / predictedRad;
+                    const predictedClamp=clampRaceLaneToEnvelope(
+                        predAstX,predAstY,maxPredictedRad
+                    );
+                    if(predictedClamp.clamped){
+                        predAstX=predictedClamp.x;
+                        predAstY=predictedClamp.y;
                     }
 
                     const refX = r.laneX + r.vx * Math.min(tti, 0.6);
@@ -24532,12 +25349,10 @@
                             let candX = ax + dir.x * evadeRadius;
                             let candY = ay + dir.y * evadeRadius;
 
-                            const candCenterDist = Math.hypot(candX, candY);
-                            if (candCenterDist > maxSafeRadius) {
-                                const scale = (maxSafeRadius - 6) / candCenterDist;
-                                candX *= scale;
-                                candY *= scale;
-                            }
+                            const candClamp=clampRaceLaneToEnvelope(
+                                candX,candY,maxSafeRadius,6
+                            );
+                            if(candClamp.clamped){candX=candClamp.x;candY=candClamp.y;}
 
                             const actualClearance = Math.hypot(candX - ax, candY - ay);
                             const travelCost = Math.hypot(candX - r.laneX, candY - r.laneY);
@@ -24633,12 +25448,10 @@
                         let candX = bx + dir.x * passOffset;
                         let candY = by + dir.y * passOffset;
 
-                        const candDist = Math.hypot(candX, candY);
-                        if (candDist > maxSafeRadius) {
-                            const scale = (maxSafeRadius - 8) / candDist;
-                            candX *= scale;
-                            candY *= scale;
-                        }
+                        const candClamp=clampRaceLaneToEnvelope(
+                            candX,candY,maxSafeRadius,8
+                        );
+                        if(candClamp.clamped){candX=candClamp.x;candY=candClamp.y;}
 
                         // Aday sollama şeridinin yakındaki asteroitlere güvenli uzaklığı
                         let astPenalty = 0;
@@ -24676,7 +25489,8 @@
                 // D — Taktiksel Boost, Fren ve Enerji Kararları (Kontrollü Durum Geçişleri)
                 r.boostDecisionTimer -= dt;
                 const severeAsteroidDanger = !!(!gatePlan && r.avoidAsteroid && minTimeToImpact < 0.36);
-                const nearWall = Math.hypot(r.laneX, r.laneY) > getCorridorRadiusAt(r.routeProgress) * 0.77;
+                const nearWall = raceLaneEnvelopeMetric(r.laneX,r.laneY) >
+                    getCorridorRadiusAt(r.routeProgress) * 0.77;
 
                 // Enerji alt sınırın altına düştüğünde boost zorunlu olarak kapanır
                 if (r.energy <= 4 || r.energy <= boostStopEnergy) {
@@ -24901,6 +25715,19 @@
                         if(map2BuildingPlan.inModule)
                             r.aiStats.map2ThroughBuildingSeconds=(r.aiStats.map2ThroughBuildingSeconds||0)+dt;
                     }
+                }
+
+                if(map2Pilot){
+                    r.aiStats.map2MaxAbsLaneX=Math.max(
+                        r.aiStats.map2MaxAbsLaneX||0,Math.abs(r.laneX));
+                    r.aiStats.map2MaxAbsTargetX=Math.max(
+                        r.aiStats.map2MaxAbsTargetX||0,Math.abs(activeTargetX));
+                    if(Math.abs(r.laneX)>320)
+                        r.aiStats.map2WideLaneSeconds=(r.aiStats.map2WideLaneSeconds||0)+dt;
+                    if(Math.abs(activeTargetX)>320)
+                        r.aiStats.map2WideTargetSeconds=(r.aiStats.map2WideTargetSeconds||0)+dt;
+                    r.aiStats.map2BuildingLookAheadMax=Math.max(
+                        r.aiStats.map2BuildingLookAheadMax||0,map2BuildingLookAhead);
                 }
 
                 // Mevcut yerel pozisyondan (laneX, laneY) aktif hedef koordinatlarına yumuşak ve kademeli yönelim

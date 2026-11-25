@@ -1,0 +1,39 @@
+name: MAP2-42 widened urban course
+on:
+  push:
+    branches: [codex/map2-41-world-ground-wide-city]
+    paths: [index.html, tests/map2-42-wide-urban-course.cjs, .github/workflows/map2-42-wide-urban-course.yml]
+  pull_request:
+    branches: [codex/map2-40-full-architecture-rhythm]
+    paths: [index.html, tests/map2-42-wide-urban-course.cjs, .github/workflows/map2-42-wide-urban-course.yml]
+  workflow_dispatch:
+concurrency:
+  group: map2-42-wide-urban-course
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - run: npx playwright install --with-deps chromium
+      - name: MAP2-42 widened urban course
+        run: node tests/map2-42-wide-urban-course.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-42-wide-urban-evidence
+          path: tests/map2-42-evidence/
+          if-no-files-found: warn
+      - name: MAP2-41 world terrain / width regression
+        if: ${{ success() }}
+        run: node tests/map2-41-world-ground-wide-city.cjs
+      - name: MAP2-40 architecture regression
+        if: ${{ success() }}
+        run: node tests/map2-40-full-architecture-rhythm.cjs

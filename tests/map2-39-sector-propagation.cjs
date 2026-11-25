@@ -28,6 +28,13 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
     const golden=window.starbladeMap2GapBlockSystem;
     const play=window.starbladeMap2PlayablePassages;
     const physical=window.starbladeMap2BuildingColliders||[];
+    const wideUrban=physical.filter(o=>o.map2WideUrbanFrontage===true);
+    const escapeShell=physical.filter(o=>o.map2WideUrbanEscapeShell===true);
+    // MAP2-42/44 aggregate frontage and outer-only escape shells deliberately
+    // have no one-to-one source mesh/section owner. MAP2-39 ownership applies
+    // only to its original propagated real-building collider layer.
+    const propagatedPhysical=physical.filter(o=>
+      o.map2WideUrbanFrontage!==true&&o.map2WideUrbanEscapeShell!==true);
     const ids=[...golden.blocks,...full.extraBlocks].map(b=>b.id);
     const bad=[],missingTargets=[];
     for(const c of [...play.complexes,...full.extraComplexes]){
@@ -56,15 +63,22 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
     }).map(g=>g.d);
     const sections=new Set(map2Sections);
     const owner=o=>{while(o&&!sections.has(o))o=o.parent;return o;};
-    const uncovered=physical.filter(o=>{
+    // MAP2-42 frontage colliders are aggregate physics for many instanced Map4
+    // buildings and therefore intentionally have no single section-owned source mesh.
+    // Keep MAP2-39's ownership invariant strict for its original propagated layer.
+    const uncovered=propagatedPhysical.filter(o=>{
       const g=owner(o.mesh);if(!g)return true;
       return (g.userData.architectureFrom??g.userData.from)>o.routeProgress-(o.halfDepth||0)||
         (g.userData.architectureTo??g.userData.to)<o.routeProgress+(o.halfDepth||0);
     }).length;
+    const wideSummary=window.starbladeMap2WideUrbanCourse||null;
+    const wideUrbanFast=wideUrban.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length;
     const wrong=full.sectors.filter(s=>s.groupDistances.some(d=>map2Segment(d).kind!=='TECH'));
     return {full,apertures,uncovered,uniqueIds:new Set(ids).size===ids.length,bad,primary,missingTargets,wrong,
       goldenCount:golden.blockCount,goldenComplexes:play.complexes.length,
       fastPhysical:physical.filter(o=>map2Segment(o.routeProgress).kind==='FAST').length,
+      wideUrban:wideUrban.length,escapeShell:escapeShell.length,wideUrbanFast,
+      wideSummaryPhysical:wideSummary?.physicalColliders??null,
       gates:map2Gates.length,map4Hidden:!planetaryWorldGroup.visible};
   });
   console.log('MAP2-39 '+JSON.stringify(info));
@@ -78,6 +92,11 @@ assert(html.includes('MAP2-30/31: systematic building blocks and real gap classi
   assert.deepEqual(info.bad,[]);assert.deepEqual(info.primary,[]);
   assert.deepEqual(info.apertures,[]);assert.equal(info.uncovered,0);
   assert.deepEqual(info.missingTargets,[]);assert.deepEqual(info.wrong,[]);
+  assert(info.wideUrban>=150,'MAP2-42 must contribute a substantial physical city frontage');
+  assert.equal(info.wideUrban+info.escapeShell,info.wideSummaryPhysical,
+    'MAP2-42 frontage plus MAP2-44 escape-shell accounting must match the public course summary');
+  assert.equal(info.wideUrbanFast,0,'MAP2-42 frontage must never enter FAST sectors');
+  assert(info.escapeShell>=0,'MAP2-44 outer escape shell accounting should be explicit');
   assert.equal(info.fastPhysical,0);assert.equal(info.gates,68);assert(info.map4Hidden);
   assert(info.full.extraComplexes.every(c=>c.passages.length>=2&&
     c.passages.every(p=>p.routeCostMetrics?.length>0)));

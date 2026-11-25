@@ -1,0 +1,42 @@
+name: MAP2-41 world ground and wide city
+on:
+  push:
+    branches: [codex/map2-41-world-ground-wide-city]
+    paths: [index.html, tests/map2-41-world-ground-wide-city.cjs, .github/workflows/map2-41-world-ground-wide-city.yml]
+  pull_request:
+    branches: [codex/map2-40-full-architecture-rhythm]
+    paths: [index.html, tests/map2-41-world-ground-wide-city.cjs, .github/workflows/map2-41-world-ground-wide-city.yml]
+  workflow_dispatch:
+concurrency:
+  group: map2-41-world-ground-wide-city
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - run: npx playwright install --with-deps chromium
+      - name: MAP2-41 world terrain, city and width
+        run: node tests/map2-41-world-ground-wide-city.cjs
+      - name: MAP2-40 building rhythm regression
+        if: ${{ !cancelled() }}
+        run: node tests/map2-40-full-architecture-rhythm.cjs
+      - name: MAP2-39 sector regression
+        if: ${{ !cancelled() }}
+        run: node tests/map2-39-sector-propagation.cjs
+      - name: KEEP IT LOW full-race regression
+        if: ${{ !cancelled() }}
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-41-world-city-evidence
+          path: tests/map2-41-evidence/
+          if-no-files-found: warn
