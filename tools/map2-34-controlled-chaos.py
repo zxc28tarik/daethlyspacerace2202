@@ -109,12 +109,17 @@ block=r'''
                     rotatedRoots,rejectedRoots,maxYaw
                 };
                 window.starbladeMap2ControlledChaos=summary;
-                Object.assign(map2VisualStageStats,{
+                const chaosStats={
                     controlledChaosBlocks:chaos.length,
                     controlledChaosRotatedRoots:rotatedRoots,
                     controlledChaosRejectedRoots:rejectedRoots,
                     controlledChaosMaxYawDeg:maxYaw
-                });
+                };
+                Object.assign(map2VisualStageStats,chaosStats);
+                // MAP2-34 runs in a microtask after the layout snapshot is published.
+                // Mirror the late telemetry into that public snapshot as well.
+                if(window.starbladeMap2Layout?.visualStage)
+                    Object.assign(window.starbladeMap2Layout.visualStage,chaosStats);
                 return summary;
             };
             // Defer until map2BuildCourse finishes so all derived physics, supports
