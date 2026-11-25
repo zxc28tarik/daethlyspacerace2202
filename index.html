@@ -18443,6 +18443,17 @@
                     dummy.position.copy(position);dummy.quaternion.copy(rotation);dummy.scale.copy(scale);
                     dummy.updateMatrix();batch.matrices.push(dummy.matrix.clone());
                 };
+                // MAP2-43: a continuous street silhouette, following the actual
+                // offset street chord rather than independent track-normal towers.
+                // Keep the open-sector architectural wings beyond the hard flight
+                // envelope; no new invisible barriers or FAST obstacles.
+                const wrapD=d=>((d%MAP2_DISTANCE)+MAP2_DISTANCE)%MAP2_DISTANCE;
+                const offsetAt=(d,x)=>{
+                    const f=getRaceFrameAtDistance(wrapD(d));
+                    return f.center.clone().addScaledVector(f.right,x);
+                };
+                const naturalRead=[];
+                const flightEnvelope=2*285*COURSE_WIDTH_SCALE+30;
                 const sideRows=[{side:-1,row:0},{side:1,row:0},{side:-1,row:1},{side:1,row:1}];
                 for(const {side,row} of sideRows){
                     for(let i=0;i<Math.ceil(MAP2_DISTANCE/spacing);i++){
@@ -18451,14 +18462,63 @@
                         const p=prototypes[(i*7+row*13+(side>0?19:0))%prototypes.length];
                         const f=getRaceFrameAtDistance(d);
                         const sx=p.body.scale.x*(row?3.8:2.55);
-                        const sz=Math.max(spacing*.86,p.body.scale.z*(row?4.0:3.35));
-                        const sy=Math.max(row?850:640,p.body.scale.y*(row?1.8:1.35));
-                        const inner=(row?1450:830)+(i%5)*17;
-                        const x=side*(inner+sx*.5);
-                        const pos=f.center.clone().addScaledVector(f.right,x);
-                        pos.y=floorY+sy*.5;
-                        const rotation=new THREE.Quaternion().setFromRotationMatrix(
+                        let sz=Math.max(spacing*.86,p.body.scale.z*(row?4.0:3.35));
+                        let sy=Math.max(row?850:640,p.body.scale.y*(row?1.8:1.35));
+                        let inner=(row?1450:830)+(i%5)*17;
+                        let x=side*(inner+sx*.5);
+                        let pos=f.center.clone().addScaledVector(f.right,x);
+                        let rotation=new THREE.Quaternion().setFromRotationMatrix(
                             new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()));
+                        if(!row){
+                            const seg=map2Segment(d);
+                            const before=getRaceFrameAtDistance(wrapD(d-650));
+                            const after=getRaceFrameAtDistance(wrapD(d+650));
+                            const turn=Math.atan2(after.tangent.dot(before.right),
+                                after.tangent.dot(before.tangent));
+                            const bend=Math.min(1,Math.abs(turn)/.24);
+                            const innerTurn=side*turn>0;
+                            const edgeDistance=Math.min(d-seg.from*MAP2_DISTANCE,
+                                seg.to*MAP2_DISTANCE-d);
+                            const approach=1-THREE.MathUtils.smoothstep(edgeDistance,0,2100);
+                            // A lower inside silhouette exposes the next street; the
+                            // outside corner stays tall enough to read as a turn.
+                            sy=Math.round(THREE.MathUtils.clamp(sy*(1+(innerTurn?-.27:.32)*bend)
+                                +approach*(seg.kind==='TECH'?140:90),580,1510));
+                            inner=Math.max(830,flightEnvelope+16)+(i%5)*9
+                                +(innerTurn?Math.round(60*bend):0);
+                            let clearance=0,attempts=0;
+                            for(;attempts<12;attempts++){
+                                x=side*(inner+sx*.5);
+                                const a=offsetAt(d-spacing*.5,x),b=offsetAt(d+spacing*.5,x);
+                                const forward=b.clone().sub(a).normalize();
+                                const right=new THREE.Vector3().crossVectors(forward,WORLD_UP_VECTOR).normalize();
+                                pos=offsetAt(d,x);
+                                rotation.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+                                    right,WORLD_UP_VECTOR,forward.clone().negate()));
+                                // Overlap adjacent offset-street chords so the
+                                // outer side of a corner does not open into sky.
+                                sz=Math.max(sz,a.distanceTo(b)*1.12,spacing*1.08);
+                                clearance=Infinity;
+                                for(let dd=-650;dd<=650;dd+=130){
+                                    const q=getRaceFrameAtDistance(wrapD(d+dd));
+                                    for(const wx of [-1,1])for(const wz of [-1,1]){
+                                        const corner=pos.clone().addScaledVector(right,wx*sx*.5)
+                                            .addScaledVector(forward,wz*sz*.5);
+                                        const delta=corner.sub(q.center);
+                                        if(Math.abs(delta.dot(q.tangent))>sz+400)continue;
+                                        clearance=Math.min(clearance,side*delta.dot(q.right));
+                                    }
+                                }
+                                if(clearance>=flightEnvelope)break;
+                                inner+=Math.max(25,flightEnvelope-clearance+10);
+                            }
+                            naturalRead.push({d,side,kind:seg.kind,turn,bend,innerTurn,approach,
+                                clearance,inner,width:sx,depth:sz,height:sy,
+                                yaw:2*Math.acos(Math.min(1,Math.abs(rotation.dot(
+                                    new THREE.Quaternion().setFromRotationMatrix(
+                                        new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()))))))});
+                        }
+                        pos.y=floorY+sy*.5;
                         const section=sectionAt(d);
                         enqueue(section,p.body,pos,rotation,new THREE.Vector3(sx,sy,sz));
                         if(p.crown){
@@ -18485,7 +18545,11 @@
                     if(o.userData?.map2OpenSectorGuide){section.remove(o);retiredGuides++;}
                 }
                 window.starbladeMap2WorldCity={floorY,width,depth,foundations:padMeshes.length,
-                    spacing,frontage,batches:batches.size,retiredGuides,lateralScale:2};
+                    spacing,frontage,batches:batches.size,retiredGuides,lateralScale:2,
+                    naturalRead:{records:naturalRead,flightEnvelope,
+                        minClearance:Math.min(...naturalRead.map(r=>r.clearance)),
+                        openSectorRecords:naturalRead.filter(r=>r.kind!=='TECH').length,
+                        bendRecords:naturalRead.filter(r=>r.bend>.15).length}};
             };
             map2BuildWorldCity();
 
