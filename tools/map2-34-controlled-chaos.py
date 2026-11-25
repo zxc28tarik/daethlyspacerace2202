@@ -35,14 +35,11 @@ block=r'''
                     root.updateMatrixWorld(true);
                     const box=new THREE.Box3().setFromObject(o.mesh);
                     if(box.isEmpty())return;
-                    const rootD=Number(root.userData?.map2TargetDistance);
-                    if(!Number.isFinite(rootD))return;
-                    const initial=map2ProjectedBoxAt(box,rootD);
-                    const d=THREE.MathUtils.clamp(
-                        rootD+(initial.minZ+initial.maxZ)*.5,0,MAP2_DISTANCE
-                    );
+                    // Keep the collider in its authored longitudinal section.
+                    // Controlled chaos changes building angle, not course ownership.
+                    const d=Number(o.routeProgress);
+                    if(!Number.isFinite(d))return;
                     const q=map2ProjectedBoxAt(box,d);
-                    o.routeProgress=d;
                     o.laneX=(q.minX+q.maxX)*.5;
                     o.laneY=(q.minY+q.maxY)*.5;
                     o.halfX=Math.min(215,Math.max(22,(q.maxX-q.minX)*.5*.78));
