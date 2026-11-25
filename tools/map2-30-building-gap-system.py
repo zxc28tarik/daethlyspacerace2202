@@ -166,18 +166,25 @@ block=r'''
                 const dualSet=new Set(byCapacity.filter(b=>b.passageCapacity>=2&&!tripleSet.has(b.id)).slice(0,6).map(b=>b.id));
 
                 // Non-multi styles intentionally include irregular CHAOS and BREATHER
-                // nodes. No fixed repeating period is used for all properties.
-                const baseStyle=['CORRIDOR','NARROW','CHICANE','BREATHER','CHAOS','CORRIDOR','NARROW','CHAOS','CHICANE','BREATHER','CORRIDOR'];
-                const chaosPreferred=new Set([5,12,18,23]);
-                const breatherPreferred=new Set([3,14,21]);
+                // nodes. Reserve them AFTER multi-passage capacity is assigned so a
+                // valuable 2/3-way junction never silently consumes every breath node.
+                const baseStyle=['CORRIDOR','NARROW','CHICANE','CORRIDOR','NARROW','CHICANE','CORRIDOR'];
+                const nonMulti=rawBlocks.filter(b=>!tripleSet.has(b.id)&&!dualSet.has(b.id));
+                const breatherSet=new Set(nonMulti.slice().sort((a,b)=>
+                    b.span-a.span||a.index-b.index
+                ).slice(0,3).map(b=>b.id));
+                const chaosSet=new Set(nonMulti.filter(b=>!breatherSet.has(b.id))
+                    .slice().sort((a,b)=>
+                        ((a.index*17)%29)-((b.index*17)%29)||b.passageCapacity-a.passageCapacity
+                    ).slice(0,4).map(b=>b.id));
 
                 const blocks=rawBlocks.map((b,i)=>{
                     let style=baseStyle[(i*7+i*i)%baseStyle.length];
                     let targetPassages=1;
                     if(tripleSet.has(b.id)){style='TRIPLE';targetPassages=3;}
                     else if(dualSet.has(b.id)){style='DUAL';targetPassages=2;}
-                    else if(chaosPreferred.has(i)){style='CHAOS';}
-                    else if(breatherPreferred.has(i)){style='BREATHER';}
+                    else if(breatherSet.has(b.id)){style='BREATHER';}
+                    else if(chaosSet.has(b.id)){style='CHAOS';}
                     const passages=b.candidateOpenings.slice(0,targetPassages).map((q,pi)=>{
                         const widthClass=q.width<180?'NARROW':q.width>320?'WIDE':'MEDIUM';
                         const altitudeClass=q.y>20?'HIGH':q.y<-95?'LOW':'MID';
