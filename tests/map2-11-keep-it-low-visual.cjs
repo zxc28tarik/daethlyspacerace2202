@@ -22,8 +22,10 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   const layout=await page.evaluate(()=>window.starbladeMap2Layout);
   assert.equal(layout.distance,175000);
   const retired=layout.visualStage.throughBuildingRetiredLegacyObstacles||0;
-  assert.equal(layout.structures+retired,382+layout.visualStage.map4BuildingColliders,
-    'visible/physical structure accounting must preserve the base layer minus explicitly retired legacy obstacles');
+  const wideUrban=layout.visualStage.wideUrbanPhysicalColliders||0;
+  assert(wideUrban>=150,'MAP2-42 must add a substantial physical urban frontage');
+  assert.equal(layout.structures+retired,382+layout.visualStage.map4BuildingColliders+wideUrban,
+    'visible/physical structure accounting must preserve the legacy layer plus the explicit MAP2-42 frontage');
   if(retired>0){
     const legacyRetirement=await page.evaluate(()=>window.starbladeMap2LegacyRoadRetirement||null);
     if(legacyRetirement){
