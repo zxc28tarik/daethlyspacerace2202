@@ -17046,6 +17046,1108 @@
             };
             map2GroundArchitecturalRoute();
 
+
+            // MAP2-35: architectural decision sightlines.
+            // Multi-route choices must read from the architecture itself, not from
+            // floating arrows or a painted road. After the full course exists, toe
+            // the real Map4 shells framing SPLIT_GATE / MULTI_HUB complexes slightly
+            // outward. Every accepted change must preserve ALL validated branches.
+            const map2ShapeDecisionSightlines=()=>{
+                const play=window.starbladeMap2PlayablePassages;
+                const physical=window.starbladeMap2BuildingColliders||[];
+                const gap=window.starbladeMap2GapBlockSystem;
+                if(!play?.complexes?.length||!gap?.blocks?.length||!physical.length)return null;
+
+                const roots=map2ExactBuildingRoots();
+                const rootByName=new Map(roots.map(r=>[r.name,r]));
+                let shapedRoots=0,rejectedRoots=0,maxYaw=0;
+                const rows=[];
+
+                const refreshCollider=o=>{
+                    const root=rootByName.get(o.sourceRoot);
+                    if(!root||!o.mesh)return;
+                    root.updateMatrixWorld(true);
+                    const box=new THREE.Box3().setFromObject(o.mesh);
+                    if(box.isEmpty())return;
+                    const d=Number(o.routeProgress);
+                    if(!Number.isFinite(d))return;
+                    const q=map2ProjectedBoxAt(box,d);
+                    o.laneX=(q.minX+q.maxX)*.5;
+                    o.laneY=(q.minY+q.maxY)*.5;
+                    o.halfX=Math.min(215,Math.max(22,(q.maxX-q.minX)*.5*.78));
+                    o.halfY=Math.min(205,Math.max(22,(q.maxY-q.minY)*.5*.78));
+                    o.halfDepth=Math.min(230,Math.max(10,(q.maxZ-q.minZ)*.5*.72));
+                    o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
+                };
+                const refreshRoot=name=>{
+                    physical.filter(o=>o.sourceRoot===name).forEach(refreshCollider);
+                };
+                const routeBlocked=complex=>{
+                    for(const passage of complex.passages){
+                        const nodes=passage.nodes;
+                        for(let i=1;i<nodes.length;i++){
+                            if(physical.some(o=>o.active!==false&&
+                                courseSegmentTouch(o,nodes[i-1],nodes[i],10.5)))
+                                return true;
+                        }
+                    }
+                    return false;
+                };
+
+                // MAP2-38: guard the primary through-building route as well as
+                // alternate branches. Match the independent MAP2-28 audit,
+                // including all colliders (not just those tagged active).
+                const primarySegments=[];
+                for(const m of (window.starbladeMap2ThroughRoute?.modules||[]).filter(m=>m.chicane)){
+                    let prev=null;
+                    for(let d=m.entrance.distance;d<=m.exit.distance+1;d+=70){
+                        const dd=Math.min(d,m.exit.distance);
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev)primarySegments.push({id:m.id,a:prev,b:node});
+                        prev=node;
+                    }
+                }
+                const primaryBlocked=()=>new Set(primarySegments.filter(v=>
+                    physical.some(o=>courseSegmentTouch(o,v.a,v.b,12.5))).map(v=>v.id));
+                const preexistingPrimary=primaryBlocked();
+                let primaryRejected=0;
+                const primaryRejections=[];
+                for(const complex of play.complexes){
+                    const block=gap.blocks.find(b=>b.id===complex.id);
+                    if(!block)continue;
+                    const blockRoots=block.rootNames.map(n=>rootByName.get(n)).filter(Boolean);
+                    const accepted=[];
+                    blockRoots.forEach((root,ri)=>{
+                        // MULTI_HUB gets a little more visual fan than SPLIT_GATE.
+                        const base=complex.passages.length>=3?5.2:3.8;
+                        const laneHint=Number(root.userData?.map2SequenceLaneX ??
+                                              root.userData?.map2RoadApertureX ?? 0);
+                        // If both roots share a near-zero hint, alternate signs.
+                        const sign=Math.abs(laneHint)>22?Math.sign(laneHint):(ri%2?1:-1);
+                        // Outward toe: left mass opens left, right mass opens right.
+                        const old=root.quaternion.clone();
+                        const colliderState=physical.filter(o=>o.sourceRoot===root.name).map(o=>({
+                            o,fields:Object.fromEntries(['laneX','laneY','halfX','halfY','halfDepth','radius'].map(k=>[k,o[k]]))
+                        }));
+                        const restore=()=>{
+                            root.quaternion.copy(old);
+                            root.updateMatrix();root.updateMatrixWorld(true);
+                            colliderState.forEach(({o,fields})=>Object.assign(o,fields));
+                        };
+                        let deg=0;
+                        for(const factor of [1,.5,.25]){
+                            restore();
+                            const candidate=sign*base*factor;
+                            root.rotateY(THREE.MathUtils.degToRad(candidate));
+                            root.updateMatrix();root.updateMatrixWorld(true);
+                            refreshRoot(root.name);
+                            const mainHits=[...primaryBlocked()].filter(id=>!preexistingPrimary.has(id));
+                            if(mainHits.length){
+                                primaryRejected++;
+                                primaryRejections.push({root:root.name,yaw:candidate,modules:mainHits});
+                                continue;
+                            }
+                            if(play.complexes.some(routeBlocked))continue;
+                            deg=candidate;
+                            break;
+                        }
+                        if(!deg){
+                            restore();
+                            rejectedRoots++;
+                            return;
+                        }
+                        root.userData.map2DecisionSightline=true;
+                        root.userData.map2DecisionSightlineYawDeg=deg;
+                        root.userData.map2DecisionComplex=complex.id;
+                        accepted.push({name:root.name,yawDeg:deg});
+                        shapedRoots++;
+                        maxYaw=Math.max(maxYaw,Math.abs(deg));
+                    });
+
+                    const focus=complex.focusDistance;
+                    const branchCenters=complex.passages.map(p=>p.nodes[
+                        Math.floor(p.nodes.length/2)
+                    ]);
+                    let minSeparation=Infinity;
+                    for(let i=0;i<branchCenters.length;i++)
+                        for(let j=i+1;j<branchCenters.length;j++)
+                            minSeparation=Math.min(minSeparation,Math.hypot(
+                                branchCenters[i].laneX-branchCenters[j].laneX,
+                                branchCenters[i].laneY-branchCenters[j].laneY
+                            ));
+                    if(!Number.isFinite(minSeparation))minSeparation=0;
+                    // Decision lead is deliberately not identical everywhere.
+                    const lead=complex.passages.length>=3?
+                        THREE.MathUtils.clamp(block.span*.31,240,520):
+                        THREE.MathUtils.clamp(block.span*.26,190,430);
+                    complex.decisionLeadDistance=Math.max(block.from,focus-lead);
+                    complex.minBranchSeparation=minSeparation;
+                    const revealDistance=focus-complex.decisionLeadDistance;
+                    complex.sightlineClass=
+                        revealDistance>=340?'WIDE_READ':
+                        revealDistance>=220?'CLEAR_SPLIT':'LATE_REVEAL';
+                    complex.revealDistance=revealDistance;
+                    complex.sightlineRoots=accepted;
+                    rows.push({
+                        id:complex.id,passages:complex.passages.length,
+                        roots:blockRoots.length,accepted:accepted.length,
+                        minBranchSeparation:minSeparation,sightlineClass:complex.sightlineClass,
+                        decisionLeadDistance:complex.decisionLeadDistance,revealDistance:complex.revealDistance,
+                        yaws:accepted.map(x=>x.yawDeg)
+                    });
+                }
+
+                // Measure actual architectural visibility independently from authored
+                // lead distances. This runs once at course construction, not per frame.
+                // World-space rays are tested against the original Map4 shell meshes.
+                const rootBounds=roots.map(root=>{
+                    root.updateMatrixWorld(true);
+                    return {root,box:new THREE.Box3().setFromObject(root)};
+                }).filter(x=>!x.box.isEmpty());
+                const raycaster=new THREE.Raycaster();
+                const worldAt=(d,x,y)=>{
+                    const f=getRaceFrameAtDistance(d);
+                    return f.center.clone().addScaledVector(f.right,x).addScaledVector(f.up,y);
+                };
+                const visible=(origin,target)=>{
+                    const direction=target.clone().sub(origin);
+                    const length=direction.length();
+                    if(length<1)return true;
+                    raycaster.set(origin,direction.multiplyScalar(1/length));
+                    raycaster.near=0.5;
+                    raycaster.far=Math.max(.5,length-6);
+                    for(const entry of rootBounds){
+                        if(!raycaster.ray.intersectsBox(entry.box))continue;
+                        const hits=raycaster.intersectObject(entry.root,true);
+                        if(hits.some(h=>h.distance<raycaster.far))return false;
+                    }
+                    return true;
+                };
+                for(const complex of play.complexes){
+                    const row=rows.find(r=>r.id===complex.id);
+                    if(!row)continue;
+                    const focus=complex.focusDistance;
+                    const available=Math.min(720,Math.max(0,focus-complex.from));
+                    const distances=Array.from(new Set([40,80,120,160,220,280,340,430,520,620,720,available]
+                        .filter(d=>d>0&&d<=available))).sort((a,b)=>a-b);
+                    const probes=distances.map(distance=>{
+                        const d=focus-distance;
+                        const q=map2BuildingPassageAt(d);
+                        const f=getRaceFrameAtDistance(d);
+                        const origin=worldAt(d,q.x,q.y+5.1).addScaledVector(f.tangent,-18.2);
+                        const visibleIds=[];
+                        for(const passage of complex.passages){
+                            const center=passage.nodes.reduce((a,b)=>
+                                Math.abs(b.routeProgress-focus)<Math.abs(a.routeProgress-focus)?b:a);
+                            // Center plus two lateral samples: a tiny slit alone is
+                            // not enough to count the opening as visually readable.
+                            const offset=Math.min(36,Math.max(8,Number(passage.width||0)*.15));
+                            const targets=[-offset,0,offset].map(dx=>
+                                worldAt(center.routeProgress,center.laneX+dx,center.laneY));
+                            const inView=targets.map(target=>{
+                                const v=target.clone().sub(origin);
+                                const forward=v.dot(f.tangent);
+                                return forward>0&&Math.abs(v.dot(f.right))<=forward*1.2&&
+                                    Math.abs(v.dot(f.up))<=forward*.67&&visible(origin,target);
+                            });
+                            if(inView[1]&&(inView[0]||inView[2]))visibleIds.push(passage.id);
+                        }
+                        return {distance,visibleIds,allVisible:visibleIds.length===complex.passages.length};
+                    });
+                    const branches=complex.passages.map(p=>{
+                        const seen=probes.filter(q=>q.visibleIds.includes(p.id));
+                        return {id:p.id,maxVisibleDistance:Math.max(0,...seen.map(q=>q.distance))};
+                    });
+                    const all=probes.filter(q=>q.allVisible);
+                    const measuredAllVisibleDistance=Math.max(0,...all.map(q=>q.distance));
+                    const observedClass=measuredAllVisibleDistance>=340?'WIDE_READ':
+                        measuredAllVisibleDistance>=220?'CLEAR_SPLIT':
+                        measuredAllVisibleDistance>0?'LATE_REVEAL':'OCCLUDED';
+                    // Distinguish visibility of the deep opening from visibility
+                    // of an already-separated branch approach. A bend can hide
+                    // the deep aperture even when a pilot sees where to turn.
+                    const at=(p,d)=>{
+                        const n=p.nodes;
+                        if(d<n[0].routeProgress||d>n[n.length-1].routeProgress)return null;
+                        let i=1;
+                        while(i<n.length-1&&n[i].routeProgress<d)i++;
+                        const a=n[i-1],b=n[i];
+                        const t=THREE.MathUtils.clamp((d-a.routeProgress)/Math.max(1,b.routeProgress-a.routeProgress),0,1);
+                        return {x:THREE.MathUtils.lerp(a.laneX,b.laneX,t),y:THREE.MathUtils.lerp(a.laneY,b.laneY,t)};
+                    };
+                    const commonStart=Math.max(...complex.passages.map(p=>p.start));
+                    const splitSamples=[];
+                    for(let d=commonStart;d<focus;d+=25){
+                        const points=complex.passages.map(p=>at(p,d));
+                        if(points.some(p=>!p))continue;
+                        let sep=Infinity;
+                        for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++)
+                            sep=Math.min(sep,Math.hypot(points[i].x-points[j].x,points[i].y-points[j].y));
+                        if(sep>=75)splitSamples.push({d,points,sep});
+                    }
+                    const split=splitSamples[0]||null;
+                    const approachProbes=[];
+                    if(split){
+                        // Sample before the first visible spatial separation, not
+                        // after the pilot is already committed to an opening.
+                        for(const lead of [60,120,220,340,480]){
+                            const d=split.d-lead;
+                            if(d<0||map2Segment(d).kind!=='TECH')continue;
+                            const q=map2BuildingPassageAt(d),f=getRaceFrameAtDistance(d);
+                            const origin=worldAt(d,q.x-1.45,q.y+5.1).addScaledVector(f.tangent,-18.2);
+                            const ids=[];
+                            split.points.forEach((p,i)=>{
+                                const target=worldAt(split.d,p.x,p.y),v=target.clone().sub(origin);
+                                const z=v.dot(f.tangent);
+                                if(z>0&&Math.abs(v.dot(f.right))<=z*1.2&&Math.abs(v.dot(f.up))<=z*.67&&visible(origin,target))
+                                    ids.push(complex.passages[i].id);
+                            });
+                            approachProbes.push({lead,visibleIds:ids,allVisible:ids.length===complex.passages.length});
+                        }
+                    }
+                    const evidence={method:'WORLD_SPACE_MAP4_MESH_RAYS',probes,branches,
+                        measuredAllVisibleDistance,observedClass,
+                        approach:{splitDistance:split?.d??null,minSeparation:split?.sep??null,
+                            probes:approachProbes,allVisibleLead:Math.max(0,...approachProbes.filter(p=>p.allVisible).map(p=>p.lead))}};
+                    complex.visibilityEvidence=evidence;
+                    row.visibilityEvidence=evidence;
+                }
+                const classCounts={};
+                rows.forEach(r=>classCounts[r.sightlineClass]=(classCounts[r.sightlineClass]||0)+1);
+                const observedClassCounts={};
+                rows.forEach(r=>{
+                    const cls=r.visibilityEvidence?.observedClass||'UNMEASURED';
+                    observedClassCounts[cls]=(observedClassCounts[cls]||0)+1;
+                });
+                const summary={
+                    observedClassCounts,
+                    primarySafety:{checkedSegments:primarySegments.length,
+                        blockedBefore:[...preexistingPrimary],blockedAfter:[...primaryBlocked()],
+                        rejectedAttempts:primaryRejected,rejections:primaryRejections},
+                    philosophy:'REAL_BUILDINGS_FRAME_ROUTE_CHOICES_NO_FLOATING_ARROWS',
+                    complexes:rows,
+                    complexCount:rows.length,
+                    shapedRoots,rejectedRoots,maxYaw,classCounts
+                };
+                window.starbladeMap2DecisionSightlines=summary;
+                const sightStats={
+                    decisionSightlineComplexes:rows.length,
+                    decisionSightlineRoots:shapedRoots,
+                    decisionSightlineRejected:rejectedRoots,
+                    decisionSightlineMaxYawDeg:maxYaw
+                };
+                Object.assign(map2VisualStageStats,sightStats);
+                if(window.starbladeMap2Layout?.visualStage)
+                    Object.assign(window.starbladeMap2Layout.visualStage,sightStats);
+                return summary;
+            };
+
+            // MAP2-34: controlled architectural chaos
+            // MAP2-32/33: building roles and playable multi-passage complexes
+            // MAP2-30/31: systematic building blocks and real gap classification.
+            // The first long TECH chain is the golden sector. We segment its REAL Map4
+            // architecture into irregular 600–1600-ish metre design blocks, then scan
+            // the actual copied geometry for distinct pilot-sized openings. Systematic
+            // structure protects playability; authored CHAOS blocks deliberately break
+            // cadence/symmetry so the industrial city never becomes a sterile pattern.
+            const map2BuildBuildingGapBlockSystem=(override=null)=>{
+                const road=window.starbladeMap2BuildingRoad;
+                const chains=window.starbladeMap2LongBuildingChains;
+                if(!road?.groups?.length||!chains?.chains?.length)return null;
+
+                const chain=override?.chain || (chains.chains
+                    .filter(c=>c.span>=30000&&c.span<=45000)
+                    .slice()
+                    .sort((a,b)=>a.from-b.from)[0]
+                    || chains.chains.slice().sort((a,b)=>b.span-a.span)[0]);
+                if(!chain)return null;
+
+                const groups=override?.groups || road.groups
+                    .filter(g=>g.open&&g.d>=chain.from&&g.d<=chain.to&&map2Segment(g.d).kind==='TECH')
+                    .slice().sort((a,b)=>a.d-b.d);
+                if(groups.length<(override?1:12))return null;
+
+                const roots=map2ExactBuildingRoots();
+                const rootByName=new Map(roots.map(r=>[r.name,r]));
+
+                const scanOpenings=g=>{
+                    const groupRoots=(g.rootNames||[]).map(n=>rootByName.get(n)).filter(Boolean);
+                    if(!groupRoots.length)return {distance:g.d,openings:[],solids:0};
+                    const solids=map2CollectRouteSolids(groupRoots,g.d);
+                    const xs=map2BuildingRoadSampleXs;
+                    const ys=map2BuildingRoadSampleYs;
+                    const valid=new Map();
+
+                    for(let ix=0;ix<xs.length;ix++){
+                        const x=xs[ix];
+                        for(let iy=0;iy<ys.length;iy++){
+                            const y=ys[iy];
+                            let blocked=false;
+                            for(const q of solids){
+                                const zOverlap=q.maxZ>=-255&&q.minZ<=255;
+                                const xyOverlap=
+                                    x+42>=q.minX&&x-42<=q.maxX&&
+                                    y+36>=q.minY&&y-36<=q.maxY;
+                                if(zOverlap&&xyOverlap){blocked=true;break;}
+                            }
+                            if(blocked)continue;
+
+                            const zSolids=solids.filter(q=>q.maxZ>=-320&&q.minZ<=320);
+                            const left=zSolids.some(q=>
+                                q.maxX<=x-42&&x-q.maxX<360&&
+                                q.maxY>=y-170&&q.minY<=y+170);
+                            const right=zSolids.some(q=>
+                                q.minX>=x+42&&q.minX-x<360&&
+                                q.maxY>=y-170&&q.minY<=y+170);
+                            const above=zSolids.some(q=>
+                                q.minY>=y+36&&q.minY-y<300&&
+                                q.maxX>=x-240&&q.minX<=x+240);
+                            const below=zSolids.some(q=>
+                                q.maxY<=y-36&&y-q.maxY<300&&
+                                q.maxX>=x-240&&q.minX<=x+240);
+                            const directional=(left?1:0)+(right?1:0)+(above?1:0)+(below?1:0);
+                            if(directional<2)continue;
+                            const framed=(left&&right)||(above&&below)||((left||right)&&(above||below));
+                            valid.set(ix+':'+iy,{ix,iy,x,y,left,right,above,below,framed,directional});
+                        }
+                    }
+
+                    const components=[];
+                    const seen=new Set();
+                    for(const [key,start] of valid){
+                        if(seen.has(key))continue;
+                        const queue=[start],cells=[];
+                        seen.add(key);
+                        while(queue.length){
+                            const cur=queue.pop();cells.push(cur);
+                            for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+                                const nk=(cur.ix+dx)+':'+(cur.iy+dy);
+                                if(seen.has(nk)||!valid.has(nk))continue;
+                                seen.add(nk);queue.push(valid.get(nk));
+                            }
+                        }
+                        if(cells.length<2)continue;
+                        const framedCount=cells.filter(c=>c.framed).length;
+                        if(!framedCount&&cells.length<4)continue;
+                        const cx=cells.reduce((n,c)=>n+c.x,0)/cells.length;
+                        const cy=cells.reduce((n,c)=>n+c.y,0)/cells.length;
+                        const minX=Math.min(...cells.map(c=>c.x)),maxX=Math.max(...cells.map(c=>c.x));
+                        const minY=Math.min(...cells.map(c=>c.y)),maxY=Math.max(...cells.map(c=>c.y));
+                        components.push({
+                            x:cx,y:cy,
+                            width:(maxX-minX)+84,
+                            height:(maxY-minY)+72,
+                            cells:cells.length,
+                            framedRatio:framedCount/cells.length,
+                            score:cells.length*18+framedCount*34-Math.hypot(cx-g.x,(cy-g.y)*.72)*.10
+                        });
+                    }
+                    components.sort((a,b)=>b.score-a.score);
+
+                    const merged=[];
+                    for(const c of components){
+                        const near=merged.find(m=>Math.hypot(m.x-c.x,m.y-c.y)<155);
+                        if(!near)merged.push(c);
+                        else if(c.score>near.score)Object.assign(near,c);
+                    }
+                    return {distance:g.d,openings:merged.slice(0,4),solids:solids.length};
+                };
+
+                // Deliberately irregular counts: systematized blocks without metronomic repetition.
+                const countPattern=[2,2,1,3,2,1,2,3,1,2,2,3,1,2,1,3,2,2,1,3,2,1,2,2,3,1,2,3];
+                const rawBlocks=[];
+                let gi=0,bi=0;
+                while(gi<groups.length){
+                    let take=countPattern[(bi+(override?.phase||0))%countPattern.length];
+                    let end=Math.min(groups.length,gi+take);
+                    while(end>gi+1&&groups[end-1].d-groups[gi].d>2200)end--;
+                    if(end<=gi)end=gi+1;
+                    const members=groups.slice(gi,end);
+                    const scans=members.map(scanOpenings);
+                    scans.sort((a,b)=>
+                        b.openings.length-a.openings.length||
+                        (b.openings[0]?.score||0)-(a.openings[0]?.score||0)
+                    );
+                    const focus=scans[0];
+                    const prevD=rawBlocks.length?rawBlocks[rawBlocks.length-1].to:chain.from;
+                    const from=Math.max(chain.from,groups[gi].d-Math.min(320,(groups[gi].d-prevD)*.25));
+                    const nextD=end<groups.length?groups[end].d:chain.to;
+                    const to=Math.min(chain.to,groups[end-1].d+Math.min(360,(nextD-groups[end-1].d)*.25));
+                    rawBlocks.push({
+                        id:(override?'MAP2_GAP_'+override.id+'_BLOCK_':'MAP2_GAP_BLOCK_')+rawBlocks.length,
+                        index:rawBlocks.length,
+                        from,to,span:to-from,
+                        groupCount:members.length,
+                        groupDistances:members.map(g=>g.d),
+                        rootNames:[...new Set(members.flatMap(g=>g.rootNames||[]))],
+                        focusDistance:focus.distance,
+                        passageCapacity:Math.min(3,focus.openings.length),
+                        candidateOpenings:focus.openings
+                    });
+                    gi=end;bi++;
+                }
+
+                // Multi-passage designation is capacity-driven: we never label a fake
+                // second/third route where real copied geometry does not expose one.
+                const byCapacity=rawBlocks.slice().sort((a,b)=>
+                    b.passageCapacity-a.passageCapacity||
+                    b.candidateOpenings.reduce((n,q)=>n+q.score,0)-a.candidateOpenings.reduce((n,q)=>n+q.score,0)
+                );
+                const tripleSet=new Set(byCapacity.filter(b=>b.passageCapacity>=3).slice(0,override?Math.max(0,Math.round(rawBlocks.length*.12)):3).map(b=>b.id));
+                const dualSet=new Set(byCapacity.filter(b=>b.passageCapacity>=2&&!tripleSet.has(b.id)).slice(0,override?Math.max(1,Math.round(rawBlocks.length*.24)):6).map(b=>b.id));
+
+                // Non-multi styles intentionally include irregular CHAOS and BREATHER
+                // nodes. Reserve them AFTER multi-passage capacity is assigned so a
+                // valuable 2/3-way junction never silently consumes every breath node.
+                const baseStyle=['CORRIDOR','NARROW','CHICANE','CORRIDOR','NARROW','CHICANE','CORRIDOR'];
+                const nonMulti=rawBlocks.filter(b=>!tripleSet.has(b.id)&&!dualSet.has(b.id));
+                const breatherSet=new Set(nonMulti.slice().sort((a,b)=>
+                    b.span-a.span||a.index-b.index
+                ).slice(0,override?Math.round(rawBlocks.length*.15):3).map(b=>b.id));
+                const chaosSet=new Set(nonMulti.filter(b=>!breatherSet.has(b.id))
+                    .slice().sort((a,b)=>
+                        ((a.index*17)%29)-((b.index*17)%29)||b.passageCapacity-a.passageCapacity
+                    ).slice(0,override?Math.round(rawBlocks.length*.20):4).map(b=>b.id));
+
+                const blocks=rawBlocks.map((b,i)=>{
+                    let style=baseStyle[(i*7+i*i+(override?.phase||0))%baseStyle.length];
+                    let targetPassages=1;
+                    if(tripleSet.has(b.id)){style='TRIPLE';targetPassages=3;}
+                    else if(dualSet.has(b.id)){style='DUAL';targetPassages=2;}
+                    else if(breatherSet.has(b.id)){style='BREATHER';}
+                    else if(chaosSet.has(b.id)){style='CHAOS';}
+                    const passages=b.candidateOpenings.slice(0,targetPassages).map((q,pi)=>{
+                        const widthClass=q.width<180?'NARROW':q.width>320?'WIDE':'MEDIUM';
+                        const altitudeClass=q.y>20?'HIGH':q.y<-95?'LOW':'MID';
+                        return {
+                            id:b.id+'_PASSAGE_'+pi,
+                            x:q.x,y:q.y,width:q.width,height:q.height,
+                            widthClass,altitudeClass,
+                            framedRatio:q.framedRatio,
+                            role:altitudeClass==='HIGH'?'FAST_HIGH_RISK':
+                                widthClass==='NARROW'?'SHORT_TECHNICAL':'SAFE_STANDARD'
+                        };
+                    });
+                    const block={...b,style,targetPassages,actualPassages:passages.length,passages,
+                        chaos:style==='CHAOS',breather:style==='BREATHER'};
+                    delete block.candidateOpenings;
+
+                    for(const name of block.rootNames){
+                        const root=rootByName.get(name);
+                        if(!root)continue;
+                        root.userData.map2GapBlockId=block.id;
+                        root.userData.map2GapBlockStyle=style;
+                        root.userData.map2GapBlockPassages=block.actualPassages;
+                        root.userData.map2GapBlockChaos=block.chaos;
+                    }
+                    return block;
+                });
+
+                const passageCounts={single:0,dual:0,triple:0};
+                for(const b of blocks){
+                    if(b.actualPassages>=3)passageCounts.triple++;
+                    else if(b.actualPassages===2)passageCounts.dual++;
+                    else passageCounts.single++;
+                }
+                const groupCounts=[...new Set(blocks.map(b=>b.groupCount))];
+                const spans=blocks.map(b=>b.span);
+                const styleCounts={};
+                blocks.forEach(b=>styleCounts[b.style]=(styleCounts[b.style]||0)+1);
+
+                const summary={
+                    philosophy:'BUILDING_COMPLEX_FIRST_GAPS_SECOND_ROUTE_THIRD',
+                    sector:override?.id||'GOLDEN_TECH_01',
+                    from:chain.from,to:chain.to,span:chain.span,
+                    groups:groups.length,
+                    blocks,
+                    blockCount:blocks.length,
+                    irregularGroupCounts:groupCounts,
+                    minBlockSpan:Math.min(...spans),
+                    maxBlockSpan:Math.max(...spans),
+                    passageCounts,
+                    chaosBlocks:blocks.filter(b=>b.chaos).length,
+                    breatherBlocks:blocks.filter(b=>b.breather).length,
+                    styleCounts
+                };
+                if(override)return summary;
+                window.starbladeMap2FullGapSystem=null;
+                window.starbladeMap2GapBlockSystem=summary;
+                Object.assign(map2VisualStageStats,{
+                    gapSystemBlocks:summary.blockCount,
+                    gapSystemDual:passageCounts.dual,
+                    gapSystemTriple:passageCounts.triple,
+                    gapSystemChaos:summary.chaosBlocks,
+                    gapSystemBreathers:summary.breatherBlocks,
+                    gapSystemGoldenSpan:summary.span
+                });
+                return summary;
+            };
+            map2BuildBuildingGapBlockSystem();
+
+            // MAP2-32/33: building roles and playable multi-passage complexes.
+            // MAP2-30 found candidate gaps from real Map4 geometry. This pass turns
+            // those candidates into design roles and rejects any alternative whose
+            // entry->opening->exit tube is not collision-free in the actual copied
+            // architecture. No fake second or third lane is manufactured.
+            const map2BuildPlayableGapComplexes=(override=null)=>{
+                const sys=override||window.starbladeMap2GapBlockSystem;
+                const physical=window.starbladeMap2BuildingColliders||[];
+                if(!sys?.blocks?.length)return null;
+
+                const roleForStyle=style=>({
+                    TRIPLE:'MULTI_HUB',
+                    DUAL:'SPLIT_GATE',
+                    CHAOS:'CHAOS_CLUSTER',
+                    BREATHER:'OPEN_YARD',
+                    CHICANE:'TURN_LOCK',
+                    NARROW:'COMPRESSION',
+                    CORRIDOR:'CANYON'
+                })[style]||'CANYON';
+
+                const roots=map2ExactBuildingRoots();
+                const rootByName=new Map(roots.map(r=>[r.name,r]));
+                const roleCounts={};
+                const complexes=[];
+                let playableDual=0,playableTriple=0,rejectedBranches=0,gateConflicts=0;
+
+                const nodeAt=(d,x,y)=>({routeProgress:d,laneX:x,laneY:y});
+                const blocked=nodes=>{
+                    for(let i=1;i<nodes.length;i++){
+                        const a=nodes[i-1],b=nodes[i];
+                        if(physical.some(o=>o.active!==false&&courseSegmentTouch(o,a,b,10.5)))
+                            return true;
+                    }
+                    return false;
+                };
+                const gateConflict=nodes=>{
+                    for(const g of map2Gates){
+                        if(g.distance<=nodes[0].routeProgress+35||
+                           g.distance>=nodes[nodes.length-1].routeProgress-35)continue;
+                        let hi=1;
+                        while(hi<nodes.length&&nodes[hi].routeProgress<g.distance)hi++;
+                        if(hi>=nodes.length)continue;
+                        const a=nodes[hi-1],b=nodes[hi];
+                        const t=THREE.MathUtils.clamp(
+                            (g.distance-a.routeProgress)/
+                            Math.max(1,b.routeProgress-a.routeProgress),0,1
+                        );
+                        const x=THREE.MathUtils.lerp(a.laneX,b.laneX,t);
+                        const y=THREE.MathUtils.lerp(a.laneY,b.laneY,t);
+                        const ok=g.openings?.some(o=>
+                            Math.abs(x-o.x)<=Math.max(22,o.halfWidth-18)&&
+                            Math.abs(y-o.y)<=Math.max(18,o.halfHeight-16)
+                        );
+                        if(!ok)return true;
+                    }
+                    return false;
+                };
+
+                const makeRoute=(block,passage)=>{
+                    const focus=block.focusDistance;
+                    // Try progressively shorter merges. Complexes near a hard gate
+                    // often need a tighter branch, while open yards can fan out early.
+                    for(const ratio of [.34,.27,.21,.16]){
+                        const half=THREE.MathUtils.clamp(block.span*ratio,135,430);
+                        const start=Math.max(block.from+20,focus-half);
+                        const end=Math.min(block.to-20,focus+half);
+                        if(end-start<210)continue;
+
+                        const entry=map2BuildingPassageAt(start);
+                        const exit=map2BuildingPassageAt(end);
+                        const aD=THREE.MathUtils.lerp(start,focus,.56);
+                        const bD=THREE.MathUtils.lerp(focus,end,.44);
+                        const aBase=map2BuildingPassageAt(aD);
+                        const bBase=map2BuildingPassageAt(bD);
+                        const nodes=[
+                            nodeAt(start,entry.x,entry.y),
+                            nodeAt(aD,
+                                THREE.MathUtils.lerp(aBase.x,passage.x,.68),
+                                THREE.MathUtils.lerp(aBase.y,passage.y,.68)),
+                            nodeAt(focus,passage.x,passage.y),
+                            nodeAt(bD,
+                                THREE.MathUtils.lerp(passage.x,bBase.x,.68),
+                                THREE.MathUtils.lerp(passage.y,bBase.y,.68)),
+                            nodeAt(end,exit.x,exit.y)
+                        ];
+                        const hasGateConflict=gateConflict(nodes);
+                        if(hasGateConflict){gateConflicts++;continue;}
+                        if(blocked(nodes))continue;
+                        return {
+                            id:passage.id,
+                            role:passage.role,
+                            widthClass:passage.widthClass,
+                            altitudeClass:passage.altitudeClass,
+                            width:passage.width,height:passage.height,
+                            framedRatio:passage.framedRatio,
+                            nodes,
+                            start,end,focus,
+                            collisionFree:true,
+                            gateConflict:false
+                        };
+                    }
+                    return null;
+                };
+
+                for(const block of sys.blocks){
+                    block.buildingRole=roleForStyle(block.style);
+                    roleCounts[block.buildingRole]=(roleCounts[block.buildingRole]||0)+1;
+
+                    // Give the complete real Map4 shells an architectural job; for
+                    // CHAOS blocks vary subroles to break the sterile wall-wall rhythm.
+                    block.rootNames.forEach((name,ri)=>{
+                        const root=rootByName.get(name);
+                        if(!root)return;
+                        let subRole=block.buildingRole;
+                        if(block.buildingRole==='CHAOS_CLUSTER'){
+                            subRole=['ANCHOR_MASS','OFFSET_WALL','SIGHT_BREAKER'][ri%3];
+                        }else if(block.buildingRole==='MULTI_HUB'){
+                            subRole=ri%2?'PASSAGE_FRAME':'HUB_MASS';
+                        }else if(block.buildingRole==='SPLIT_GATE'){
+                            subRole=ri%2?'SPLIT_FRAME':'SPLIT_MASS';
+                        }
+                        root.userData.map2BuildingRole=block.buildingRole;
+                        root.userData.map2BuildingSubRole=subRole;
+                    });
+
+                    if(block.actualPassages<2)continue;
+                    const routes=[];
+                    for(const passage of block.passages){
+                        const route=makeRoute(block,passage);
+                        if(route)routes.push(route);
+                        else rejectedBranches++;
+                    }
+                    // A DUAL/TRIPLE label only becomes playable when its real geometry
+                    // still supports at least two independently validated branches.
+                    if(routes.length<2)continue;
+                    const playableCount=Math.min(block.targetPassages,routes.length);
+                    const kept=routes.slice(0,playableCount);
+                    if(playableCount>=3)playableTriple++;
+                    else playableDual++;
+                    block.playablePassages=kept;
+                    block.playablePassageCount=playableCount;
+                    block.playable=true;
+                    complexes.push({
+                        id:block.id,style:block.style,buildingRole:block.buildingRole,
+                        from:block.from,to:block.to,focusDistance:block.focusDistance,
+                        passages:kept
+                    });
+                }
+
+                const summary={
+                    philosophy:'REAL_MAP4_GAPS_BECOME_BRANCHING_FLIGHT_LINES',
+                    complexes,
+                    playableComplexes:complexes.length,
+                    playableDual,playableTriple,
+                    rejectedBranches,gateConflicts,
+                    roleCounts,
+                    sectorFrom:sys.from,sectorTo:sys.to
+                };
+                if(override)return summary;
+                window.starbladeMap2PlayablePassages=summary;
+                Object.assign(map2VisualStageStats,{
+                    buildingRoleBlocks:sys.blocks.length,
+                    playableGapComplexes:summary.playableComplexes,
+                    playableGapDual:playableDual,
+                    playableGapTriple:playableTriple,
+                    playableGapRejected:rejectedBranches
+                });
+                return summary;
+            };
+            map2BuildPlayableGapComplexes();
+
+            // MAP2-34: controlled architectural chaos.
+            // Chaos means real Map4 complexes stop sitting at neat parallel angles,
+            // NOT that collision/navigation becomes random. We skew complete building
+            // shells around their existing grounded footprint, refresh their derived
+            // physics, and automatically revert any skew that closes the real route.
+            const map2AuthorControlledChaos=()=>{
+                const sys=window.starbladeMap2GapBlockSystem;
+                const physical=window.starbladeMap2BuildingColliders||[];
+                if(!sys?.blocks?.length||!physical.length)return null;
+
+                const roots=map2ExactBuildingRoots();
+                const rootByName=new Map(roots.map(r=>[r.name,r]));
+                const chaos=sys.blocks.filter(b=>b.buildingRole==='CHAOS_CLUSTER'||b.style==='CHAOS');
+                const rows=[];
+                let rotatedRoots=0,rejectedRoots=0,maxYaw=0;
+
+                const refreshCollider=o=>{
+                    const root=rootByName.get(o.sourceRoot);
+                    if(!root||!o.mesh)return;
+                    root.updateMatrixWorld(true);
+                    const box=new THREE.Box3().setFromObject(o.mesh);
+                    if(box.isEmpty())return;
+                    // Keep the collider in its authored longitudinal section.
+                    // Controlled chaos changes building angle, not course ownership.
+                    const d=Number(o.routeProgress);
+                    if(!Number.isFinite(d))return;
+                    const q=map2ProjectedBoxAt(box,d);
+                    o.laneX=(q.minX+q.maxX)*.5;
+                    o.laneY=(q.minY+q.maxY)*.5;
+                    o.halfX=Math.min(215,Math.max(22,(q.maxX-q.minX)*.5*.78));
+                    o.halfY=Math.min(205,Math.max(22,(q.maxY-q.minY)*.5*.78));
+                    o.halfDepth=Math.min(230,Math.max(10,(q.maxZ-q.minZ)*.5*.72));
+                    o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
+                };
+                const refreshRootColliders=name=>{
+                    physical.filter(o=>o.sourceRoot===name).forEach(refreshCollider);
+                };
+                const routeBlocked=block=>{
+                    let prev=null;
+                    const from=Math.max(0,block.from-70),to=Math.min(MAP2_DISTANCE,block.to+70);
+                    for(let d=from;d<=to+1;d+=55){
+                        const dd=Math.min(d,to);
+                        const q=map2BuildingPassageAt(dd);
+                        const now={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&physical.some(o=>o.active!==false&&courseSegmentTouch(o,prev,now,12.5)))
+                            return true;
+                        prev=now;
+                    }
+                    return false;
+                };
+
+                chaos.forEach((block,bi)=>{
+                    const blockRoots=block.rootNames.map(n=>rootByName.get(n)).filter(Boolean);
+                    const accepted=[];
+                    blockRoots.forEach((root,ri)=>{
+                        // Intentionally non-uniform: adjacent shells toe in/out by
+                        // different amounts instead of following a repeating cadence.
+                        const deg=[-8.5,5.5,-4.0,9.0,-6.5,3.5][(bi*3+ri)%6];
+                        const angle=THREE.MathUtils.degToRad(deg);
+                        const oldQuat=root.quaternion.clone();
+                        root.rotateY(angle);
+                        root.updateMatrix();root.updateMatrixWorld(true);
+                        refreshRootColliders(root.name);
+
+                        if(routeBlocked(block)){
+                            root.quaternion.copy(oldQuat);
+                            root.updateMatrix();root.updateMatrixWorld(true);
+                            refreshRootColliders(root.name);
+                            rejectedRoots++;
+                            return;
+                        }
+                        root.userData.map2ControlledChaos=true;
+                        root.userData.map2ControlledChaosYawDeg=deg;
+                        accepted.push({name:root.name,yawDeg:deg});
+                        rotatedRoots++;
+                        maxYaw=Math.max(maxYaw,Math.abs(deg));
+                    });
+                    block.controlledChaosRoots=accepted;
+                    block.controlledChaos=true;
+                    rows.push({
+                        id:block.id,from:block.from,to:block.to,
+                        roots:blockRoots.length,accepted:accepted.length,
+                        yaws:accepted.map(x=>x.yawDeg)
+                    });
+                });
+
+                const summary={
+                    philosophy:'ASYMMETRIC_REAL_BUILDINGS_WITH_ROUTE_SAFETY',
+                    blocks:rows,
+                    chaosBlocks:chaos.length,
+                    rotatedRoots,rejectedRoots,maxYaw
+                };
+                window.starbladeMap2ControlledChaos=summary;
+                const chaosStats={
+                    controlledChaosBlocks:chaos.length,
+                    controlledChaosRotatedRoots:rotatedRoots,
+                    controlledChaosRejectedRoots:rejectedRoots,
+                    controlledChaosMaxYawDeg:maxYaw
+                };
+                Object.assign(map2VisualStageStats,chaosStats);
+                // MAP2-34 runs in a microtask after the layout snapshot is published.
+                // Mirror the late telemetry into that public snapshot as well.
+                if(window.starbladeMap2Layout?.visualStage)
+                    Object.assign(window.starbladeMap2Layout.visualStage,chaosStats);
+                return summary;
+            };
+            // Defer until map2BuildCourse finishes so all derived physics, supports
+            // and route structures are guaranteed to exist.
+            queueMicrotask(()=>map2AuthorControlledChaos());
+
+            // MAP2-36/37: architectural ground rhythm and measured route costs.
+            const map2RefineGapGroundAndCosts=()=>{
+                const ground=window.starbladeMap2GroundedArchitecture;
+                const sys=window.starbladeMap2GapBlockSystem;
+                const play=window.starbladeMap2PlayablePassages;
+                if(!ground||!sys?.blocks?.length||!play?.complexes?.length)return null;
+                const pads=[],links=[];
+                map2CourseGroup.updateMatrixWorld(true);
+                map2CourseGroup.traverse(o=>{
+                    if(o.userData?.map2GroundPad)
+                        pads.push({o,d:Number(o.userData.map2Distance),box:new THREE.Box3().setFromObject(o)});
+                    if(o.userData?.map2BuildingConnector)
+                        links.push({o,d:Number(o.userData.map2Distance),box:new THREE.Box3().setFromObject(o)});
+                });
+                const blockAt=d=>sys.blocks.find(b=>d>=b.from&&d<=b.to);
+                const decisions=[];
+                let removed=0;
+                const maxRemove=Math.min(10,Math.max(0,links.length-24));
+                for(const link of links){
+                    if(!Number.isFinite(link.d)||link.d<sys.from||link.d>sys.to)continue;
+                    const block=blockAt(link.d);
+                    const adjacent=pads.filter(p=>Math.abs(p.d-link.d)<380);
+                    const overlaps=adjacent.filter(p=>{
+                        const a=p.box,b=link.box;
+                        return a.max.x>=b.min.x&&a.min.x<=b.max.x&&
+                               a.max.z>=b.min.z&&a.min.z<=b.max.z&&
+                               Math.abs(a.max.y-b.max.y)<70;
+                    });
+                    const mode=block?.buildingRole==='OPEN_YARD'?'OPEN_GAP':
+                        overlaps.length>=2?'DIRECT_ARCHITECTURE':'SERVICE_LINK';
+                    // A visual-only connector is not a foundation. Never remove
+                    // a physical obstacle, a pad or any element outside the pilot sector.
+                    const canRemove=mode!=='SERVICE_LINK'&&removed<maxRemove&&
+                        link.o.userData.map2VisualOnly===true&&
+                        !link.o.userData.map2GroundPad&&link.o.parent&&
+                        map2Segment(link.d).kind==='TECH';
+                    if(canRemove){
+                        link.o.parent.remove(link.o);
+                        removed++;
+                    }else{
+                        link.o.userData.map2GroundConnectionRole=mode==='SERVICE_LINK'?mode:'RETAINED_SUPPORT';
+                    }
+                    decisions.push({name:link.o.name,d:link.d,block:block?.id||null,
+                        mode,removed:!!canRemove,nearbyPads:adjacent.length,overlappingPads:overlaps.length});
+                }
+                const total=links.length-removed;
+                ground.connectors=total;
+                const groundStats={architectureConnectors:total,gapGroundRemovedLinks:removed,
+                    gapGroundDirect:decisions.filter(x=>x.mode==='DIRECT_ARCHITECTURE').length,
+                    gapGroundOpen:decisions.filter(x=>x.mode==='OPEN_GAP').length};
+                Object.assign(map2VisualStageStats,groundStats);
+                if(window.starbladeMap2Layout?.visualStage)
+                    Object.assign(window.starbladeMap2Layout.visualStage,groundStats);
+                window.starbladeMap2GapGroundIntegration={
+                    sectorFrom:sys.from,sectorTo:sys.to,padsBefore:pads.length,padsAfter:pads.length,
+                    linksBefore:links.length,linksAfter:total,removed,decisions
+                };
+
+                // Precompute actual geometric branch difficulty once, after the
+                // final shell transforms. No expensive route scanning per AI frame.
+                const physical=window.starbladeMap2BuildingColliders||[];
+                const metrics=[];
+                for(const complex of play.complexes){
+                    for(const passage of complex.passages){
+                        const nodes=passage.nodes;
+                        let length=0,turn=0,climb=0,high=0,near=0;
+                        let prev=null;
+                        for(let i=1;i<nodes.length;i++){
+                            const a=nodes[i-1],b=nodes[i];
+                            const f=getRaceFrameAtDistance(a.routeProgress);
+                            const g=getRaceFrameAtDistance(b.routeProgress);
+                            const A=f.center.clone().addScaledVector(f.right,a.laneX).addScaledVector(f.up,a.laneY);
+                            const B=g.center.clone().addScaledVector(g.right,b.laneX).addScaledVector(g.up,b.laneY);
+                            const v=B.sub(A),dist=v.length();
+                            length+=dist;
+                            if(dist>0){
+                                v.multiplyScalar(1/dist);
+                                if(prev)turn+=Math.acos(THREE.MathUtils.clamp(prev.dot(v),-1,1));
+                                prev=v;
+                            }
+                            climb+=Math.max(0,b.laneY-a.laneY);
+                            high+=Math.max(0,(a.laneY+b.laneY)*.5)*dist;
+                            if(physical.some(o=>o.active!==false&&courseSegmentTouch(o,a,b,28)))near++;
+                        }
+                        const m={
+                            length,turn,climb,highExposure:length?high/length:0,
+                            nearSegments:near,
+                            opening:Math.min(Number(passage.width)||84,Number(passage.height)||72),
+                            visibleLead:complex.visibilityEvidence?.branches?.find(b=>b.id===passage.id)?.maxVisibleDistance??null
+                        };
+                        passage.routeCostMetrics=m;
+                        metrics.push({complex:complex.id,passage:passage.id,...m});
+                    }
+                }
+                window.starbladeMap2RouteCostMetrics={complexes:play.complexes.length,passages:metrics};
+                return {ground:window.starbladeMap2GapGroundIntegration,metrics};
+            };
+
+            queueMicrotask(()=>map2ShapeDecisionSightlines());
+
+            // MAP2-39: sector-by-sector architectural propagation.
+            const map2PropagateArchitecturalSectors=()=>{
+                const golden=window.starbladeMap2GapBlockSystem;
+                const goldenPlay=window.starbladeMap2PlayablePassages;
+                const road=window.starbladeMap2BuildingRoad;
+                if(!golden||!goldenPlay||!road?.groups?.length)return null;
+                const all=road.groups.filter(g=>g.open&&map2Segment(g.d).kind==='TECH')
+                    .slice().sort((a,b)=>a.d-b.d);
+                const pending=all.filter(g=>g.d<golden.from||g.d>golden.to);
+                const isTechSpan=(a,b)=>{
+                    if(a>b)return false;
+                    const steps=Math.max(1,Math.ceil((b-a)/100));
+                    for(let i=0;i<=steps;i++)
+                        if(map2Segment(THREE.MathUtils.lerp(a,b,i/steps)).kind!=='TECH')return false;
+                    return true;
+                };
+                const goldenNames=new Set(golden.blocks.flatMap(b=>b.rootNames));
+                const assignedNames=new Set(goldenNames);
+                const roots=map2ExactBuildingRoots();
+                const rootByName=new Map(roots.map(r=>[r.name,r]));
+                const physical=window.starbladeMap2BuildingColliders||[];
+                const partitions=[];
+                for(const g of pending){
+                    const last=partitions[partitions.length-1];
+                    const prev=last?.[last.length-1];
+                    if(!last||g.d-prev.d>3200||g.d-last[0].d>24000||
+                        (prev.d<golden.from&&g.d>golden.to)||!isTechSpan(prev.d,g.d))
+                        partitions.push([g]);
+                    else last.push(g);
+                }
+                const sectors=[],extraComplexes=[],extraBlocks=[];
+                let droppedComplexes=0;
+                for(let i=0;i<partitions.length;i++){
+                    const members=partitions[i];
+                    const id='TECH_EXT_'+String(i+1).padStart(2,'0');
+                    const first=members[0].d,last=members[members.length-1].d;
+                    let from=Math.max(0,first-200),to=Math.min(MAP2_DISTANCE,last+200);
+                    if(first>golden.to)from=Math.max(from,golden.to+1);
+                    if(last<golden.from)to=Math.min(to,golden.from-1);
+                    if(i>0)from=Math.max(from,partitions[i-1].slice(-1)[0].d+1);
+                    if(i+1<partitions.length)to=Math.min(to,partitions[i+1][0].d-1);
+                    if(!isTechSpan(from,first))from=first;
+                    if(!isTechSpan(last,to))to=last;
+                    const groups=members.map(g=>({...g,rootNames:(g.rootNames||[]).filter(n=>!assignedNames.has(n))}));
+                    const sys=map2BuildBuildingGapBlockSystem({id,phase:(i*5+3)%17,
+                        chain:{from,to,span:to-from},groups});
+                    if(!sys)continue;
+                    for(const b of sys.blocks)for(const n of b.rootNames)assignedNames.add(n);
+                    const play=map2BuildPlayableGapComplexes(sys);
+                    // Publish only genuinely validated choices. A rejected candidate
+                    // remains a single-route architectural block, never a fake junction.
+                    const playableIds=new Map((play?.complexes||[]).map(c=>[c.id,c]));
+                    for(const b of sys.blocks){
+                        b.sectorId=id;
+                        const c=playableIds.get(b.id);
+                        if(b.targetPassages>1&&!c){
+                            droppedComplexes++;
+                            b.style='CORRIDOR';b.buildingRole='CANYON';
+                            b.targetPassages=1;b.actualPassages=Math.min(1,b.passages.length);
+                            b.passages=b.passages.slice(0,1);
+                        }else if(c&&c.passages.length<b.targetPassages){
+                            b.style='DUAL';b.buildingRole='SPLIT_GATE';
+                            b.targetPassages=c.passages.length;b.actualPassages=c.passages.length;
+                            const ids=new Set(c.passages.map(p=>p.id));
+                            b.passages=b.passages.filter(p=>ids.has(p.id));
+                            c.style=b.style;c.buildingRole=b.buildingRole;
+                        }
+                        for(const n of b.rootNames){
+                            const root=rootByName.get(n);
+                            if(!root)continue;
+                            Object.assign(root.userData,{map2GapSector:id,map2GapBlockStyle:b.style,
+                                map2GapBlockPassages:b.actualPassages,map2BuildingRole:b.buildingRole});
+                        }
+                        extraBlocks.push(b);
+                    }
+                    extraComplexes.push(...(play?.complexes||[]));
+                    sectors.push({id,from,to,groups:members.length,groupDistances:members.map(g=>g.d),
+                        blocks:sys.blocks.map(b=>b.id),complexes:(play?.complexes||[]).map(c=>c.id)});
+                }
+                const allComplexes=[...goldenPlay.complexes,...extraComplexes];
+                const primary=[];
+                for(const m of (window.starbladeMap2ThroughRoute?.modules||[])){
+                    let prev=null;
+                    for(let d=m.entrance.distance;d<=m.exit.distance+1;d+=70){
+                        const dd=Math.min(d,m.exit.distance),q=map2BuildingPassageAt(dd);
+                        const now={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev)primary.push([prev,now]);
+                        prev=now;
+                    }
+                }
+                // Protect the older MAP2-19 aperture contract too: a straight
+                // 300 m pilot tube through every original building group.
+                for(const g of all){
+                    const a={routeProgress:g.d-150,laneX:g.x,laneY:g.y};
+                    primary.push([a,{...a,routeProgress:g.d+150}]);
+                }
+                const sections=new Set(map2Sections);
+                const ownerOf=o=>{while(o&&!sections.has(o))o=o.parent;return o;};
+                const owned=o=>{
+                    const g=ownerOf(o.mesh);
+                    if(!g)return false;
+                    const from=g.userData.architectureFrom??g.userData.from;
+                    const to=g.userData.architectureTo??g.userData.to;
+                    return from<=o.routeProgress-(o.halfDepth||0)&&to>=o.routeProgress+(o.halfDepth||0);
+                };
+                const safe=changed=>{
+                    if(changed.some(o=>!owned(o)))return false;
+                    for(const [a,b] of primary)
+                        if(changed.some(o=>courseSegmentTouch(o,a,b,12.5)))return false;
+                    for(const c of allComplexes)for(const p of c.passages)
+                        for(let j=1;j<p.nodes.length;j++)
+                            if(changed.some(o=>o.active!==false&&courseSegmentTouch(o,p.nodes[j-1],p.nodes[j],10.5)))return false;
+                    return true;
+                };
+                const adjustments=[];
+                const rotated=new Set();
+                for(const b of extraBlocks.filter(x=>x.style==='CHAOS'||x.style==='DUAL'||x.style==='TRIPLE')){
+                    for(const [i,n] of b.rootNames.entries()){
+                        const root=rootByName.get(n);
+                        if(!root||goldenNames.has(n)||rotated.has(n))continue;
+                        const changed=physical.filter(o=>o.sourceRoot===n);
+                        if(!changed.length||!safe(changed))continue;
+                        const old=root.quaternion.clone();
+                        const saved=changed.map(o=>({o,fields:Object.fromEntries(
+                            ['laneX','laneY','halfX','halfY','halfDepth','radius'].map(k=>[k,o[k]]))}));
+                        const restore=()=>{root.quaternion.copy(old);root.updateMatrix();root.updateMatrixWorld(true);
+                            saved.forEach(({o,fields})=>Object.assign(o,fields));};
+                        let accepted=0;
+                        const degrees=b.style==='CHAOS'?[6,-4.5,7.5,-5.5][(b.index+i)%4]:
+                            (i%2?1:-1)*(b.style==='TRIPLE'?4:3);
+                        for(const factor of [1,.5,.25]){
+                            restore();
+                            root.rotateY(THREE.MathUtils.degToRad(degrees*factor));
+                            root.updateMatrix();root.updateMatrixWorld(true);
+                            for(const o of changed){
+                                if(!o.mesh)continue;
+                                const box=new THREE.Box3().setFromObject(o.mesh);
+                                if(box.isEmpty()||!Number.isFinite(o.routeProgress))continue;
+                                const q=map2ProjectedBoxAt(box,o.routeProgress);
+                                o.laneX=(q.minX+q.maxX)*.5;o.laneY=(q.minY+q.maxY)*.5;
+                                o.halfX=Math.min(215,Math.max(22,(q.maxX-q.minX)*.5*.78));
+                                o.halfY=Math.min(205,Math.max(22,(q.maxY-q.minY)*.5*.78));
+                                o.halfDepth=Math.min(230,Math.max(10,(q.maxZ-q.minZ)*.5*.72));
+                                o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
+                            }
+                            if(safe(changed)){accepted=degrees*factor;break;}
+                        }
+                        if(!accepted){restore();continue;}
+                        rotated.add(n);
+                        root.userData.map2SectorArchitectureYaw=accepted;
+                        adjustments.push({name:n,sector:b.sectorId,block:b.id,yaw:accepted});
+                    }
+                }
+                // Costs are measured after the final safe transforms, once at build time.
+                for(const c of extraComplexes)for(const p of c.passages){
+                    let length=0,turn=0,climb=0,high=0,near=0,prev=null;
+                    for(let i=1;i<p.nodes.length;i++){
+                        const a=p.nodes[i-1],b=p.nodes[i],f=getRaceFrameAtDistance(a.routeProgress),
+                            g=getRaceFrameAtDistance(b.routeProgress);
+                        const A=f.center.clone().addScaledVector(f.right,a.laneX).addScaledVector(f.up,a.laneY);
+                        const B=g.center.clone().addScaledVector(g.right,b.laneX).addScaledVector(g.up,b.laneY);
+                        const v=B.sub(A),d=v.length();length+=d;
+                        if(d>0){v.multiplyScalar(1/d);if(prev)turn+=Math.acos(THREE.MathUtils.clamp(prev.dot(v),-1,1));prev=v;}
+                        climb+=Math.max(0,b.laneY-a.laneY);high+=Math.max(0,(a.laneY+b.laneY)*.5)*d;
+                        if(physical.some(o=>o.active!==false&&courseSegmentTouch(o,a,b,28)))near++;
+                    }
+                    p.routeCostMetrics={length,turn,climb,highExposure:length?high/length:0,
+                        nearSegments:near,opening:Math.min(p.width||84,p.height||72),visibleLead:null};
+                }
+                const full={goldenGroups:golden.groups,totalEligibleGroups:all.length,
+                    coveredGroups:golden.groups+sectors.reduce((n,x)=>n+x.groups,0),
+                    sectors,extraBlocks,extraComplexes,adjustments,droppedComplexes};
+                window.starbladeMap2FullGapSystem=full;
+                return full;
+            };
+
+            queueMicrotask(()=>map2RefineGapGroundAndCosts());
+            queueMicrotask(()=>map2PropagateArchitecturalSectors());
+
+
+
+
             // MAP2-18: only after all authored gates and original physical solids
             // exist, derive collision directly from the visible Map4 building meshes.
             // This ordering lets the real buildings act as obstacles without
@@ -17121,6 +18223,124 @@
                 role:module?'THROUGH':(a.role||b.role||null),
                 inModule:!!module,
                 kind:module?.kind||null
+            };
+        }
+
+
+        // MAP2-33: choose and interpolate a validated real-building branch for rivals.
+        // Choice persists per complex so a pilot never changes its mind halfway through.
+        function map2GapRacerProfile(r){
+            const raw=[
+                r?.pilotProfile?.id,r?.pilotProfile?.name,
+                r?.profile?.id,r?.profile?.name,
+                r?.aiProfile?.id,r?.aiProfile?.name,
+                r?.aiStyle,r?.personality,r?.name
+            ].filter(Boolean).join(' ').toUpperCase();
+            if(raw.includes('CAUTIOUS')||raw.includes('CYBER'))return 'CAUTIOUS';
+            if(raw.includes('AGGRESSIVE')||raw.includes('BLAZE'))return 'AGGRESSIVE';
+            if(raw.includes('SPEED')||raw.includes('VIPER'))return 'SPEED';
+            return 'BALANCED';
+        }
+
+        function map2GapComplexAt(distance){
+            const sys=window.starbladeMap2PlayablePassages;
+            return sys?.complexes?.find(c=>distance>=c.from&&distance<=c.to)||
+                window.starbladeMap2FullGapSystem?.extraComplexes?.find(c=>distance>=c.from&&distance<=c.to)||null;
+        }
+
+
+        // MAP2-37: measured cost is a bounded modifier, not a replacement for
+        // established pilot personality, approach alignment or traffic reservations.
+        function map2GapMeasuredCost(p,complex,profile){
+            const m=p?.routeCostMetrics;
+            if(!m)return 0;
+            const all=complex.passages.map(x=>x.routeCostMetrics).filter(Boolean);
+            const shortest=Math.min(m.length,...all.map(x=>x.length));
+            const extra=Math.max(0,m.length-shortest);
+            const w=({
+                SPEED:[.10,13,.025,.07,8,10],
+                CAUTIOUS:[.025,28,.06,.30,24,32],
+                AGGRESSIVE:[.06,11,.02,.10,8,9],
+                BALANCED:[.055,20,.04,.18,15,19]
+            })[profile]||[.055,20,.04,.18,15,19];
+            const narrow=Math.max(0,180-m.opening)/180;
+            const late=m.visibleLead===null?0:1-Math.min(1,m.visibleLead/340);
+            return Math.min(100,extra*w[0]+m.turn*w[1]+m.climb*w[2]+
+                m.highExposure*w[3]+m.nearSegments*w[4]+(narrow+late*.35)*w[5]);
+        }
+
+        function map2GapChoosePassage(r,complex){
+            if(!r||!complex?.passages?.length)return null;
+            r.map2GapChoices=r.map2GapChoices||{};
+            const existing=r.map2GapChoices[complex.id];
+            const valid=complex.passages.find(p=>p.id===existing);
+            if(valid)return valid;
+
+            const profile=map2GapRacerProfile(r);
+            const occupied=new Map();
+            if(typeof racers!=='undefined'&&Array.isArray(racers)){
+                for(const other of racers){
+                    if(other===r)continue;
+                    const id=other.map2GapChoices?.[complex.id];
+                    if(id)occupied.set(id,(occupied.get(id)||0)+1);
+                }
+            }
+            const seed=String(r.name||'R').split('').reduce((n,ch)=>n+ch.charCodeAt(0),0);
+            const scored=complex.passages.map((p,i)=>{
+                let cost=Math.hypot((p.nodes[2].laneX-(r.laneX||0)),
+                                    (p.nodes[2].laneY-(r.laneY||0))*.78)*.18;
+                cost+=(occupied.get(p.id)||0)*92;
+                cost+=map2GapMeasuredCost(p,complex,profile);
+                if(profile==='SPEED'){
+                    if(p.role==='FAST_HIGH_RISK')cost-=82;
+                    if(p.role==='SHORT_TECHNICAL')cost-=24;
+                    if(p.role==='SAFE_STANDARD')cost+=12;
+                }else if(profile==='CAUTIOUS'){
+                    if(p.role==='SAFE_STANDARD')cost-=68;
+                    if(p.role==='FAST_HIGH_RISK')cost+=128;
+                    if(p.role==='SHORT_TECHNICAL')cost+=46;
+                }else if(profile==='AGGRESSIVE'){
+                    if(p.role==='SHORT_TECHNICAL')cost-=78;
+                    if(p.role==='FAST_HIGH_RISK')cost-=30;
+                }else{
+                    if(p.role==='SAFE_STANDARD')cost-=34;
+                    if(p.role==='FAST_HIGH_RISK')cost+=18;
+                }
+                cost+=((seed+i*37)%23)*1.7;
+                return {p,cost};
+            }).sort((a,b)=>a.cost-b.cost);
+            const chosen=scored[0]?.p||complex.passages[0];
+            r.map2GapChoices[complex.id]=chosen.id;
+            r.aiStats=r.aiStats||{};
+            r.aiStats.map2GapChoicesMade=(r.aiStats.map2GapChoicesMade||0)+1;
+            return chosen;
+        }
+
+        function map2GapRouteTargetAt(r,basePlan){
+            if(!basePlan)return null;
+            const complex=map2GapComplexAt(basePlan.distance);
+            if(!complex)return basePlan;
+            const passage=map2GapChoosePassage(r,complex);
+            if(!passage?.nodes?.length)return basePlan;
+            const d=basePlan.distance;
+            if(d<passage.start||d>passage.end)return basePlan;
+            const nodes=passage.nodes;
+            let hi=1;
+            while(hi<nodes.length&&nodes[hi].routeProgress<d)hi++;
+            if(hi>=nodes.length)hi=nodes.length-1;
+            const a=nodes[Math.max(0,hi-1)],b=nodes[hi];
+            const t=THREE.MathUtils.clamp(
+                (d-a.routeProgress)/Math.max(1,b.routeProgress-a.routeProgress),0,1
+            );
+            const smooth=t; // stay inside the physically validated segment
+            return {
+                ...basePlan,
+                x:THREE.MathUtils.lerp(a.laneX,b.laneX,smooth),
+                y:THREE.MathUtils.lerp(a.laneY,b.laneY,smooth),
+                multiPassage:true,
+                complexId:complex.id,
+                passageId:passage.id,
+                passageRole:passage.role
             };
         }
 
@@ -23026,10 +24246,11 @@
                 const gateAhead = upcomingWreckGate(r.routeProgress,2500);
                 const map2Pilot=map2Active()?map2PilotPlan(r,gateAhead,maxLateralSpeed):null;
                 const gatePlan=map2Pilot?map2Pilot.gatePlan:getGateApproachPlan(r,gateAhead,dt,maxLateralSpeed);
-                const map2BuildingPlan=map2Pilot?map2ThroughRouteTargetAt(
+                const map2BuildingBasePlan=map2Pilot?map2ThroughRouteTargetAt(
                     r.routeProgress,
                     Math.min(620,Math.max(220,r.currentSpeed*.22))
                 ):null;
+                const map2BuildingPlan=map2Pilot?map2GapRouteTargetAt(r,map2BuildingBasePlan):null;
 
                 // C.1 — Önündeki Aktif Asteroitleri Algılama ve Bilinçli Kaçınma Kararı (En Yüksek Öncelik)
                 let mostUrgentThreat = null;
@@ -23472,6 +24693,12 @@
                         r.overtakeHoldTimer=0;
                         r.aiStats.map2BuildingRouteSeconds=(r.aiStats.map2BuildingRouteSeconds||0)+dt;
                         r.aiStats.map2BuildingRouteTargets=(r.aiStats.map2BuildingRouteTargets||0)+1;
+                        if(map2BuildingPlan.multiPassage){
+                            r.aiStats.map2MultiPassageSeconds=(r.aiStats.map2MultiPassageSeconds||0)+dt;
+                            r.aiStats.map2MultiPassageTargets=(r.aiStats.map2MultiPassageTargets||0)+1;
+                            r.aiStats.map2LastPassageId=map2BuildingPlan.passageId;
+                            r.aiStats.map2LastPassageRole=map2BuildingPlan.passageRole;
+                        }
                         if(map2BuildingPlan.inModule)
                             r.aiStats.map2ThroughBuildingSeconds=(r.aiStats.map2ThroughBuildingSeconds||0)+dt;
                     }
