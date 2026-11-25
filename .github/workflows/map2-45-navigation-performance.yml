@@ -1,0 +1,26 @@
+name: MAP2-45 navigation performance
+on:
+  pull_request:
+    branches: [codex/map2-41-world-ground-wide-city]
+    paths: [index.html, tests/map2-45-navigation-performance.cjs, .github/workflows/map2-45-navigation-performance.yml]
+  push:
+    branches: [codex/map2-45-navigation-performance]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/map2-45-navigation-performance.cjs
+      - run: node tests/map2-44-physical-consistency.cjs
+      - run: node tests/map2-43-natural-route-readability.cjs
+      - run: node tests/map2-39-sector-propagation.cjs
+      - run: node tests/map2-11-keep-it-low-visual.cjs
