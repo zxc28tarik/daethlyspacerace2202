@@ -129,7 +129,7 @@ block=r'''
                 while(gi<groups.length){
                     let take=countPattern[bi%countPattern.length];
                     let end=Math.min(groups.length,gi+take);
-                    while(end>gi+1&&groups[end-1].d-groups[gi].d>1800)end--;
+                    while(end>gi+1&&groups[end-1].d-groups[gi].d>2200)end--;
                     if(end<=gi)end=gi+1;
                     const members=groups.slice(gi,end);
                     const scans=members.map(scanOpenings);
