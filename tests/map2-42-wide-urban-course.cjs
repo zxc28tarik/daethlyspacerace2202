@@ -75,6 +75,10 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
    };
   });
 
+  const dir=path.join(__dirname,'map2-42-evidence');fs.mkdirSync(dir,{recursive:true});
+  fs.writeFileSync(path.join(dir,'wide-urban-course.json'),JSON.stringify(info,null,2));
+  console.log('MAP2-42 METRICS '+JSON.stringify(info));
+
   assert(info.visualInstances>450,'near frontage should remain visually continuous');
   assert(info.physicalColliders>150,'widened TECH area needs substantial physical containment');
   assert(info.batches>0&&info.visualBatches>0);
@@ -85,9 +89,6 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(info.sides.left>70&&info.sides.right>70);
   assert(info.minInnerEdge<500&&info.maxInnerEdge<560,'frontage should visually define the widened corridor');
   assert(info.worldFrontage>1500&&info.lateralScale===2&&info.map4Hidden);
-
-  const dir=path.join(__dirname,'map2-42-evidence');fs.mkdirSync(dir,{recursive:true});
-  fs.writeFileSync(path.join(dir,'wide-urban-course.json'),JSON.stringify(info,null,2));
   for(const d of [39000,69000,90000,122000,151000,169000]){
    await page.evaluate(d=>{
     const q=starbladeMap2BuildingPassageAt(d);
