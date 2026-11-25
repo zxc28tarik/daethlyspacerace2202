@@ -18486,6 +18486,7 @@
                                 +approach*(seg.kind==='TECH'?140:90),580,1510));
                             inner=Math.max(830,flightEnvelope+16)+(i%5)*9
                                 +(innerTurn?Math.round(60*bend):0);
+                            const baseDepth=sz;
                             let clearance=0,attempts=0;
                             for(;attempts<12;attempts++){
                                 x=side*(inner+sx*.5);
@@ -18497,7 +18498,7 @@
                                     right,WORLD_UP_VECTOR,forward.clone().negate()));
                                 // Overlap adjacent offset-street chords so the
                                 // outer side of a corner does not open into sky.
-                                sz=Math.max(sz,a.distanceTo(b)*1.12,spacing*1.08);
+                                sz=Math.max(baseDepth,a.distanceTo(b)*1.12,spacing*1.08);
                                 clearance=Infinity;
                                 for(let dd=-650;dd<=650;dd+=130){
                                     const q=getRaceFrameAtDistance(wrapD(d+dd));
