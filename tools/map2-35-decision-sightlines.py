@@ -119,7 +119,7 @@ block=r'''
                     rows.push({
                         id:complex.id,passages:complex.passages.length,
                         roots:blockRoots.length,accepted:accepted.length,
-                        minBranchSeparation,sightlineClass:complex.sightlineClass,
+                        minBranchSeparation:minSeparation,sightlineClass:complex.sightlineClass,
                         decisionLeadDistance:complex.decisionLeadDistance,
                         yaws:accepted.map(x=>x.yawDeg)
                     });
