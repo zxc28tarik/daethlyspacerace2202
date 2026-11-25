@@ -10,6 +10,8 @@ assert(html.includes('map2GroundArchitecturalRoute'));
 assert(html.includes('BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON'));
 assert(html.includes('MAP2_ARCH_FOUNDATION_'));
 assert(html.includes('MAP2_ARCH_CONNECTOR_'));
+assert(html.includes('MAP2-29B: modular structural ground'));
+assert(html.includes('architectureFoundationPads'));
 
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-webgl-software-rendering','--disable-dev-shm-usage']});
@@ -29,12 +31,26 @@ assert(html.includes('MAP2_ARCH_CONNECTOR_'));
     const s=window.starbladeMap2GroundedArchitecture;
     const ground=[];
     const oldStraight=[];
+    let maxFoundationW=0,maxFoundationD=0,maxConnectorW=0,maxConnectorD=0;
     const pattern=/(?:VISUAL_DECK|ROAD_SURFACE|ASPHALT|PAVEMENT|TRACK_SURFACE|LANE_STRIP|CENTER_STRIP)/i;
     map2CourseGroup.traverse(o=>{
-      if(o.userData?.map2ArchitecturalGround)ground.push({
-        name:o.name,d:o.userData.map2Distance,
-        connector:!!o.userData.map2BuildingConnector
-      });
+      if(o.userData?.map2ArchitecturalGround){
+        ground.push({
+          name:o.name,d:o.userData.map2Distance,
+          connector:!!o.userData.map2BuildingConnector,
+          pad:!!o.userData.map2GroundPad
+        });
+        const mesh=o.children?.find(x=>x.isMesh);
+        if(mesh){
+          if(o.userData.map2BuildingConnector){
+            maxConnectorW=Math.max(maxConnectorW,Math.abs(mesh.scale.x));
+            maxConnectorD=Math.max(maxConnectorD,Math.abs(mesh.scale.z));
+          }else if(o.userData.map2GroundPad){
+            maxFoundationW=Math.max(maxFoundationW,Math.abs(mesh.scale.x));
+            maxFoundationD=Math.max(maxFoundationD,Math.abs(mesh.scale.z));
+          }
+        }
+      }
       const d=Number(o.userData?.map2Distance??o.userData?.map2TargetDistance??o.userData?.routeProgress);
       if(Number.isFinite(d)&&map2Segment(d).kind==='TECH'&&o.userData?.map2VisualOnly&&
          !o.name?.startsWith('MAP2_ARCH_')&&pattern.test(o.name||'')){
@@ -63,8 +79,9 @@ assert(html.includes('MAP2_ARCH_CONNECTOR_'));
     return {
       s,
       ground:ground.length,
-      foundations:ground.filter(x=>!x.connector).length,
+      foundationPads:ground.filter(x=>x.pad).length,
       connectors:ground.filter(x=>x.connector).length,
+      maxFoundationW,maxFoundationD,maxConnectorW,maxConnectorD,
       oldStraight,
       groundedRoots:groundedRoots.length,
       maxLocalYJump,
@@ -82,15 +99,18 @@ assert(html.includes('MAP2_ARCH_CONNECTOR_'));
   assert(s,'grounding summary must be published');
   assert.equal(s.philosophy,'BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON');
   assert(s.measuredGroups>=80,'most real building groups must participate in ground measurement');
-  assert.equal(s.foundations,s.measuredGroups,'every measured building group gets its own local foundation');
-  assert(s.connectors>=20,'nearby building handoffs need short architectural connector plates');
+  assert.equal(s.foundations,s.measuredGroups,'every measured building group gets structural support');
+  assert(s.foundationPads>=s.foundations,'modular ground must use one or more compact pads per supported group');
+  assert(s.connectors>=20&&s.connectors<=140,'building handoffs need sparse short service bridges, not a continuous strip');
   assert.equal(s.groundedGroups,s.measuredGroups,'every measured building group must receive structural ground support');
   assert.equal(s.movedGroups,0,'grounding must not move the authored building route vertically');
   assert.equal(s.maxVerticalCorrection,0,'grounding must preserve MAP2-25/28 route Y geometry');
   assert.equal(s.remainingStraightSurfaces,0,'no straight legacy TECH road surface may remain');
   assert.equal(info.oldStraight.length,0,'scene graph must contain no old straight TECH surface helper');
-  assert.equal(info.foundations,s.foundations);
+  assert.equal(info.foundationPads,s.foundationPads);
   assert.equal(info.connectors,s.connectors);
+  assert(info.maxFoundationW<=330.001&&info.maxFoundationD<=360.001,'foundation pads must stay compact instead of recreating a giant road slab');
+  assert(info.maxConnectorW<=250.001&&info.maxConnectorD<=300.001,'connectors must remain narrow service bridges');
   assert(info.groundedRoots>=40,'grounding metadata must be carried by a substantial set of copied Map4 roots');
   assert(info.maxLocalYJump<=330,'grounded route anchors must remain flyable');
   assert(info.modules>=168&&info.anchors>=736,'dense through-building route must survive');
@@ -99,6 +119,7 @@ assert(html.includes('MAP2_ARCH_CONNECTOR_'));
   assert(info.map4Hidden,'Map4 source scene remains hidden');
   assert.equal(info.stats?.architectureMovedGroups,0);
   assert.equal(info.stats?.architectureFoundations,s.foundations);
+  assert.equal(info.stats?.architectureFoundationPads,s.foundationPads);
   assert.equal(info.stats?.architectureConnectors,s.connectors);
   assert.equal(info.stats?.architectureStraightSurfacesRemaining,0);
 
