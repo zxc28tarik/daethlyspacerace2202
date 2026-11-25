@@ -69,12 +69,16 @@ jobs:
       - name: MAP2-28 chicane regression
         run: node tests/map2-28-architectural-chicane-chains.cjs
       - name: MAP2-27 road-cleanup regression
+        if: ${{ !cancelled() }}
         run: node tests/map2-27-architectural-road-cleanup.cjs
       - name: MAP2-25 through-building regression
+        if: ${{ !cancelled() }}
         run: node tests/map2-25-through-building-route-modules.cjs
       - name: MAP2-19 buildings-are-road regression
+        if: ${{ !cancelled() }}
         run: node tests/map2-19-buildings-are-road.cjs
       - name: MAP2-11 KEEP IT LOW regression
+        if: ${{ !cancelled() }}
         run: node tests/map2-11-keep-it-low-visual.cjs
       - name: Persist generated index
         run: |

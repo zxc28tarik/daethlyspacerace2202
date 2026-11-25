@@ -60,6 +60,25 @@ block=r'''
                     return false;
                 };
 
+                // MAP2-38: guard the primary through-building route as well as
+                // alternate branches. Match the independent MAP2-28 audit,
+                // including all colliders (not just those tagged active).
+                const primarySegments=[];
+                for(const m of (window.starbladeMap2ThroughRoute?.modules||[]).filter(m=>m.chicane)){
+                    let prev=null;
+                    for(let d=m.entrance.distance;d<=m.exit.distance+1;d+=70){
+                        const dd=Math.min(d,m.exit.distance);
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev)primarySegments.push({id:m.id,a:prev,b:node});
+                        prev=node;
+                    }
+                }
+                const primaryBlocked=()=>new Set(primarySegments.filter(v=>
+                    physical.some(o=>courseSegmentTouch(o,v.a,v.b,12.5))).map(v=>v.id));
+                const preexistingPrimary=primaryBlocked();
+                let primaryRejected=0;
+                const primaryRejections=[];
                 for(const complex of play.complexes){
                     const block=gap.blocks.find(b=>b.id===complex.id);
                     if(!block)continue;
@@ -73,16 +92,34 @@ block=r'''
                         // If both roots share a near-zero hint, alternate signs.
                         const sign=Math.abs(laneHint)>22?Math.sign(laneHint):(ri%2?1:-1);
                         // Outward toe: left mass opens left, right mass opens right.
-                        const deg=sign*base;
                         const old=root.quaternion.clone();
-                        root.rotateY(THREE.MathUtils.degToRad(deg));
-                        root.updateMatrix();root.updateMatrixWorld(true);
-                        refreshRoot(root.name);
-
-                        if(play.complexes.some(routeBlocked)){
+                        const colliderState=physical.filter(o=>o.sourceRoot===root.name).map(o=>({
+                            o,fields:Object.fromEntries(['laneX','laneY','halfX','halfY','halfDepth','radius'].map(k=>[k,o[k]]))
+                        }));
+                        const restore=()=>{
                             root.quaternion.copy(old);
                             root.updateMatrix();root.updateMatrixWorld(true);
+                            colliderState.forEach(({o,fields})=>Object.assign(o,fields));
+                        };
+                        let deg=0;
+                        for(const factor of [1,.5,.25]){
+                            restore();
+                            const candidate=sign*base*factor;
+                            root.rotateY(THREE.MathUtils.degToRad(candidate));
+                            root.updateMatrix();root.updateMatrixWorld(true);
                             refreshRoot(root.name);
+                            const mainHits=[...primaryBlocked()].filter(id=>!preexistingPrimary.has(id));
+                            if(mainHits.length){
+                                primaryRejected++;
+                                primaryRejections.push({root:root.name,yaw:candidate,modules:mainHits});
+                                continue;
+                            }
+                            if(play.complexes.some(routeBlocked))continue;
+                            deg=candidate;
+                            break;
+                        }
+                        if(!deg){
+                            restore();
                             rejectedRoots++;
                             return;
                         }
@@ -193,8 +230,52 @@ block=r'''
                     const observedClass=measuredAllVisibleDistance>=340?'WIDE_READ':
                         measuredAllVisibleDistance>=220?'CLEAR_SPLIT':
                         measuredAllVisibleDistance>0?'LATE_REVEAL':'OCCLUDED';
+                    // Distinguish visibility of the deep opening from visibility
+                    // of an already-separated branch approach. A bend can hide
+                    // the deep aperture even when a pilot sees where to turn.
+                    const at=(p,d)=>{
+                        const n=p.nodes;
+                        if(d<n[0].routeProgress||d>n[n.length-1].routeProgress)return null;
+                        let i=1;
+                        while(i<n.length-1&&n[i].routeProgress<d)i++;
+                        const a=n[i-1],b=n[i];
+                        const t=THREE.MathUtils.clamp((d-a.routeProgress)/Math.max(1,b.routeProgress-a.routeProgress),0,1);
+                        return {x:THREE.MathUtils.lerp(a.laneX,b.laneX,t),y:THREE.MathUtils.lerp(a.laneY,b.laneY,t)};
+                    };
+                    const commonStart=Math.max(...complex.passages.map(p=>p.start));
+                    const splitSamples=[];
+                    for(let d=commonStart;d<focus;d+=25){
+                        const points=complex.passages.map(p=>at(p,d));
+                        if(points.some(p=>!p))continue;
+                        let sep=Infinity;
+                        for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++)
+                            sep=Math.min(sep,Math.hypot(points[i].x-points[j].x,points[i].y-points[j].y));
+                        if(sep>=75)splitSamples.push({d,points,sep});
+                    }
+                    const split=splitSamples[0]||null;
+                    const approachProbes=[];
+                    if(split){
+                        // Sample before the first visible spatial separation, not
+                        // after the pilot is already committed to an opening.
+                        for(const lead of [60,120,220,340,480]){
+                            const d=split.d-lead;
+                            if(d<0||map2Segment(d).kind!=='TECH')continue;
+                            const q=map2BuildingPassageAt(d),f=getRaceFrameAtDistance(d);
+                            const origin=worldAt(d,q.x-1.45,q.y+5.1).addScaledVector(f.tangent,-18.2);
+                            const ids=[];
+                            split.points.forEach((p,i)=>{
+                                const target=worldAt(split.d,p.x,p.y),v=target.clone().sub(origin);
+                                const z=v.dot(f.tangent);
+                                if(z>0&&Math.abs(v.dot(f.right))<=z*1.2&&Math.abs(v.dot(f.up))<=z*.67&&visible(origin,target))
+                                    ids.push(complex.passages[i].id);
+                            });
+                            approachProbes.push({lead,visibleIds:ids,allVisible:ids.length===complex.passages.length});
+                        }
+                    }
                     const evidence={method:'WORLD_SPACE_MAP4_MESH_RAYS',probes,branches,
-                        measuredAllVisibleDistance,observedClass};
+                        measuredAllVisibleDistance,observedClass,
+                        approach:{splitDistance:split?.d??null,minSeparation:split?.sep??null,
+                            probes:approachProbes,allVisibleLead:Math.max(0,...approachProbes.filter(p=>p.allVisible).map(p=>p.lead))}};
                     complex.visibilityEvidence=evidence;
                     row.visibilityEvidence=evidence;
                 }
@@ -207,6 +288,9 @@ block=r'''
                 });
                 const summary={
                     observedClassCounts,
+                    primarySafety:{checkedSegments:primarySegments.length,
+                        blockedBefore:[...preexistingPrimary],blockedAfter:[...primaryBlocked()],
+                        rejectedAttempts:primaryRejected,rejections:primaryRejections},
                     philosophy:'REAL_BUILDINGS_FRAME_ROUTE_CHOICES_NO_FLOATING_ARROWS',
                     complexes:rows,
                     complexCount:rows.length,

@@ -84,6 +84,15 @@ assert(html.includes('MAP2-35: architectural decision sightlines'));
     assert(e.branches.every(b=>b.maxVisibleDistance===Math.max(0,...e.probes.filter(p=>p.visibleIds.includes(b.id)).map(p=>p.distance))));
     assert(['WIDE_READ','CLEAR_SPLIT','LATE_REVEAL','OCCLUDED'].includes(e.observedClass));
   }
+  assert(info.summary.primarySafety.checkedSegments>0);
+  assert.deepEqual(info.summary.primarySafety.blockedBefore,[],'MAP2-34 baseline main route must remain clear');
+  assert.deepEqual(info.summary.primarySafety.blockedAfter,[],'MAP2-35 cannot block the primary chicane');
+  for(const c of info.summary.complexes){
+    const a=c.visibilityEvidence.approach;
+    assert(a&&Array.isArray(a.probes));
+    if(a.splitDistance!==null)assert(a.minSeparation>=75);
+    assert.equal(a.allVisibleLead,Math.max(0,...a.probes.filter(p=>p.allVisible).map(p=>p.lead)));
+  }
   assert.equal(info.oldStraight,0);
   assert.equal(info.stats?.decisionSightlineComplexes,9);
   assert.equal(info.stats?.decisionSightlineRoots,info.summary.shapedRoots);
