@@ -64,115 +64,47 @@ block=r"""            // MAP2-29: grounded architectural route.
                 }
                 if(rows.length<2)return null;
 
-                // 2) Derive a local terrain datum from neighbouring real building
-                // bases. This prevents the old "everything sits on one flat road"
-                // look and removes isolated floating complexes at the same time.
+                // 2) Derive a local SUPPORT datum from neighbouring real building
+                // bases, but DO NOT move the copied building shell or the flight tube.
+                // MAP2-25/28 already authored a flyable entrance/interior/exit path.
+                // Grounding is visual/structural: foundations rise to the existing
+                // architecture instead of dragging architecture up/down to a road.
+                let grounded=0,movedGroups=0,maxVerticalCorrection=0,maxRawFloatGap=0,maxResidualSupport=0;
                 for(const row of rows){
                     const neighbours=rows.filter(q=>
                         map2Segment(q.d).kind==='TECH'&&Math.abs(q.d-row.d)<=2600
                     );
-                    let target=median(neighbours.map(q=>q.baseBefore));
-                    if(!Number.isFinite(target))target=row.baseBefore;
-                    // Keep the floor safely below the flown aperture.
-                    target=THREE.MathUtils.clamp(
-                        target,
-                        row.y-230,
-                        row.y-82
-                    );
-                    row.rawGround=target;
-                }
-                let prev=null;
-                for(const row of rows){
-                    let target=row.rawGround;
-                    if(prev&&row.d-prev.d<=2600)
-                        target=THREE.MathUtils.clamp(target,prev.targetGround-34,prev.targetGround+34);
-                    row.targetGround=target;
-                    prev=row;
-                }
-                // Backward pass prevents one tall outlier from dragging the next
-                // several buildings upward in a staircase.
-                for(let i=rows.length-2;i>=0;i--){
-                    const row=rows[i],next=rows[i+1];
-                    if(next.d-row.d>2600)continue;
-                    row.targetGround=THREE.MathUtils.clamp(
-                        row.targetGround,next.targetGround-34,next.targetGround+34
-                    );
-                }
+                    const localMedian=median(neighbours.map(q=>q.baseBefore));
+                    const neighbourFloor=Number.isFinite(localMedian)?localMedian:row.baseBefore;
 
-                const dyByRoot=new Map();
-                let grounded=0,maxVerticalCorrection=0,maxRawFloatGap=0,maxResidualSupport=0;
-                for(const row of rows){
-                    const desired=row.targetGround-row.baseBefore;
-                    // Move the authored building shell enough to remove obvious
-                    // hovering, but do not yank a whole Map4 complex hundreds of
-                    // metres and break its recognizable composition.
-                    let dy=THREE.MathUtils.clamp(desired,-86,86);
-                    dy=THREE.MathUtils.clamp(dy,-188-row.y,96-row.y);
-                    if(Math.abs(dy)>.5){
-                        map2MoveRouteBuildingGroup(row.roots,row.d,0,dy);
-                        grounded++;
-                    }
-                    row.dy=dy;
-                    row.baseAfter=row.baseBefore+dy;
-                    row.g.y+=dy;
-                    row.y=row.g.y;
-                    row.supportGap=Math.max(0,row.baseAfter-row.targetGround);
-                    maxVerticalCorrection=Math.max(maxVerticalCorrection,Math.abs(dy));
-                    maxRawFloatGap=Math.max(maxRawFloatGap,Math.max(0,row.baseBefore-row.targetGround));
-                    maxResidualSupport=Math.max(maxResidualSupport,row.supportGap);
+                    // Always keep support below the building. Limit its depth so an
+                    // isolated source fragment never creates a kilometre-high plinth.
+                    let target=Math.min(
+                        row.baseBefore-24,
+                        neighbourFloor-12,
+                        row.y-96
+                    );
+                    target=Math.max(target,row.baseBefore-170);
+
+                    row.rawGround=target;
+                    row.targetGround=target;
+                    row.dy=0;
+                    row.baseAfter=row.baseBefore;
+                    row.supportGap=Math.max(24,row.baseAfter-row.targetGround);
+                    grounded++;
+                    maxRawFloatGap=Math.max(maxRawFloatGap,row.supportGap);
+
                     for(const root of row.roots){
-                        dyByRoot.set(root.name,dy);
                         root.userData.map2GroundedArchitecture=true;
-                        root.userData.map2GroundShiftY=(root.userData.map2GroundShiftY||0)+dy;
+                        root.userData.map2GroundShiftY=0;
                         root.userData.map2GroundBaseY=row.baseAfter;
                         root.userData.map2GroundTargetY=row.targetGround;
-                        if(Number.isFinite(root.userData.map2SequenceLaneY))
-                            root.userData.map2SequenceLaneY+=dy;
-                        if(Number.isFinite(root.userData.map2RoadApertureY))
-                            root.userData.map2RoadApertureY+=dy;
                     }
                 }
 
-                // Smoothly propagate the same grounding correction into every route
-                // anchor so the entrance/interior/exit tube follows the seated shells.
-                const shiftRows=rows.map(r=>({d:r.d,dy:r.dy})).sort((a,b)=>a.d-b.d);
-                const shiftAt=d=>{
-                    const seg=map2Segment(d);
-                    if(seg.kind!=='TECH')return 0;
-                    let before=null,after=null;
-                    for(const q of shiftRows){
-                        if(q.d<=d)before=q;
-                        if(q.d>=d){after=q;break;}
-                    }
-                    if(!before)before=after;
-                    if(!after)after=before;
-                    if(!before||!after)return 0;
-                    if(before===after)return before.dy;
-                    if(after.d-before.d>3000)return Math.abs(d-before.d)<Math.abs(after.d-d)?before.dy:after.dy;
-                    const t=THREE.MathUtils.clamp((d-before.d)/Math.max(1,after.d-before.d),0,1);
-                    return THREE.MathUtils.lerp(before.dy,after.dy,t);
-                };
-                for(const k of road.knots)k.y+=shiftAt(k.distance);
-                for(const k of route.moduleAnchors||[])k.y+=shiftAt(k.distance);
-                const shiftedPointObjects=new Set();
-                const movePoint=q=>{
-                    if(!q||shiftedPointObjects.has(q))return;
-                    q.y+=shiftAt(q.distance);
-                    shiftedPointObjects.add(q);
-                };
-                for(const module of route.modules){
-                    movePoint(module.entrance);movePoint(module.core);movePoint(module.exit);
-                    for(const q of module.points||[])movePoint(q);
-                    module.groundedArchitecture=true;
-                }
-                route.routeAnchors=road.knots;
-
-                // Keep MAP2-28 telemetry truthful after this second vertical pass.
-                const chicane=window.starbladeMap2ArchitecturalChicanes;
-                if(chicane?.moved?.length){
-                    for(const m of chicane.moved)m.y+=shiftAt(m.d);
-                    chicane.groundedByMAP229=true;
-                }
+                // Deliberately no route/root Y mutation here. This keeps the exact
+                // MAP2-25 building handoffs, MAP2-28 chicane tube and AI navigation
+                // unchanged while the new structural bases remove the floating look.
 
                 // 3) Kill any remaining straight TECH road surface helper. MAP2-27
                 // already removed the known deck class; this catches older aliases.
@@ -199,8 +131,8 @@ block=r"""            // MAP2-29: grounded architectural route.
                 rows.forEach((row,i)=>{
                     const footprintW=THREE.MathUtils.clamp((row.maxX-row.minX)+120,360,1080);
                     const footprintD=THREE.MathUtils.clamp((row.maxZ-row.minZ)+140,320,1180);
-                    const supportH=THREE.MathUtils.clamp(Math.max(24,row.supportGap+26),24,170);
-                    const supportY=row.baseAfter-supportH*.52;
+                    const supportH=THREE.MathUtils.clamp(Math.max(28,row.supportGap+24),28,190);
+                    const supportY=row.baseAfter-supportH*.50;
                     const g=addVisualBlock(
                         row.d,row.x,supportY,
                         footprintW,supportH,footprintD,
@@ -223,7 +155,7 @@ block=r"""            // MAP2-29: grounded architectural route.
                     const gap=b.d-a.d;
                     if(gap<=0||gap>2200)continue;
                     if(map2Segment((a.d+b.d)*.5).kind!=='TECH')continue;
-                    const count=THREE.MathUtils.clamp(Math.ceil(gap/520),1,4);
+                    const count=THREE.MathUtils.clamp(Math.ceil(gap/720),1,3);
                     for(let j=1;j<=count;j++){
                         const t=j/(count+1);
                         const d=THREE.MathUtils.lerp(a.d,b.d,t);
@@ -231,7 +163,7 @@ block=r"""            // MAP2-29: grounded architectural route.
                         const ground=THREE.MathUtils.lerp(a.baseAfter,b.baseAfter,t);
                         const lateral=Math.abs(b.x-a.x);
                         const w=THREE.MathUtils.clamp(260+lateral*.42,260,430);
-                        const depth=THREE.MathUtils.clamp(gap/(count+1)*.72,260,520);
+                        const depth=THREE.MathUtils.clamp(gap/(count+1)*.66,240,480);
                         const g=addVisualBlock(
                             d,q.x,ground-18,
                             w,28,depth,
@@ -273,7 +205,7 @@ block=r"""            // MAP2-29: grounded architectural route.
 
                 const summary={
                     philosophy:'BUILDING_BASES_DEFINE_GROUND_NO_ASPHALT_RIBBON',
-                    measuredGroups:rows.length,groundedGroups:grounded,
+                    measuredGroups:rows.length,groundedGroups:grounded,movedGroups,
                     foundations,connectors,
                     maxVerticalCorrection,maxRawFloatGap,maxResidualSupport,
                     extraStraightSurfacesRemoved,
@@ -290,6 +222,7 @@ block=r"""            // MAP2-29: grounded architectural route.
                 window.starbladeMap2GroundedArchitecture=summary;
                 Object.assign(map2VisualStageStats,{
                     groundedArchitectureGroups:grounded,
+                    architectureMovedGroups:movedGroups,
                     architectureFoundations:foundations,
                     architectureConnectors:connectors,
                     architectureMaxVerticalCorrection:maxVerticalCorrection,
