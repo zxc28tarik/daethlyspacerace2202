@@ -37,7 +37,7 @@ assert(html.includes('MAP2-34: controlled architectural chaos'));
       let prev=null,hit=false;
       for(let d=Math.max(0,b.from-70);d<=Math.min(MAP2_DISTANCE,b.to+70)+1;d+=55){
         const dd=Math.min(d,Math.min(MAP2_DISTANCE,b.to+70));
-        const q=map2BuildingPassageAt(dd);
+        const q=starbladeMap2BuildingPassageAt(dd);
         const now={routeProgress:dd,laneX:q.x,laneY:q.y};
         if(prev&&physical.some(o=>o.active!==false&&courseSegmentTouch(o,prev,now,12.5))){hit=true;break;}
         prev=now;
@@ -72,7 +72,7 @@ assert(html.includes('MAP2-34: controlled architectural chaos'));
   for(let i=0;i<ds.length;i++){
     const d=Math.max(0,ds[i]-260);
     await page.evaluate(d=>{
-      const q=map2BuildingPassageAt(d);
+      const q=starbladeMap2BuildingPassageAt(d);
       state.paused=true;state.routeProgress=d;state.laneX=q.x;state.laneY=q.y;
       const f=getRaceFrameAtDistance(d);
       state.pos.copy(f.center).addScaledVector(f.right,q.x).addScaledVector(f.up,q.y);
