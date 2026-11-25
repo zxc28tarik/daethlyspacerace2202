@@ -75,7 +75,12 @@ assert(html.includes('architectureFoundationPads'));
     }
     const longest=Math.max(0,...merged.map(x=>x[1]-x[0]));
     const totalCovered=merged.reduce((n,x)=>n+(x[1]-x[0]),0);
-    const techLength=map2Segments.filter(s=>s.kind==='TECH').reduce((n,s)=>n+(s.to-s.from),0);
+    let techLength=0;
+    const step=100;
+    for(let d=0;d<MAP2_DISTANCE;d+=step){
+      const span=Math.min(step,MAP2_DISTANCE-d);
+      if(map2Segment(d+span*.5).kind==='TECH')techLength+=span;
+    }
     const coveragePct=techLength?100*totalCovered/techLength:0;
 
     // Support should stay well below the actual flown passage, not become a raised road.
