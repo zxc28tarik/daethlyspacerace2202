@@ -16628,6 +16628,19 @@
                                 k.chicaneChain=chainIndex;
                             }
                         }
+
+                        // MAP2-19 owns the centre building-road group records.
+                        // Keep those records on the same moved aperture so the
+                        // historical "building knot == active passage" invariant
+                        // remains true after the MAP2-28 architectural warp.
+                        const movedNames=new Set(moduleRoots.map(r=>r.name));
+                        for(const g of (road.groups||[])){
+                            if(!(g.rootNames||[]).some(n=>movedNames.has(n)))continue;
+                            g.x+=dx;g.y+=dy;
+                            g.map2ArchitecturalChicane=true;
+                            g.chicaneChain=chainIndex;
+                        }
+
                         for(const k of route.moduleAnchors){
                             if(k.moduleId!==module.id)continue;
                             k.x+=dx;k.y+=dy;
