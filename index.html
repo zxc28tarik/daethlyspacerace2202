@@ -18810,6 +18810,261 @@
             };
             queueMicrotask(()=>queueMicrotask(()=>map2ReconcileWideUrbanPassages()));
 
+            // MAP2-44: keep the doubled-width course genuinely architectural.
+            // The near Map4 frontage already defines the usable TECH corridor, but
+            // its aggregate collision boxes used to stop just short of the doubled
+            // soft boundary. A pilot could therefore slip around the OUTSIDE of a
+            // visible building row. Preserve every inner face (so the road never
+            // becomes narrow again) and extend only the outer face beyond the
+            // reachable envelope. Final primary/alternate routes are checked with a
+            // conservative player-sized radius before the shell is sealed.
+            const map2SealWideUrbanEscapePaths=()=>{
+                const sys=window.starbladeMap2WideUrbanCourse;
+                const world=window.starbladeMap2WorldCity;
+                const physical=window.starbladeMap2BuildingColliders||[];
+                if(!sys||!world)return null;
+
+                const shipRadius=BOUNDARY_RULES.playerWingHalfSpan+6;
+                const complexes=[
+                    ...(window.starbladeMap2PlayablePassages?.complexes||[]),
+                    ...(window.starbladeMap2FullGapSystem?.extraComplexes||[])
+                ];
+                const touchesFinalRoute=(o,radius=shipRadius)=>{
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-110);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+110);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=72){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,radius))return true;
+                        prev=node;
+                    }
+                    for(const complex of complexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const a=nodes[i-1],b=nodes[i];
+                                if(Math.max(a.routeProgress,b.routeProgress)<from||
+                                   Math.min(a.routeProgress,b.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,a,b,radius))return true;
+                            }
+                        }
+                    }
+                    return false;
+                };
+                const boundaryOuterAt=d=>2*BOUNDARY_RULES.maxRadius*
+                    getCorridorRadiusAt(d)/state.tubeRadius;
+                const worldEnvelope=world.naturalRead?.flightEnvelope||
+                    (2*BOUNDARY_RULES.maxRadius+30);
+                const updateWorldPosition=o=>{
+                    const f=getRaceFrameAtDistance(o.routeProgress);
+                    o.mesh.position.copy(f.center)
+                        .addScaledVector(f.right,o.laneX)
+                        .addScaledVector(f.up,o.laneY);
+                    o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
+                };
+
+                let clearancePushed=0,clearanceRemoved=0,expanded=0;
+                let maxSealInnerDrift=0,minOuterCoverageMargin=Infinity;
+                const wide=physical.filter(o=>o.map2WideUrbanFrontage).slice();
+                for(const o of wide){
+                    const side=Math.sign(o.laneX)||1;
+                    const rec=sys.physicalRecords.find(r=>
+                        Math.abs(r.d-o.routeProgress)<1&&r.side===side&&!r.escapeShell);
+                    // Player-sized route clearance: widen the route only when the
+                    // old 14-unit QA radius was too optimistic for the real craft.
+                    if(touchesFinalRoute(o,shipRadius)){
+                        const base=o.laneX;
+                        let solved=false;
+                        for(const push of [14,28,44,64,86]){
+                            o.laneX=base+side*push;
+                            updateWorldPosition(o);
+                            if(!touchesFinalRoute(o,shipRadius)){
+                                clearancePushed++;
+                                solved=true;
+                                break;
+                            }
+                        }
+                        if(!solved){
+                            o.laneX=base;
+                            const pi=physical.indexOf(o);if(pi>=0)physical.splice(pi,1);
+                            const oi=map2Obstacles.indexOf(o);if(oi>=0)map2Obstacles.splice(oi,1);
+                            const ri=sys.physicalRecords.indexOf(rec);if(ri>=0)sys.physicalRecords.splice(ri,1);
+                            clearanceRemoved++;
+                            continue;
+                        }
+                    }
+
+                    const beforeInner=Math.abs(o.laneX)-o.halfX;
+                    const beforeOuter=Math.abs(o.laneX)+o.halfX;
+                    const targetOuter=Math.max(
+                        beforeOuter,
+                        boundaryOuterAt(o.routeProgress)+BOUNDARY_RULES.playerWingHalfSpan+24,
+                        worldEnvelope+18
+                    );
+                    const extra=Math.max(0,targetOuter-beforeOuter);
+                    if(extra>0){
+                        o.halfX+=extra*.5;
+                        o.laneX+=side*extra*.5;
+                        updateWorldPosition(o);
+                        expanded++;
+                    }
+                    const afterInner=Math.abs(o.laneX)-o.halfX;
+                    const afterOuter=Math.abs(o.laneX)+o.halfX;
+                    maxSealInnerDrift=Math.max(maxSealInnerDrift,Math.abs(afterInner-beforeInner));
+                    minOuterCoverageMargin=Math.min(minOuterCoverageMargin,
+                        afterOuter-boundaryOuterAt(o.routeProgress)-BOUNDARY_RULES.playerWingHalfSpan);
+                    if(rec){
+                        rec.x=o.laneX;rec.halfX=o.halfX;
+                        rec.map244OuterSealed=true;
+                    }
+                    o.map2WideUrbanOuterSealed=true;
+                }
+
+                // If passage reconciliation removed a coarse block, keep only the
+                // far OUTER escape band continuous across that longitudinal gap.
+                // This never reaches the authored passage lanes.
+                let stitches=0;
+                const techSegments=MAP2_SEGMENTS.filter(s=>s.kind==='TECH');
+                const makeStitch=(side,from,to)=>{
+                    const center=(from+to)*.5;
+                    const boundary=boundaryOuterAt(center);
+                    const inner=Math.max(720,boundary-38);
+                    const halfX=78;
+                    const height=920;
+                    const o={
+                        routeProgress:center,
+                        laneX:side*(inner+halfX),
+                        laneY:world.floorY+height*.5,
+                        halfX,halfY:height*.5,
+                        halfDepth:(to-from)*.5+82,
+                        radius:0,
+                        type:'WRECK_BOX',moveType:'STATIC',active:true,
+                        touchingShips:new Set(),hitTimes:Object.create(null),
+                        map2BuildingDerived:true,map2WideUrbanEscapeShell:true,
+                        sourceRoot:'MAP4_CITY02_OUTER_ESCAPE_SHELL'
+                    };
+                    const f=getRaceFrameAtDistance(center);
+                    const wp=f.center.clone().addScaledVector(f.right,o.laneX)
+                        .addScaledVector(f.up,o.laneY);
+                    o.mesh={position:wp};
+                    o.radius=Math.hypot(o.halfX,o.halfY,o.halfDepth);
+                    if(touchesFinalRoute(o,shipRadius))return false;
+                    map2Obstacles.push(o);physical.push(o);
+                    sys.physicalRecords.push({
+                        d:center,side,x:o.laneX,halfX:o.halfX,
+                        halfDepth:o.halfDepth,height,escapeShell:true
+                    });
+                    stitches++;
+                    return true;
+                };
+
+                let largestRawGap=0;
+                for(const seg of techSegments){
+                    const a=seg.from*MAP2_DISTANCE,b=seg.to*MAP2_DISTANCE;
+                    for(const side of [-1,1]){
+                        const arr=physical.filter(o=>
+                            (o.map2WideUrbanFrontage||o.map2WideUrbanEscapeShell)&&
+                            Math.sign(o.laneX)===side&&
+                            o.routeProgress>=a&&o.routeProgress<=b
+                        ).sort((x,y)=>x.routeProgress-y.routeProgress);
+                        for(let i=1;i<arr.length;i++){
+                            const from=arr[i-1].routeProgress+arr[i-1].halfDepth;
+                            const to=arr[i].routeProgress-arr[i].halfDepth;
+                            const gap=to-from;
+                            largestRawGap=Math.max(largestRawGap,gap);
+                            if(gap>12)makeStitch(side,from,to);
+                        }
+                    }
+                }
+
+                const brakeReaction=.26;
+                const settleTime=Math.log(
+                    (RACE_SPEEDS.BOOST-RACE_SPEEDS.BRAKE)/
+                    (RACE_SPEEDS.NORMAL-RACE_SPEEDS.BRAKE)
+                )/5;
+                const settleDistance=RACE_SPEEDS.BRAKE*settleTime+
+                    (RACE_SPEEDS.BOOST-RACE_SPEEDS.BRAKE)*
+                    (1-Math.exp(-5*settleTime))/5;
+                const brakingDistance=RACE_SPEEDS.BOOST*brakeReaction+settleDistance;
+                const decisionBlocks=physical.filter(o=>o.map2WideUrbanFrontage);
+                const minBrakeDepthMargin=Math.min(...decisionBlocks.map(o=>
+                    2*o.halfDepth-2*brakingDistance
+                ));
+
+                let playerRadiusPrimaryHits=0,playerRadiusBranchHits=0,fastPhysical=0;
+                for(const o of physical.filter(o=>
+                    o.map2WideUrbanFrontage||o.map2WideUrbanEscapeShell)){
+                    if(map2Segment(o.routeProgress).kind==='FAST')fastPhysical++;
+                    const from=Math.max(0,o.routeProgress-o.halfDepth-90);
+                    const to=Math.min(MAP2_DISTANCE,o.routeProgress+o.halfDepth+90);
+                    let prev=null;
+                    for(let d=from;d<=to+1;d+=72){
+                        const dd=Math.min(d,to);
+                        if(map2Segment(dd).kind!=='TECH'){prev=null;continue;}
+                        const q=map2BuildingPassageAt(dd);
+                        const node={routeProgress:dd,laneX:q.x,laneY:q.y};
+                        if(prev&&courseSegmentTouch(o,prev,node,shipRadius))playerRadiusPrimaryHits++;
+                        prev=node;
+                    }
+                    for(const complex of complexes){
+                        if(complex.to<from||complex.from>to)continue;
+                        for(const passage of complex.passages||[]){
+                            const nodes=passage.nodes||[];
+                            for(let i=1;i<nodes.length;i++){
+                                const p=nodes[i-1],q=nodes[i];
+                                if(Math.max(p.routeProgress,q.routeProgress)<from||
+                                   Math.min(p.routeProgress,q.routeProgress)>to)continue;
+                                if(courseSegmentTouch(o,p,q,shipRadius))playerRadiusBranchHits++;
+                            }
+                        }
+                    }
+                }
+
+                // Final longitudinal coverage after optional outer-only stitches.
+                let maxLongitudinalGap=0;
+                for(const seg of techSegments){
+                    const a=seg.from*MAP2_DISTANCE,b=seg.to*MAP2_DISTANCE;
+                    for(const side of [-1,1]){
+                        const arr=physical.filter(o=>
+                            (o.map2WideUrbanFrontage||o.map2WideUrbanEscapeShell)&&
+                            Math.sign(o.laneX)===side&&
+                            o.routeProgress>=a&&o.routeProgress<=b
+                        ).sort((x,y)=>x.routeProgress-y.routeProgress);
+                        for(let i=1;i<arr.length;i++){
+                            const gap=arr[i].routeProgress-arr[i].halfDepth-
+                                (arr[i-1].routeProgress+arr[i-1].halfDepth);
+                            maxLongitudinalGap=Math.max(maxLongitudinalGap,gap);
+                        }
+                    }
+                }
+
+                sys.physicalColliders=sys.physicalRecords.length;
+                const result={
+                    philosophy:'PRESERVE_INNER_ROAD_SEAL_ONLY_THE_OUTER_ESCAPE',
+                    shipRadius,expanded,clearancePushed,clearanceRemoved,stitches,
+                    largestRawGap,maxLongitudinalGap,maxSealInnerDrift,
+                    minOuterCoverageMargin,brakingDistance,minBrakeDepthMargin,
+                    playerRadiusPrimaryHits,playerRadiusBranchHits,fastPhysical,
+                    physicalColliders:sys.physicalColliders
+                };
+                sys.escapeSeal=result;
+                window.starbladeMap2PhysicalConsistency=result;
+                Object.assign(map2VisualStageStats,{
+                    wideUrbanOuterSealed:expanded,
+                    wideUrbanPlayerClearancePushes:clearancePushed,
+                    wideUrbanEscapeShells:stitches,
+                    wideUrbanPhysicalColliders:sys.physicalColliders
+                });
+                return result;
+            };
+            // MAP2-42's final branch reconciliation is already two microtasks deep.
+            // Run MAP2-44 one step later so it audits the finished passage graph.
+            queueMicrotask(()=>queueMicrotask(()=>queueMicrotask(()=>map2SealWideUrbanEscapePaths())));
+
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
                 gates:map2Gates.length,items:map2Items.length,gateKinds:gateKinds.slice(),kitCounts:kitCounts.slice(),openings:map2Gates.reduce((n,g)=>n+g.openings.length,0),apertureGuides:apertureGuideCount,
