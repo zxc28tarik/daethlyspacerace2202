@@ -13,8 +13,8 @@ const {makePack}=require('./gfx01-assets.cjs');
 const source=get('index.html'),threeJs=get('node_modules/three/build/three.min.js');
 const gltfLoader=get('node_modules/three/examples/js/loaders/GLTFLoader.js');
 const cssFile=path.join(outdir,'gfx01-tailwind.css');
-execFileSync(path.join(root,'node_modules','.bin','tailwindcss'),
- ['-i',path.join(root,'tools','gfx01-tailwind.css'),
+execFileSync(process.execPath,
+ [require.resolve('tailwindcss/lib/cli.js'),'-i',path.join(root,'tools','gfx01-tailwind.css'),
   '-o',cssFile,'--content',path.join(root,'index.html'),'--minify'],
  {cwd:root,stdio:'pipe',timeout:90000});
 const css=fs.readFileSync(cssFile,'utf8'),pack=makePack();
@@ -63,6 +63,9 @@ function exactly(haystack,needle,replacement){
  return haystack.replace(needle,replacement);
 }
 let built=source;
+const panoramaPath='assets/map2-city-panorama.jpg';
+const panorama=fs.readFileSync(path.join(root,panoramaPath)).toString('base64');
+built=exactly(built,JSON.stringify(panoramaPath),JSON.stringify('data:image/jpeg;base64,'+panorama));
 built=exactly(built,'<script src="https://cdn.tailwindcss.com"></script>',
  '<style id="gfx01-selfcontained-tailwind">\n'+css+'\n</style>');
 built=exactly(built,
