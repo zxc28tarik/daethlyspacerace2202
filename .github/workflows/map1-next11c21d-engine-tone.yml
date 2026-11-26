@@ -1,0 +1,42 @@
+name: Map1 NEXT11C21D Engine Materials Real WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-engine-tone-21d]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  technical-metal-real-webgl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: C21D engine material test syntax
+        run: node --check tests/map1-next11c21d-engine-tone.cjs
+      - name: Preserve SB-07 normal and boost plus B-04
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Previous ceramic and racing red shader regressions
+        run: |
+          node tests/map1-next11c21a-native-pbr-finishes.cjs
+          node tests/map1-next11c21b-balanced-colors.cjs
+          node tests/map1-next11c21c-red-flow.cjs
+      - name: Validate authentic engine metal A/B framebuffer and unchanged glow
+        run: node tests/map1-next11c21d-engine-tone.cjs
+      - name: 304 original rail seams
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Upload genuine WebGL 1600x900 old/new evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c21d-engine-steel-actual-webgl
+          path: |
+            tests/next11c21d-evidence/
+            tests/next11c21c-evidence/
+          if-no-files-found: warn

@@ -1,0 +1,35 @@
+name: Map1 NEXT11C20T Four Quality Levels Real WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-supersampling-budget-t]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-four-levels:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium / Three r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Parse code for the four-level supersampling quality benchmark
+        run: node --check tests/map1-next11c20t-four-quality-levels.cjs
+      - name: Check protected original Map1 rails and Map4 gameplay
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Compare 1x, 1.25x, 1.5x and 2x at 720p + 1080p in actual WebGL
+        run: node tests/map1-next11c20t-four-quality-levels.cjs
+      - name: Save PNG mosaics and JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20t-four-levels-webgl
+          path: |
+            tests/next11c20r-evidence/
+            tests/next11c20t-evidence/
+          if-no-files-found: warn

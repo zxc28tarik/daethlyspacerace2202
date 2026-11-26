@@ -1,0 +1,36 @@
+name: MAP2-13 apply exact Map4 station clones
+on:
+  push:
+    branches: [codex/map2-13-exact-map4-station-clones]
+    paths:
+      - tools/map2-13-exact-clone-patch.py
+      - .github/workflows/map2-13-exact-clone-bootstrap.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-13-exact-map4-station-clones
+          fetch-depth: 0
+      - name: Apply exact clone patch
+        run: python tools/map2-13-exact-clone-patch.py
+      - name: Validate exact-clone markers
+        run: |
+          grep -q "source.clone(true)" index.html
+          grep -q "MAP2_EXACT_MAP4_" index.html
+          grep -q "h4IndustrialGroups.slice(0,6)" index.html
+          ! grep -q "MAP2_VISUAL_FACTORY_" index.html
+          ! grep -q "MAP2_FAST_SILHOUETTE_" index.html
+          ! grep -q "MAP2_LINK_SILHOUETTE_" index.html
+      - name: Commit game patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-13 clone final Map4 industrial station groups"
+          git push origin HEAD:codex/map2-13-exact-map4-station-clones

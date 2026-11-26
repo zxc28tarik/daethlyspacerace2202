@@ -1,0 +1,28 @@
+name: MAP2-04 keep-it-low patrol smoke
+on:
+  push:
+    branches: [codex/map2-04-low-flight-patrol]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Map2 patrol, geometry and full fleet in Chromium
+        run: node tests/map2-04-low-flight-patrol.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-04-browser-evidence
+          path: tests/map2-04-evidence/
+          if-no-files-found: warn

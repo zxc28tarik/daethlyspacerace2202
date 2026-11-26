@@ -1,0 +1,28 @@
+name: MAP2-05 integrated course flow QA
+on:
+  pull_request:
+    branches: [codex/map2-04-low-flight-patrol]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Integrated Map2 geometry, flow, pilot, patrol and fleet regression
+        run: node tests/map2-05-course-flow.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-05-browser-evidence
+          path: tests/map2-05-evidence/
+          if-no-files-found: warn

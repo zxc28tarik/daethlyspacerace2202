@@ -55,3 +55,6 @@ Yeni savaş modu, karmaşık çatışma AI'sı, yeni uçuş motoru, boss, kariye
 
 ## 8. Öncelik
 Bir sonraki geliştirme paketi MAP2-01: kapalı pist + mevcut model yerleşimi + temel uçulabilirlik. Sonraki paketler geçiş/çarpışma, bot uyarlaması, devriye ve demo cilası. Bu belge uygulanmış kod iddiası değildir.
+
+## 9. Ek kullanıcı kararı — 24 Kasım 2026
+Harita 4 silinmeyecek veya bozulmayacak. Demo sürümünde yalnızca seçimi ve başlatılması geçici olarak kapalı tutulacak. `DEMO_MAP4_ENABLED=false` ile geri alınabilir erişim kapısı kullanılacak. MAP2-01 ayrı dalda; Harita 4'ün özgün işlevleri ve varlıkları korunacak.

@@ -1,0 +1,47 @@
+name: Map1 NEXT11C21G4 Triple Energy Orbit Pickup
+on:
+  push:
+    branches: [codex/map1-minimal-pickup-triple-orbit-21g4]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  triple-orbit-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium and portable build tools
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Syntax check
+        run: node --check tests/map1-next11c21g4-triple-orbit.cjs
+      - name: Three-ring vs one-ring actual native WebGL and Map4 guards
+        run: node tests/map1-next11c21g4-triple-orbit.cjs
+      - name: Previous minimal crystal and game camera regression
+        run: |
+          node tests/map1-next11c21g3-no-metal.cjs
+          node tests/map1-next11c21g2-violet-core.cjs
+      - name: Collectible HYPER reward unchanged vs manual boost
+        run: node tests/map1-next11c21g-reward-hyper.cjs
+      - name: Preserve SB-07 189 parts and 304 seamless corridor joins
+        run: |
+          node tests/map1-next11c20-sb07-zenit.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+      - name: Build portable single-file OFFLINE playable HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Upload full offline game and before/after WebGL screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21g4-triple-orbit-playable-and-webgl
+          path: |
+            tests/next11c21g4-evidence/
+            tests/next11c21g2-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn

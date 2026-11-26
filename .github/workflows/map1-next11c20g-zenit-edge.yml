@@ -1,0 +1,31 @@
+name: Map1 NEXT11C20G SB07 Edge Geometry and Mipmap QA
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-edge-quality-g]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  zenit-edge-quality-g:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned Three.js and Chromium
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Render updated SB-07; enforce Map1 gameplay and Map4 protection
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Keep genuine playable chase, boost and three-quarter captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20g-sb07-edge-review
+          path: |
+            tests/map1-next11c20-zenit-*.png
+            tests/map1-next11c20-zenit-qa.json
+          if-no-files-found: warn

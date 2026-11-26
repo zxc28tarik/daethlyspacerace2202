@@ -1,0 +1,45 @@
+name: Map1 NEXT11C21J Danger Contact Visual Feedback
+on:
+  push:
+    branches: [codex/map1-contact-visibility-21j]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-contact-cues:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install headless Chromium and offline HTML compiler
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Original-physics near miss, directional hit cues and Map4 WebGL
+        run: |
+          node --check tests/map1-next11c21j-contact-cues.cjs
+          node tests/map1-next11c21j-contact-cues.cjs
+      - name: Original barrier, meteor and purple box regression
+        run: |
+          node tests/map1-next11c21i-barrier-wreck.cjs
+          node tests/map1-next11c21h-meteors.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: Guard SB-07 ship and corridor
+        run: |
+          node tests/map1-next11c20-sb07-zenit.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+      - name: Build one-file fully offline game
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Publish game HTML, native screenshots and physics regression
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21j-contact-cues-playable-and-webgl
+          path: |
+            tests/next11c21j-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn

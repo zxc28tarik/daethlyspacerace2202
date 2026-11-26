@@ -1,0 +1,53 @@
+name: Map1 NEXT11C21O Race Road Color Cohesion
+on:
+  push:
+    branches: [codex/map1-race-road-color-cohesion-21o]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map1-original-road-color-cohesion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install real Chromium WebGL and offline build dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: C21O native WebGL original road / five-sector A-B / Map4 isolation
+        run: |
+          node --check tests/map1-next11c21o-road-colors.cjs
+          node tests/map1-next11c21o-road-colors.cjs
+      - name: Regression of original C21N/M/L/K/J/I/H/G6 scene and reward
+        run: |
+          node tests/map1-next11c21n-minor-rings.cjs
+          node tests/map1-next11c21m-box-facets.cjs
+          node tests/map1-next11c21l-light-balance.cjs
+          node tests/map1-next11c21k-distance-grade.cjs
+          node tests/map1-next11c21j-contact-cues.cjs
+          node tests/map1-next11c21i-barrier-wreck.cjs
+          node tests/map1-next11c21h-meteors.cjs
+          node tests/map1-next11c21g6-original-box.cjs
+      - name: Regression of corridor and original SB07 asset
+        run: |
+          node tests/map1-next11c20o-corridor-clarity.cjs
+          node tests/map1-next11c20p-distance-clarity.cjs
+          node tests/map1-next11c20q-guide-contrast.cjs
+          node tests/map1-next11c20r-rail-seams.cjs
+          node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Build complete OFFLINE playable HTML
+        run: node tools/build-gfx01-bundle.cjs
+      - name: Store A-B graphics, QA and playable HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-c21o-road-colors-playable
+          path: |
+            tests/next11c21o-evidence/
+            dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+            dist/gfx01-build-manifest.json
+          if-no-files-found: warn

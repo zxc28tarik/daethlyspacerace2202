@@ -1,0 +1,29 @@
+name: Map 4 NEXT-11C12 Visual Preview
+on:
+  push:
+    branches: [codex/map4-gfx11c12-architectural-depth]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next11c12-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install WebGL browser test
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Capture 07 / 08 / 09 architectural depth real WebGL A/B
+        run: node tests/map4-gfx11c12-architectural-depth.cjs
+      - name: Archive NEXT-11C12 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c12-07-08-09-review
+          path: tests/map4-gfx11c12-*.png
+          if-no-files-found: warn

@@ -1,0 +1,31 @@
+name: Map 4 NEXT-11C17 Dense Original Industry WebGL
+on:
+  push:
+    branches: [codex/map4-gfx11c17-dense-industrial-machinery]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  map4-industrial-art:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned Playwright and Three.js
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Audit real Chromium/WebGL industrial architecture and unchanged hazards
+        run: node tests/map4-gfx11c17-industrial-density.cjs
+      - name: Preserve 4 original visual before-after pairs and density budget
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map4-next11c17-96-detailed-objects-review
+          path: |
+            tests/map4-gfx11c17-*.png
+            tests/map4-next11c17-density-qa.json
+          if-no-files-found: warn

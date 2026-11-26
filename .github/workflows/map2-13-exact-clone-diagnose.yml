@@ -1,0 +1,14 @@
+name: MAP2-13 exact clone diagnostics
+on:
+  push:
+    branches: [codex/map2-13-exact-map4-station-clones]
+    paths:
+      - tools/map2-13-exact-clone-diagnose.py
+      - .github/workflows/map2-13-exact-clone-diagnose.yml
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/map2-13-exact-clone-diagnose.py

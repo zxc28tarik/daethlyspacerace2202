@@ -1,0 +1,47 @@
+name: Map1 NEXT11C20Z Nose + Engine Roof Shading Real WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-nose-engine-normals-z]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-msaa-roof-shading:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install actual Chromium / Three r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: JavaScript source check
+        run: node --check tests/map1-next11c20z-nose-engine-roof-normals.cjs
+      - name: Original playable SB-07 race ship and protected B-04 Map4
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: C20U preserve actual dual engine shroud and paint-to-roof 30 clearances
+        run: node tests/map1-next11c20u-contoured-spines.cjs
+      - name: C20W preserve 102 wing RED and 52 control inlay samples
+        run: node tests/map1-next11c20w-paint-and-inlays.cjs
+      - name: C20X preserve 174 connected shoulder and aft wing vertices
+        run: node tests/map1-next11c20x-shoulder-aft-skins.cjs
+      - name: C20Y preserve original 180 loft roof normal tests
+        run: node tests/map1-next11c20y-smooth-loft-normals.cjs
+      - name: C20Z 138 nose and engine roof normals, 4 outward face triangles and 4 real images
+        run: node tests/map1-next11c20z-nose-engine-roof-normals.cjs
+      - name: Preserve 304 corridor seams and real Map4 collider layout
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Upload 1600x900 actual WebGL image and mesh normal evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20z-nose-engine-real-webgl
+          path: |
+            tests/next11c20z-evidence/
+            tests/next11c20y-evidence/
+            tests/map1-next11c20-zenit-studio*.png
+            tests/next11c20r-evidence/
+          if-no-files-found: warn

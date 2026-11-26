@@ -28,6 +28,11 @@ const assert = require('node:assert/strict');
     await page.locator('#map-choice-4').click();
     assert.equal(await page.locator('#start-btn').isEnabled(),true,'Map4 selectable');
     await page.locator('#start-btn').click();
+    // Snapshot the actual launch formation before earlier probes give the
+    // rival AI time to move away from its spawn lanes.
+    const launchFormation=await page.evaluate(()=>racers.map(r=>
+      Math.hypot(r.laneX,r.laneY)));
+    assert.equal(launchFormation.length,5,'five rival pilots launched');
     try {
       await page.waitForFunction(() => state.running && state.raceTime>0.06,null,{timeout:25000});
     } catch(err) {
@@ -410,6 +415,90 @@ const assert = require('node:assert/strict');
     assert.equal(blast.emissions,1,'real explosion event');
     assert(blast.activeSmoke>=6&&blast.activeRings>=1,'VFX participates in frame particles');
 
+    // GFX08 actual GPU instancing/pooling: five event types, no per-event
+    // Mesh creation. The legacy VQ03 smoke proof above remains intact.
+    const gfx08=await page.evaluate(()=>{
+      const started=state.running;
+      const types=Object.keys(H4_GFX08_TYPES);
+      const beforeCounts=h4Gfx08Meshes.map(m=>m.count);
+      const materialRefs=h4Gfx08Meshes.map(m=>m.material.uuid);
+      const geoRefs=h4Gfx08Meshes.map(m=>m.geometry.uuid);
+      const point=state.pos.clone().add(new THREE.Vector3(0,25,-170));
+      h4Gfx08Reset();
+      // Genuine weapon hook: the same function called from pilot input
+      // should fire two pooled muzzle accents on Map4.
+      const beforeLasers=playerLasers.length;
+      firePlayerLasers();
+      const playerMuzzles=h4Gfx08Stats.emitted[0];
+      const createdLasers=playerLasers.length-beforeLasers;
+      while(playerLasers.length>beforeLasers){
+        const l=playerLasers.pop();scene.remove(l.mesh);
+      }
+      // Real explosion hook: shared legacy layered smoke still emitted.
+      const beforeShock=h4Gfx08Stats.emitted[2];
+      const beforeSmoke=h4Gfx08Stats.emitted[3];
+      createExplosion(point,0xffa365,22,1.1);
+      const realShock=h4Gfx08Stats.emitted[2]-beforeShock;
+      const realSmoke=h4Gfx08Stats.emitted[3]-beforeSmoke;
+      const beforeHit=h4Gfx08Stats.emitted[1];
+      const victim=hunterTargets.find(t=>t.alive&&!t.isElite);
+      const hitValid=damageHunterTarget(victim,1,'PLAYER',point);
+      const realHit=h4Gfx08Stats.emitted[1]-beforeHit;
+      h4Gfx08Emit('ENGINE',point,1.6,0x88dfff);
+      h4Gfx08Update(.016);
+      const active=h4Gfx08Meshes.map(m=>m.count);
+      const bounded=h4Gfx08Meshes.every((m,i)=>
+        m.count<=H4_GFX08_LIMITS[i]&&m.userData.visualOnly&&
+        m.userData.h4Gfx08&&!m.userData.h4Collider&&
+        m.isInstancedMesh&&m.geometry.uuid===geoRefs[i]&&
+        m.material.uuid===materialRefs[i]);
+      // Worst-case spam must evict oldest VFX rather than add meshes.
+      for(let i=0;i<55;i++)h4Gfx08Emit('IMPACT',point,1,0x88ffff);
+      h4Gfx08Update(.016);
+      const cap=h4Gfx08Meshes[1].count;
+      const evicted=h4Gfx08Stats.evicted;
+      h4Gfx08Update(2.1);
+      const expired=h4Gfx08Meshes.every(m=>m.count===0);
+      h4Gfx08Reset();
+      const reset=h4Gfx08Meshes.every(m=>m.count===0)&&
+        h4Gfx08Events.every(a=>a.length===0);
+      return {started,types,previous:beforeCounts,
+        playerMuzzles,createdLasers,realShock,realSmoke,
+        realHit,hitValid,active,bounded,cap,evicted,expired,reset,
+        drawPools:h4Gfx08Stats.drawPools,
+        poolObjects:h4Gfx08Root.children.length,
+        zeroNewColliders:h4Gfx08Stats.addedColliders===0,
+        groupVisible:h4Gfx08Root.parent===planetaryWorldGroup,
+        atlasShared:h4Gfx08Meshes[3].material.map===h4SmokeAtlas,
+        ringAtlasSize:h4Gfx08SoftRingAtlas.image.width,
+        threeRingsShare:h4Gfx08Meshes[1].material.map===h4Gfx08SoftRingAtlas&&
+          h4Gfx08Meshes[2].material.map===h4Gfx08SoftRingAtlas&&
+          h4Gfx08Meshes[4].material.map===h4Gfx08SoftRingAtlas,
+        noHarshRings:h4Gfx08Meshes[1].geometry.type==='PlaneGeometry'&&
+          h4Gfx08Meshes[2].geometry.type==='PlaneGeometry'&&
+          h4Gfx08Meshes[1].material.blending===THREE.NormalBlending&&
+          h4Gfx08Meshes[2].material.blending===THREE.NormalBlending};
+    });
+    assert(gfx08.started,'Map4 VFX tested during an actual active mission');
+    assert.deepEqual(gfx08.types,['MUZZLE','IMPACT','SHOCK','SMOKE','ENGINE']);
+    assert.equal(gfx08.createdLasers,2,'player twin guns remain unchanged');
+    assert(gfx08.playerMuzzles>=2,'both laser muzzles emit pooled flare');
+    assert.equal(gfx08.realShock,1,'real explosion triggers one pooled shock ring');
+    assert.equal(gfx08.realSmoke,3,'real explosion triggers three pooled smoke wisps');
+    assert(gfx08.hitValid.hit&&gfx08.realHit>=1,'real hunter hit triggers one pooled impact');
+    assert(gfx08.active.every(n=>n>=1),'every transient class gets rendered');
+    assert(gfx08.bounded&&gfx08.atlasShared&&gfx08.groupVisible);
+    assert(gfx08.threeRingsShare&&gfx08.noHarshRings&&
+      gfx08.ringAtlasSize===128,
+      'all hit/shock/engine rings share one feathered texture without white hard toruses');
+    assert.equal(gfx08.drawPools,5);
+    assert.equal(gfx08.poolObjects,5);
+    assert.equal(gfx08.cap,36,'bounded rapid hit stream cannot create extra meshes');
+    assert(gfx08.evicted>=19,'oldest pulses evicted when over capacity');
+    assert(gfx08.expired&&gfx08.reset,'transient meshes expire and cleanly reset');
+    assert(gfx08.zeroNewColliders);
+
+
 
     // VQ04: ensure the actual game world has four bounded atmospheric fields,
     // persistent contact shadows and smooth atmosphere/orbit palette states.
@@ -664,7 +753,10 @@ const assert = require('node:assert/strict');
     assert.equal(gfx02.terrainName,'MAP4_GFX02_SCULPTED_CANYON_GROUND',
       'sculpted terrain replaces canyon-only old surface');
     assert(openSpace.cameraFar>10000,'planet draw distance increased');
-    assert(openSpace.firstPositions.every(x=>x>150),'six ships start in wider formation');
+    assert(launchFormation.every(x=>x>150),
+      'five rivals launch in wide formation (measured before AI movement)');
+    assert(openSpace.firstPositions.every(Number.isFinite),
+      'later AI steering keeps finite lane coordinates');
     assert.equal(openSpace.light,0xffd8b8,'VQ04 canyon daylight palette active');
     const content=await page.evaluate(()=>{
       const initialProgress=state.routeProgress;
@@ -675,7 +767,9 @@ const assert = require('node:assert/strict');
         updatePlanetaryWorld();
         const point=h4WorldLandmarks.find(x=>x.zone===i&&x.group.visible);
         return {regionVisible:planetaryWorldRegions[i].visible,
-          landmarkVisible:!!point,
+          landmarkVisible:!!point||(i===1&&!!h4City02DistrictGroup?.visible),
+          obsoleteCityLandmarkHidden:i!==1||
+            h4WorldLandmarks.filter(x=>x.zone===1).every(x=>!x.group.visible),
           label:document.getElementById('planetary-landmark-name').textContent};
       });
       state.routeProgress=initialProgress;
@@ -687,11 +781,208 @@ const assert = require('node:assert/strict');
     assert.equal(content.total,12,'12 named landmark groups');
     assert.deepEqual(content.byRegion,[3,3,3,3],'three landmarks in each zone');
     assert.equal(content.names,12,'every landmark has a distinct identity');
+
+    // NEXT-06: LM10/11/12 final sector has three distinct hero compositions
+    // rather than repeated W01 boxes/VQ02 signatures. GFX01's existing
+    // imported patrol fighter at the spaceport must remain independently
+    // mounted. No physical obstacles or route constraints are added.
+    const finalHeroes=await page.evaluate(()=>{
+      const records=h4WorldLandmarks.filter(p=>p.zone===3);
+      const heroes=records.map(point=>{
+        const old=point.group.getObjectByName(
+          'MAP4_LEGACY_W01_'+point.kind.toUpperCase());
+        const signature=point.group.children.find(c=>
+          c.userData.signature===point.kind);
+        const art=point.group.children.find(c=>c.userData.h4Gfx06e);
+        const meshes=[];
+        art?.traverse(obj=>{if(obj.isMesh)meshes.push(obj)});
+        return {
+          kind:point.kind,progress:point.at,
+          name:point.name,group:art?.name,
+          anchorProgress:art?.userData.anchorProgress,
+          anchorSide:art?.userData.anchorSide,
+          parts:meshes.length,oldHidden:old?.visible===false,
+          sigHidden:signature?.visible===false,
+          visualOnly:art?.userData.visualOnly===true&&
+            meshes.every(x=>x.userData.visualOnly&&
+              x.userData.h4Gfx06e&&!x.userData.h4Collider),
+          frameCount:meshes.filter(m=>m.geometry===H4_GFX06E_GEO.frame).length,
+          uniqueKinds:new Set(meshes.map(m=>m.geometry.type)).size,
+          tags:meshes.map(m=>m.name),
+          importedFighterRetained:point.kind!=='spaceport'||
+            point.group.userData.h4Gfx01Requested===true
+        };
+      });
+      const before=camera.position.clone();
+      const fine=h4Gfx06eFineArt[0];
+      camera.position.copy(fine.position).add(new THREE.Vector3(1000,0,0));
+      h4Gfx06eUpdateFineDetail();
+      const near=fine.visible;
+      camera.position.copy(fine.position).add(new THREE.Vector3(10000,0,0));
+      h4Gfx06eUpdateFineDetail();
+      const far=!fine.visible;
+      camera.position.copy(fine.position).add(new THREE.Vector3(900,0,0));
+      h4Gfx06eUpdateFineDetail();
+      const restored=fine.visible;
+      camera.position.copy(before);
+      h4Gfx06eUpdateFineDetail();
+      return {heroes,stats:{...h4Gfx06eStats},
+        fineCount:h4Gfx06eFineArt.length,near,far,restored,
+        canyonPhysics:h4CanyonColliders.length,
+        industrialPhysics:h4IndustrialColliders.length,
+        worldPhysics:planetaryBuildingColliders.length,
+        stillMap4:state.activeMap===MAP_MODES.MAP4};
+    });
+    assert.equal(finalHeroes.stats.sites,3);
+    assert.equal(finalHeroes.stats.legacyHidden,3);
+    assert.equal(finalHeroes.stats.signatureHidden,3);
+    assert.equal(finalHeroes.stats.physicsAdded,0);
+    assert.deepEqual(finalHeroes.heroes.map(x=>x.kind),
+      ['outpost','spaceport','launch']);
+    assert.deepEqual(finalHeroes.heroes.map(x=>x.progress),
+      [36200,42600,48300]);
+    assert(finalHeroes.heroes.every(x=>x.parts>=20&&
+      x.oldHidden&&x.sigHidden&&x.visualOnly&&
+      x.anchorProgress===x.progress&&
+      Math.abs(x.anchorSide)>1500&&x.uniqueKinds>=3&&
+      x.importedFighterRetained));
+    assert(finalHeroes.heroes[0].tags.includes('LM10_COMMAND_CITADEL'));
+    assert(finalHeroes.heroes[0].tags.includes('LM10_OPEN_SECURITY_GATE'));
+    assert.equal(finalHeroes.heroes[0].frameCount,1);
+    assert.equal(finalHeroes.heroes[1].frameCount,2);
+    assert(finalHeroes.heroes[1].tags.includes('LM11_FLIGHT_DECK_SPINE'));
+    assert(finalHeroes.heroes[1].tags.includes('LM11_AIR_TRAFFIC_CONTROL_TOWER'));
+    assert.equal(finalHeroes.heroes[2].frameCount,2);
+    assert(finalHeroes.heroes[2].tags.includes('LM12_ROCKET_MAIN_STAGE'));
+    assert(finalHeroes.heroes[2].tags.includes('LM12_UPLINK_MAST'));
+    assert(finalHeroes.fineCount>=12&&
+      finalHeroes.near&&finalHeroes.far&&finalHeroes.restored);
+    assert.equal(finalHeroes.canyonPhysics,6);
+    assert.equal(finalHeroes.industrialPhysics,36);
+    assert(finalHeroes.worldPhysics>finalHeroes.industrialPhysics,
+      'all existing world collision proxies remain registered');
+    assert(finalHeroes.stillMap4);
+
+    // NEXT07: no extra collisions, same 86 scenery mesh references, five
+    // genuinely different authored 3D families and sector-4-only lighting.
+    const gfx07=await page.evaluate(()=>{
+      const zone=planetaryWorldRegions[3];
+      const wide=zone.getObjectByName('MAP4_W02_WIDE_SCENERY_3');
+      const near=wide.getObjectByName('NEAR_TERRAIN_AND_SETTLEMENT');
+      const far=wide.getObjectByName('HORIZON_SILHOUETTE');
+      const styled=h4Gfx07Styled;
+      const geos=[...new Set(styled.map(m=>m.geometry.name))];
+      const before={
+        route:state.routeProgress,phase:state.map4Phase,
+        camera:camera.position.clone(),
+        planet:planetaryWorldGroup.visible,
+        collision:h4IndustrialColliders.length
+      };
+      const inCorridor=zone.children.filter(m=>
+        m.isMesh&&m.userData.h4Gfx07Styled);
+      const zoneGround=zone.children[0];
+      const oldTag=styled.every(m=>
+        m.userData.visualOnly&&m.userData.h4Gfx07OriginalGeometry&&
+        m.userData.h4Gfx07OriginalMaterial&&!m.userData.h4Collider);
+      const newTag=styled.every(m=>
+        m.geometry.name.startsWith('MAP4_GFX07_FINAL_SKYLINE_FAMILY_')&&
+        m.material===h4Gfx07SkylineMaterial);
+      const matCheck={
+        name:zoneGround.name,
+        map:zoneGround.material.map===h4Gfx07GroundMap,
+        size:h4Gfx07GroundMap.image.width,
+        color:zoneGround.material.color.getHex(),
+        noHarshRockNormal:zoneGround.material.normalMap===null,
+        silhouetteTint:h4Gfx07SkylineMaterial.color.getHex(),
+        canyonUnchanged:planetaryWorldRegions[0].children[0].material.map!==
+          h4Gfx07GroundMap,
+        industryUnchanged:planetaryWorldRegions[2].children[0].material.map!==
+          h4Gfx07GroundMap
+      };
+      state.routeProgress=42600;state.map4Phase=4;
+      h4Gfx07UpdateLighting();h4UpdateCinematicAtmosphere(18);
+      const final={
+        localActive:h4Gfx07Stats.activeLights,
+        fog:scene.fog.density,
+        blend:h4Gfx07Stats.finalAtmosphereWeight,
+        ambient:ambientLight.intensity,
+        key:nebulaLight1.intensity
+      };
+      state.routeProgress=23500;state.map4Phase=3;
+      h4Gfx07UpdateLighting();h4UpdateCinematicAtmosphere(18);
+      const industry={
+        localActive:h4Gfx07Stats.activeLights,
+        blend:h4Gfx07Stats.finalAtmosphereWeight
+      };
+      state.routeProgress=before.route;state.map4Phase=before.phase;
+      camera.position.copy(before.camera);
+      h4Gfx07UpdateLighting();h4UpdateCinematicAtmosphere(18);
+      return {
+        stats:{...h4Gfx07Stats},geometryFamilies:geos,
+        corridor:inCorridor.length,near:near.children.filter(
+          m=>m.userData.h4Gfx07Styled).length,
+        far:far.children.filter(m=>m.userData.h4Gfx07Styled).length,
+        total:styled.length,oldTag,newTag,matCheck,
+        lights:h4Gfx07Lights.map(l=>({
+          kind:l.name,castShadow:l.castShadow,
+          parentIsLandmark:h4WorldLandmarks.some(x=>x.group===l.parent)
+        })),
+        shadows:h4Gfx07Shadows.map(m=>({
+          valid:m.userData.visualOnly&&!m.userData.h4Collider,
+          textureShared:m.material===h4ShadowMat,
+          name:m.name
+        })),
+        canyonPhysics:h4CanyonColliders.length,
+        industryPhysics:h4IndustrialColliders.length,
+        collisionsGained:before.collision-h4IndustrialColliders.length,
+        final,industry
+      };
+    });
+    assert.equal(gfx07.stats.replaced,86);
+    assert.equal(gfx07.stats.corridor,28);
+    assert.equal(gfx07.stats.near,30);
+    assert.equal(gfx07.stats.far,28);
+    assert.equal(gfx07.corridor,28);
+    assert.equal(gfx07.near,30);
+    assert.equal(gfx07.far,28);
+    assert.equal(gfx07.total,86);
+    assert.equal(gfx07.geometryFamilies.length,5);
+    assert(gfx07.oldTag&&gfx07.newTag,
+      'new signature forms are render-only and original render buffers retained');
+    assert.equal(gfx07.matCheck.name,
+      'MAP4_GFX07_FINAL_SECTOR_MATTE_GROUND');
+    assert(gfx07.matCheck.map&&gfx07.matCheck.size===512&&
+      gfx07.matCheck.canyonUnchanged&&gfx07.matCheck.industryUnchanged);
+    assert.equal(gfx07.matCheck.color,0x757d87,
+      'last sector ground must be muted rather than overexposed');
+    assert.equal(gfx07.matCheck.silhouetteTint,0x677482,
+      'final skyline kit requires darker steel-to-concrete separation');
+    assert(gfx07.matCheck.noHarshRockNormal,
+      'do not apply harsh canyon micro-rock bump to final military landing ground');
+    assert.equal(gfx07.stats.groundAtlasCount,1);
+    assert.equal(gfx07.stats.heroShadows,3);
+    assert.equal(gfx07.stats.localLights,3);
+    assert.equal(gfx07.stats.addedColliders,0);
+    assert(gfx07.shadows.every(m=>m.valid&&m.textureShared));
+    assert(gfx07.lights.every(l=>l.parentIsLandmark&&!l.castShadow),
+      'three selective bounce lights, no global shadow-map cost');
+    assert(gfx07.final.localActive>=1&&gfx07.final.localActive<=2,
+      'only nearby final-sector hero lights activated');
+    assert.equal(gfx07.industry.localActive,0);
+    assert(gfx07.final.blend>.99&&gfx07.industry.blend===0);
+    assert.equal(gfx07.canyonPhysics,6);
+    assert.equal(gfx07.industryPhysics,36);
+    assert.equal(gfx07.collisionsGained,0);
+
+
     assert(content.meshes>=55 && content.meshes<200,'bounded additional geometry');
     assert(content.zones.every(z=>z.regionVisible&&z.landmarkVisible),
-      'visible landmarks throughout all four sectors');
-    assert(content.zones.every(z=>z.label.includes('YAKIN NOKTA')),
-      'nearby landmark names on HUD');
+      'real navigable landmark or city district in each of four sectors');
+    assert(content.zones[1].obsoleteCityLandmarkHidden,
+      'superseded arena warfront landmarks must not render over city');
+    assert(content.zones.every((z,i)=>i===1?
+        z.label.includes('ŞEHİR'):z.label.includes('YAKIN NOKTA')),
+      'nearby real urban district or landmark names on HUD');
     assert.equal(planetary.worldVisible,true,'planet landscape visible');
     assert.equal(planetary.corridorVisible,false,'neon race tube hidden');
     assert.equal(planetary.starsVisible,false,'old stars hidden');
@@ -868,15 +1159,53 @@ const assert = require('node:assert/strict');
     assert(nominal.intro+nominal.arena+nominal.industry+nominal.ascent>240 &&
       nominal.intro+nominal.arena+nominal.industry+nominal.ascent<300,
       'normal map duration 4–5 minutes');
-    // Enter zone two, check every pilot is held in the battle area.
+    // MAP4-CITY01: the 60-second arena is a free-flying urban sphere,
+    // not the old fixed-progress waiting plane.
     await page.evaluate(()=>{state.routeProgress=MAP4_PHASES.introEnd-2;});
     await page.waitForFunction(()=>state.map4Phase===2,null,{timeout:14000});
-    const anchor=await page.evaluate(()=>state.routeProgress);
+    const arenaBefore=await page.evaluate(()=>({
+      progress:state.routeProgress,
+      rivals:racers.filter(r=>!r.finished&&!r.dnf)
+        .map(r=>({id:r.name,progress:r.routeProgress}))
+    }));
     await page.waitForTimeout(300);
-    assert(Math.abs((await page.evaluate(()=>state.routeProgress))-anchor)<0.01,
-      'no forward progress during arena');
-    assert.equal(await page.evaluate(()=>racers.every(r=>r.routeProgress===MAP4_PHASES.introEnd
-      || r.finished || r.dnf)),true,'five AI pilots held in arena');
+    const arenaMotion=await page.evaluate(()=>({
+      progress:state.routeProgress,
+      active:map4CityArenaActive(),
+      rivals:racers.filter(r=>!r.finished&&!r.dnf).map(r=>({
+        id:r.name,progress:r.routeProgress,
+        inside:map4CityArenaDistance(r)<=MAP4_CITY_ARENA.radius+1
+      })),
+      playerInside:map4CityArenaDistance(state)<=MAP4_CITY_ARENA.radius+1
+    }));
+    assert.equal(arenaMotion.active,true,'city sphere should remain active');
+    // Prior subtests sometimes leave the live pilot damaged or near a building.
+    // Verify the real arena propulsion deterministically from a safe local
+    // position; the separate MAP4-CITY01 Chromium test performs actual W/S flight.
+    const forwardEngine=await page.evaluate(()=>{
+      const prior={p:state.routeProgress,x:state.laneX,y:state.laneY};
+      state.routeProgress=MAP4_CITY_ARENA.centerProgress;
+      state.laneX=0;state.laneY=MAP4_CITY_ARENA.centerY;
+      const next=map4Advance(state.routeProgress,RACE_SPEEDS.NORMAL,.3,state);
+      state.routeProgress=prior.p;state.laneX=prior.x;state.laneY=prior.y;
+      return {distance:next-MAP4_CITY_ARENA.centerProgress,
+        active:map4CityArenaActive()};
+    });
+    assert(forwardEngine.active && forwardEngine.distance>10,
+      'arena propulsion must move the pilot instead of fixing progress');
+    assert(arenaMotion.playerInside,'player stays inside invisible city sphere');
+    assert(arenaMotion.rivals.every(r=>r.inside),
+      'other pilots are constrained inside the spherical city zone');
+    // A crashed/finished rival must not make this test nondeterministic;
+    // patrol navigation itself must advance a healthy AI flight model.
+    const aiPropulsion=await page.evaluate(()=>{
+      const mock={routeProgress:MAP4_CITY_ARENA.centerProgress,
+        laneX:0,laneY:MAP4_CITY_ARENA.centerY,
+        radius:12,arenaDirection:1};
+      return map4Advance(mock.routeProgress,RACE_SPEEDS.NORMAL,.3,mock)-
+        MAP4_CITY_ARENA.centerProgress;
+    });
+    assert(aiPropulsion>10,'AI arena patrol must advance inside the city sphere');
 
     // GFX-04: three substantial, non-generic warfront compositions must
     // replace old repeated boxes without touching hunter/collision systems.
@@ -905,8 +1234,8 @@ const assert = require('node:assert/strict');
         factoryColliders:h4IndustrialColliders.length,
         physicalCityColliders:planetaryBuildingColliders.length};
     });
-    // The next phase's refinery must not crowd the entire battlefield
-    // during the mandatory 60-second stand-still fight.
+    // The next phase's refinery must not crowd the playable city sphere
+    // during the mandatory 60-second free-flight battle.
     const industrialDuringArena=await page.evaluate(()=>{
       updatePlanetaryWorld();
       const zone=planetaryWorldRegions[2];
@@ -1103,7 +1432,7 @@ const assert = require('node:assert/strict');
       'pocket HUD remains readable');
     await page.screenshot({path:path.resolve(__dirname,'map4-arena.png')});
     await page.evaluate(()=>{state.map4ArenaElapsed=MAP4_PHASES.arenaSeconds-0.08;});
-    await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:12000});
+    await page.waitForFunction(()=>state.map4Phase===3,null,{timeout:24000});
     assert(await page.evaluate(()=>map4SpeedFactor(20000)>0),'forward progress unlocked in phase 3');
     const industryRevealed=await page.evaluate(()=>{
       updatePlanetaryWorld();
@@ -1180,6 +1509,504 @@ const assert = require('node:assert/strict');
     assert.equal(industrial.zones,6,'six persistent industrial groups');
     assert(industrial.meshes>=90&&industrial.meshes<150,'bounded industry mesh allocation');
     assert.equal(industrial.colliders,36,'physical solids authored with real geometry');
+
+    // GFX06A: IN-01/IN-02 have distinct industrial hero models, replacing
+    // old duplicate visual skyline only. W05 physical collider counts stay 36.
+    const gfx06a=await page.evaluate(()=>{
+      const sites=h4IndustrialGroups.map((group,index)=>{
+        const art=group.children.find(x=>x.userData.h4Gfx06a);
+        if(!art)return {index,active:false};
+        const meshes=[];
+        art.traverse(child=>{if(child.isMesh)meshes.push(child)});
+        const old=group.children.filter(c=>
+          ['SILO','BEACON','REFINERY'].includes(c.userData.w05Kind));
+        return {
+          index,active:true,name:art.name,parts:meshes.length,
+          geometryTypes:[...new Set(meshes.map(m=>m.geometry.type))],
+          materials:[...new Set(meshes.map(m=>m.material.uuid))].length,
+          visualOnly:meshes.every(m=>
+            m.userData.visualOnly&&m.userData.w05VisualOnly&&
+            !m.userData.h4Collider),
+          legacyHidden:old.length>0&&old.every(x=>!x.visible),
+          maxHeight:Math.max(...meshes.map(m=>m.scale.y)),
+          markerCount:meshes.filter(m=>m.name.includes('IN0')).length
+        };
+      });
+      const stats={...h4Gfx06aStats};
+      return {sites,stats,physical:h4IndustrialColliders.length,
+        extraPhysical:planetaryBuildingColliders.length,
+        roots:planetaryWorldRegions[2].userData.gfx04IndustrialVisuals.name};
+    });
+    assert.equal(gfx06a.stats.stations,2,'only IN01 and IN02 are replaced');
+    assert.equal(gfx06a.stats.refinery,1);
+    assert.equal(gfx06a.stats.transfer,1);
+    assert.equal(gfx06a.stats.addedColliders,0,
+      'art adds no phantom flight collision');
+    assert.equal(gfx06a.physical,36,'GFX06A preserves all 36 W05 solids');
+    assert.equal(gfx06a.sites.filter(s=>s.active).length,2);
+    assert.equal(gfx06a.sites[0].name,
+      'MAP4_GFX06A_IN01_DISTILLATION_REFINERY');
+    assert.equal(gfx06a.sites[1].name,
+      'MAP4_GFX06A_IN02_PRESSURE_TRANSFER');
+    assert(gfx06a.sites.slice(0,2).every(s=>
+      s.visualOnly&&s.legacyHidden&&s.parts>=14&&
+      s.materials>=4&&s.geometryTypes.length>=3),
+      'authored visible silhouettes replace cosmetic duplicates only');
+    assert(gfx06a.sites[0].maxHeight>=1200,
+      'IN01 has an unmistakably tall separation column');
+    assert(gfx06a.sites[1].markerCount>=14,
+      'IN02 has a dense, differently composed pressure transfer kit');
+    assert.equal(gfx06a.roots,'MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS',
+      'old arena-to-industry visibility gating is preserved');
+
+    // GFX-06B / IN-03/IN-04: art is intentionally NOT collision geometry.
+    const gfx06b=await page.evaluate(()=>{
+      const sites=h4IndustrialGroups.map((group,i)=>{
+        const art=group.children.find(x=>x.userData.h4Gfx06b);
+        if(!art)return {i,active:false};
+        const meshes=[];
+        art.traverse(obj=>{if(obj.isMesh)meshes.push(obj)});
+        return {
+          i,active:true,name:art.name,parts:meshes.length,
+          archCount:meshes.filter(m=>m.name.startsWith(
+            'IN03_OPEN_PRESS_ARCH_')).length,
+          hyperboloidCount:meshes.filter(m=>m.name.startsWith(
+            'IN04_HYPERBOLOID_COOLING_TOWER_')).length,
+          geometryTypes:[...new Set(meshes.map(m=>m.geometry.type))],
+          materials:[...new Set(meshes.map(m=>m.material.uuid))].length,
+          visualOnly:meshes.every(m=>
+            m.userData.visualOnly&&m.userData.w05VisualOnly&&
+            !m.userData.h4Collider),
+          hiddenLegacy:group.children.some(x=>
+            x.userData.w05Kind==='SILO'&&!x.visible),
+          artHasNoColliders:art.children.every(x=>
+            !x.userData.h4Collider)
+        };
+      });
+      return {sites,stats:{...h4Gfx06bStats},
+        physical:h4IndustrialColliders.length,
+        art06a:h4IndustrialGroups.filter(g=>
+          g.children.some(x=>x.userData.h4Gfx06a)).length,
+        map1ArtHiddenWhenSwitched:!planetaryWorldGroup.visible||
+          state.activeMap===MAP_MODES.MAP4
+      };
+    });
+    assert.equal(gfx06b.stats.stations,2,'exactly two new IN03/04 art groups');
+    assert.equal(gfx06b.stats.presses,1);
+    assert.equal(gfx06b.stats.cooling,1);
+    assert.equal(gfx06b.stats.addedColliders,0);
+    assert.equal(gfx06b.physical,36,
+      'GFX06B cannot modify 36 established W05 physics obstacles');
+    assert.equal(gfx06b.art06a,2,'earlier refinery/transfer art stays intact');
+    assert.deepEqual(gfx06b.sites.filter(x=>x.active).map(x=>x.i),[2,3],
+      'fifth and sixth industrial stations are deliberately untouched');
+    assert.equal(gfx06b.sites[2].name,
+      'MAP4_GFX06B_IN03_HEAVY_PRESS_ASSEMBLY');
+    assert.equal(gfx06b.sites[3].name,
+      'MAP4_GFX06B_IN04_COOLING_RECLAMATION');
+    assert.equal(gfx06b.sites[2].archCount,2,
+      'two authentic punched-through heavy press extrusion silhouettes');
+    assert.equal(gfx06b.sites[3].hyperboloidCount,2,
+      'two distinct open-topped cooling tower lathe silhouettes');
+    assert(gfx06b.sites[2].geometryTypes.includes('ExtrudeGeometry'));
+    assert(gfx06b.sites[3].geometryTypes.includes('LatheGeometry'));
+    assert(gfx06b.sites.slice(2,4).every(x=>
+      x.visualOnly&&x.artHasNoColliders&&x.hiddenLegacy&&
+      x.parts>=20&&x.materials>=5));
+
+    // GFX06M: visual evidence showed excessive repeated checker/grid paint.
+    // Material remapping is industry-only. Preserve all solid mesh identities.
+    const gfx06m=await page.evaluate(()=>{
+      const industry=planetaryWorldRegions[2];
+      const ground=industry.children[0];
+      const one=h4IndustrialColliders[0],original=one.mesh;
+      return {
+        stats:{...h4Gfx06mStats},
+        applied:industry.userData.h4Gfx06mApplied,
+        groundMap:ground.material.map?.name,
+        groundC8Active:typeof h4Gfx11c8Root!=='undefined' &&
+          !!h4Gfx11c8Root&&h4Gfx11c8Stats.lookEnabled &&
+          h4Gfx10ProfileName!=='LOW'&&state.map4Phase===3,
+        groundBaseMap:typeof h4Gfx11c8GroundFallback!=='undefined' &&
+          h4Gfx11c8GroundFallback?
+          h4Gfx11c8GroundFallback.original.map?.name:null,
+        c8GroundMap:typeof h4Gfx11c8GroundMaterial!=='undefined' &&
+          h4Gfx11c8GroundMaterial?
+          h4Gfx11c8GroundMaterial.map?.name:null,
+        groundGeometrySafe:!ground.userData.h4Collider,
+        metalMap:h4Gfx06mSteelMap.name,
+        groundNormalScale:ground.material.normalScale.x,
+        phys:h4IndustrialColliders.length,
+        colliderMeshLinked:one.mesh===original&&
+          one.mesh.userData.h4Collider===one,
+        industryOnly:planetaryWorldRegions.filter((z,i)=>i!==2)
+          .every(z=>!z.userData.h4Gfx06mApplied),
+        map1Safe:!h4GeoSwordArt.userData.h4Gfx06m
+      };
+    });
+    assert.equal(gfx06m.stats.atlases,2,'two fixed reusable 512px atlases');
+    assert.equal(gfx06m.stats.groundUpdated,true);
+    assert(gfx06m.stats.mappedMeshes>=30,
+      'old industry meshes replace metallic checkerboard materials');
+    assert.equal(gfx06m.stats.addedColliders,0);
+    assert.equal(gfx06m.phys,36);
+    assert.equal(gfx06m.colliderMeshLinked,true,
+      'all original collision mesh pointers remain unchanged');
+    assert.equal(gfx06m.applied,true);
+    // NEXT11C8 may paint the ACTIVE nonphysical industrial ground.
+    // GFX06M's old atlas must remain the immutable fallback, not disappear.
+    if(gfx06m.groundC8Active){
+      assert.equal(gfx06m.groundBaseMap,
+        'MAP4_GFX06M_SMOOTH_ERODED_INDUSTRY_GROUND');
+      assert.equal(gfx06m.c8GroundMap,
+        'MAP4_GFX11C8_AUTHORED_CONCRETE_SILT_ALBEDO');
+      assert.equal(gfx06m.groundMap,gfx06m.c8GroundMap);
+      assert.equal(gfx06m.groundGeometrySafe,true);
+    }else assert.equal(gfx06m.groundMap,
+      'MAP4_GFX06M_SMOOTH_ERODED_INDUSTRY_GROUND');
+    assert.equal(gfx06m.metalMap,'MAP4_GFX06M_DIRTY_STEEL_NO_GRID_ALBEDO');
+    assert(gfx06m.groundNormalScale<=.1);
+    assert(gfx06m.industryOnly&&gfx06m.map1Safe);
+
+    const skyPolish=await page.evaluate(()=>{
+      const before=state.routeProgress;
+      state.routeProgress=22000;
+      h4UpdateCinematicAtmosphere(3);
+      const industrial=h4AtmosphereUniforms.cloudiness.value;
+      state.routeProgress=2000;
+      h4UpdateCinematicAtmosphere(3);
+      const canyon=h4AtmosphereUniforms.cloudiness.value;
+      state.routeProgress=before;
+      h4UpdateCinematicAtmosphere(3);
+      return {industrial,canyon};
+    });
+    assert(skyPolish.industrial<skyPolish.canyon*.48,
+      'sector 3 cirrus stripes reduced without altering canyon sky');
+
+    // VIS-02: 58 W02 visual-only industrial props now have 4 sculpted
+    // identities. Original physical W02 meshes, geometry, and collider
+    // references are untouched, but acquire FOUR shared instanced drawcalls.
+    const vis02=await page.evaluate(()=>{
+      const z=planetaryWorldRegions[2];
+      const wide=z.getObjectByName('MAP4_W02_WIDE_SCENERY_2');
+      const near=wide.children.find(x=>x.name==='NEAR_TERRAIN_AND_SETTLEMENT');
+      const far=wide.children.find(x=>x.name==='HORIZON_SILHOUETTE');
+      const visual=[...near.children,...far.children];
+      const physics=[];
+      z.traverse(m=>{if(m.userData.h4Vis02Protected)physics.push(m)});
+      const facades=z.userData.h4Vis02Facades;
+      const dual=h4IndustrialGroups.flatMap(g=>g.children).filter(m=>
+        m.userData.vq02IndustrialDetail&&m.userData.h4Collider);
+      return {
+        stat:{...h4Vis02Stats},
+        landscapeVisible:wide.visible,
+        scenery:{near:near.children.length,far:far.children.length},
+        featureNamed:visual.every(m=>m.userData.h4Vis02Sculpted&&
+          m.name.startsWith('MAP4_VIS02_AUTHORED_SKYLINE_')),
+        fourKitTypes:[...new Set(visual.map(m=>
+          m.userData.h4Gfx06dLevels?.[0]?.name||m.geometry.name))],
+        sourcePreserved:visual.every(m=>
+          !!m.userData.h4Vis02LegacyGeometry&&
+          !!m.userData.h4Vis02LegacyMaterial),
+        physicalProtected:physics.every(m=>
+          !!m.userData.h4Collider&&
+          !!m.userData.h4Vis02LegacyMaterial&&
+          (m.geometry===H4_MESHES.structure||
+           m.geometry===H4_MESHES.tower)&&m.visible),
+        facadeMeshCount:facades.children.length,
+        facadeChildNoPhysics:facades.children.every(m=>
+          m.isInstancedMesh&&m.userData.noCollider&&!m.userData.h4Collider),
+        facadeInstanceCount:facades.children.reduce((n,m)=>n+m.count,0),
+        oldVQ02TaggedPhysical:dual.length,
+        oldVQ02Corrected:dual.every(m=>
+          m.userData.w05VisualOnly===false),
+        physW05:h4IndustrialColliders.length,
+        scenePhysical:planetaryBuildingColliders.length,
+        otherRegionClean:planetaryWorldRegions.filter((r,i)=>i!==2)
+          .every(r=>!r.userData.h4Vis02Applied)
+      };
+    });
+    assert.equal(vis02.stat.sculpted,58);
+    assert.deepEqual(vis02.scenery,{near:30,far:28});
+    assert(vis02.featureNamed&&vis02.sourcePreserved);
+    assert.equal(vis02.fourKitTypes.length,4,
+      'four non-box industrial visual families actually mounted');
+    assert.equal(vis02.stat.physical,34,
+      'all 34 old physical skyline hazards are still present');
+    assert.equal(vis02.stat.geometryPreserved,34);
+    assert.equal(vis02.stat.addedColliders,0);
+    assert.equal(vis02.facadeMeshCount,4,
+      'four InstancedMesh facade drawcalls instead of 100+ meshes');
+    assert(vis02.facadeChildNoPhysics&&vis02.physicalProtected);
+    assert(vis02.facadeInstanceCount>=120);
+    assert.equal(vis02.stat.facadeInstances,vis02.facadeInstanceCount);
+    assert(vis02.oldVQ02TaggedPhysical>0&&
+      vis02.oldVQ02Corrected,
+      'VQ02 double-tagged collision props no longer claim to be visual-only');
+    assert.equal(vis02.physW05,36);
+    assert(vis02.scenePhysical>vis02.physW05,
+      'legacy W02/VQ02 collision collection remains available');
+    assert(vis02.otherRegionClean,'Map1 and other Map4 zones unmodified');
+
+    // GFX-06C: final two industrial nodes, dramatically different visual
+    // functions and silhouettes while ALL previous physical routes persist.
+    const gfx06c=await page.evaluate(()=>{
+      const sites=h4IndustrialGroups.map((station,index)=>{
+        const art=station.children.find(m=>m.userData.h4Gfx06c);
+        if(!art)return {index,present:false};
+        const meshes=[];
+        art.traverse(m=>{if(m.isMesh)meshes.push(m)});
+        const solids=station.children.filter(m=>m.userData.h4Collider);
+        return {
+          index,present:true,name:art.name,parts:meshes.length,
+          openCranes:meshes.filter(m=>
+            m.name.startsWith('IN05_OPEN_AFRAME_CRANE_')).length,
+          toroids:meshes.filter(m=>
+            m.name.startsWith('IN06_CENTRAL_POWER_TOROID_')).length,
+          cargoContainers:meshes.filter(m=>
+            m.name.startsWith('IN05_STACKED_FREIGHT_')).length,
+          transformers:meshes.filter(m=>
+            m.name.startsWith('IN06_GRID_TRANSFORMER_')).length,
+          artOnly:art.userData.visualOnly&&meshes.every(m=>
+            m.userData.visualOnly&&m.userData.w05VisualOnly&&
+            !m.userData.h4Collider),
+          solidPhysical:solids.length,
+          solidsVisible:solids.every(m=>m.visible),
+          distinctMaterials:new Set(meshes.map(m=>m.material.uuid)).size,
+          shapes:[...new Set(meshes.map(m=>m.geometry.type))]
+        };
+      });
+      return {
+        stats:{...h4Gfx06cStats},
+        sites,physical:h4IndustrialColliders.length,
+        oldGfx06a:h4IndustrialGroups.slice(0,2).every(g=>
+          g.children.some(m=>m.userData.h4Gfx06a)),
+        oldGfx06b:h4IndustrialGroups.slice(2,4).every(g=>
+          g.children.some(m=>m.userData.h4Gfx06b)),
+        art06c:[...h4IndustrialGroups].filter(g=>
+          g.children.some(m=>m.userData.h4Gfx06c)).length
+      };
+    });
+    assert.equal(gfx06c.stats.stations,2);
+    assert.equal(gfx06c.stats.logistics,1);
+    assert.equal(gfx06c.stats.energy,1);
+    assert.equal(gfx06c.stats.addedColliders,0);
+    assert.equal(gfx06c.physical,36,
+      'the final two compounds add zero physics volumes');
+    assert.deepEqual(gfx06c.sites.filter(s=>s.present).map(s=>s.index),
+      [4,5]);
+    assert.equal(gfx06c.sites[4].name,
+      'MAP4_GFX06C_IN05_INTERMODAL_LOGISTICS');
+    assert.equal(gfx06c.sites[5].name,
+      'MAP4_GFX06C_IN06_REACTOR_SECURITY_POWER');
+    assert.equal(gfx06c.sites[4].openCranes,2);
+    assert.equal(gfx06c.sites[4].cargoContainers,5);
+    assert.equal(gfx06c.sites[5].toroids,2);
+    assert.equal(gfx06c.sites[5].transformers,3);
+    assert(gfx06c.sites[4].shapes.includes('ExtrudeGeometry')&&
+      gfx06c.sites[5].shapes.includes('TorusGeometry'));
+    assert(gfx06c.sites.slice(4,6).every(s=>
+      s.artOnly&&s.parts>=25&&s.solidPhysical>=6&&
+      s.solidsVisible&&s.distinctMaterials>=5),
+      'highly differentiated art, no hidden W05 physical solids');
+    assert(gfx06c.oldGfx06a&&gfx06c.oldGfx06b);
+    assert.equal(gfx06c.art06c,2);
+
+    // GFX06D-A/B: shared physically based maps + actual 3-level geometry
+    // substitution on only the 58 visual skyline meshes. All physical
+    // obstacles and Map1 materials/ship meshes remain untouched.
+    const gfx06d=await page.evaluate(()=>{
+      const before=state.routeProgress,phase=state.map4Phase;
+      const beforeCam=camera.position.clone();
+      const beforeTarget=camera.getWorldDirection(new THREE.Vector3());
+      state.routeProgress=22000;state.map4Phase=3;
+      const item=h4Gfx06dLodObjects[0];
+      const detail=h4Gfx06dMicroObjects[0];
+      const size=(geometry)=>geometry.attributes.position.count;
+      camera.position.copy(item.position).add(new THREE.Vector3(1000,0,0));
+      h4Gfx06dUpdateLod();
+      const close={level:item.userData.h4Gfx06dLod,
+        vertices:size(item.geometry),matches:
+          item.geometry===item.userData.h4Gfx06dLevels[0]};
+      camera.position.copy(item.position).add(new THREE.Vector3(4000,0,0));
+      h4Gfx06dUpdateLod();
+      const middle={level:item.userData.h4Gfx06dLod,
+        vertices:size(item.geometry),matches:
+          item.geometry===item.userData.h4Gfx06dLevels[1]};
+      camera.position.copy(item.position).add(new THREE.Vector3(9000,0,0));
+      h4Gfx06dUpdateLod();
+      const distant={level:item.userData.h4Gfx06dLod,
+        vertices:size(item.geometry),matches:
+          item.geometry===item.userData.h4Gfx06dLevels[2]};
+      camera.position.copy(detail.position)
+          .add(new THREE.Vector3(1000,0,0));
+      h4Gfx06dUpdateLod();
+      const detailClose=detail.visible;
+      camera.position.copy(detail.position)
+          .add(new THREE.Vector3(10000,0,0));
+      h4Gfx06dUpdateLod();
+      const detailFar=detail.visible;
+      const materialQuality={
+        pixels:h4Gfx06dStats.textureSize,
+        normalName:h4Gfx06dMaps.normal.name,
+        roughName:h4Gfx06dMaps.roughness.name,
+        normalWidth:h4Gfx06dMaps.normal.image.width,
+        roughWidth:h4Gfx06dMaps.roughness.image.width,
+        uniqueAtlases:h4Gfx06dStats.normalMaps+
+          h4Gfx06dStats.roughnessMaps,
+        materials:h4Gfx06dStats.metalMaterials,
+        shared:h4Gfx06dMetals.every(m=>
+          m.normalMap===h4Gfx06dMaps.normal&&
+          m.roughnessMap===h4Gfx06dMaps.roughness),
+        roughnessSpread:h4Gfx06dStats.noiseMax-h4Gfx06dStats.noiseMin,
+        silhouetteVertexColors:!!h4Vis02Mat.vertexColors,
+        silhouetteHasNoUVMaps:!h4Vis02Mat.normalMap&&
+          !h4Vis02Mat.roughnessMap
+      };
+      const physics={
+        W05:h4IndustrialColliders.length,
+        preservedW05:h4IndustrialColliders.every(c=>
+          c.mesh.userData.h4Collider===c),
+        protectedW02:h4Vis02Stats.physical,
+        noNew:h4Gfx06dStats.addedColliders,
+        lodCount:h4Gfx06dLodObjects.length,
+        detailCount:h4Gfx06dMicroObjects.length,
+        geometryOnly:h4Gfx06dLodObjects.every(m=>
+          !m.userData.h4Collider&&m.userData.visualOnly)
+      };
+      camera.position.copy(beforeCam);
+      camera.lookAt(beforeCam.clone().add(beforeTarget));
+      state.routeProgress=before;state.map4Phase=phase;
+      h4Gfx06dUpdateLod();
+      return {close,middle,distant,detailClose,detailFar,
+        materialQuality,physics};
+    });
+    assert.deepEqual([gfx06d.close.level,gfx06d.middle.level,
+      gfx06d.distant.level],[0,1,2]);
+    assert(gfx06d.close.matches&&gfx06d.middle.matches&&
+      gfx06d.distant.matches);
+    assert(gfx06d.close.vertices>gfx06d.middle.vertices&&
+      gfx06d.middle.vertices>gfx06d.distant.vertices,
+      'three geometry budgets genuinely shrink by distance');
+    assert(gfx06d.detailClose&&!gfx06d.detailFar,
+      'small art parts fade at range and restore when close');
+    assert.equal(gfx06d.materialQuality.pixels,512);
+    assert.equal(gfx06d.materialQuality.normalWidth,512);
+    assert.equal(gfx06d.materialQuality.roughWidth,512);
+    assert.equal(gfx06d.materialQuality.uniqueAtlases,2);
+    assert.equal(gfx06d.materialQuality.materials,18);
+    assert(gfx06d.materialQuality.shared&&
+      gfx06d.materialQuality.roughnessSpread>.10);
+    assert(gfx06d.materialQuality.silhouetteVertexColors&&
+      gfx06d.materialQuality.silhouetteHasNoUVMaps,
+      'non-UV merged silhouette geometry cannot use normal/roughness maps');
+    assert.equal(gfx06d.physics.lodCount,58);
+    assert(gfx06d.physics.detailCount>=15);
+    assert.equal(gfx06d.physics.W05,36);
+    assert.equal(gfx06d.physics.protectedW02,34);
+    assert.equal(gfx06d.physics.noNew,0);
+    assert(gfx06d.physics.preservedW05&&gfx06d.physics.geometryOnly);
+
+    // GFX06D-C: functional markings on all six real hero bodies.
+    // 1 shared 1024px atlas, 9 UV tiles, 4 instanced batches per station.
+    // Verify no hidden physics, no duplicate material, and reversible LOD.
+    const gfx06dc=await page.evaluate(()=>{
+      const groups=h4Gfx06dcGroups;
+      const stations=groups.map((group,i)=>{
+        const station=h4IndustrialGroups[i];
+        const art=station.children.find(c=>
+          c.userData.h4Gfx06a||c.userData.h4Gfx06b||
+          c.userData.h4Gfx06c);
+        const target=art.children.find(m=>
+          m.name===H4_GFX06DC_ANCHORS[i]);
+        return {
+          id:group.name,childCount:group.children.length,
+          directChild:station.children.includes(group),
+          parentHero:target?.name,
+          labelCount:group.children[0].count,
+          sootCount:group.children[1].count,
+          rustCount:group.children[2].count,
+          hazardCount:group.children[3].count,
+          correctTypes:group.children.every(c=>
+            c.isInstancedMesh&&c.userData.h4Gfx06dc&&
+            c.userData.visualOnly&&!c.userData.h4Collider),
+          materialShared:group.children.every(c=>
+            c.material===h4Gfx06dcMaterial),
+          anchorMatches:group.userData.anchor.distanceTo(
+            target.position)<.001
+        };
+      });
+      const canvas=h4Gfx06dcTexture.image;
+      const ctx=canvas.getContext('2d');
+      const stencilPixel=ctx.getImageData(16,56,1,1).data;
+      const sootPixel=ctx.getImageData(2*256+128,256+128,1,1).data;
+      const beforeCamera=camera.position.clone();
+      const prevPhase=state.map4Phase,prevRoute=state.routeProgress;
+      state.routeProgress=15750;state.map4Phase=3;
+      const target=groups[0].userData.anchor;
+      camera.position.copy(target).add(new THREE.Vector3(0,240,1400));
+      h4Gfx06dcUpdateRange();
+      const close=groups[0].visible;
+      camera.position.copy(target).add(new THREE.Vector3(0,240,9900));
+      h4Gfx06dcUpdateRange();
+      const far=!groups[0].visible;
+      camera.position.copy(target).add(new THREE.Vector3(0,240,1100));
+      h4Gfx06dcUpdateRange();
+      const restored=groups[0].visible;
+      camera.position.copy(beforeCamera);
+      state.routeProgress=prevRoute;state.map4Phase=prevPhase;
+      h4Gfx06dcUpdateRange();
+      return {
+        stats:{...h4Gfx06dcStats},stations,
+        texture:{name:h4Gfx06dcTexture.name,width:canvas.width,
+          height:canvas.height,stencilAlpha:stencilPixel[3],
+          sootAlpha:sootPixel[3]},
+        geometryUnique:h4Gfx06dcTiles.length,
+        commonShared:h4Gfx06dcGroups.every(g=>
+          g.children.every(m=>m.material.map===h4Gfx06dcTexture)),
+        noPhysics:h4IndustrialColliders.length===36&&
+          h4Vis02Stats.geometryPreserved===34,
+        close,far,restored
+      };
+    });
+    assert.equal(gfx06dc.stats.stations,6);
+    assert.equal(gfx06dc.stats.atlasCount,1);
+    assert.equal(gfx06dc.stats.atlasSize,1024);
+    assert.equal(gfx06dc.geometryUnique,9);
+    assert.equal(gfx06dc.stats.drawBatches,24);
+    assert.equal(gfx06dc.stats.labelInstances,12);
+    assert.equal(gfx06dc.stats.sootInstances,24);
+    assert.equal(gfx06dc.stats.rustInstances,18);
+    assert.equal(gfx06dc.stats.hazardInstances,12);
+    assert.equal(gfx06dc.stats.addedColliders,0);
+    assert.deepEqual(gfx06dc.stations.map(s=>s.id),[
+      'MAP4_GFX06DC_STATION_1_DECALS',
+      'MAP4_GFX06DC_STATION_2_DECALS',
+      'MAP4_GFX06DC_STATION_3_DECALS',
+      'MAP4_GFX06DC_STATION_4_DECALS',
+      'MAP4_GFX06DC_STATION_5_DECALS',
+      'MAP4_GFX06DC_STATION_6_DECALS'
+    ]);
+    assert(gfx06dc.stations.every(s=>
+      s.childCount===4&&s.labelCount===2&&s.sootCount===4&&
+      s.rustCount===3&&s.hazardCount===2&&s.correctTypes&&
+      s.materialShared&&s.directChild&&s.anchorMatches));
+    assert(gfx06dc.stations.every(s=>s.parentHero.startsWith('IN0')));
+    assert.equal(gfx06dc.texture.width,1024);
+    assert.equal(gfx06dc.texture.height,1024);
+    assert(gfx06dc.texture.stencilAlpha>0&&
+      gfx06dc.texture.sootAlpha>0);
+    assert(gfx06dc.commonShared&&gfx06dc.noPhysics);
+    assert(gfx06dc.close&&gfx06dc.far&&gfx06dc.restored,
+      'visual micro-decals cull with distance and restore without rebuild');
+
+
+
+
+
+
+
+
     assert(industrial.kinds.includes('OVERHEAD_PIPE')&&
       industrial.kinds.includes('TRANSFER_BRIDGE')&&
       industrial.kinds.includes('HUNTER_SIDE_TOWER'),

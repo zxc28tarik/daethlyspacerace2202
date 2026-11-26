@@ -1,0 +1,45 @@
+name: Map1 NEXT11C21E SB-07 Final Color Real WebGL
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-final-color-review-21e]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  final-art-real-webgl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium and Three.js r128
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: Final art QA syntax
+        run: node --check tests/map1-next11c21e-final-color-review.cjs
+      - name: Safeguard native SB-07 racing and original Map4
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Preserve original ceramic material finish
+        run: node tests/map1-next11c21a-native-pbr-finishes.cjs
+      - name: Preserve balanced blue steel and red stripe comparison
+        run: |
+          node tests/map1-next11c21b-balanced-colors.cjs
+          node tests/map1-next11c21c-red-flow.cjs
+          node tests/map1-next11c21d-engine-tone.cjs
+      - name: Render final native AA four-angle technical art-review gallery
+        run: node tests/map1-next11c21e-final-color-review.cjs
+      - name: Preserve 304 race corridor seams
+        run: node tests/map1-next11c20r-rail-seams.cjs
+      - name: Upload final true WebGL gallery and detailed pigment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-sb07-next11c21e-final-art-acceptance
+          path: |
+            tests/next11c21e-evidence/
+            tests/next11c21d-evidence/
+            tests/next11c21c-evidence/
+          if-no-files-found: warn

@@ -1,0 +1,56 @@
+name: MAP2-15 exact Map4 city district reuse
+on:
+  push:
+    branches: [codex/map2-15-map4-city-district-reuse]
+    paths:
+      - tools/map2-15-map4-city-district-reuse.py
+      - tests/map2-15-map4-city-district-reuse.cjs
+      - .github/workflows/map2-15-map4-city-district-reuse.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply-and-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-15-map4-city-district-reuse
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply exact Map4 city reuse patch
+        run: python tools/map2-15-map4-city-district-reuse.py
+      - name: Validate city reuse markers
+        run: |
+          grep -q "MAP2_EXACT_MAP4_CITY_DISTRICT_AT_" index.html
+          grep -q "MAP4_CITY02_REAL_URBAN_DISTRICT" index.html
+          grep -q "map2CloneExactMap4CityDistrict" index.html
+          grep -q "source.clone(true)" index.html
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-15 city district QA
+        run: node tests/map2-15-map4-city-district-reuse.cjs
+      - name: MAP2-14 dense industrial regression
+        run: node tests/map2-14-dense-map4-road-buildings.cjs
+      - name: MAP2-13 exact clone regression
+        run: node tests/map2-13-exact-map4-clones.cjs
+      - name: MAP2-11 KEEP IT LOW regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: Commit city district reuse
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-15 reuse full Map4 city districts on Map2"
+          git push origin HEAD:codex/map2-15-map4-city-district-reuse
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-15-city-district-evidence
+          path: tests/map2-15-evidence/
+          if-no-files-found: warn

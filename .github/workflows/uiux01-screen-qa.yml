@@ -1,0 +1,41 @@
+name: UIUX01 screen and HUD visual acceptance
+on:
+  push:
+    branches: [codex/uiux-01-screen-hud-system]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  uiux01-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Check HTML embedded JavaScript parses
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(x=>x[1]).filter(Boolean);
+          if(!scripts.length)throw Error('Missing embedded script');
+          scripts.forEach(code=>new vm.Script(code));
+          console.log('PASS: '+scripts.length+' embedded scripts');
+          NODE
+      - name: New UIUX-01 3 viewport screenshots and functional checks
+        run: node tests/uiux01-screen-regression.cjs
+      - name: Existing Map1 and Map4 gameplay smoke
+        run: node tests/map4-browser-smoke.cjs
+      - name: Archive UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uiux01-screen-evidence
+          path: tests/uiux01-evidence/*.png
+          if-no-files-found: warn

@@ -1,0 +1,45 @@
+name: UIUX08 Downloadable Playable Offline HTML
+on:
+  push:
+    branches: [codex/uiux-08-menu-pause-redesign]
+    paths:
+      - .github/workflows/uiux08-offline-html.yml
+      - index.html
+      - assets/**
+      - tools/**
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-download:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install offline bundle toolchain
+        run: npm install --no-save three@0.128.0 tailwindcss@3.4.17
+      - name: Build self-contained game with no remote dependencies
+        run: |
+          node tools/build-gfx01-bundle.cjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const src=fs.readFileSync('dist/Uzay_Yarisi_Guncel_Oynanabilir.html','utf8');
+          const manifest=JSON.parse(fs.readFileSync('dist/gfx01-build-manifest.json','utf8'));
+          if(!src.includes('UIUX-08 — approved visual direction'))throw Error('UIUX08 theme missing');
+          for(const id of ['ui-menu-rail','ui-pause-return','ui-settings-panel','map-choice-6']){
+            if(!src.includes('id="'+id+'"'))throw Error('Missing '+id);
+          }
+          if(!manifest.offline.embeddedThree||!manifest.offline.embeddedAssets||
+              !manifest.offline.embeddedTailwind)throw Error('Not offline');
+          console.log('PASS UIUX08 offline bytes '+manifest.bundleBytes);
+          NODE
+          cp dist/Uzay_Yarisi_Guncel_Oynanabilir.html dist/DEATHLY_SPACE_RACE_UIUX08_YENI_MENU.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Deathly-Space-Race-UIUX08-Oynanabilir-HTML
+          path: dist/DEATHLY_SPACE_RACE_UIUX08_YENI_MENU.html
+          retention-days: 30
+          if-no-files-found: error

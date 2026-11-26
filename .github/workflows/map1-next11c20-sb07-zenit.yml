@@ -1,0 +1,31 @@
+name: Map1 NEXT11C20 SB07 Zenit Gameplay Art QA
+on:
+  push:
+    branches: [codex/map1-sb07-zenit-reference-implementation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sb07-zenit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned 3D and browser tooling
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install --with-deps chromium
+      - name: Render SB-07 in actual Map1; audit B-04 and difficulty
+        run: node tests/map1-next11c20-sb07-zenit.cjs
+      - name: Keep gameplay normal and boost + 3D spacecraft shots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map1-next11c20-sb07-zenit-review
+          path: |
+            tests/map1-next11c20-zenit-*.png
+            tests/map1-next11c20-zenit-qa.json
+          if-no-files-found: warn

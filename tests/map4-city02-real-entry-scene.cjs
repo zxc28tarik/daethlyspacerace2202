@@ -1,0 +1,223 @@
+/* MAP4-CITY02 — visual/physical acceptance for the ACTUAL city entrance.
+ * WebGL Chromium; phase entry is moved near completion, but remaining flight
+ * runs through the real game loop. Screenshot = actual rendered scene.
+ */
+'use strict';
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
+const assert=require('node:assert/strict'),{pathToFileURL}=require('node:url');
+const dir=path.join(__dirname,'map4-city02-evidence');fs.mkdirSync(dir,{recursive:true});
+const url=pathToFileURL(path.resolve(__dirname,'../index.html')).toString();
+(async()=>{
+ const browser=await chromium.launch({headless:true,args:[
+  '--no-sandbox','--use-gl=angle','--use-angle=swiftshader',
+  '--enable-webgl-software-rendering','--disable-dev-shm-usage']});
+ try{
+  const page=await browser.newPage({viewport:{width:1366,height:768},deviceScaleFactor:1});
+  const jsErrors=[];page.on('pageerror',e=>jsErrors.push(e.message));
+  const three=fs.readFileSync(require.resolve('three/build/three.min.js'),'utf8');
+  await page.route('**/cdnjs.cloudflare.com/ajax/libs/three.js/**',r=>
+   r.fulfill({status:200,contentType:'text/javascript',body:three}));
+  await page.route('**/cdn.tailwindcss.com/**',r=>
+   r.fulfill({status:200,contentType:'text/javascript',body:''}));
+  await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+  await page.waitForFunction(()=>typeof map4EnterArena==='function'&&
+   typeof h4City02DistrictGroup!=='undefined',null,{timeout:30000});
+  await page.locator('#map-choice-4').click();
+  await page.locator('#start-btn').click();
+  await page.waitForFunction(()=>state.running&&state.activeMap==='map4'&&state.raceTime>.1,
+   null,{timeout:30000});
+  // Enter through the REAL route transition, rather than calling a fictional
+  // arena-rendering function or snapping the camera onto a surface.
+  await page.evaluate(()=>{state.routeProgress=MAP4_PHASES.introEnd-2;
+   state.laneX=0;state.laneY=175;});
+  await page.waitForFunction(()=>state.map4Phase===2&&state.map4ArenaStarted,
+   null,{timeout:30000});
+  await page.waitForTimeout(1350);
+  const scene=await page.evaluate(()=>{
+   const city=h4City02DistrictGroup;
+   const mainCorridor=[12550,12800,13100,13400,13700,13950].every(progress=>{
+    const point={routeProgress:progress,laneX:0,laneY:175};
+    return !h4CityArenaColliders.some(c=>
+       Math.abs(c.progress-progress)<c.halfDepth+15&&
+       Math.abs(c.side)<c.halfSide+15&&
+       Math.abs(c.altitude-175)<c.halfUp+15);
+   });
+   const nextPhasePollution=planetaryBuildingColliders.some(c=>
+      h4CityArenaColliders.includes(c));
+   const windows=city.children.find(c=>c.name==='H4_CITY02_INSTANCED_STREET_WINDOWS');
+   const roadTiles=city.children.filter(c=>c.name.startsWith('H4_CITY02_DRIVABLE_MAIN_AVENUE'));
+   const city05Details=['H4_CITY05_ROADSIDE_PYLONS',
+    'H4_CITY05_LIT_PYLON_HEADS','H4_CITY05_AVENUE_EDGE_GUIDES'].map(name=>{
+      const mesh=city.children.find(c=>c.name===name);
+      return {name,count:mesh?.count||0,visualOnly:mesh?.userData.visualOnly===true};
+    });
+   const city04Details=['H4_CITY04_STEPPED_TOWER_TOPS',
+    'H4_CITY04_ANTENNA_TOWER_MASTS',
+    'H4_CITY04_HORIZONTAL_FACADE_TRIMS'].map(name=>{
+      const mesh=city.children.find(c=>c.name===name);
+      return {name,count:mesh?.count||0,visualOnly:mesh?.userData.visualOnly===true};
+    });
+   const cameraInBuilding=h4CityArenaBuildings.some(m=>
+      new THREE.Box3().setFromObject(m).containsPoint(camera.position));
+   const horizonAlignment=new THREE.Vector3(0,1,0)
+      .applyQuaternion(camera.quaternion)
+      .dot(getRaceFrameAtDistance(state.routeProgress).up);
+   // Real triangle ray-cast against ALL visible world objects: geometry bounds
+   // alone are misleading for the enormous ground and transparent cloud meshes.
+   const nearMeshes=[];
+   planetaryWorldGroup.traverse(mesh=>{
+    if(!mesh.isMesh || mesh.isInstancedMesh)return;
+    for(let p=mesh;p;p=p.parent){if(!p.visible)return;}
+    nearMeshes.push(mesh);
+   });
+   const rayAudit=[];
+   for(const [nx,ny] of [[0,.0],[0,.5],[0,-.5],[-.6,0],[.6,0]]){
+    const rayEnd=new THREE.Vector3(nx,ny,.6).unproject(camera);
+    const direction=rayEnd.sub(camera.position).normalize();
+    const hits=new THREE.Raycaster(camera.position,direction,0,1800)
+      .intersectObjects(nearMeshes,false).slice(0,12).map(h=>{
+       let o=h.object, names=[];
+       for(let k=0;o&&k<6;k++,o=o.parent)
+        names.push(o.name||o.type);
+       const obj=h.object;
+       return {dist:Math.round(h.distance),path:names.join('/'),
+         geo:obj.geometry?.type,mat:obj.material?.name||'',
+         world:obj.getWorldPosition(new THREE.Vector3()).toArray().map(Math.round)};
+      });
+    rayAudit.push({ray:[nx,ny],hits});
+   }
+   return {
+    phase:state.map4Phase,seconds:state.map4ArenaElapsed,
+    pilot:[state.routeProgress,state.laneX,state.laneY],
+    speed:state.currentSpeed,
+    camera:camera.position.toArray(),
+    cityVisible:!!city&&city.visible&&planetaryWorldRegions[1].visible,
+    physicalCity:h4CityArenaBuildings.length,colliders:h4CityArenaColliders.length,
+    windows:windows?.count,roads:roadTiles.length,city04Details,city05Details,openMainStreet:mainCorridor,
+    oldWarfrontHidden:h4ArenaWarfrontGroups.every(g=>!g.visible),
+    oldGiantWreckHidden:!h4Next22kArenaWreckGroup.visible,
+    oldGiantSkylineHidden:!h4Gfx11bArenaSkylineGroup.visible,
+    oldRegionSkylineHidden:!h4SceneryGroups[1].near.visible&&
+       !h4SceneryGroups[1].far.visible,
+    noIndustrialColliderLeaks:!nextPhasePollution,
+    rayAudit,
+    cameraInBuilding,horizonAlignment
+   };
+  });
+  // CITY06: verify urban hunters are spawned outside tower collision,
+  // and swept avoidance never authorizes a through-building move.
+  const hunterSafety=await page.evaluate(()=>{
+    const point=t=>({routeProgress:t.routeProgress,laneX:t.laneX,laneY:t.laneY});
+    const alive=hunterTargets.filter(t=>t.alive);
+    const inside=alive.filter(t=>h4CityArenaColliders.some(box=>
+      h4SegmentBoxHit(point(t),point(t),box,t.radius+9))).length;
+    const blocker=h4CityArenaColliders[0];
+    const hunter=alive[0];
+    const previous={routeProgress:blocker.progress-230,
+      laneX:blocker.side,laneY:blocker.altitude};
+    const proposed={...previous,routeProgress:blocker.progress+230};
+    const oldDir=hunter.arenaDirection;
+    const adjusted=h4City06HunterAvoid(previous,proposed,hunter);
+    hunter.arenaDirection=oldDir;
+    const intersects=h4CityArenaColliders.some(box=>
+      h4SegmentBoxHit(previous,adjusted,box,hunter.radius+9));
+    return {alive:alive.length,inside,intersects,avoided:
+      adjusted.routeProgress!==proposed.routeProgress||
+      adjusted.laneX!==proposed.laneX||
+      adjusted.laneY!==proposed.laneY};
+  });
+  assert(hunterSafety.alive>0,'city must have active hunters');
+  assert.equal(hunterSafety.inside,0,'hunters must not spawn inside towers');
+  assert.equal(hunterSafety.intersects,false,'hunter avoidance must not tunnel through towers');
+  assert.equal(hunterSafety.avoided,true,'blocked urban path must be redirected');
+  assert.equal(scene.phase,2,'must actually be inside phase 2');
+  assert(scene.seconds>0&&scene.seconds<60);
+  assert.equal(scene.cityVisible,true,'real city district must be onscreen');
+  assert.equal(scene.physicalCity,48);
+  assert.equal(scene.colliders,48);
+  assert.equal(scene.windows,432);
+  assert.equal(scene.roads,10);
+  assert.deepEqual(scene.city04Details.map(d=>d.count),[30,36,144]);
+  assert(scene.city04Details.every(d=>d.visualOnly),
+   'new skyline detail must never change city building collision');
+  assert.deepEqual(scene.city05Details.map(d=>d.count),[20,20,20]);
+  assert(scene.city05Details.every(d=>d.visualOnly),
+   'city lighting and wayfinding must remain visual-only');
+  assert.equal(scene.openMainStreet,true,'open flyable avenue required');
+  assert.equal(scene.oldWarfrontHidden,true,'old warfront wall MUST NOT render');
+  assert.equal(scene.oldGiantWreckHidden,true,'old wreck must not hover before pilot');
+  assert.equal(scene.oldGiantSkylineHidden,true,'old giant skyline must not occlude city');
+  assert.equal(scene.oldRegionSkylineHidden,true);
+  assert.equal(scene.noIndustrialColliderLeaks,true);
+  assert.equal(scene.cameraInBuilding,false);
+  assert(scene.horizonAlignment>.85,
+   'city view must retain a natural horizon: no sideways wall camera roll');
+  // Idle mouse position must not involuntarily push the ship into a wall.
+  const laneAtIdle=await page.evaluate(()=>state.laneX);
+  await page.waitForTimeout(350);
+  const laneAfterIdle=await page.evaluate(()=>state.laneX);
+  assert(Math.abs(laneAfterIdle-laneAtIdle)<2,
+   'mouse aiming must not continuously strafe the ship into a sphere wall');
+  // Actual independent keyboard strafe and altitude motion in city:
+  const lateralStart=await page.evaluate(()=>state.laneX);
+  await page.keyboard.down('d');
+  await page.waitForFunction(x=>state.laneX>x+24,lateralStart,{timeout:6000});
+  await page.keyboard.up('d');
+  const lateralAfter=await page.evaluate(()=>state.laneX);
+  assert(lateralAfter>lateralStart+24);
+  await page.screenshot({path:path.join(dir,'01-real-city-entrance.png')});
+  const begin=await page.evaluate(()=>({
+   pos:state.pos.toArray(),progress:state.routeProgress}));
+  await page.keyboard.down('w');
+  await page.waitForFunction(p=>state.routeProgress>p+75,begin.progress,
+   {timeout:15000});
+  await page.keyboard.up('w');
+  await page.waitForTimeout(400);
+  await page.screenshot({path:path.join(dir,'02-moving-through-urban-avenue.png')});
+  const movement=await page.evaluate(()=>({
+   progress:state.routeProgress,pos:state.pos.toArray(),
+   inside:map4CityArenaDistance(state)<MAP4_CITY_ARENA.radius,
+   phase:state.map4Phase}));
+  assert(movement.progress>begin.progress+75,'W must move through the city');
+  assert.equal(movement.inside,true);
+  assert.equal(movement.phase,2,'flying must NOT skip 60s battle');
+  await page.keyboard.down('s');
+  await page.waitForFunction(p=>state.routeProgress<p-20,movement.progress,
+   {timeout:12000});
+  await page.keyboard.up('s');
+  const reversed=await page.evaluate(()=>state.routeProgress);
+  assert(reversed<movement.progress-20);
+  // Real regression for the user's "hung on a wall" report: after reaching
+  // the invisible sphere, hands-free patrol must move back INTO the city,
+  // never multiply speed toward zero for the rest of the 60-second fight.
+  const wallRecovery=await page.evaluate(()=>{
+   const old={progress:state.routeProgress,laneX:state.laneX,laneY:state.laneY,
+     autoDir:state.arenaAutoDirection,speed:state.currentSpeed};
+   const a=MAP4_CITY_ARENA;
+   state.routeProgress=a.centerProgress+a.radius-a.craftMargin-1;
+   state.laneX=0;state.laneY=a.centerY;
+   state.arenaAutoDirection=1;
+   const boundary=map4Advance(state.routeProgress,RACE_SPEEDS.NORMAL,.2,state);
+   const reboundDirection=state.arenaAutoDirection;
+   state.routeProgress=boundary;
+   const inward=map4Advance(boundary,RACE_SPEEDS.NORMAL,.2,state);
+   const preservedSpeed=state.currentSpeed;
+   state.routeProgress=old.progress;state.laneX=old.laneX;
+   state.laneY=old.laneY;state.currentSpeed=old.speed;
+   state.arenaAutoDirection=old.autoDir;
+   return {boundary,inward,reboundDirection,preservedSpeed,
+     expectedMax:a.centerProgress+a.radius-a.craftMargin};
+  });
+  assert.equal(wallRecovery.reboundDirection,-1);
+  assert(wallRecovery.boundary<=wallRecovery.expectedMax+.01);
+  assert(wallRecovery.inward<wallRecovery.boundary-3,
+    'hands-free arena flight must move away from sphere instead of hanging');
+  assert(wallRecovery.preservedSpeed>20,
+    'sphere contact must not collapse ship speed to zero');
+  assert.deepEqual(jsErrors,[]);
+  const data={scene,begin,movement,reversed,wallRecovery,errors:jsErrors};
+  fs.writeFileSync(path.join(dir,'report.json'),JSON.stringify(data,null,2));
+  console.log('PASS MAP4 CITY02 '+JSON.stringify(data));
+  await page.close();
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1;});

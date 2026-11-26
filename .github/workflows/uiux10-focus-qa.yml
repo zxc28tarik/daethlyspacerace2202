@@ -1,0 +1,45 @@
+name: UIUX10 Focus-first Unboxed HUD and Menus QA
+on:
+  push:
+    branches: [codex/uiux10-focus-kiss-unboxed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  uiux09:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium WebGL testing
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0 tailwindcss@3.4.17
+          npx playwright install chromium
+      - name: Parse embedded game and UI scripts
+        run: |
+          node --check tests/uiux10-focus-menu.cjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const s=fs.readFileSync('index.html','utf8');
+          for(const x of s.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
+            if(x[1].trim())new vm.Script(x[1]);
+          console.log('PASS JS parse');
+          NODE
+      - name: UIUX10 unboxed menu, map4/map1 and pause acceptance
+        run: node tests/uiux10-focus-menu.cjs
+      - name: Real Map4 city flight and no wall regression
+        run: node tests/map4-city02-real-entry-scene.cjs
+      - name: Original Map1 and Map4 gameplay regression
+        run: node tests/map4-browser-smoke.cjs
+      - name: Archive UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: UIUX10-Unboxed-UI-WebGL-Capture
+          path: |
+            tests/uiux10-evidence/*.png
+            tests/uiux10-evidence/*.json
+          if-no-files-found: warn

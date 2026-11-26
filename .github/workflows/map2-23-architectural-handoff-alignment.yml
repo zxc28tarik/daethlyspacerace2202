@@ -1,0 +1,68 @@
+name: MAP2-23 architectural handoff alignment
+on:
+  push:
+    branches: [codex/map2-23-architectural-handoff-alignment]
+    paths:
+      - tools/map2-23-architectural-handoff-alignment.py
+      - tests/map2-23-architectural-handoff-alignment.cjs
+      - .github/workflows/map2-23-architectural-handoff-alignment.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply-and-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/map2-23-architectural-handoff-alignment
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply MAP2-23 architectural alignment
+        run: python tools/map2-23-architectural-handoff-alignment.py
+      - name: Validate MAP2-23 markers
+        run: |
+          grep -q "map2AlignArchitecturalHandoffs" index.html
+          grep -q "map2ArchitecturalAligned" index.html
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.56.1 three@0.128.0
+          npx playwright install chromium
+      - name: MAP2-23 architectural alignment QA
+        run: node tests/map2-23-architectural-handoff-alignment.cjs
+      - name: MAP2-22 handoff regression
+        run: node tests/map2-22-transition-building-handoffs.cjs
+      - name: MAP2-21 authored sequence regression
+        run: node tests/map2-21-authored-building-sequences.cjs
+      - name: MAP2-20 continuous-chain regression
+        run: node tests/map2-20-continuous-building-chains.cjs
+      - name: MAP2-19 buildings-are-road regression
+        run: node tests/map2-19-buildings-are-road.cjs
+      - name: MAP2-18 real-building collision regression
+        run: node tests/map2-18-building-obstacles.cjs
+      - name: MAP2-05 route + full fleet regression
+        run: node tests/map2-05-course-flow.cjs
+      - name: MAP2-17 exact 985-mesh / coverage regression
+        run: node tests/map2-17-full-industrial-coverage.cjs
+      - name: MAP2-16 remaining buildings regression
+        run: node tests/map2-16-remaining-map4-buildings.cjs
+      - name: MAP2-14 W05 density regression
+        run: node tests/map2-14-dense-map4-road-buildings.cjs
+      - name: MAP2-11 KEEP IT LOW regression
+        run: node tests/map2-11-keep-it-low-visual.cjs
+      - name: Commit MAP2-23 architectural alignment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "MAP2-23 align real building shells toward successive openings"
+          git push origin HEAD:codex/map2-23-architectural-handoff-alignment
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-23-architectural-handoff-evidence
+          path: tests/map2-23-evidence/
+          if-no-files-found: warn
