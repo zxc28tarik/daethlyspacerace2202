@@ -4203,6 +4203,11 @@
         const WORLD_UP_VECTOR = new THREE.Vector3(0, 1, 0);
         // MAP2-01: separate closed track. Original Map1/Map4 curve never mutated.
         const MAP2_DISTANCE=175000;
+        const MAP2_ARRIVAL_END=45000;
+        // Temporary Map2 tempo. Internal flight speeds stay in the pilot's reference units.
+        const MAP2_SPEED_MULTIPLIER=3;
+        function raceFlightScale(){return map2Active()?MAP2_SPEED_MULTIPLIER:1;}
+        function displayRaceSpeed(referenceSpeed){return referenceSpeed*SPEED_DISPLAY_SCALE*raceFlightScale();}
         const MAP2_SEGMENTS=Object.freeze([
             {from:0,to:.05,kind:'LINK'},
             {from:.05,to:.20,kind:'FAST'},
@@ -4212,6 +4217,33 @@
         ]);
         function map2Active(){return state.activeMap===MAP_MODES.MAP2;}
         function map2Segment(d){const u=THREE.MathUtils.clamp(d/MAP2_DISTANCE,0,1);return MAP2_SEGMENTS.find(s=>u>=s.from&&u<s.to)||MAP2_SEGMENTS[4];}
+        const MAP2_SPEEDWAY = Object.freeze({
+            from: MAP2_SEGMENTS[3].from * MAP2_DISTANCE,
+            to: MAP2_SEGMENTS[3].to * MAP2_DISTANCE
+        });
+        const MAP2_FINALE_FROM=149000,MAP2_ARENA_FROM=162550;
+        const MAP2_WORKS_DISTRICTS=[
+            [54200,'quarry'],[65200,'cargo'],[73500,'cooling'],
+            [82200,'forge'],[90200,'locks'],[MAP2_SPEEDWAY.from,'power']
+        ];
+        const MAP2_CIVIC_DISTRICTS=[[124900,'viaduct'],[138200,'archive'],[MAP2_FINALE_FROM,'terrace']];
+        const MAP2_FRONTAGE_DISTRICTS=[
+            [MAP2_ARRIVAL_END,'arrival'],...MAP2_WORKS_DISTRICTS,[MAP2_SPEEDWAY.to,'speedway'],
+            ...MAP2_CIVIC_DISTRICTS,[MAP2_ARENA_FROM,'observatory'],[MAP2_DISTANCE,'stadium']
+        ];
+        function map2FrontageDistrictAt(distance,offset=0){
+            const d=((distance+offset)%MAP2_DISTANCE+MAP2_DISTANCE)%MAP2_DISTANCE;
+            return MAP2_FRONTAGE_DISTRICTS.find(([end])=>d<end)[1];
+        }
+        function map2SpeedwayWidth(progress) {
+            const {from,to}=MAP2_SPEEDWAY;
+            if(progress<=from || progress>=to)return 0;
+            return THREE.MathUtils.smoothstep(progress,from,from+2300) *
+                (1-THREE.MathUtils.smoothstep(progress,to-3500,to));
+        }
+        function map2LateralScale(progress) {
+            return 2 + map2SpeedwayWidth(progress);
+        }
         const map2RouteCurve=(()=>{
             const points=[[0,0],[0,-2],[0,-10],[0,-19],[1,-20],[7,-20],[8,-19],[8,-15],
                 [13,-15],[14,-14],[14,-8],[14,-3],[13,-2],[7,-2],[7,2],[6,3],[1,3],[0,2]]
@@ -4512,7 +4544,7 @@
             return MAP4_PHASES.ascentSpeed;
         }
         function map4Advance(progress,speed,dt,ship=null) {
-            if(state.activeMap!==MAP_MODES.MAP4)return progress+speed*dt;
+            if(state.activeMap!==MAP_MODES.MAP4)return progress+speed*dt*raceFlightScale();
             if(map4CityArenaActive()){
                 const rate=ship===state ?
                     keys['KeyS']?MAP4_CITY_ARENA.reverseThrottle:
@@ -13222,18 +13254,18 @@
             document.getElementById('planetary-zone-hud').classList.toggle('hidden',!active);
             const indicator=document.getElementById('planetary-airspace-status');
             if(indicator)indicator.textContent='GENİŞ UÇUŞ SAHASI · SINIR UZAK';
-            if(active) finishGateGroup.position.copy(
-                h4WorldPosition(RACE_ROUTE_NOMINAL_DISTANCE,0,MAP4_PHASES.orbitAltitude));
-            else if(map2Active()){
-                const f=getRaceFrameAtDistance(MAP2_DISTANCE);
-                finishGateGroup.position.copy(f.center);
-                finishGateGroup.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.right,f.up,f.tangent.clone().negate()));
+            if(active){
+                finishGateGroup.visible=true;
+                finishGateGroup.position.copy(h4WorldPosition(RACE_ROUTE_NOMINAL_DISTANCE,0,MAP4_PHASES.orbitAltitude));
+            }else if(map2Active()){
                 corridorGuideGroup.visible=raceRoadGroup.visible=stationGroup.visible=false;
                 starField.visible=nebulaGroup.visible=false;
-                scene.background.setHex(0x172127);scene.fog.color.setHex(0x26343b);scene.fog.density=.00017;
-                ambientLight.color.setHex(0xb9c9cb);ambientLight.intensity=1.42;
-                nebulaLight1.color.setHex(0xe7a36f);nebulaLight1.intensity=1.35;
-                nebulaLight2.color.setHex(0x79c6d2);nebulaLight2.intensity=1.45;
+                scene.background.setHex(0x302437);scene.fog.color.setHex(0x513d50);scene.fog.density=.00017;
+                renderer.toneMapping=THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure=.88;
+                ambientLight.color.setHex(0xb6afbf);ambientLight.intensity=1.42;
+                nebulaLight1.color.setHex(0xe2b092);nebulaLight1.intensity=1.18;
+                nebulaLight2.color.setHex(0x9c91b2);nebulaLight2.intensity=1.07;
                 camera.far=8000;camera.updateProjectionMatrix();
                 map2UpdateVisibility(state.routeProgress);
             }else {finishGateGroup.visible=true;finishGateGroup.position.set(0,0,state.finishZ);finishGateGroup.rotation.set(0,0,0);}
@@ -13959,11 +13991,511 @@
         buildDerelictBulkheads();
         // MAP2-01: new scene root and lists, Map4 model/material kit reused without modifying it.
         const map2CourseGroup=new THREE.Group();
+        const map2FinishPortal=new THREE.Group();
+        map2FinishPortal.name='MAP2_FINISH_PORTAL';
+        map2FinishPortal.visible=false;
+        map2CourseGroup.add(map2FinishPortal);
         map2CourseGroup.name='MAP2_KEEP_IT_LOW_COURSE';map2CourseGroup.visible=false;scene.add(map2CourseGroup);
         const map2Obstacles=[],map2Items=[],map2Gates=[],map2Sections=[];
+        let map2CourseGpuReady=false;
+        let map2CourseWarming=false;
+        renderer.domElement.addEventListener('webglcontextrestored',()=>{map2CourseGpuReady=false;});
         const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0,exactMap4CityDistrictClones:0,exactMap4CityMeshes:0,exactMap4LandmarkClones:0,exactMap4LandmarkMeshes:0,exactMap4CorridorClusters:0,exactMap4CorridorMeshes:0,exactMap4IndustrialVisualParts:0,exactMap4IndustrialVisualMeshes:0,map4BuildingColliders:0,map4BuildingColliderBins:0,map4BuildingCenterBlocks:0,map4BuildingSideBlocks:0,map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0,routeBuildingFramedApertures:0,chainCompactedGroups:0,chainLongitudinalMoves:0,chainMaxShift:0,chainMaxGapBefore:0,chainMaxGapAfter:0,authoredSequences:0,sequenceReorderedGroups:0,sequenceLaneSwings:0,sequenceVerticalSwings:0,transitionBuildingClones:0,transitionBuildingKnots:0,transitionMaxGapBefore:0,transitionMaxGapAfter:0,architecturalAlignedGroups:0,architecturalYawTurns:0,architecturalMaxYawDeg:0,architecturalFacingPairs:0,canyonLinkedTransitions:0,canyonShiftedTransitions:0,canyonMaxLaneShift:0,canyonPredictedMaxJumpBefore:0,canyonPredictedMaxJumpAfter:0,throughBuildingModules:0,throughBuildingAnchors:0,throughBuildingFramedAnchors:0,throughBuildingDeepModules:0,throughBuildingMaxDepth:0,throughBuildingRouteKnots:0,throughBuildingLegacySafetyRejects:0,throughBuildingRetiredLegacyObstacles:0,longChainBridgeClones:0,longChainBridgeModules:0,longChainBridgeAnchors:0,longChainCoveragePct:0,longChainLongestSpan:0,longChainMaxGapAfter:0,longChainBadLinksAfter:0,legacyRoadTurnsRetired:0,legacyRoadMeshesHidden:0,legacyApertureGuidesHidden:0,legacyRoadObstaclesBefore:0,legacyRoadObstaclesAfter:0,legacyRoadGateObstaclesPreserved:0};
+        const MAP2_CITY_PANORAMA_URL = "assets/map2-city-panorama.jpg";
+        function buildMap2CityPanorama() {
+            const material = new THREE.ShaderMaterial({
+                side: THREE.BackSide,
+                depthWrite: false,
+                uniforms: {panorama: {value: null}},
+                vertexShader: [
+                    'varying vec2 skyUV;',
+                    'void main() {',
+                    '    skyUV = uv;',
+                    // Keep the panorama aligned to world directions. Camera translation
+                    // has no effect on the horizon and it always sits at the far depth.
+                    '    vec4 clip = projectionMatrix * vec4(mat3(viewMatrix) * position, 1.0);',
+                    '    gl_Position = clip.xyww;',
+                    '}'
+                ].join('\n'),
+                fragmentShader: [
+                    'uniform sampler2D panorama;',
+                    'varying vec2 skyUV;',
+                    'void main() {',
+                    '    float u = skyUV.x;',
+                    '    float v = clamp(0.49 + (skyUV.y - 0.5) * 1.75, 0.0, 1.0);',
+                    '    vec3 sky = texture2D(panorama, vec2(0.04 + 0.92 * u, v)).rgb;',
+                    // Blend a short overlap at the wrap. At both sides of the seam
+                    // the same pair of texels contributes equally.
+                    '    float edge = min(u, 1.0 - u);',
+                    '    if (edge < 0.035) {',
+                    '        float other = u < 0.5 ? 0.96 + u : u - 0.96;',
+                    '        vec3 overlap = texture2D(panorama, vec2(other, v)).rgb;',
+                    '        sky = mix(overlap, sky, 0.5 + 0.5 * smoothstep(0.0, 0.035, edge));',
+                    '    }',
+                    '    gl_FragColor = vec4(sky, 1.0);',
+                    '}'
+                ].join('\n')
+            });
+            const dome = new THREE.Mesh(new THREE.SphereGeometry(1,64,32), material);
+            dome.name = 'MAP2_CITY_PANORAMA';
+            dome.frustumCulled = false;
+            dome.visible = false;
+            // Draw after opaque buildings so depth testing skips covered pixels.
+            dome.renderOrder = 10000;
+            map2CourseGroup.add(dome);
+            new THREE.TextureLoader().load(MAP2_CITY_PANORAMA_URL, texture => {
+                material.uniforms.panorama.value = texture;
+                dome.visible = true;
+            });
+        }
+
+
+        function map2ArchitectureSurfaces() {
+            function texture(draw) {
+                const canvas=document.createElement('canvas');
+                canvas.width=canvas.height=256;
+                draw(canvas.getContext('2d'));
+                const result=new THREE.CanvasTexture(canvas);
+                result.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+                return result;
+            }
+            function shape(ctx,points,fill,edge) {
+                ctx.beginPath();
+                points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
+                ctx.closePath();
+                ctx.fillStyle=fill;
+                ctx.fill();
+                if(edge){ctx.strokeStyle=edge;ctx.lineWidth=1.5;ctx.stroke();}
+            }
+            const metal=texture(ctx=>{
+                ctx.fillStyle='#8e8993';
+                ctx.fillRect(0,0,256,256);
+                const alloy=ctx.createLinearGradient(0,10,236,246);
+                alloy.addColorStop(0,'#ebe5e5');
+                alloy.addColorStop(.56,'#d0cbd4');
+                alloy.addColorStop(1,'#9a94a4');
+                shape(ctx,[[0,0],[256,0],[256,54],[219,54],[172,116],[0,116]],alloy,'#9f99a7');
+                shape(ctx,[[0,123],[174,123],[222,60],[256,60],[256,177],[107,177],[79,216],[0,216]],
+                    '#c4bfca','#a49ba8');
+                shape(ctx,[[0,222],[82,222],[111,184],[256,184],[256,256],[0,256]],
+                    '#dcd5db','#b6aebc');
+                shape(ctx,[[0,116],[172,116],[219,54],[237,54],[175,126],[0,126]],'#756e83');
+                shape(ctx,[[88,216],[116,184],[173,184],[138,197],[120,219]],'#918899');
+                ctx.fillStyle='#a09aa9';
+                for(const [x,y] of [[14,13],[245,18],[34,105],[120,105],[15,198],[235,167],[143,235]])
+                    ctx.fillRect(x,y,5,2);
+            });
+            const systems=texture(ctx=>{
+                ctx.fillStyle='#1c2031';ctx.fillRect(0,0,256,256);
+                const well=ctx.createLinearGradient(54,0,202,238);
+                well.addColorStop(0,'#323951');well.addColorStop(.62,'#101927');well.addColorStop(1,'#252b42');
+                shape(ctx,[[26,7],[217,7],[249,43],[249,212],[209,249],[28,249],[6,224],[6,34]],well,'#777387');
+                shape(ctx,[[44,29],[211,29],[227,48],[227,89],[189,116],[66,116],[29,89],[29,48]],
+                    '#222d43','#526578');
+                shape(ctx,[[57,44],[201,44],[215,57],[215,73],[179,96],[71,96],[42,75],[42,58]],
+                    '#3a586d','#608d9b');
+                shape(ctx,[[63,51],[196,51],[208,61],[208,66],[53,66]],'#79d6d2');
+                // Radiator teeth on either side of a protected vertical bus.
+                for(let i=0;i<5;i++){
+                    const y=131+i*14, notch=(i%2)*6;
+                    shape(ctx,[[31,y],[102-notch,y],[110-notch,y+7],[31,y+7]],'#495166','#181d32');
+                    shape(ctx,[[146+notch,y],[223,y],[223,y+7],[141+notch,y+7]],'#495166','#181d32');
+                }
+                shape(ctx,[[127,115],[138,127],[138,203],[124,216],[114,205],[114,132]],'#2f574f','#78978c');
+                shape(ctx,[[125,126],[131,131],[131,201],[125,204],[120,199],[120,134]],'#59a491');
+                shape(ctx,[[28,221],[91,221],[102,232],[47,232]],'#a57259');
+                shape(ctx,[[166,226],[224,226],[215,231],[163,231]],'#dca276');
+            });
+            return {metal,systems};
+        }
+
+        function map2ArmorPlate() {
+            const shape=new THREE.Shape();
+            const corners=[[-.36,-.5],[.29,-.5],[.50,-.28],[.50,.27],[.32,.50],[-.26,.50],[-.50,.28],[-.50,-.36]];
+            corners.forEach(([x,y],i)=>i?shape.lineTo(x,y):shape.moveTo(x,y));
+            shape.closePath();
+            const plate=new THREE.ExtrudeGeometry(shape,{
+                depth:.58, bevelEnabled:true, bevelSegments:1, bevelSize:.035, bevelThickness:.21
+            }).translate(0,0,-.29);
+            const uv=plate.getAttribute('uv');
+            for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)+.5,uv.getY(i)+.5);
+            return plate;
+        }
+
+
+        // Loft between cut-corner decks. Each station can move or taper independently.
+        function map2HullGeometry(levels) {
+            const corners=[[-.50,-.30],[-.30,-.50],[.30,-.50],[.50,-.30],
+                [.50,.30],[.30,.50],[-.30,.50],[-.50,.30]];
+            const rings=levels.map(([y,x,z,width,depth])=>
+                corners.map(([u,v])=>[x+u*width,y,z+v*depth]));
+            const positions=[],uvs=[];
+            const vertex=(p,u,v)=>{positions.push(...p);uvs.push(u,v);};
+            const bottomY=levels[0][0],span=levels[levels.length-1][0]-bottomY;
+            for(let j=1;j<rings.length;j++){
+                const lower=rings[j-1],upper=rings[j];
+                const fromV=(levels[j-1][0]-bottomY)/span,toV=(levels[j][0]-bottomY)/span;
+                for(let i=0;i<corners.length;i++){
+                    const n=(i+1)%corners.length;
+                    vertex(lower[i],0,fromV);
+                    vertex(upper[i],0,toV);
+                    vertex(lower[n],1,fromV);
+                    vertex(lower[n],1,fromV);
+                    vertex(upper[i],0,toV);
+                    vertex(upper[n],1,toV);
+                }
+            }
+            const cap=(ring,top)=>{
+                for(let i=1;i<ring.length-1;i++){
+                    for(const p of top?[ring[0],ring[i+1],ring[i]]:[ring[0],ring[i],ring[i+1]])
+                        vertex(p,p[0]+.5,p[2]+.5);
+                }
+            };
+            cap(rings[0],false);cap(rings[rings.length-1],true);
+            const geometry=new THREE.BufferGeometry();
+            geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+            geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+
+
+
+        function map2MetropolisFrontage(surfaces,facilities) {
+            // Soften the panel pattern on the street silhouettes so narrow facets stay legible.
+            const canvas=document.createElement('canvas');
+            const panel=surfaces.metal.image;
+            canvas.width=panel.width;
+            canvas.height=panel.height;
+            const ctx=canvas.getContext('2d');
+            ctx.fillStyle='#e1dce2';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.globalAlpha=.36;
+            ctx.drawImage(panel,0,0);
+            const skin=new THREE.CanvasTexture(canvas);
+            skin.anisotropy=surfaces.metal.anisotropy;
+            const material=new THREE.MeshStandardMaterial({
+                vertexColors:true,roughness:.68,metalness:.17,map:skin
+            });
+            const foundation=0x242631,frame=0x353b51,glass=0x242d44;
+            const arrivalFrame=0x354852,arrivalAlloy=0x849198,arrivalGlass=0x202b3c;
+            const arrivalCyan=0x8ee4de,arrivalAmber=0xe6b576;
+            const runwaySteel=0x818d92,runwayFrame=0x344a57,runwayGlass=0x233541;
+            const runwayBlue=0x89dce3,runwayWhite=0xbedade;
+            const civicSteel=0x85939a,civicFrame=0x394b58,archiveCore=0x283647;
+            const civicBlue=0x8dd3d7,civicGold=0xe3bb83,civicGreen=0x5d827a;
+
+            // Build several distinct silhouettes from the same modular construction kit.
+            // Everything fits the original unit footprint, including the overhanging roofs.
+            function model(name, build) {
+                const positions=[], normals=[], colors=[], uvs=[];
+                function add(source,color) {
+                    const geometry=source.index?source.toNonIndexed():source;
+                    const {position,normal,uv}=geometry.attributes;
+                    const tint=new THREE.Color(color);
+                    for(let i=0;i<position.count;i++){
+                        positions.push(position.getX(i),position.getY(i)-.5,position.getZ(i));
+                        normals.push(normal.getX(i),normal.getY(i),normal.getZ(i));
+                        colors.push(tint.r,tint.g,tint.b);
+                        uvs.push(uv.getX(i),uv.getY(i));
+                    }
+                    if(geometry!==source)geometry.dispose();
+                    source.dispose();
+                }
+                const block=(x,y,z,w,h,d,color)=>
+                    add(new THREE.BoxGeometry(w,h,d).translate(x,y,z),color);
+                const deck=(x,y,z,w,h,d,color,top=.94)=>{
+                    add(new THREE.CylinderGeometry(top*.5,.5,h,8,1,false,Math.PI/8)
+                        .scale(w,1,d).translate(x,y,z),color);
+                };
+                // A faceted sensor visor wraps each pod instead of separate office windows.
+                const visor=(x,y,z,w,h,d,color)=>{
+                    deck(x,y,z,w,h,d,glass,.86);
+                    deck(x,y+h*.37,z,w*.88,h*.10,d*.93,color,1.02);
+                    deck(x,y-h*.31,z,w*.94,h*.13,d*.98,frame,1.02);
+                };
+                const hatch=(x,y,z,w,h,d,yaw,color)=>{
+                    add(map2ArmorPlate().scale(w,h,d).rotateY(yaw).translate(x,y,z),color);
+                };
+                const hull=(levels,color)=>add(map2HullGeometry(levels),color);
+                build(block,deck,visor,add,hatch,hull);
+                const geometry=new THREE.BufferGeometry();
+                geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+                geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));
+                geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+                geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+                return {name,geometry,material};
+            }
+            const works=Object.fromEntries(MAP2_WORKS_DISTRICTS.map(([,kind])=>{
+                const {profile,armor,core,steel,accent}=facilities[kind];
+                const part=model('WORKS_'+kind.toUpperCase(),(block,deck,visor,add,hatch,hull)=>{
+                    hull([[0,0,0,.96,.94],[.15,0,0,.98,.96],[.22,0,0,.81,.88]],foundation);
+                    hull(profile.map(([y,x,w,z,d])=>[.19+y*.77,(x-.5)*.82,z*.81,w*.90,d*.96]),armor);
+                    // A low service gallery keeps the bracing and signal color at street level.
+                    hull([[.20,.165,0,.38,.88],[.29,.193,-.018,.53,.85],
+                        [.39,.19,.011,.51,.85],[.46,.13,.04,.42,.73]],core);
+                    const glassY=kind==='cargo' ? .36 : .32;
+                    block(.447,glassY,0,.018,.021,.57,steel);
+                    block(.458,glassY,0,.013,.012,.49,accent);
+                });
+                return [kind,part];
+            }));
+            return {
+                works,
+                arrival:{
+                    left:[
+                        model('ARRIVAL_SKYBRIDGE',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.95,.94],[.17,0,0,.97,.95],[.24,-.08,0,.79,.83]],foundation);
+                            for(const [z,top] of [[-.25,.91],[.25,.98]]){
+                                hull([[.18,-.06,z,.35,.29],[.42,-.13,z,.31,.24],
+                                    [.64,-.03,z,.26,.21],[top-.10,.19,z*.84,.22,.23],
+                                    [top,.34,z*.78,.10,.12]],arrivalAlloy);
+                                hatch(.195,top-.19,z,.135,.15,.082,Math.PI/2,arrivalGlass);
+                                block(.239,top-.20,z,.035,.078,.026,arrivalCyan);
+                            }
+                            hull([[.51,-.06,0,.32,.71],[.57,.065,0,.53,.86],
+                                [.65,.105,0,.60,.86],[.715,.145,0,.37,.69]],arrivalFrame);
+                            visor(.122,.623,0,.67,.072,.93,arrivalCyan);
+                            block(.362,.597,0,.032,.019,.53,arrivalAmber);
+                        }),
+                        model('ARRIVAL_RELAY',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.95,.97],[.20,0,0,.98,.94],[.29,-.04,0,.72,.78]],foundation);
+                            for(const z of [-.25,.25]){
+                                hull([[.25,-.17,z,.35,.31],[.42,-.02,z,.34,.26],
+                                    [.66,.14,z*.80,.27,.19],[.78,.16,z*.78,.12,.13]],arrivalAlloy);
+                            }
+                            const dish=new THREE.TorusGeometry(.284,.038,5,20,Math.PI*1.67)
+                                .rotateZ(-.77).rotateY(-.59).translate(.062,.679,0);
+                            add(dish,arrivalFrame);
+                            const receiver=new THREE.CylinderGeometry(.05,.084,.20,7)
+                                .rotateZ(-.52).translate(.088,.628,0);
+                            add(receiver,arrivalCyan);
+                            visor(.10,.483,0,.54,.115,.56,arrivalAmber);
+                            block(.319,.488,0,.035,.025,.38,arrivalCyan);
+                        })
+                    ],
+                    right:[
+                        model('ARRIVAL_DOCK',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.99,.97],[.23,0,0,.96,.94],[.30,.04,0,.84,.86]],foundation);
+                            for(const z of [-.32,.32]){
+                                hull([[.28,.16,z,.53,.22],[.45,.20,z,.43,.22],
+                                    [.70,.205,z*.86,.27,.25]],arrivalFrame);
+                                block(-.065,.411,z,.024,.16,.035,arrivalAmber);
+                            }
+                            hull([[.57,.075,0,.59,.78],[.657,-.021,0,.95,.91],
+                                [.78,-.05,.021,.86,.90],[.86,.15,.055,.45,.70],
+                                [.914,.24,.09,.23,.49]],arrivalAlloy);
+                            visor(-.025,.756,0,.88,.056,.89,arrivalCyan);
+                            hatch(.014,.437,0,.37,.22,.08,-Math.PI/2,arrivalGlass);
+                            block(-.04,.49,0,.026,.017,.24,arrivalAmber);
+                        }),
+                        model('ARRIVAL_SERVICE',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.97,.96],[.22,0,0,.96,.91],[.29,.03,0,.83,.86]],foundation);
+                            hull([[.25,.16,0,.62,.82],[.50,.17,-.02,.61,.76],
+                                [.66,.19,-.04,.49,.68],[.82,.16,-.06,.31,.46]],arrivalFrame);
+                            for(const [z,y] of [[-.28,.55],[.25,.68]]){
+                                hull([[y-.20,-.14,z,.41,.31],[y-.10,-.11,z,.63,.35],
+                                    [y,-.09,z,.70,.36],[y+.13,.08,z,.57,.29]],arrivalAlloy);
+                                hatch(-.40,y-.045,z,.27,.116,.065,-Math.PI/2,arrivalGlass);
+                                for(const dz of [-.080,0,.080]){
+                                    block(-.445,y-.04,z+dz,.028,.077,.025,arrivalCyan);
+                                }
+                                block(-.447,y-.107,z,.022,.012,.19,arrivalAmber);
+                            }
+                        })
+                    ]
+                },
+
+                speedway:{
+                    left:[
+                        model('SPEEDWAY_SENSOR_GALLERY',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.98,.96],[.23,0,0,.96,.94],[.33,-.025,0,.76,.86]],foundation);
+                            hull([[.27,-.08,0,.74,.82],[.46,-.10,-.03,.79,.89],
+                                [.57,-.065,-.02,.84,.90],[.67,.06,0,.57,.76],[.71,.20,.05,.36,.56]],runwaySteel);
+                            hull([[.475,.20,0,.46,.91],[.55,.20,0,.52,.92],[.594,.19,0,.42,.86]],runwayFrame);
+                            block(.460,.539,0,.022,.021,.74,runwayBlue);
+                            for(const z of [-.27,.27]){
+                                hatch(.38,.395,z,.29,.128,.086,Math.PI/2,runwayGlass);
+                            }
+                        }),
+                        model('SPEEDWAY_CONTROL_SPAN',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.96,.95],[.20,0,0,.93,.90],[.29,-.02,0,.72,.81]],foundation);
+                            for(const z of [-.292,.28]){
+                                hull([[.23,-.15,z,.32,.21],[.49,-.08,z,.26,.17],
+                                    [.72,.125,z*.85,.26,.21],[.87,.23,z*.69,.20,.16]],runwaySteel);
+                            }
+                            hull([[.69,.09,0,.44,.76],[.75,.15,0,.63,.88],[.84,.17,0,.62,.91],
+                                [.91,.19,.016,.49,.80],[.95,.26,.04,.26,.62]],runwayFrame);
+                            visor(.16,.814,0,.68,.082,.87,runwayBlue);
+                            block(.283,.956,-.122,.032,.070,.026,runwayWhite);
+                            block(.284,.949,.118,.022,.052,.021,runwayBlue);
+                        })
+                    ],
+                    right:[
+                        model('SPEEDWAY_PIT_HANGAR',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.97,.97],[.24,0,0,.98,.95],[.34,.03,0,.88,.91]],foundation);
+                            for(const z of [-.33,.33]){
+                                hull([[.29,.12,z,.63,.21],[.46,.16,z,.51,.18],
+                                    [.66,.23,z*.84,.36,.24]],runwayFrame);
+                                block(-.136,.432,z,.035,.124,.023,runwayBlue);
+                            }
+                            hull([[.53,.04,0,.62,.83],[.61,-.029,.004,.93,.97],
+                                [.69,-.035,.016,.88,.94],[.79,.13,.04,.49,.75]],runwaySteel);
+                            hull([[.585,-.275,0,.38,.88],[.633,-.271,0,.40,.88],
+                                [.672,-.245,.012,.39,.85]],runwayFrame);
+                            block(-.471,.627,0,.018,.017,.71,runwayBlue);
+                            hatch(.155,.435,0,.55,.20,.073,-Math.PI/2,runwayGlass);
+                        }),
+                        model('SPEEDWAY_SUPPLY_DEPOT',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.95,.97],[.25,0,0,.99,.93],[.32,.02,0,.78,.82]],foundation);
+                            hull([[.24,.16,0,.56,.80],[.44,.22,-.029,.53,.70],
+                                [.66,.22,-.045,.48,.60],[.83,.193,-.05,.28,.39]],runwayFrame);
+                            for(const [z,y] of [[-.28,.56],[.25,.68]]){
+                                hull([[y-.21,-.126,z,.45,.40],[y-.125,-.14,z,.68,.42],
+                                    [y,-.121,z,.69,.43],[y+.09,.055,z,.53,.35]],runwaySteel);
+                                hatch(-.399,y-.077,z,.29,.116,.064,-Math.PI/2,runwayGlass);
+                                block(-.454,y-.08,z,.026,.017,.21,runwayWhite);
+                            }
+                        })
+                    ]
+                },
+
+                civic:{
+                    viaduct:model('CIVIC_VIADUCT_STATION',(block,deck,visor,add,hatch,hull)=>{
+                        hull([[0,0,0,.95,.96],[.20,0,0,.94,.92],[.27,.02,0,.77,.86]],foundation);
+                        for(const z of [-.282,.282]){
+                            hull([[.24,-.15,z,.46,.27],[.44,-.07,z,.33,.20],
+                                [.66,.13,z*.85,.24,.23],[.82,.25,z*.80,.24,.22]],civicSteel);
+                        }
+                        hull([[.62,.05,0,.56,.77],[.70,.10,0,.72,.94],[.82,.14,0,.69,.91],
+                            [.90,.22,-.02,.49,.75]],civicFrame);
+                        visor(.139,.801,0,.64,.079,.86,civicBlue);
+                        block(.42,.744,0,.024,.028,.66,civicGold);
+                    }),
+                    archive:model('CIVIC_ARCHIVE_STACK',(block,deck,visor,add,hatch,hull)=>{
+                        hull([[0,0,0,.98,.98],[.24,0,0,.94,.95],[.30,.02,0,.81,.84]],foundation);
+                        hull([[.25,-.08,0,.51,.74],[.47,-.06,0,.52,.70],
+                            [.78,.01,0,.45,.58],[.94,.07,-.03,.32,.47]],archiveCore);
+                        for(const [y,z,x] of [[.47,.04,.10],[.67,-.04,.13],[.84,.01,.15]]){
+                            hull([[y-.082,x-.04,z,.53,.65],[y-.036,x,z,.64,.76],
+                                [y+.040,x,z,.65,.76],[y+.09,x-.06,z,.49,.63]],civicSteel);
+                            block(x+.328,y-.005,z,.023,.016,.50,civicGold);
+                        }
+                    }),
+                    terrace:model('CIVIC_GROW_GALLERY',(block,deck,visor,add,hatch,hull)=>{
+                        hull([[0,0,0,.96,.97],[.21,0,0,.98,.95],[.31,-.02,0,.84,.86]],foundation);
+                        hull([[.26,-.04,0,.69,.86],[.40,-.03,.04,.69,.86],[.52,-.08,.04,.54,.75]],civicFrame);
+                        for(const [y,z] of [[.48,-.27],[.61,.24]]){
+                            hull([[y-.09,-.05,z,.65,.41],[y,.025,z,.71,.43],
+                                [y+.14,.14,z,.57,.37],[y+.21,.16,z,.29,.25]],civicGreen);
+                            hull([[y-.061,.23,z,.38,.36],[y+.04,.28,z,.40,.33],
+                                [y+.12,.29,z,.30,.25]],civicSteel);
+                            block(.47,y+.02,z,.025,.019,.24,civicBlue);
+                        }
+                    })
+                },
+
+                finale:{
+                    observatory:[
+                        model('FINALE_INTERFEROMETER',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.96,.95],[.17,0,0,.96,.92],[.24,-.047,0,.70,.78]],foundation);
+                            for(const z of [-.27,.27]){
+                                hull([[.20,-.12,z,.37,.25],[.39,-.09,z,.29,.20],
+                                    [.59,.055,z*.81,.22,.19],[.76,.15,z*.59,.25,.21]],civicSteel);
+                            }
+                            hull([[.56,-.016,0,.44,.66],[.66,.045,0,.65,.79],
+                                [.75,.099,0,.68,.77],[.83,.10,.019,.51,.60],[.9,.05,.03,.26,.41]],civicFrame);
+                            const optics=(x,h,w,c)=>add(new THREE.CylinderGeometry(w*.94,w,h,10)
+                                .rotateZ(-Math.PI/2).translate(x,.744,.016),c);
+                            optics(.19,.37,.128,civicSteel);
+                            optics(.388,.042,.131,archiveCore);
+                            optics(.411,.014,.074,0xb1bcf1);
+                            block(-.04,.911,0,.025,.083,.024,civicBlue);
+                        }),
+                        model('FINALE_OPTICAL_LAB',(block,deck,visor,add,hatch,hull)=>{
+                            hull([[0,0,0,.98,.95],[.22,0,0,.98,.93],[.29,.03,0,.77,.86]],foundation);
+                            hull([[.25,.103,0,.61,.83],[.44,.124,-.04,.68,.88],
+                                [.58,.135,-.051,.52,.76],[.67,.168,-.059,.41,.57]],civicFrame);
+                            for(const [y,z] of [[.46,-.27],[.57,.26]]){
+                                hull([[y-.09,-.12,z,.45,.33],[y-.01,-.13,z,.58,.42],
+                                    [y+.088,-.08,z,.54,.42],[y+.16,.05,z,.25,.30]],civicSteel);
+                                hatch(-.376,y+.037,z,.24,.115,.066,-Math.PI/2,archiveCore);
+                                block(-.409,y+.032,z,.025,.021,.18,0xb1bcf1);
+                            }
+                        })
+                    ],
+                    stadium:model('FINALE_GRANDSTAND',(block,deck,visor,add,hatch,hull)=>{
+                        hull([[0,0,0,.96,.96],[.21,0,0,.96,.96],[.30,0,0,.88,.86]],foundation);
+                        hull([[.24,.08,0,.71,.86],[.37,.109,0,.68,.91],
+                            [.50,.16,.02,.58,.78],[.67,.20,.038,.49,.64]],civicFrame);
+                        for(const z of [-.314,.314]){
+                            hull([[.29,-.12,z,.41,.20],[.49,-.04,z,.33,.18],
+                                [.74,.10,z*.84,.26,.21],[.84,.22,z*.72,.19,.17]],civicSteel);
+                        }
+                        hull([[.60,.05,0,.76,.90],[.69,.05,0,.90,.98],
+                            [.80,.12,.007,.59,.91],[.88,.26,.014,.42,.73]],civicSteel);
+                        hull([[.602,-.13,0,.52,.83],[.647,-.12,0,.55,.86],[.687,-.10,0,.52,.82]],civicFrame);
+                        block(-.388,.644,0,.027,.025,.69,civicGold);
+                    })
+                },
+            };
+        }
+
+
+
+        function map2FacilityDesigns(){
+            // An interchange, a quarry or a telescope each has a different roof section.
+            // Entries are altitude, outboard center, width, longitudinal offset and depth.
+            const boom=[[0,.51,.81,0,.87],[.28,.60,.69,-.04,.73],[.56,.51,.62,.015,.66],
+                [.71,.40,.68,.12,.82],[.90,.31,.57,.09,.72],[1,.29,.39,.045,.50]];
+            const strata=[[0,.48,.94,.06,.92],[.25,.50,.90,.06,.90],[.31,.56,.72,.015,.83],
+                [.58,.61,.63,-.035,.67],[.65,.66,.50,-.08,.61],[.82,.68,.44,-.10,.53],[1,.73,.23,-.15,.36]];
+            const customs=[[0,.54,.71,-.03,.65],[.37,.58,.52,-.04,.54],[.53,.51,.93,.07,.94],
+                [.76,.49,.97,.08,.96],[.87,.51,.91,.055,.93],[1,.58,.63,.004,.68]];
+            const exchanger=[[0,.51,.88,0,.86],[.22,.53,.88,0,.84],[.42,.54,.53,-.02,.53],
+                [.62,.54,.54,0,.58],[.82,.58,.81,.04,.83],[1,.57,.70,.035,.71]];
+            const furnace=[[0,.49,.97,0,.97],[.20,.49,.93,0,.95],[.43,.55,.73,-.05,.71],
+                [.49,.55,.71,-.05,.68],[.69,.56,.71,-.026,.66],[.78,.58,.48,-.06,.54],[1,.61,.30,-.11,.40]];
+            const lock=[[0,.50,.94,0,.89],[.21,.49,.88,.04,.94],[.47,.51,.89,.055,.95],
+                [.61,.54,.78,.015,.79],[.78,.64,.55,-.09,.67],[1,.66,.41,-.16,.50]];
+            const spire=[[0,.50,.90,0,.85],[.22,.54,.76,0,.78],[.42,.57,.58,-.05,.59],
+                [.63,.62,.39,-.11,.42],[.82,.65,.25,-.17,.32],[1,.74,.14,-.22,.19]];
+            const pier=[[0,.53,.90,0,.85],[.24,.57,.75,-.02,.80],[.43,.62,.56,-.05,.70],
+                [.67,.49,.65,.025,.82],[.83,.44,.71,.056,.90],[1,.41,.43,.061,.62]];
+            const archive=[[0,.56,.87,-.06,.89],[.20,.57,.88,-.04,.92],[.28,.61,.59,-.08,.69],
+                [.51,.52,.85,.018,.92],[.68,.52,.85,.018,.92],[.78,.51,.68,.045,.80],[1,.49,.59,.07,.66]];
+            const atrium=[[0,.52,.88,0,.90],[.23,.51,.87,0,.88],[.39,.59,.74,-.04,.82],
+                [.57,.56,.82,.018,.90],[.76,.59,.68,.045,.78],[1,.65,.25,.045,.47]];
+            const cupola=[[0,.54,.80,-.040,.79],[.21,.52,.72,-.045,.70],[.45,.53,.80,.014,.91],
+                [.59,.53,.91,.06,.93],[.80,.57,.75,.038,.79],[.94,.59,.53,-.028,.61],[1,.62,.28,-.053,.46]];
+            const canopy=[[0,.59,.68,0,.82],[.35,.56,.62,-.01,.73],[.56,.49,.76,.02,.94],
+                [.71,.46,.90,.04,.98],[.81,.53,.89,.063,.96],[1,.65,.37,.06,.78]];
+            return {
+                transfer:{profile:boom,rise:264,armor:0x566974,core:0x253441,steel:0x8b989d,accent:0xffc77e,face:'transfer'},
+                quarry:{profile:strata,rise:311,armor:0x676864,core:0x34312d,steel:0x918b7f,accent:0xeab17b,face:'quarry'},
+                cargo:{profile:customs,rise:278,armor:0x536574,core:0x293744,steel:0x86939a,accent:0xf6c36d,face:'cargo'},
+                cooling:{profile:exchanger,rise:300,armor:0x4f6c70,core:0x233c40,steel:0x819898,accent:0x7de5d7,face:'cooling'},
+                forge:{profile:furnace,rise:312,armor:0x6d5d5a,core:0x362b2a,steel:0x8e8078,accent:0xff9a64,face:'forge'},
+                locks:{profile:lock,rise:256,armor:0x4c626e,core:0x233440,steel:0x8297a2,accent:0x8bceff,face:'locks'},
+                power:{profile:spire,rise:432,armor:0x5a6076,core:0x272b43,steel:0x8490a4,accent:0xb7beff,face:'power'},
+                viaduct:{profile:pier,rise:233,armor:0x5c6c76,core:0x2a3946,steel:0x97a7af,accent:0xa0d6df,face:'viaduct'},
+                archive:{profile:archive,rise:288,armor:0x506584,core:0x252e49,steel:0x8495ad,accent:0xe5ba7b,face:'archive'},
+                terrace:{profile:atrium,rise:329,armor:0x526d67,core:0x253a38,steel:0x97aaa0,accent:0xa2dac3,face:'terrace'},
+                observatory:{profile:cupola,rise:322,armor:0x56697f,core:0x26364a,steel:0x8e9fae,accent:0xb1c2f2,face:'optics'},
+                stadium:{profile:canopy,rise:302,armor:0x546674,core:0x293742,steel:0x919d9e,accent:0xedc489,face:'stadium'}
+            };
+        }
+
         function map2BuildCourse(){
             if(map2Sections.length)return;
+            buildMap2CityPanorama();
+            const roadSurfaceY=-BOUNDARY_RULES.maxRadius-34;
+            const firstTechnicalStart=MAP2_SEGMENTS[2].from*MAP2_DISTANCE;
+            const architectureSurfaces=map2ArchitectureSurfaces();
+            const facilities=map2FacilityDesigns();
+            const equipmentShell=new THREE.MeshStandardMaterial({
+                color:0x798590,map:architectureSurfaces.metal,metalness:.38,roughness:.64
+            });
             const guideMat=new THREE.LineBasicMaterial({color:0x95b4b5,transparent:true,opacity:.55});
             const deckMat=H4_MATERIALS.wall;
             for(let from=0;from<MAP2_DISTANCE;from+=2500){
@@ -16091,10 +16623,10 @@
             for(let d=310,cell=0;d<MAP2_DISTANCE-200;d+=620,cell++){
                 const kind=map2Segment(d).kind;
                 const tech=kind==='TECH',fast=kind==='FAST';
-                const deckWidth=fast?1320:tech?980:1120;
-                addVisualBlock(d,0,-285,deckWidth,58,690,map2VisualMats.floor,'MAP2_VISUAL_DECK_'+cell);
-                map2VisualStageStats.deckSlabs++;
                 if(tech){
+                    const deckThickness=58;
+                    addVisualBlock(d,0,roadSurfaceY-deckThickness/2,980,deckThickness,690,map2VisualMats.floor,'MAP2_VISUAL_DECK_'+cell);
+                    map2VisualStageStats.deckSlabs++;
                     for(const side of [-1,1]){
                         const stagger=((cell*73)%170)-85;
                         const x=side*(520+Math.abs(stagger)*.36);
@@ -18384,6 +18916,24 @@
                 (g.userData.architectureFrom??g.userData.from)<g.userData.from||
                 (g.userData.architectureTo??g.userData.to)>g.userData.to).length;
 
+            // Three r128 tests the geometry's bounds against the camera.
+            // Give each static batch its own bounds while sharing its vertex buffers.
+            function map2StaticBatchGeometry(source,matrices){
+                if(!source.boundingBox)source.computeBoundingBox();
+                const geometry=new THREE.BufferGeometry();
+                geometry.setIndex(source.index);
+                for(const [name,attribute] of Object.entries(source.attributes))
+                    geometry.setAttribute(name,attribute);
+                geometry.groups=source.groups;
+                geometry.drawRange=source.drawRange;
+                const bounds=new THREE.Box3(), transformed=new THREE.Box3();
+                for(const matrix of matrices)
+                    bounds.union(transformed.copy(source.boundingBox).applyMatrix4(matrix));
+                geometry.boundingBox=bounds;
+                geometry.boundingSphere=bounds.getBoundingSphere(new THREE.Sphere());
+                return geometry;
+            }
+
             // MAP2-41: continuous world terrain and real Map4 city frontage.
             // World surface is not a race road. All architecture remains above it.
             const map2BuildWorldCity=()=>{
@@ -18428,20 +18978,21 @@
                     m.position.y-=(newH-oldH)*.5;
                     m.updateMatrix();m.updateMatrixWorld(true);
                 }
-                // Real Map4 city tower meshes and their authored crowns: reuse geometry,
-                // materials and relative dimensions, never mutate the source district.
-                const district=h4City02DistrictGroup;
-                const prototypes=district.children.filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
-                    .map(m=>({body:m,crown:district.getObjectByName(m.name.replace('PHYSICAL_BUILDING','TOWER_CROWN'))}));
-                if(!prototypes.length)throw new Error('MAP2-41 requires original Map4 city tower meshes');
+                // Keep the approved frontage footprints and use them to scale the two
+                // new visual building families. The dimensions also drive turn clearance.
+                const footprints=h4City02DistrictGroup.children
+                    .filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
+                    .map(m=>m.scale);
+                if(!footprints.length)throw new Error('Map2 city frontage requires building footprints');
                 const spacing=420,frontage=[],dummy=new THREE.Object3D();
                 const batches=new Map();
-                const enqueue=(section,part,position,rotation,scale)=>{
+                const enqueue=(section,part,position,rotation,scale,tint)=>{
                     const key=section.uuid+':'+part.geometry.uuid+':'+part.material.uuid;
                     let batch=batches.get(key);
-                    if(!batch){batch={section,part,matrices:[]};batches.set(key,batch);}
+                    if(!batch){batch={section,part,entries:[]};batches.set(key,batch);}
                     dummy.position.copy(position);dummy.quaternion.copy(rotation);dummy.scale.copy(scale);
-                    dummy.updateMatrix();batch.matrices.push(dummy.matrix.clone());
+                    dummy.updateMatrix();
+                    batch.entries.push({matrix:dummy.matrix.clone(),tint});
                 };
                 // MAP2-43: a continuous street silhouette, following the actual
                 // offset street chord rather than independent track-normal towers.
@@ -18454,17 +19005,40 @@
                 };
                 const naturalRead=[];
                 const flightEnvelope=2*285*COURSE_WIDTH_SCALE+30;
+                const architecture=map2MetropolisFrontage(architectureSurfaces,facilities);
+                const mirrored=part=>({...part,geometry:part.geometry.clone().rotateY(Math.PI)});
+                const civicAndWorks={...architecture.civic,...architecture.works};
+                const civicAndWorksOpposite=Object.fromEntries(Object.entries(civicAndWorks).map(([kind,part])=>[
+                    kind,mirrored(part)
+                ]));
+                const stadium=architecture.finale.stadium;
+                const stadiumOpposite=mirrored(stadium);
+                const districtTints=Object.fromEntries(Object.entries({
+                    arrival:0xfff7ef,quarry:0xfff3e7,cargo:0xf3f7ff,cooling:0xe9fffa,
+                    forge:0xffeee4,locks:0xeef7ff,power:0xf0edff,speedway:0xeef8ff,
+                    viaduct:0xf0fbff,archive:0xeff2ff,terrace:0xeffff2,
+                    observatory:0xeef0ff,stadium:0xfff7ee
+                }).map(([kind,color])=>[kind,new THREE.Color(color)]));
                 const sideRows=[{side:-1,row:0},{side:1,row:0},{side:-1,row:1},{side:1,row:1}];
                 for(const {side,row} of sideRows){
                     for(let i=0;i<Math.ceil(MAP2_DISTANCE/spacing);i++){
                         const offset=row?spacing*.5:0;
                         const d=(i*spacing+offset)%MAP2_DISTANCE;
-                        const p=prototypes[(i*7+row*13+(side>0?19:0))%prototypes.length];
+                        const footprint=footprints[(i*7+row*13+(side>0?19:0))%footprints.length];
                         const f=getRaceFrameAtDistance(d);
-                        const sx=p.body.scale.x*(row?3.8:2.55);
-                        let sz=Math.max(spacing*.86,p.body.scale.z*(row?4.0:3.35));
-                        let sy=Math.max(row?850:640,p.body.scale.y*(row?1.8:1.35));
-                        let inner=(row?1450:830)+(i%5)*17;
+                        const sx=footprint.x*(row?3.8:2.55);
+                        let sz=Math.max(spacing*.86,footprint.z*(row?4.0:3.35));
+                        let sy=Math.max(row?850:640,footprint.y*(row?1.8:1.35));
+                        const open=map2SpeedwayWidth(d);
+                        const speedway=d>=MAP2_SPEEDWAY.from&&d<MAP2_SPEEDWAY.to;
+                        const tower=row===1&&i%4===1;
+                        const setback=open*(row?840:760);
+                        if(row){
+                            sy*=speedway?(tower?(side<0?1.72:1.23):.91):
+                                side<0?(i%4===1?1.94:1.18):.79;
+                            sy*=1-.17*open;
+                        }
+                        let inner=(row?1450:830)+(i%5)*17+setback;
                         let x=side*(inner+sx*.5);
                         let pos=f.center.clone().addScaledVector(f.right,x);
                         let rotation=new THREE.Quaternion().setFromRotationMatrix(
@@ -18484,7 +19058,8 @@
                             // outside corner stays tall enough to read as a turn.
                             sy=Math.round(THREE.MathUtils.clamp(sy*(1+(innerTurn?-.27:.32)*bend)
                                 +approach*(seg.kind==='TECH'?140:90),580,1510));
-                            inner=Math.max(830,flightEnvelope+16)+(i%5)*9
+                            sy*=1-(speedway?.57:.53)*open;
+                            inner=Math.max(830,flightEnvelope+16)+setback+(i%5)*9
                                 +(innerTurn?Math.round(60*bend):0);
                             const baseDepth=sz;
                             let clearance=0,attempts=0;
@@ -18510,8 +19085,9 @@
                                         clearance=Math.min(clearance,side*delta.dot(q.right));
                                     }
                                 }
-                                if(clearance>=flightEnvelope)break;
-                                inner+=Math.max(25,flightEnvelope-clearance+10);
+                                const required=flightEnvelope+open*BOUNDARY_RULES.maxRadius;
+                                if(clearance>=required)break;
+                                inner+=Math.max(25,required-clearance+10);
                             }
                             naturalRead.push({d,side,kind:seg.kind,turn,bend,innerTurn,approach,
                                 clearance,inner,width:sx,depth:sz,height:sy,
@@ -18521,21 +19097,46 @@
                         }
                         pos.y=floorY+sy*.5;
                         const section=sectionAt(d);
-                        enqueue(section,p.body,pos,rotation,new THREE.Vector3(sx,sy,sz));
-                        if(p.crown){
-                            const cs=new THREE.Vector3(sx*p.crown.scale.x/p.body.scale.x,
-                                p.crown.scale.y*1.5,sz*p.crown.scale.z/p.body.scale.z);
-                            const cp=pos.clone();cp.y=floorY+sy+cs.y*.5;
-                            enqueue(section,p.crown,cp,rotation,cs);
+                        const district=Math.floor(section.userData.from/2500);
+                        const bank=side<0?'left':'right';
+                        // Stagger district handoffs across both banks and depths, while
+                        // keeping every footprint at its original clearance sample.
+                        const handoffOffset=(row?270:-140)+side*145+(i%2?210:-210);
+                        const kind=map2FrontageDistrictAt(d,handoffOffset);
+                        const approach=map2FrontageDistrictAt(d,-730);
+                        const departure=map2FrontageDistrictAt(d,730);
+                        const boundary=MAP2_FRONTAGE_DISTRICTS.find(([end,name])=>name===approach)[0];
+                        const wrappedD=boundary===MAP2_DISTANCE&&d<730?d+MAP2_DISTANCE:d;
+                        const blend=THREE.MathUtils.smoothstep(wrappedD,boundary-730,boundary+730);
+                        const tint=districtTints[approach].clone().lerp(districtTints[departure],blend);
+                        let facade;
+                        if(kind==='arrival'){
+                            const variation=i%7===0?2:Number(i%4===1);
+                            const index=(district*7+(district>>>2)+(row?2+i%2:variation))%2;
+                            facade=architecture.arrival[bank][index];
+                        }else if(kind==='speedway'){
+                            facade=architecture.speedway[bank][Number(tower)];
+                        }else if(kind==='observatory'){
+                            facade=architecture.finale.observatory[Number(side>0)];
+                        }else if(kind==='stadium'){
+                            facade=side<0?stadiumOpposite:stadium;
+                        }else{
+                            facade=(side<0?civicAndWorks:civicAndWorksOpposite)[kind];
                         }
-                        frontage.push({d,side,row,inner,width:sx,depth:sz,height:sy,source:p.body.name});
+                        enqueue(section,facade,pos,rotation,new THREE.Vector3(sx,sy,sz),tint);
+                        frontage.push({d,side,row,inner,width:sx,depth:sz,height:sy,source:facade.name});
                     }
                 }
-                for(const {section,part,matrices} of batches.values()){
-                    const mesh=new THREE.InstancedMesh(part.geometry,part.material,matrices.length);
-                    matrices.forEach((m,i)=>mesh.setMatrixAt(i,m));
+                for(const {section,part,entries} of batches.values()){
+                    const geometry=map2StaticBatchGeometry(part.geometry,entries.map(entry=>entry.matrix));
+                    const mesh=new THREE.InstancedMesh(geometry,part.material,entries.length);
+                    entries.forEach(({matrix,tint},i)=>{
+                        mesh.setMatrixAt(i,matrix);
+                        mesh.setColorAt(i,tint);
+                    });
                     mesh.instanceMatrix.needsUpdate=true;
-                    mesh.frustumCulled=false; // section visibility owns culling in Three r128
+                    mesh.instanceColor.needsUpdate=true;
+                    mesh.frustumCulled=true;
                     mesh.name='MAP2_WORLD_CITY_'+part.name;
                     mesh.userData.map2WorldCity=true;
                     mesh.userData.map2VisualOnly=true;
@@ -18624,6 +19225,76 @@
                     return false;
                 };
 
+                // The continuous canyon frontage picks up the architecture on each side
+                // of the playable gate. Its old core and collision aggregate stay aligned.
+                const armorPlate=map2ArmorPlate();
+                const districtFrontages=new Map();
+                const tiltAxis=new THREE.Vector3(0,0,1);
+                const tilt=new THREE.Quaternion(),orientation=new THREE.Quaternion();
+                const origin=new THREE.Vector3();
+                function cladTower(d,side,x,laneY,width,height,depth,rotation) {
+                    const sample=map2FrontageDistrictAt(d,side*165+((Math.floor(d/430)%3)-1)*135);
+                    const district=sample==='speedway'?map2FrontageDistrictAt(d):sample;
+                    const kind=district==='arrival'?'transfer':district;
+                    const facility=facilities[kind];
+                    if(!districtFrontages.has(kind)){
+                        const finish=new THREE.MeshStandardMaterial({
+                            color:facility.armor,map:architectureSurfaces.metal,roughness:.72,metalness:.22
+                        });
+                        const coreMaterial=new THREE.MeshStandardMaterial({
+                            color:new THREE.Color(facility.steel).lerp(new THREE.Color(facility.core),.22),
+                            map:architectureSurfaces.systems,roughness:.56,metalness:.21,
+                            emissive:facility.accent,emissiveMap:architectureSurfaces.systems,emissiveIntensity:.22
+                        });
+                        const body=map2HullGeometry(facility.profile.map(([alt,shift,w,z,len])=>[
+                            alt-.5,(shift-.5)*.48,z*.35,w,len*.36+.62
+                        ]));
+                        const cap=map2HullGeometry(facility.profile.map(([alt,shift,w,z,len])=>[
+                            alt-.5,0,z,w,len
+                        ]));
+                        districtFrontages.set(kind,{
+                            shell:{name:kind+'_STRUCTURAL_ARMOR',geometry:body,material:finish},
+                            cap:{name:kind+'_ROOF_VOLUME',geometry:cap,material:finish},
+                            service:{name:kind+'_SERVICE_BAY',geometry:armorPlate,material:coreMaterial}
+                        });
+                    }
+                    const {shell,cap,service}=districtFrontages.get(kind);
+                    const frame=getRaceFrameAtDistance(d);
+                    const at=frame.center.clone().addScaledVector(frame.right,x).addScaledVector(frame.up,laneY);
+                    const street=rotation.clone().multiply(new THREE.Quaternion()
+                        .setFromAxisAngle(WORLD_UP_VECTOR,-side*Math.PI/2));
+                    const owner=sectionAt(d);
+                    function mount(part,q,dx,dy,dz,w,h,l,angle=0) {
+                        tilt.setFromAxisAngle(tiltAxis,angle);
+                        orientation.copy(q).multiply(tilt);
+                        origin.set(dx,dy,dz).applyQuaternion(rotation).add(at);
+                        enqueue(owner,part,origin,orientation,new THREE.Vector3(w,h,l));
+                    }
+                    const inner=-side*(width*.5+3);
+                    const front=depth*.5+3;
+                    const raked=kind==='viaduct'||kind==='quarry'||kind==='locks'||kind==='stadium';
+                    const lean=raked?side*.079:0;
+                    mount(shell,street,inner,0,0,depth*.91,height*.92,42,lean);
+                    mount(shell,rotation,0,0,front,width*.91,height*.92,40,-lean);
+                    if(facility.face==='tracks'||facility.face==='transfer'||kind==='cargo'||kind==='archive'){
+                        for(const deck of [-.20,.12]){
+                            mount(service,street,inner-side*20,deck*height,0,depth*.68,height*.17,16);
+                            mount(service,rotation,0,deck*height,front+19,width*.71,height*.17,16);
+                        }
+                    }else{
+                        const ratio=kind==='power'?.72:facility.face==='optics'?.32:.48;
+                        mount(service,street,inner-side*20,height*.025,0,depth*.62,height*ratio,16);
+                        mount(service,rotation,0,height*.025,front+19,width*.60,height*ratio,16);
+                    }
+                    const roof=laneY+height*.5,innerEdge=Math.abs(x)-width*.47-12;
+                    if(roof>250&&Math.hypot(innerEdge/2.08,roof-24)>=BOUNDARY_RULES.maxRadius+25){
+                        const rise=facility.rise*(.53+(Math.floor(d/430)%3)*.13);
+                        mount(cap,rotation,side*width*.065,height*.5+rise*.5-9,0,width*.83,rise,depth*.89);
+                        return true;
+                    }
+                    return false;
+                }
+
                 const techSegments=MAP2_SEGMENTS.filter(s=>s.kind==='TECH');
                 const visualRecords=[],physicalRecords=[];
                 let visualInstances=0,skippedForRoute=0,movedOutward=0;
@@ -18648,7 +19319,8 @@
                             const laneY=floorY+height*.5;
                             const pos=f.center.clone().addScaledVector(f.right,x).addScaledVector(f.up,laneY);
                             enqueue(sectionAt(d),p.body,pos,rotation,fittedScale(p.body,width,height,depth));
-                            if(p.crown){
+                            const facilityRoof=cladTower(d,side,x,laneY,width,height,depth,rotation);
+                            if(p.crown&&!facilityRoof){
                                 const crownH=72+((row+(side>0?1:0))%3)*18;
                                 const cp=pos.clone().addScaledVector(f.up,height*.5+crownH*.5);
                                 enqueue(sectionAt(d),p.crown,cp,rotation,
@@ -18702,13 +19374,17 @@
                 window.starbladeMap2BuildingColliders=physical;
 
                 for(const {section,part,matrices} of batches.values()){
-                    const mesh=new THREE.InstancedMesh(part.geometry,part.material,matrices.length);
+                    const geometry=map2StaticBatchGeometry(part.geometry,matrices);
+                    const mesh=new THREE.InstancedMesh(geometry,part.material,matrices.length);
                     matrices.forEach((m,i)=>mesh.setMatrixAt(i,m));
                     mesh.instanceMatrix.needsUpdate=true;
-                    mesh.frustumCulled=false;
-                    mesh.name='MAP2_WIDE_URBAN_FRONTAGE_'+part.name;
-                    mesh.userData.map2WideUrbanFrontage=true;
-                    mesh.userData.map2UsesOriginalMap4Geometry=true;
+                    mesh.frustumCulled=true;
+                    const original=part.userData?.h4CityPhysical||part.userData?.visualOnly;
+                    mesh.name=(original?'MAP2_WIDE_URBAN_FRONTAGE_':'MAP2_WORLD_CITY_')+part.name;
+                    if(original){
+                        mesh.userData.map2WideUrbanFrontage=true;
+                        mesh.userData.map2UsesOriginalMap4Geometry=true;
+                    }else mesh.userData.map2WorldCity=true;
                     section.add(mesh);
                 }
 
@@ -19063,7 +19739,1308 @@
             };
             // MAP2-42's final branch reconciliation is already two microtasks deep.
             // Run MAP2-44 one step later so it audits the finished passage graph.
-            queueMicrotask(()=>queueMicrotask(()=>queueMicrotask(()=>map2SealWideUrbanEscapePaths())));
+            function clearDistrict(from,to){
+                const pickups=new Set(map2Items.map(item=>item.mesh));
+                for(const section of map2Sections){
+                    const overlaps=section.userData.to>from&&section.userData.from<to;
+                    for(const child of section.children.slice()){
+                        // The last 2.5 km render chunk also owns the start of FAST.
+                        const d=child.userData.map2Distance??child.userData.from??child.userData.map2TargetDistance;
+                        if(child.userData.map2OpenSectorGuide)continue;
+                        if(Number.isFinite(d)?d<from||d>=to:!overlaps||section.userData.from<from)continue;
+                        if(!pickups.has(child)&&!child.name.startsWith('MAP2_WORLD_CITY_')&&
+                           !child.userData.map2WideUrbanFrontage)
+                            section.remove(child);
+                    }
+                }
+                for(let i=map2Obstacles.length-1;i>=0;i--){
+                    const obstacle=map2Obstacles[i];
+                    if(obstacle.routeProgress>=from&&obstacle.routeProgress<to&&
+                       !obstacle.map2WideUrbanFrontage&&!obstacle.map2WideUrbanEscapeShell){
+                        obstacle.mesh.parent?.remove(obstacle.mesh);
+                        map2Obstacles.splice(i,1);
+                    }
+                }
+
+                const live=new Set(map2Obstacles);
+                const buildings=window.starbladeMap2BuildingColliders;
+                for(let i=buildings.length-1;i>=0;i--)
+                    if(!live.has(buildings[i]))buildings.splice(i,1);
+
+            }
+            const districtCladding=new Map();
+            const claddingFaces=/^(?:TRANSFER_HALL|TRANSFER_WING|SERVICE_GALLERY|YARD_FLANK|CITY_CORNER_WING|FREIGHT_STACK|COOLING_BASIN|PRESS_ABUTMENT|LOCK_CHAMBER|SWITCH_HOUSE|ARCHIVE_READING_ROOM|SKYBRIDGE|GARDEN_WALK|TRANSFER_MEZZANINE|[a-z]+_(?:FACADE|FOUNDATION))$/;
+            function districtSolid(at,left,right,bottom,top,depth,material,label){
+                if(claddingFaces.test(label)){
+                    if(!districtCladding.has(material)){
+                        const color=material.color.clone().lerp(new THREE.Color(0x53556d),.45);
+                        districtCladding.set(material,new THREE.MeshStandardMaterial({
+                            color,map:architectureSurfaces.metal,roughness:.71,metalness:.19
+                        }));
+                    }
+                    material=districtCladding.get(material);
+                }
+                const mesh=addSolid(at,(left+right)/2,(bottom+top)/2,right-left,top-bottom,
+                    depth*map2RouteCurve.getLength()/MAP2_DISTANCE,material,label);
+                const obstacle=map2Obstacles[map2Obstacles.length-1];
+                obstacle.halfDepth=depth/2;
+                obstacle.map2BuildingDerived=true;
+                window.starbladeMap2BuildingColliders.push(obstacle);
+                return mesh;
+            }
+            function replaceDistrictAnchors(from,to,anchors){
+                for(const points of new Set([window.starbladeMap2ThroughRoute.routeAnchors,
+                                             window.starbladeMap2BuildingRoad.knots])){
+                    const first=points.findIndex(p=>p.distance>=from);
+                    const after=points.findIndex(p=>p.distance>to);
+                    const start=first<0?points.length:first;
+                    points.splice(start,(after<0?points.length:after)-start,...anchors);
+                }
+            }
+            function buildTransferDistrict(){
+                const from=35000,to=MAP2_ARRIVAL_END;
+                const floor=window.starbladeMap2WorldCity.floorY;
+                const mats=H4_GFX06A_MAT;
+                const pressureCell=map2HullGeometry([
+                    [-.50,0,0,.65,.61],[-.31,0,0,.96,.87],[.15,.085,0,.84,.87],
+                    [.38,.136,-.04,.68,.70],[.50,.18,-.08,.42,.51]
+                ]);
+                const opening=(x,y,hx,hy)=>({x,y,hx,hy});
+                const stations=[
+                    {at:36050,depth:570,roof:240,gaps:[opening(112,-20,145,115)]},
+                    {at:38150,depth:380,roof:305,gaps:[opening(-68,-48,160,115)]},
+                    {at:40100,depth:690,roof:190,gaps:[opening(-88,-83,88,74),opening(274,-6,133,118)]},
+                    {at:41950,depth:280,roof:440,gaps:[opening(158,-35,142,245)]},
+                    {at:43850,depth:340,roof:525,gaps:[opening(-128,-45,145,245)]}
+                ];
+                const anchors=[{distance:from,x:0,y:0}];
+                for(const [index,s] of stations.entries()){
+                    const gate=map2Gates.find(g=>g.distance===s.at);
+                    Object.assign(gate,{transferHall:true,depth:s.depth,openings:s.gaps,laneX:s.gaps[0].x,laneY:s.gaps[0].y,
+                        clearX:s.gaps[0].hx,clearY:s.gaps[0].hy});
+                    const material=index===2?mats.paint:map2VisualMats.shell;
+                    let left=-850;
+                    for(const [branch,gap] of s.gaps.entries()){
+                        const signal=branch===0?mats.hazard:map2VisualMats.signal;
+                        const edge=gap.x-gap.hx,far=gap.x+gap.hx;
+                        districtSolid(s.at,left,edge,floor,s.roof,s.depth,material,'TRANSFER_HALL');
+                        districtSolid(s.at,edge,far,floor,gap.y-gap.hy,s.depth,mats.dark,'LOADING_PLINTH');
+                        if(index<3){
+                            districtSolid(s.at,edge,far,gap.y+gap.hy,s.roof,s.depth,mats.dark,'TRANSFER_MEZZANINE');
+                            addVisualPipe(s.at-s.depth/2+20,gap.x,s.roof+19,17,gap.hx*2+64,
+                                equipmentShell,'TRANSFER_SUPPLY','side');
+                            // Recessed service lights give the interior depth as the pilot crosses it.
+                            for(const offset of [-.33,0,.33]){
+                                addVisualBlock(s.at+s.depth*offset,gap.x,gap.y+gap.hy-1,
+                                    gap.hx*.6,2,7,signal,'CEILING_SERVICE_LIGHT');
+                            }
+                            for(const side of [-1,1]){
+                                addVisualBlock(s.at-s.depth/2-4,gap.x+side*(gap.hx+12),gap.y,
+                                    12,gap.hy*1.72,10,signal,'DOCK_JAMB');
+                            }
+                        }
+                        left=far;
+                    }
+                    districtSolid(s.at,left,850,floor,s.roof+76,s.depth,material,'TRANSFER_WING');
+                    for(const side of [-1,1]){
+                        const x=side*(545+index%2*100),height=215+index*23;
+                        const cell=makeCourseLocalGroup(s.at,x,s.roof+height/2);
+                        cell.name='MAP2_ARRIVAL_PRESSURE_CELL';
+                        const vessel=new THREE.Mesh(pressureCell,equipmentShell);
+                        vessel.scale.set(128,height,149);
+                        vessel.rotation.y=side<0?Math.PI:0;
+                        cell.add(vessel);
+                        sectionAt(s.at).add(cell);
+                        addVisualPipe(s.at,x+side*20,s.roof+height*.89,12,s.depth*.61,mats.coolant,'FEED_LINE');
+                    }
+                    for(const distance of [s.at-s.depth/2-80,s.at+s.depth/2+80])
+                        anchors.push({distance,x:s.gaps[0].x,y:s.gaps[0].y});
+                }
+
+                // Landside galleries and service piers connect the halls while leaving the yard open.
+                for(const [at,side,depth,top] of [[35480,-1,480,160],[36980,1,1000,135],
+                    [37440,-1,640,230],[39100,-1,900,265],[40960,1,670,175],
+                    [42800,-1,740,210],[44520,1,460,120]]){
+                    const x=side*614;
+                    districtSolid(at,x-145,x+145,floor,top,depth,map2VisualMats.warm,'SERVICE_GALLERY');
+                    addVisualPipe(at,x,top+24,19,depth*.93,mats.copper,'SERVICE_HEADER');
+                }
+                const exit=map2ThroughRouteTargetAt(to);
+                anchors.push({distance:to,x:exit.x,y:exit.y});
+                replaceDistrictAnchors(from,to,anchors);
+                const fork=stations[2],start=38600,end=41350;
+                // The low inlet runs under the pressure main. Keep the hardware
+                // on the solid lintel, with the same clear height as the flyable mouth.
+                const inlet=fork.gaps[0],face=fork.at-fork.depth/2;
+                const mainHeight=inlet.y+inlet.hy+24;
+                addVisualPipe(face-12,inlet.x,mainHeight,22,2*inlet.hx+80,
+                    mats.copper,'INLET_PRESSURE_MAIN','side');
+                const valveMount=makeCourseLocalGroup(face-35,inlet.x+inlet.hx+45,mainHeight);
+                const valve=new THREE.Mesh(H4_GFX06A_GEO.valve,mats.hazard);
+                valve.scale.setScalar(55);
+                valveMount.add(valve);
+                sectionAt(face).add(valveMount);
+                const before=map2ThroughRouteTargetAt(start),after=map2ThroughRouteTargetAt(end);
+                map2TransferFork={id:'PRESSURE_TRANSFER',gate:map2Gates.find(g=>g.distance===fork.at),from:start,to:end,passages:fork.gaps.map((gap,i)=>({
+                    id:i?'OUTER_SERVICE':'LOW_PIPE',role:i?'SAFE_STANDARD':'SHORT_TECHNICAL',start,end,
+                    nodes:[[start,before.x,before.y],[39400,gap.x,gap.y],
+                           [fork.at,gap.x,gap.y],[40600,gap.x,gap.y],[end,after.x,after.y]]
+                        .map(([routeProgress,laneX,laneY])=>({routeProgress,laneX,laneY}))
+                }))};
+            }
+            // Authored distances are nominal track metres. The same mouths drive meshes,
+            // swept contacts, the racing line and per-pilot passage reservations.
+            function buildIndustrialWorks(){
+                const from=MAP2_ARRIVAL_END,to=MAP2_SPEEDWAY.from,entry=map2ThroughRouteTargetAt(from);
+                const floor=window.starbladeMap2WorldCity.floorY;
+                const scale=map2RouteCurve.getLength()/MAP2_DISTANCE;
+                const steel=H4_GFX06B_MAT,port=H4_GFX06C_MAT,plant=H4_GFX06A_MAT;
+                const kinds=['quarry','cargo','cooling','forge','locks','power'];
+                const shopMetal=Object.fromEntries(kinds.map(kind=>{
+                    const material=equipmentShell.clone();
+                    const {armor,steel}=facilities[kind];
+                    material.color.setHex(armor).lerp(new THREE.Color(steel),.38);
+                    return [kind,material];
+                }));
+                const yardRoof=Object.fromEntries(kinds.map(kind=>[
+                    kind,map2HullGeometry(facilities[kind].profile.map(([y,x,w,z,d])=>[y-.5,(x-.5)*.3,z*.3,w,d]))
+                ]));
+                const oreScreen=map2HullGeometry([
+                    [-.50,-.03,0,.91,.92],[-.22,.04,.03,.83,.86],[.22,.12,-.04,.55,.70],[.50,.22,-.13,.23,.43]
+                ]);
+                const heatExchanger=map2HullGeometry([
+                    [-.5,0,0,.96,.95],[-.37,0,0,.91,.91],[-.19,0,0,.64,.65],
+                    [.14,0,0,.61,.59],[.34,.05,0,.86,.85],[.5,.06,0,.81,.80]
+                ]);
+                const generatorMast=map2HullGeometry([
+                    [-.5,0,0,.94,.94],[-.31,0,0,.92,.92],[.01,.07,0,.62,.65],
+                    [.28,.11,-.015,.50,.49],[.5,.17,-.056,.29,.28]
+                ]);
+                const coil=new THREE.TorusGeometry(.50,.061,6,20).rotateX(Math.PI/2);
+                const coilMetal=new THREE.MeshStandardMaterial({
+                    color:0x737da6,metalness:.43,roughness:.46,emissive:0x444e85,emissiveIntensity:.48
+                });
+                const anchors=[{distance:from,x:entry.x,y:entry.y}];
+                const gates=[];
+                function part(at,x,y,geometry,material,width,height,depth){
+                    const group=makeCourseLocalGroup(at,x,y);
+                    const mesh=new THREE.Mesh(geometry,material);
+                    mesh.scale.set(width,height,depth);
+                    group.add(mesh);sectionAt(at).add(group);
+                    return mesh;
+                }
+                // Each layout has its own cross-section and equipment silhouette.
+                function cut(at,depth,gaps,roof,material,name){
+                    let left=-850;
+                    for(const gap of gaps){
+                        districtSolid(at,left,gap.x-gap.hx,floor,roof,depth,material,name);
+                        left=gap.x+gap.hx;
+                    }
+                    districtSolid(at,left,850,floor,roof+52,depth,material,name);
+                }
+                const layouts={
+                    quarry(at,d,gaps){
+                        cut(at,d,gaps,248,H4_MATERIALS.rock,'QUARRY_CUT');
+                        for(const side of [-1,1]){
+                            const x=side*610;
+                            districtSolid(at+side*80,x-160,x+160,248,360,d*.72,shopMetal.quarry,'QUARRY_BENCH');
+                            part(at+side*80,x,423,oreScreen,shopMetal.quarry,262,142,d*scale*.61)
+                                .rotation.y=side<0?Math.PI:0;
+                        }
+                    },
+                    cargo(at,d,gaps){
+                        // At the freight interchange, both lanes share the same bay.
+                        // An intermediate loading deck separates their actual flight volumes.
+                        const stacked=gaps.length===2;
+                        const low=gaps[0],high=gaps[1];
+                        cut(at,d,stacked?[low]:gaps,260,port.cargo,'FREIGHT_STACK');
+                        if(stacked){
+                            const deck=low.y+low.hy;
+                            districtSolid(at,low.x-low.hx,low.x+low.hx,deck,high.y-high.hy,
+                                d,shopMetal.cargo,'ELEVATED_LOADING_DECK');
+                            addVisualBlock(at-d*.5-3,low.x,deck+12,low.hx*1.85,8,6,
+                                port.warning,'DECK_FASCIA');
+                        }
+                        for(const [i,side] of [-1,1].entries()){
+                            const x=side*520;
+                            for(let tier=0;tier<=i+1;tier++)
+                                districtSolid(at+20*tier,x-120,x+130,260+tier*68,325+tier*68,
+                                    d*.75,tier%2?port.frame:shopMetal.cargo,'CONTAINER_TIER');
+                            part(at,x,530,H4_GFX06C_GEO.cargoCrane,shopMetal.cargo,330,340,160);
+                        }
+                        for(const g of stacked?[high]:gaps){
+                            const ceiling=g.y+g.hy;
+                            districtSolid(at,g.x-g.hx,g.x+g.hx,ceiling,ceiling+54,d*.42,port.frame,'CRANE_BRIDGE');
+                            addVisualBlock(at-d*.21-2,g.x,ceiling+19,2*g.hx,9,5,port.warning,'CRANE_EDGE');
+                        }
+                    },
+                    cooling(at,d,gaps){
+                        cut(at,d,gaps,235,steel.armored,'COOLING_BASIN');
+                        for(const side of [-1,1]){
+                            const x=side*(side<0?550:610);
+                            part(at,x,520,heatExchanger,shopMetal.cooling,320,570,320)
+                                .rotation.y=side<0?Math.PI:0;
+                            addVisualPipe(at+60,x,258,18,d*.85,plant.coolant,'RETURN_DUCT');
+                        }
+                        for(const g of gaps){
+                            const bed=g.y-g.hy;
+                            districtSolid(at,g.x-g.hx,g.x+g.hx,floor,bed,d,plant.dark,'INTAKE_BED');
+                        }
+                    },
+                    forge(at,d,gaps){
+                        cut(at,d,gaps,375,steel.heatSteel,'PRESS_ABUTMENT');
+                        for(const g of gaps){
+                            const z=g.y+g.hy;
+                            districtSolid(at,g.x-g.hx,g.x+g.hx,z,z+105,d*.78,shopMetal.forge,'PRESS_HEAD');
+                            districtSolid(at,g.x-g.hx,g.x+g.hx,floor,g.y-g.hy,d,steel.dark,'ANVIL');
+                            part(at,g.x,z+185,H4_GFX06B_GEO.piston,shopMetal.forge,170,180,170);
+                            addVisualBlock(at-d*.39-2,g.x,z+16,1.7*g.hx,7,7,plant.hazard,'HOT_SEAM');
+                        }
+                    },
+                    locks(at,d,gaps){
+                        cut(at,d,gaps,234,plant.paint,'LOCK_CHAMBER');
+                        for(const g of gaps){
+                            districtSolid(at,g.x-g.hx,g.x+g.hx,floor,g.y-g.hy,d,plant.dark,'LOCK_SILL');
+                            for(const side of [-1,1])
+                                addVisualBlock(at-d*.5-2,g.x+side*(g.hx+13),32,11,148,6,
+                                    map2VisualMats.signal,'WATER_GAUGE');
+                        }
+                        for(const side of [-1,1]){
+                            const x=side*565;
+                            part(at,x,316,H4_GFX06C_GEO.drum,shopMetal.locks,190,165,190);
+                            addVisualPipe(at,x,394,12,d*.73,shopMetal.locks,'WINCH_DRIVE');
+                        }
+                    },
+                    power(at,d,gaps){
+                        cut(at,d,gaps,235,port.frame,'SWITCH_HOUSE');
+                        for(const side of [-1,1]){
+                            const x=side*530;
+                            part(at,x,438,generatorMast,shopMetal.power,175,410,175)
+                                .rotation.y=side<0?Math.PI:0;
+                            for(const [y,diameter] of [[377,204],[466,174],[548,147]])
+                                part(at,x+side*(y-350)*.105,y,coil,coilMetal,diameter,104,diameter);
+                        }
+                    }
+                };
+                const gap=(x,y,hx,hy)=>({x,y,hx,hy});
+                // Sparse yards alternate with tightly spaced, opposing building noses.
+                // Ordered mouths describe distinct real channels across a complex.
+                const districts=[
+                    ['quarry',[
+                        [46100,400,gap(-145,-65,178,160)],[48900,260,gap(212,-48,140,165)],
+                        [50100,210,gap(-195,-75,142,155)],[52550,450,gap(-170,-106,115,128),gap(205,20,145,155)]]],
+                    ['cargo',[
+                        [55800,370,gap(168,-65,155,105)],[57500,280,gap(-158,-98,142,95)],
+                        [60300,520,gap(-28,-98,156,70),gap(-28,105,156,73)],
+                        [62550,325,gap(215,22,153,118)],[63920,290,gap(-192,-35,146,116)]]],
+                    ['cooling',[
+                        [66500,530,gap(-108,36,180,98)],[68650,240,gap(216,64,141,98)],
+                        [70000,230,gap(-221,-38,150,104)],[72300,420,gap(124,-82,160,116)]]],
+                    ['forge',[
+                        [74900,380,gap(110,-103,145,92)],[77200,430,gap(-208,-92,118,95),gap(146,48,142,105)],
+                        [79700,260,gap(-215,-65,143,100)],[81050,205,gap(195,-18,147,108)]]],
+                    ['locks',[
+                        [83350,480,gap(86,-85,177,122)],[85450,330,gap(-210,42,135,100)],
+                        [87050,225,gap(195,-71,149,108)],[89100,540,gap(-188,-104,115,98),gap(173,35,132,108)]]],
+                    ['power',[
+                        [91500,335,gap(-206,29,156,160)],[92820,230,gap(191,-36,140,155)],
+                        [94500,260,gap(-124,-52,175,168)],[95550,190,gap(0,-18,260,180)]]]
+                ];
+                const forks=[];
+                for(const [kind,stations] of districts){
+                    for(const [at,depth,...openings] of stations){
+                        layouts[kind](at,depth,openings);
+                        const main=openings[0];
+                        const gate={distance:at,depth,kind,mode:'CENTER_ONLY',flowStage:'TECH',transferHall:true,
+                            laneX:main.x,laneY:main.y,clearX:main.hx,clearY:main.hy,openings};
+                        gates.push(gate);
+                        for(const distance of [at-depth/2-65,at+depth/2+65])
+                            anchors.push({distance,x:main.x,y:main.y});
+                        if(openings.length>1)forks.push(gate);
+                    }
+                }
+                // Service buildings on the outer side of each approach establish the
+                // bend in the preceding yard without closing sightlines across the fork.
+                for(let i=1;i<gates.length;i++){
+                    const next=gates[i],previous=gates[i-1];
+                    const at=(next.distance+previous.distance)/2;
+                    const side=next.laneX>=previous.laneX?-1:1;
+                    const x=side*610,depth=Math.min(820,(next.distance-previous.distance)*.42);
+                    const top=next.kind==='locks'?62:next.kind==='quarry'?185:125;
+                    const yard=districtSolid(at,x-140,x+140,floor,top,depth,shopMetal[next.kind],'YARD_FLANK');
+                    yard.parent.userData.map2FacilityKind=next.kind;
+                    part(at,x,top+15,yardRoof[next.kind],shopMetal[next.kind],175,30,depth*scale*.82);
+                }
+                anchors.push({distance:to,x:0,y:0});
+                replaceDistrictAnchors(from,to,anchors);
+                const first=map2Gates.findIndex(g=>g.distance>=from);
+                const after=map2Gates.findIndex(g=>g.distance>=to);
+                map2Gates.splice(first,after-first,...gates);
+                for(const gate of forks)registerDistrictFork(gate,'WORKS');
+            }
+
+            function registerDistrictFork(gate,prefix){
+                const at=gate.distance,start=at-960,end=at+960;
+                const entry=map2ThroughRouteTargetAt(start),exit=map2ThroughRouteTargetAt(end);
+                const complex={id:prefix+'_'+at,from:start,to:end,gate,passages:[]};
+                for(const [i,g] of gate.openings.entries()){
+                    const nodes=[[start,entry.x,entry.y],[at-gate.depth/2-130,g.x,g.y],
+                        [at,g.x,g.y],[at+gate.depth/2+130,g.x,g.y],[end,exit.x,exit.y]];
+                    complex.passages.push({id:complex.id+'_'+i,role:i?'SAFE_STANDARD':'SHORT_TECHNICAL',
+                        start,end,nodes:nodes.map(([routeProgress,laneX,laneY])=>({routeProgress,laneX,laneY}))});
+                }
+                map2WorksForks.set(gate,complex);
+            }
+
+
+            function buildFinishPortal(floor){
+                const at=makeCourseLocalGroup(MAP2_DISTANCE,0,0);
+                map2FinishPortal.position.copy(at.position);
+                map2FinishPortal.quaternion.copy(at.quaternion);
+                const hull=map2HullGeometry([
+                    [-.5,0,0,.91,.9],[-.27,0,0,.96,.93],[.18,.04,-.025,.69,.81],
+                    [.36,.10,-.019,.61,.70],[.5,.12,.03,.45,.57]
+                ]);
+                const frame=new THREE.InstancedMesh(hull,equipmentShell,2);
+                const design=[
+                    {x:-962,y:(floor+594)*.5,z:0,w:196,h:594-floor,d:252,color:0x78888d,turn:Math.PI},
+                    {x:962,y:(floor+594)*.5,z:0,w:196,h:594-floor,d:252,color:0x78888d,turn:0}
+                ];
+                const dummy=new THREE.Object3D(),tint=new THREE.Color();
+                for(const [i,{x,y,z,w,h,d,color,turn}] of design.entries()){
+                    dummy.position.set(x,y,z);dummy.scale.set(w,h,d);dummy.rotation.set(0,turn,0);
+                    dummy.updateMatrix();
+                    frame.setMatrixAt(i,dummy.matrix);
+                    frame.setColorAt(i,tint.setHex(color));
+                }
+                frame.instanceMatrix.needsUpdate=true;frame.instanceColor.needsUpdate=true;
+                frame.frustumCulled=false;
+                const beam=new THREE.Mesh(map2HullGeometry([
+                    [-.5,0,0,.91,.87],[-.29,0,0,.98,.95],[.22,0,.008,.98,.96],[.5,0,.018,.79,.82]
+                ]),equipmentShell);
+                beam.position.set(0,538,7);
+                beam.scale.set(2140,146,234);
+                map2FinishPortal.add(frame,beam);
+
+                // Bezel strokes sit flush against the inner structural faces. The
+                // open center stays clear at every reachable flight altitude.
+                const trim=new THREE.InstancedMesh(H4_MESHES.structure,new THREE.MeshBasicMaterial(),17);
+                const bars=[
+                    [-937,40,95,13,688,11,0xe6b775],
+                    [937,40,95,13,688,11,0xa4d7de],
+                    [0,522,125,785,8,12,0xe8c38b]
+                ];
+                for(let i=0;i<14;i++){
+                    const row=Math.floor(i/7),col=i%7;
+                    bars.push([(col-3)*46,552+row*22,127,42,18,8,
+                        (row+col)%2===0?0xe4e7e0:0x2e4659]);
+                }
+                for(const [i,[x,y,z,w,h,d,color]] of bars.entries()){
+                    dummy.position.set(x,y,z);dummy.scale.set(w,h,d);dummy.updateMatrix();
+                    trim.setMatrixAt(i,dummy.matrix);
+                    trim.setColorAt(i,tint.setHex(color));
+                }
+                trim.instanceMatrix.needsUpdate=true;trim.instanceColor.needsUpdate=true;
+                trim.frustumCulled=false;
+                map2FinishPortal.add(trim);
+
+                // Four illuminated ribbons make the center of the finish readable
+                // from the race camera without adding a closed solid to the opening.
+                const positions=[],indices=[],steps=12;
+                for(let quarter=0;quarter<4;quarter++){
+                    for(let step=0;step<=steps;step++){
+                        const a=quarter*Math.PI/2+.18+step/steps*(Math.PI/2-.36);
+                        for(const edge of [-3.5,3.5])
+                            positions.push((445+edge)*Math.cos(a),(286+edge)*Math.sin(a),7);
+                        if(step){
+                            const i=(quarter*(steps+1)+step)*2;
+                            indices.push(i-2,i-1,i,i,i-1,i+1);
+                        }
+                    }
+                }
+                const markers=new THREE.BufferGeometry();
+                markers.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+                markers.setIndex(indices);
+                const guide=new THREE.Mesh(markers,new THREE.MeshBasicMaterial({
+                    color:0xa9dadf,side:THREE.DoubleSide
+                }));
+                map2FinishPortal.add(guide);
+            }
+
+            function buildFinalCity(){
+                const from=MAP2_SPEEDWAY.to, to=MAP2_DISTANCE;
+                const floor=window.starbladeMap2WorldCity.floorY;
+                const scale=map2RouteCurve.getLength()/MAP2_DISTANCE;
+                const gateAtEntry=map2Gates.find(g=>g.distance>=from);
+                const gap=(x,y,hx=150,hy=104)=>({x,y,hx,hy});
+                // The approach lights on the apron point at these original two mouths.
+                const districts=[
+                    ['viaduct',[
+                        [gateAtEntry.distance,gateAtEntry.depth,...gateAtEntry.openings],
+                        [117100,520,gap(200,-82)], [119850,340,gap(-228,-65)],
+                        [121450,280,gap(186,30)], [123750,425,gap(86,-105,164,86)]]],
+                    ['archive',[
+                        [126100,740,gap(-175,56,136,93)], [128450,500,gap(-205,-85)],
+                        [130180,325,gap(225,-14,143,112)],
+                        [132750,570,gap(-193,68,118,88),gap(166,-88,134,95)],
+                        [135420,625,gap(190,72,145,93)], [137050,310,gap(-220,-68)]]],
+                    ['terrace',[
+                        [139500,440,gap(-146,90,155,90)], [141380,390,gap(212,-108,149,84)],
+                        [143150,370,gap(-201,95,148,88)], [145500,620,gap(124,-90,168,92)],
+                        [147820,315,gap(224,62,144,94)]]],
+                    ['observatory',[
+                        [150150,540,gap(-186,-58)], [152420,380,gap(215,61,148,94)],
+                        [154950,475,gap(-195,-72,123,94),gap(168,77,137,91)],
+                        [157620,360,gap(-218,38)], [159230,310,gap(217,-80)],
+                        [161400,540,gap(78,68,168,92)]]],
+                    ['stadium',[
+                        [163680,410,gap(-221,50,140,102)], [165270,290,gap(204,-62)],
+                        [167650,440,gap(113,54,143,94)], [169350,320,gap(-222,-67)],
+                        [171000,300,gap(188,46)], [172900,350,gap(-120,-34,163,110)],
+                        [174180,225,gap(0,0,215,144)]]]
+                ];
+                const surface=(base,color,emissive)=>{
+                    const mat=base.clone();
+                    mat.color.setHex(color);mat.emissive.setHex(emissive);
+                    return mat;
+                };
+                const stone=surface(equipmentShell,0x72838d,0x111b22);
+                const ribMetal=surface(equipmentShell,0x435b68,0x0d1d26);
+                const archiveShell=surface(equipmentShell,0x617590,0x0e1725);
+                const archiveVault=surface(equipmentShell,0x344957,0x111e2b);
+                const terraceShell=surface(equipmentShell,0x788c86,0x13231e);
+                const terraceGlass=surface(equipmentShell,0x527a71,0x0c2622);
+                terraceGlass.roughness=.43;
+                const trim=surface(equipmentShell,0x889b9f,0x151d22);
+                const garden=surface(equipmentShell,0x668274,0x13271e);
+                const glass=surface(equipmentShell,0x59718a,0x132333);
+                glass.roughness=.43;
+                const seats=surface(equipmentShell,0x536772,0x15232b);
+                const lamp=map2VisualMats.signal, gold=map2VisualMats.signalWarm;
+                const facades={viaduct:stone,archive:archiveShell,terrace:terraceShell,observatory:glass,stadium:seats};
+                const cityKinds=[...MAP2_CIVIC_DISTRICTS.map(([,kind])=>kind),'observatory','stadium'];
+                const cityRoofs=Object.fromEntries(cityKinds.map(kind=>[
+                    kind,map2HullGeometry(facilities[kind].profile.map(([y,x,w,z,d])=>[y-.5,(x-.5)*.34,z*.3,w,d]))
+                ]));
+                const stadiumFin=map2HullGeometry([
+                    [-.5,0,0,.96,.91],[-.31,-.032,0,.91,.91],[.37,.086,-.04,.64,.76],[.50,.109,-.04,.46,.65]
+                ]);
+                const skyBridge=map2HullGeometry([
+                    [-.5,0,0,.70,.94],[-.19,0,0,.95,.95],[.22,0,.01,.94,.92],[.5,0,.025,.62,.70]
+                ]);
+                const skyGuide=new THREE.MeshBasicMaterial({color:0x9dc5ef});
+                const chequerMaterial=new THREE.MeshBasicMaterial();
+                function finishBadge(d,x,y,width){
+                    const group=makeCourseLocalGroup(d,x,y);
+                    const badge=new THREE.InstancedMesh(H4_MESHES.structure,chequerMaterial,24);
+                    const dummy=new THREE.Object3D(),tint=new THREE.Color(),tile=width/12;
+                    for(let i=0;i<24;i++){
+                        const row=Math.floor(i/12),col=i%12;
+                        dummy.position.set((col-5.5)*tile,(row-.5)*11,0);
+                        dummy.scale.set(tile*.91,9,7);
+                        dummy.updateMatrix();
+                        badge.setMatrixAt(i,dummy.matrix);
+                        badge.setColorAt(i,tint.setHex((row+col)%2===0?0xe3e9e8:0x293d49));
+                    }
+                    badge.instanceMatrix.needsUpdate=true;badge.instanceColor.needsUpdate=true;
+                    badge.frustumCulled=false;
+                    group.add(badge);sectionAt(d).add(group);
+                }
+                const girder=map2HullGeometry([
+                    [-.5,0,0,.82,.89],[-.22,0,0,.97,.96],[.28,0,0,.96,.94],[.5,0,0,.71,.79]
+                ]);
+                const growPod=map2HullGeometry([
+                    [-.5,0,0,.88,.95],[-.23,0,0,.94,.96],[.19,.04,.03,.83,.89],[.5,.09,.04,.48,.67]
+                ]);
+                const dataCassette=map2HullGeometry([
+                    [-.5,0,0,.71,.81],[-.26,0,.02,.94,.96],[.20,.03,.052,.91,.89],[.5,.06,.09,.69,.68]
+                ]);
+                function archRib(halfX,rise,width){
+                    const shape=new THREE.Shape(),steps=14;
+                    for(let i=0;i<=steps;i++){
+                        const angle=i*Math.PI/steps;
+                        const x=(halfX+width)*Math.cos(angle),y=(rise+width*.64)*Math.sin(angle);
+                        if(!i)shape.moveTo(x,y);else shape.lineTo(x,y);
+                    }
+                    for(let i=steps;i>=0;i--){
+                        const angle=i*Math.PI/steps;
+                        shape.lineTo(halfX*Math.cos(angle),rise*Math.sin(angle));
+                    }
+                    shape.closePath();
+                    return new THREE.ExtrudeGeometry(shape,{depth:1,bevelEnabled:false}).translate(0,0,-.5);
+                }
+                const anchors=[{distance:from,x:0,y:0}];
+                const gates=[];
+                for(const [kind,stations] of districts){
+                    for(const [index,[at,depth,...openings]] of stations.entries()){
+                        const leading=at-depth/2;
+                        const solid=(left,right,low,high,length,material,name)=>
+                            districtSolid(at,left,right,low,high,length,material,name);
+                        const ornament=(d,x,y,geo,mat,w,h,z,tilt=0)=>{
+                            const root=makeCourseLocalGroup(d,x,y);
+                            const mesh=new THREE.Mesh(geo,mat);
+                            mesh.scale.set(w,h,z);mesh.rotation.z=tilt;
+                            root.add(mesh);sectionAt(d).add(root);
+                        };
+                        const wallMat=facades[kind];
+                        // In an open court the stepped seating/planters rise away from the pilot.
+                        // In the galleries the jambs instead continue for the length of the room.
+                        let left=-850;
+                        for(let i=0;i<=openings.length;i++){
+                            const right=i===openings.length?850:openings[i].x-openings[i].hx;
+                            const width=right-left,center=(left+right)/2;
+                            const top=kind==='stadium'?126:kind==='terrace'?176:kind==='viaduct'?260:326;
+                            solid(left,right,floor,top,depth,wallMat,kind+'_FACADE');
+                            if(kind==='terrace'){
+                                for(const y of [10,112]){
+                                    ornament(leading-13,center,y,growPod,terraceGlass,width*.82,32,48);
+                                    addVisualBlock(leading-20,center,y-10,width*.68,4,8,lamp,'BALCONY_LIP');
+                                }
+                                solid(center-width*.39,center+width*.39,top,top+55,depth*.83,garden,'PLANTED_TERRACE');
+                                for(const dx of [-.24,.24])
+                                    ornament(at,center+dx*width,top+78,growPod,terraceGlass,width*.28,63,depth*scale*.56);
+                            }else if(kind==='observatory'){
+                                ornament(leading-11,center,top-22,skyBridge,glass,width*.81,39,46);
+                                addVisualBlock(leading-16,center,top-22,width*.66,6,8,skyGuide,'OBSERVATORY_GLAZING');
+                            }else if(kind==='stadium'){
+                                for(const dx of [-.28,.28]){
+                                    ornament(leading-6,center+dx*width,38,stadiumFin,trim,
+                                        Math.min(width*.18,72),165,58,dx*.40);
+                                }
+                                for(let tier=0;tier<4;tier++){
+                                    const inset=width*(tier+1)*.085, y=top+tier*27;
+                                    solid(left+inset,right-inset,y,y+27,depth*(1-tier*.1),tier%2?trim:seats,'GRANDSTAND_TIER');
+                                }
+                            }
+                            if(i<openings.length)left=openings[i].x+openings[i].hx;
+                        }
+                        for(const [branch,g] of openings.entries()){
+                            const l=g.x-g.hx,r=g.x+g.hx,base=g.y-g.hy,cap=g.y+g.hy;
+                            solid(l,r,floor,base,depth,wallMat,kind+'_FOUNDATION');
+                            if(kind==='viaduct'){
+                                // Recessed arch crown. The stepped shoulders leave the full rectangular clearance below.
+                                const arch=2*g.hx/7;
+                                for(let k=0;k<7;k++){
+                                    const rise=55*Math.sqrt(1-((k-3)/3)**2);
+                                    solid(l+arch*k,l+arch*(k+1),cap+rise,260,depth,stone,'VIADUCT_VAULT');
+                                }
+                                // Continuous ribs follow the existing opening at both shoulders.
+                                const signal=openings.length===2&&branch===0?gold:lamp;
+                                ornament(leading-10,g.x,cap+8,archRib(g.hx,61,23),ribMetal,1,1,28);
+                                ornament(leading-26,g.x,cap+9,archRib(g.hx+4,65,6),signal,1,1,6);
+                                ornament(at,g.x,272,girder,ribMetal,2*g.hx+4,24,depth*scale+12);
+                            }else if(kind==='archive'){
+                                solid(l,r,cap,cap+100,depth,archiveVault,'ARCHIVE_READING_ROOM');
+                                ornament(leading-6,g.x,cap+55,dataCassette,
+                                    archiveShell,(r-l)*.96,84,58);
+                                const signal=branch===0?gold:lamp;
+                                for(const side of [-1,1])
+                                    addVisualBlock(at,g.x+side*(g.hx-6),cap-.7,5,3.2,depth*scale*.90,signal,'READING_LIGHT');
+                            }else if(kind==='terrace'){
+                                // Walk beneath the hanging garden, then rise over the next terrace.
+                                if(index%2){
+                                    solid(l,r,cap,cap+44,depth*.78,terraceShell,'GARDEN_WALK');
+                                    solid(l+8,r-8,cap+44,cap+66,depth*.64,garden,'GARDEN_BED');
+                                    ornament(at-depth*.39-4,g.x,cap+23,growPod,terraceGlass,(r-l)*.88,37,37);
+                                }
+                            }else if(kind==='observatory'){
+                                solid(l,r,cap,cap+38,depth*.58,glass,'SKYBRIDGE');
+                                const signal=openings.length===2&&branch===1?gold:skyGuide;
+                                for(const side of [-1,1]){
+                                    const frame=at+side*depth*.29;
+                                    ornament(frame,g.x,cap+20,skyBridge,glass,(r-l)*.94,33,23);
+                                    addVisualBlock(frame-side*5,g.x,cap+21,(r-l)*.75,5,7,signal,'SKYBRIDGE_WINDOW');
+                                }
+                            }else if(index===stations.length-1){
+                                solid(l,r,cap,cap+30,depth*.56,trim,'FINISH_BALCONY');
+                                finishBadge(at-depth*.28-5,g.x,cap+16,(r-l)*.86);
+                            }
+                        }
+                        const main=openings[0];
+                        const gate={distance:at,depth,kind,mode:'CENTER_ONLY',flowStage:'TECH',transferHall:true,finalCity:true,
+                            laneX:main.x,laneY:main.y,clearX:main.hx,clearY:main.hy,openings};
+                        gates.push(gate);
+                        for(const distance of [leading-65,at+depth/2+65])
+                            anchors.push({distance,x:main.x,y:main.y,moduleId:kind+'_'+at,kind});
+                    }
+                }
+                anchors.push({distance:to,x:0,y:0});
+                replaceDistrictAnchors(from,to,anchors);
+                // Extend the outside facade down the approach to each turn.
+                // These longitudinal wings leave sightlines across the inside corner open.
+                for(let i=1;i<gates.length;i++){
+                    const gate=gates[i],previous=gates[i-1];
+                    const side=gate.laneX>=previous.laneX?-1:1;
+                    const at=previous.distance+(gate.distance-previous.distance)*.53;
+                    const x=side*516, span=Math.min(1100,(gate.distance-previous.distance)*.48);
+                    const roof=gate.kind==='terrace'?15:gate.kind==='stadium'?58:154;
+                    const wing=districtSolid(at,x-82,x+82,floor,roof,span,facades[gate.kind],'CITY_CORNER_WING');
+                    wing.parent.userData.map2FacilityKind=gate.kind;
+                    const roofGroup=makeCourseLocalGroup(at,x,roof+5);
+                    const roofShell=new THREE.Mesh(cityRoofs[gate.kind],facades[gate.kind]);
+                    roofShell.scale.set(164,10,span*scale*.95);
+                    roofGroup.add(roofShell);
+                    sectionAt(at).add(roofGroup);
+                }
+                map2Gates.splice(map2Gates.indexOf(gateAtEntry),Infinity,...gates);
+                for(const g of gates)if(g.openings.length>1)registerDistrictFork(g,'FINAL');
+                buildFinishPortal(floor);
+            }
+
+
+
+            function addTerminalHangar(from,hangar,roofHeight,bevelAt,deckHalfWidth,roofMaterial,uvOrigin=from){
+                const {name,profile}=hangar;
+                const floor=window.starbladeMap2WorldCity.floorY;
+                const armor=new THREE.Color(0x626d7c), wall=new THREE.Color(0x464b59);
+                const shadow=new THREE.Color(0x373d4b), bevel=new THREE.Color(0x9695a0);
+                const {right,tangent}=getRaceFrameAtDistance(uvOrigin);
+                const along=(p,axis)=>p[0]*axis.x+p[2]*axis.z;
+                const rows=[profile[0]];
+                // Follow both the widening apron and the actual curve in world space.
+                for(let i=1;i<profile.length;i++){
+                    const [a,leftA,rightA]=profile[i-1], [b,leftB,rightB]=profile[i];
+                    const steps=Math.ceil((b-a)/130);
+                    for(let step=1;step<=steps;step++){
+                        const t=step/steps;
+                        rows.push([THREE.MathUtils.lerp(a,b,t),
+                            THREE.MathUtils.lerp(leftA,leftB,t),THREE.MathUtils.lerp(rightA,rightB,t)]);
+                    }
+                }
+                const rings=rows.map(([d,left,right])=>{
+                    const frame=getRaceFrameAtDistance(from+d), width=deckHalfWidth(from+d);
+                    const y=roofHeight(d);
+                    const vertices=(height,inset)=>{
+                        const margin=Math.min(inset,(right-left)*width*.22);
+                        return [left*width+margin,right*width-margin].map(x=>
+                            [frame.center.x+frame.right.x*x,height,frame.center.z+frame.right.z*x]);
+                    };
+                    const edgeBevel=bevelAt(d);
+                    return [vertices(floor+.5,36),vertices(y-124,28),vertices(y-61,0),
+                        vertices(y-15,0),vertices(y,edgeBevel)];
+                });
+                const positions=[], colors=[], uvs=[];
+                const quad=(a,b,c,d,tint,surface)=>{
+                    for(const p of [a,b,c,a,c,d]){
+                        positions.push(...p);
+                        colors.push(tint.r,tint.g,tint.b);
+                        if(surface==='top')uvs.push(along(p,right)/470,along(p,tangent)/515);
+                        else uvs.push(along(p,surface==='side'?tangent:right)/295,p[1]/225);
+                    }
+                };
+                const top=new THREE.Color(hangar.color), bandColors=[wall,shadow,armor,bevel];
+                for(let row=1;row<rings.length;row++){
+                    const a=rings[row-1],b=rings[row];
+                    quad(a[4][0],a[4][1],b[4][1],b[4][0],top,'top');
+                    quad(a[0][1],a[0][0],b[0][0],b[0][1],wall,'top');
+                    bandColors.forEach((tint,level)=>{
+                        quad(a[level][0],a[level+1][0],b[level+1][0],b[level][0],tint,'side');
+                        quad(a[level+1][1],a[level][1],b[level][1],b[level+1][1],tint,'side');
+                    });
+                }
+                bandColors.forEach((tint,level)=>{
+                    const first=rings[0],last=rings.at(-1);
+                    quad(first[level][0],first[level][1],first[level+1][1],first[level+1][0],tint,'end');
+                    quad(last[level][1],last[level][0],last[level+1][0],last[level+1][1],tint,'end');
+                });
+                const geometry=new THREE.BufferGeometry();
+                geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+                geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+                geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+                geometry.computeVertexNormals();
+                const roof=new THREE.Mesh(geometry,roofMaterial);
+                roof.name=(from<firstTechnicalStart?'MAP2_ARRIVAL_TERMINAL_':'MAP2_ORBITAL_TERMINAL_')+name;
+                sectionAt(from+(profile[0][0]+profile.at(-1)[0])*.5).add(roof);
+
+                return rows;
+            }
+
+            function buildOrbitalCargoTerminal(from,to,deckHalfWidth,roofMaterial,place){
+                const length=to-from;
+                const hangars=[
+                    {name:'TRANSFER', drop:0, color:0x72798b, profile:[
+                        [0,-1,1],[600,-1,1],[770,-1,.92],[900,-.83,.62],
+                        [1200,-.39,.42],[1450,-.28,.29],[1580,-.19,.13],[1640,-.11,.08]
+                    ], radiators:[[435,-.52],[565,.50],[1080,.10]]},
+                    {name:'PORT', drop:56, color:0x7c7d8a, profile:[
+                        [1040,-1,-.94],[1190,-1,-.72],[1380,-1,-.56],[1570,-1,-.42],
+                        [1790,-1,.08],[2030,-1,.08],[2220,-1,-.21],[2450,-1,-.21],
+                        [2670,-1,.19],[2870,-1,.19],[3070,-1,-.12],[3290,-1,-.12],
+                        [3490,-1,.04],[3610,-1,.01],[length,-1,0]
+                    ], radiators:[[1840,-.61],[2590,-.48],[3150,-.59]]},
+                    {name:'STARBOARD', drop:106, color:0x697383, profile:[
+                        [1040,.94,1],[1200,.69,1],[1400,.64,1],[1610,.46,1],
+                        [1790,.36,1],[2030,.36,1],[2220,.07,1],[2450,.07,1],
+                        [2670,.47,1],[2870,.47,1],[3070,.16,1],[3290,.16,1],
+                        [3490,.31,1],[3610,.17,1],[length,0,1]
+                    ], radiators:[[1670,.76],[2300,.60],[3000,.67]]}
+                ];
+                const roofHeight=(hangar,d)=>roadSurfaceY-
+                    hangar.drop*(1-THREE.MathUtils.smoothstep(d,length-410,length));
+                const floor=window.starbladeMap2WorldCity.floorY;
+                const bevelAt=d=>14*(1-THREE.MathUtils.smoothstep(d,length-300,length));
+                for(const hangar of hangars){
+                    const {name}=hangar;
+                    const rows=addTerminalHangar(from,hangar,d=>roofHeight(hangar,d),bevelAt,
+                        deckHalfWidth,roofMaterial);
+                    for(const [d,side] of hangar.radiators){
+                        const at=from+d, x=deckHalfWidth(at)*side, y=roofHeight(hangar,d);
+                        place('TRIM',at,x,y+2,112,5,192,0x252d3a);
+                        for(let rib=-2;rib<=2;rib++)
+                            place('TRIM',at,x+rib*17,y+6,5,4,177,0x4a5261);
+                        place('MARKERS',at-84,x,y+6,49,3,7,0x75becd);
+                    }
+                    for(const [d,left,right] of rows.filter((row,i)=>i%3===1)){
+                        if(d<155||d>length-150||(right-left)<.19)continue;
+                        const at=from+d, width=deckHalfWidth(at);
+                        const y=roofHeight(hangar,d), side=name==='STARBOARD'?-1:1;
+                        const x=(side<0?left:right)*width-side*27;
+                        place('MARKERS',at,x,y+2,10,3,42,0x7ad7de);
+                        place('TRIM',at,x+side*28,y-45,22,46,28,0x88909b);
+                    }
+                }
+
+                // Docking hardware sits on the inner walls, with the open slots
+                // still visible on either side of the single low service link.
+                for(const [d,left,right] of [[1920,.08,.36],[2340,-.21,.07],[2760,.19,.47],[3170,-.12,.16]]){
+                    const at=from+d,width=deckHalfWidth(at);
+                    for(const [side,fraction,drop] of [[1,left,56],[-1,right,106]]){
+                        const x=fraction*width+side*9, y=roadSurfaceY-drop-111;
+                        place('PIT_SHELL',at,x,y,67,85,113,0x717989);
+                        place('MARKERS',at,x+side*30,y+6,9,10,78,0xf2aa69);
+                    }
+                    const x=(left+right)*width*.5;
+                    place('TRIM',at,x,floor+42,136,83,150,0x3a424f);
+                    place('MARKERS',at,x,floor+85,66,3,6,0xa58a65);
+                    place('TRIM',at+110,x+37,floor+26,87,51,58,0x4d5260);
+                    place('MARKERS',at+110,x+37,floor+53,31,3,5,0xd2a16c);
+                }
+                const link=from+2780, width=deckHalfWidth(link);
+                place('TRIM',link,.33*width,roadSurfaceY-236,.34*width,33,48,0x69727e);
+                place('MARKERS',link,.33*width,roadSurfaceY-217,.25*width,3,5,0xdba56f);
+            }
+
+            function buildOrbitalTerminalExpansion(from,to,deckHalfWidth,roofMaterial,place){
+                const length=to-from;
+                const hangars=[
+                    // Loading lanes split into two diverging piers with diagonal open berths.
+                    {name:'SORTING_FAN', use:'sorting', drop:0, fall:38, color:0x7b8291, profile:[
+                        [0,-1,1],[340,-1,1],[620,-.97,.83],[960,-.88,.37],
+                        [1230,-.82,-.04],[1560,-.72,-.21],[1780,-.65,-.34]
+                    ]},
+                    {name:'SORTING_EXPORT', use:'sorting', drop:91, fall:12, color:0x767e8b, profile:[
+                        [860,.81,1],[1080,.58,1],[1440,.37,1],[1740,.26,1],[2040,.04,.95],
+                        [2300,-.02,.9],[2510,.08,.9],[2740,.27,.86],[3010,.47,.71]
+                    ]},
+                    {name:'SORTING_FEEDER', use:'sorting', drop:129, fall:0, color:0x747988, profile:[
+                        [1920,-1,-.9],[2220,-1,-.53],[2590,-.96,-.38],[2940,-.96,-.28],
+                        [3200,-.92,-.29],[3470,-.85,-.38],[3820,-.72,-.5],[4010,-.62,-.55]
+                    ]},
+                    // The repair locks have separate crosswise air slots for service cranes.
+                    {name:'SERVICE_DRY_DOCK', use:'service', drop:64, fall:66, color:0x7b7581, profile:[
+                        [4320,-.69,.66],[4450,-.93,.82],[4740,-.98,.95],[5010,-.98,.95],
+                        [5220,-.84,.93],[5440,-.58,.71]
+                    ]},
+                    {name:'SERVICE_LIFT_TRAY', use:'service', drop:163, fall:-22, color:0x737181, profile:[
+                        [5730,-1,.18],[5900,-1,.35],[6170,-.89,.59],[6550,-.72,.63],
+                        [6910,-.83,.58],[7230,-.89,.4]
+                    ]},
+                    {name:'SERVICE_COOLING', use:'service', drop:104, fall:34, color:0x817b87, profile:[
+                        [7550,-.2,.98],[7710,-.55,1],[8000,-.87,1],[8440,-.86,.84],
+                        [8720,-.73,.91],[9040,-.44,.74]
+                    ]},
+                    // Long, offset quays frame a widening central launch basin.
+                    {name:'DISPATCH_CONTROL_QUAY', use:'dispatch', drop:75, fall:46, color:0x758494, profile:[
+                        [9310,-1,-.89],[9580,-1,-.57],[9960,-1,-.34],[10420,-1,-.13],
+                        [11060,-1,-.23],[11850,-1,-.43],[12570,-1,-.59],[13180,-1,-.49],
+                        [13520,-.87,-.42],[length,-.74,-.44]
+                    ]},
+                    {name:'DISPATCH_LAUNCH_QUAY', use:'dispatch', drop:136, fall:-38, color:0x687588, profile:[
+                        [9810,.76,1],[10110,.47,1],[10480,.35,1],[10840,.41,1],[11580,.55,1],
+                        [12240,.75,1],[12740,.68,1],[13210,.49,.99],[13580,.38,.88],[length,.46,.78]
+                    ]}
+                ];
+                const signals={sorting:0x7ed4d7,service:0xe7a77b,dispatch:0xf1c28c};
+                const roofEquipment={
+                    sorting(at,x,y,w,signal){
+                        place('TRIM',at,x,y+3,w,8,174,0x3c4859);
+                        for(let row=-1;row<=1;row++){
+                            place('TRIM',at+row*45,x,y+8,w*.84,7,26,0x566775);
+                            place('MARKERS',at+row*45,x,y+13,w*.64,2,4,signal);
+                        }
+                    },
+                    service(at,x,y,w,signal){
+                        place('TRIM',at,x,y+4,w,10,235,0x2d3542);
+                        for(let fin=-2;fin<=2;fin++)
+                            place('TRIM',at,x+fin*w*.15,y+11,w*.078,14,213,0x515762);
+                        place('MARKERS',at-105,x,y+12,w*.78,3,7,signal);
+                    },
+                    dispatch(at,x,y,w,signal){
+                        place('TRIM',at,x,y+4,w,9,154,0x455566);
+                        place('PIT_SHELL',at,x,y+13,w*.68,23,134,0x596d7d);
+                        for(const side of [-1,1])
+                            place('MARKERS',at,x+side*w*.40,y+10,7,3,112,signal);
+                    }
+                };
+                for(const hangar of hangars){
+                    const start=hangar.profile[0][0], end=hangar.profile.at(-1)[0];
+                    const roofHeight=d=>roadSurfaceY-hangar.drop-
+                        hangar.fall*THREE.MathUtils.smoothstep(d,start,end);
+                    const bevelAt=d=>18*THREE.MathUtils.smoothstep(d,0,220);
+                    const rows=addTerminalHangar(from,hangar,roofHeight,bevelAt,deckHalfWidth,
+                        roofMaterial,from+start);
+                    const signal=signals[hangar.use];
+                    for(const position of [.25,.51,.77]){
+                        const [d,left,right]=rows[Math.floor((rows.length-1)*position)];
+                        const at=from+d,width=deckHalfWidth(at);
+                        const x=(left+right)*width*.5,y=roofHeight(d);
+                        roofEquipment[hangar.use](at,x,y,Math.min(240,(right-left)*width*.54),signal);
+                    }
+                    for(let row=2;row<rows.length-2;row+=3){
+                        const [d,left,right]=rows[row];
+                        if(right-left<.20)continue;
+                        const at=from+d,width=deckHalfWidth(at),y=roofHeight(d);
+                        for(const [side,edge] of [[-1,left],[1,right]]){
+                            const x=edge*width-side*37;
+                            place('MARKERS',at,x,y+2,12,3,67,signal);
+                            place('TRIM',at,x+side*37,y-43,24,44,35,0x768494);
+                        }
+                    }
+                }
+                // Machinery and service decks sit well below the openings and support the quays.
+                const floor=window.starbladeMap2WorldCity.floorY;
+                for(const [d,side,w,h,depth] of [
+                    [1160,.24,178,96,260],[2150,-.25,240,87,164],[2960,.05,300,78,290],
+                    [3650,.33,258,106,208],[4160,-.18,245,83,156],[5580,.20,305,105,139],
+                    [7390,-.04,318,121,152],
+                    [9190,.26,225,95,132],[10580,.16,220,84,278],[11640,.05,185,105,242],
+                    [12780,.13,255,97,205],[13460,-.10,193,89,162]
+                ]){
+                    const at=from+d,x=deckHalfWidth(at)*side;
+                    const bank=side<0?1:-1;
+                    place('TRIM',at,x,floor+h*.5,w,h,depth,0x4a5260);
+                    place('TRIM',at,x+w*.24,floor+h+5,w*.32,10,depth*.62,0x637582);
+                    for(const edge of [-1,1])
+                        place('MARKERS',at,x+edge*w*.31,floor+h+2,6,3,depth*.58,0xc6976f);
+                    const serviceX=x+bank*w*.68, towerH=h+63;
+                    place('TRIM',at+42,serviceX,floor+towerH*.5,w*.42,towerH,depth*.70,0x525e6b);
+                    place('TRIM',at-95,serviceX+bank*w*.32,floor+24,w*.44,48,depth*.51,0x3b4757);
+                    place('MARKERS',at+42,serviceX,floor+towerH+1,w*.32,3,5,0xdaa879);
+                    place('MARKERS',at-95,serviceX+bank*w*.32,floor+49,w*.36,2,6,0x99b2bb);
+                }
+            }
+
+            function buildOrbitalTerminals(){
+                const {from,to}=MAP2_SPEEDWAY;
+                const expansionFrom=100000;
+                const transferLength=3750;
+                const cladding=architectureSurfaces.metal.clone();
+                cladding.wrapS=cladding.wrapT=THREE.RepeatWrapping;
+                cladding.needsUpdate=true;
+                const roofMaterial=new THREE.MeshStandardMaterial({
+                    vertexColors:true,map:cladding,roughness:.86,metalness:.26,emissive:0x111a23
+                });
+                const deckHalfWidth=d=>BOUNDARY_RULES.maxRadius*map2LateralScale(d)+80;
+                const firstFastStart=MAP2_SEGMENTS[1].from*MAP2_DISTANCE;
+                const arrivalHalfWidth=d=>560+100*THREE.MathUtils.smoothstep(d,firstFastStart-550,firstFastStart+950);
+
+                const metal=new THREE.MeshStandardMaterial({
+                    map:architectureSurfaces.metal,metalness:.31,roughness:.67
+                });
+                const light=new THREE.MeshBasicMaterial();
+                const block=H4_MESHES.structure;
+                const parts={
+                    PIT_SHELL:{material:metal,geometry:map2HullGeometry([
+                        [-.50,0,0,.88,.94],[-.25,0,-.02,.96,.97],[.12,.06,-.03,.76,.84],
+                        [.35,.02,.044,.91,.84],[.50,.08,.11,.57,.63]
+                    ])},
+                    TRIM:{material:metal,geometry:block},
+                    MARKERS:{material:light,geometry:block}
+                };
+                const bays=new Map(),tint=new THREE.Color();
+                function place(name,d,x,y,w,h,depth,color){
+                    const section=sectionAt(d);
+                    if(!bays.has(section))bays.set(section,new Map());
+                    const layers=bays.get(section);
+                    if(!layers.has(name))layers.set(name,[]);
+                    const at=makeCourseLocalGroup(d,x,y);
+                    at.scale.set(w,h,depth);
+                    at.updateMatrix();
+                    layers.get(name).push({matrix:at.matrix,color});
+                }
+
+                // Reuse the complete terminal layout twice across the longer opening.
+                const arrivalMidpoint=firstTechnicalStart*.5;
+                for(const start of [0,arrivalMidpoint]){
+                    const transferEnd=start+transferLength;
+                    buildOrbitalCargoTerminal(start,transferEnd,arrivalHalfWidth,roofMaterial,place);
+                    buildOrbitalTerminalExpansion(transferEnd,start+arrivalMidpoint,arrivalHalfWidth,roofMaterial,place);
+                }
+                buildOrbitalCargoTerminal(from,expansionFrom,deckHalfWidth,roofMaterial,place);
+                buildOrbitalTerminalExpansion(expansionFrom,to,deckHalfWidth,roofMaterial,place);
+                for(const [section,layers] of bays){
+                    for(const [name,entries] of layers){
+                        const {geometry,material}=parts[name];
+                        const boundedGeometry=map2StaticBatchGeometry(geometry,entries.map(entry=>entry.matrix));
+                        const mesh=new THREE.InstancedMesh(boundedGeometry,material,entries.length);
+                        entries.forEach(({matrix,color},i)=>{
+                            mesh.setMatrixAt(i,matrix);
+                            mesh.setColorAt(i,tint.setHex(color));
+                        });
+                        mesh.instanceMatrix.needsUpdate=true;
+                        mesh.instanceColor.needsUpdate=true;
+                        mesh.frustumCulled=true;
+                        mesh.name='MAP2_SPEEDWAY_'+name;
+                        section.add(mesh);
+                    }
+                }
+            }
+
+            function buildPassageFacades(){
+                const batches=new Map();
+                const scale=map2RouteCurve.getLength()/MAP2_DISTANCE;
+                const box=new THREE.BoxGeometry(1,1,1).toNonIndexed();
+                const plate=map2ArmorPlate();
+                const shield=map2HullGeometry([
+                    [-.5,.0,0,.76,1],[-.37,0,.02,.94,.98],[.19,0,.075,1,.92],
+                    [.50,.11,-.06,.63,.72]
+                ]);
+                const collar=new THREE.CylinderGeometry(.5,.48,1,8).rotateX(Math.PI/2).toNonIndexed();
+                const openingsAt=new Map(map2Gates.map(gate=>[gate.distance,gate.openings]));
+                const entranceHulls=new Map();
+                const tint=new THREE.Color();
+                const point=new THREE.Vector3(), normal=new THREE.Vector3();
+                const angles=new THREE.Euler(0,0,0,'YXZ'),orientation=new THREE.Quaternion();
+
+                const industrialKinds={
+                    TRANSFER_HALL:'transfer',TRANSFER_WING:'transfer',SERVICE_GALLERY:'transfer',
+                    QUARRY_CUT:'quarry',FREIGHT_STACK:'cargo',COOLING_BASIN:'cooling',
+                    PRESS_ABUTMENT:'forge',LOCK_CHAMBER:'locks',SWITCH_HOUSE:'power'
+                };
+                // Face equipment in normalized bay space. Width follows the wall span;
+                // height follows its bulkhead, with a cap for slender center piers.
+                // Each row gives shape, offset, size, depth, material, rotation and light.
+                const facilityPanels={
+                    quarry:[
+                        [shield,-.24,.08,.13,.60,40,'steel',-.09],
+                        [shield,.24,.08,.13,.60,40,'steel',.09],
+                        [plate,0,.16,.37,.094,24,'armor',-.09],
+                        [box,0,.16,.31,.012,12,'accent',-.09,.58]
+                    ],
+                    cargo:[
+                        [plate,0,-.16,.62,.12,34,'steel'],
+                        [plate,0,.15,.62,.12,34,'steel'],
+                        [box,0,-.12,.56,.013,14,'accent',0,.64],
+                        [box,0,.19,.56,.013,14,'accent',0,.64],
+                        [box,0,.026,.045,.19,28,'armor']
+                    ],
+                    cooling:[
+                        [box,-.29,.03,.035,.33,24,'accent',0,.53],
+                        [box,.29,.03,.035,.33,24,'accent',0,.53],
+                        ...[-.096,-.045,.006,.057,.108].map(y=>[plate,0,y,.50,.028,26,'steel',-.045])
+                    ],
+                    forge:[
+                        [shield,0,.125,.61,.19,38,'armor'],
+                        [plate,0,-.078,.46,.105,26,'steel'],
+                        [box,0,-.08,.43,.017,15,'accent',0,.67],
+                        [box,-.27,.015,.035,.21,24,'accent',-.10,.47],
+                        [box,.27,.015,.035,.21,24,'accent',.10,.47]
+                    ],
+                    locks:[
+                        [collar,0,.071,.47,.22,32,'steel'],
+                        [collar,0,.071,.35,.165,20,'core'],
+                        [box,-.285,.035,.023,.26,28,'accent',0,.55],
+                        [box,.285,.035,.023,.26,28,'accent',0,.55],
+                        [box,0,.066,.19,.019,27,'accent',0,.47]
+                    ],
+                    power:[
+                        [plate,0,.035,.29,.43,34,'armor',.09],
+                        [box,0,.035,.038,.34,28,'accent',.09,.66],
+                        ...[-.14,.02,.17].map(y=>[plate,0,y,.55,.042,30,'steel',-.07])
+                    ],
+                    viaduct:[
+                        [shield,-.254,.075,.12,.61,39,'steel',-.095],
+                        [shield,.254,.075,.12,.61,39,'steel',.095],
+                        [plate,0,.17,.48,.105,29,'armor'],
+                        [box,0,.159,.39,.013,11,'accent',0,.58],
+                        [box,0,.065,.039,.19,17,'accent',0,.46]
+                    ],
+                    archive:[
+                        ...[-.168,.018,.195].flatMap(y=>[
+                            [shield,0,y,.58,.068,42,'steel'],
+                            [box,0,y+.007,.48,.011,12,'accent',0,.62]
+                        ])
+                    ],
+                    terrace:[
+                        [shield,0,.17,.65,.11,36,'steel'],
+                        [plate,0,.064,.57,.135,34,'armor'],
+                        [box,0,.02,.46,.011,20,'accent',0,.51],
+                        [shield,0,-.113,.56,.11,38,'armor'],
+                        [box,0,-.095,.46,.011,18,'accent',0,.51]
+                    ],
+                    stadium:[
+                        [shield,0,.164,.68,.095,42,'steel',-.08],
+                        [shield,0,.012,.58,.079,36,'armor',-.06],
+                        [shield,0,-.133,.48,.072,29,'steel',-.04],
+                        [box,0,.152,.58,.012,13,'accent',-.08,.60],
+                        [box,0,-.141,.40,.010,12,'accent',-.04,.51]
+                    ]
+                };
+                const alternateSignal={
+                    transfer:0x87e5df,quarry:0x93d9e1,cargo:0xa6def6,forge:0xa6d7eb,
+                    locks:0xffcf92,viaduct:0x8cd6dd,archive:0x9dcdf1,observatory:0xe6be85
+                };
+                for(const solid of map2Obstacles){
+                    const {mesh,routeProgress,halfX,halfY,halfDepth}=solid;
+                    const name=mesh.name;
+                    if(!solid.map2BuildingDerived||!name?.startsWith('MAP2_')||halfX<44||halfY<120)continue;
+                    const label=name.slice(5);
+                    const kind=mesh.userData.map2FacilityKind||industrialKinds[label]||
+                        (label.endsWith('_FACADE')?label.slice(0,-7):null);
+                    const facility=facilities[kind];
+                    if(!facility)continue;
+                    const section=sectionAt(routeProgress);
+                    if(!batches.has(section))batches.set(section,{positions:[],normals:[],uvs:[],colors:[],powers:[]});
+                    const batch=batches.get(section);
+                    const width=2*halfX,height=2*halfY,face=halfDepth*scale;
+                    const {armor,core,steel,accent}=facility;
+                    if(!entranceHulls.has(kind)){
+                        entranceHulls.set(kind,map2HullGeometry(facility.profile.map(([alt,x,w,z,d])=>[
+                            alt-.5,(x-.5)*.62,z*.23,w,.60+d*.38
+                        ])));
+                    }
+                    const entranceHull=entranceHulls.get(kind);
+                    function part(geometry,x,y,z,w,h,depth,color,{roll=0,yaw=0,pitch=0,glow=0}={}){
+                        tint.setHex(color);
+                        const attrs=geometry.attributes;
+                        orientation.setFromEuler(angles.set(pitch,yaw,roll));
+                        for(let i=0;i<attrs.position.count;i++){
+                            point.set(attrs.position.getX(i)*w,attrs.position.getY(i)*h,attrs.position.getZ(i)*depth)
+                                .applyQuaternion(orientation);
+                            point.x+=x;point.y+=y;point.z+=z;
+                            point.applyQuaternion(mesh.quaternion).add(mesh.position);
+                            normal.set(attrs.normal.getX(i)/w,attrs.normal.getY(i)/h,attrs.normal.getZ(i)/depth)
+                                .normalize().applyQuaternion(orientation).applyQuaternion(mesh.quaternion);
+                            batch.positions.push(point.x,point.y,point.z);
+                            batch.normals.push(normal.x,normal.y,normal.z);
+                            batch.uvs.push(attrs.uv.getX(i),attrs.uv.getY(i));
+                            batch.colors.push(tint.r,tint.g,tint.b);
+                            batch.powers.push(glow);
+                        }
+                    }
+                    // Batch the facing and its full-size physical support together.
+                    // The unchanged static obstacle still supplies the swept hit volume.
+                    const wall=mesh.children[0];
+                    const panelLayout=facilityPanels[kind];
+                    const baseColor=new THREE.Color(armor).lerp(new THREE.Color(steel),panelLayout ? .28 : .40).getHex();
+                    part(box,0,0,0,width,height,wall.scale.z,baseColor);
+                    wall.visible=false;
+                    if(label==='YARD_FLANK'||label==='CITY_CORNER_WING'){
+                        part(entranceHull,0,height*.062,face+4,width*.82,height*.68,46,armor);
+                        part(plate,0,height*.053,face+29,width*.64,height*.42,20,core);
+                        part(box,0,height*.097,face+42,width*.54,6,6,accent,{glow:.54});
+                        continue;
+                    }
+
+                    // Expand the main building outward from its roof. The entire new volume
+                    // lies outside the flight ellipse, including at the lowest profile deck.
+                    // The original jamb is still the visible support beside each aperture.
+                    const outer=Math.abs(solid.laneX)+halfX;
+                    if(outer>=849&&width>=235){
+                        const roof=solid.laneY+halfY;
+                        const rootY=roof-12,guardRadius=BOUNDARY_RULES.maxRadius+25;
+                        const safeY=Math.min(guardRadius,Math.max(0,rootY-15));
+                        const safeX=2.08*Math.sqrt(guardRadius**2-safeY**2)+14;
+                        const side=Math.sign(solid.laneX);
+                        const inner=Math.max(Math.abs(solid.laneX)-halfX+14,safeX);
+                        const span=Math.min(550,Math.max(300,outer-inner+245));
+                        const rise=facility.rise+(Math.round(routeProgress/140)%3)*21;
+                        const length=2*face+112;
+                        const levels=facility.profile.map(([alt,x,w,z,d])=>[
+                            alt-.5,side*(x-.5),z,w,d
+                        ]);
+                        const roofHull=map2HullGeometry(levels);
+                        const x=side*(inner+span*.5)-solid.laneX;
+                        const y=halfY-12+rise*.5;
+                        part(roofHull,x,y,0,span,rise,length,armor);
+                        roofHull.dispose();
+
+                        // The outrigger joins the underside of the loft to the original wall.
+                        // Any overhang beyond the physical wall starts outboard of lane 850.
+                        const footing=facility.profile[0];
+                        const center=inner+span*footing[1];
+                        const supportStart=Math.min(outer-32,center-56);
+                        const supportWidth=center-supportStart+span*footing[2]*.24;
+                        part(box,side*(supportStart+supportWidth*.5)-solid.laneX,halfY-23,
+                            length*footing[3],supportWidth,46,Math.min(face*1.30,length*.52),core);
+
+                        const top=facility.profile.at(-1);
+                        const crownX=x+side*(top[1]-.5)*span,crownY=y+rise*.5;
+                        const belt=kind==='observatory'?.54:.65;
+                        const deck=facility.profile.findIndex(([alt])=>alt>=belt);
+                        const low=facility.profile[deck-1],high=facility.profile[deck];
+                        const mix=(belt-low[0])/(high[0]-low[0]);
+                        const atBelt=i=>THREE.MathUtils.lerp(low[i],high[i],mix);
+                        const fasciaX=x+side*(atBelt(1)-.5)*span,fasciaY=y+(belt-.5)*rise;
+                        const fasciaZ=(atBelt(3)+atBelt(4)*.5)*length;
+                        if(kind==='observatory'){
+                            const lens=Math.min(span*atBelt(2)*.48,rise*.69);
+                            const swivel=-side*.23;
+                            part(collar,fasciaX,fasciaY,fasciaZ-12,lens*1.04,lens*1.04,86,steel,{yaw:swivel});
+                            part(collar,fasciaX,fasciaY,fasciaZ+31,lens*.77,lens*.77,31,core,{yaw:swivel});
+                            part(collar,fasciaX,fasciaY,fasciaZ+47,lens*.42,lens*.42,12,accent,{yaw:swivel,glow:.62});
+                            for(const end of [-1,1]){
+                                part(box,fasciaX+end*lens*.38,fasciaY,fasciaZ-5,
+                                    15,lens*.87,54,armor,{roll:end*.13});
+                            }
+                        }else if(kind==='power'){
+                            const fin=rise*.46;
+                            part(shield,crownX+side*span*.135,crownY-fin*.22,-length*.10,
+                                span*.185,fin,length*.37,steel,{roll:-side*.16});
+                            part(box,crownX,crownY-fin*.30,fasciaZ*.46,7,fin*.62,13,accent,{glow:.65});
+                        }else if(kind==='forge'||kind==='cooling'){
+                            const topWidth=span*top[2],ventZ=length*top[3];
+                            const bore=topWidth*.24;
+                            for(const offset of [-.18,.18]){
+                                const ventX=crownX+offset*topWidth,ventY=crownY+41;
+                                part(collar,ventX,ventY,ventZ,bore,bore,91,core,{pitch:Math.PI/2});
+                                part(collar,ventX,ventY+40,ventZ,bore*1.12,bore*1.12,15,steel,{pitch:Math.PI/2});
+                            }
+                        }else{
+                            // Tie the cap to its entrance with a deep, forward-facing fascia.
+                            const trim=span*atBelt(2)*.51;
+                            part(box,fasciaX,fasciaY,fasciaZ,trim,14,16,core);
+                            part(box,fasciaX,fasciaY,fasciaZ+9,trim*.88,4,6,accent,{glow:.64});
+                        }
+                    }
+
+                    // The entrance composition follows the equipment behind it. Keep the
+                    // narrow seams at the jambs clear so the route reads at racing speed.
+                    const bays=width>=480?2:1;
+                    for(let i=0;i<bays;i++){
+                        const span=width/bays,x=width*((i+.5)/bays-.5);
+                        const mirror=i%2?-1:1;
+                        const frameWidth=span*.83,frameHeight=height*.64;
+                        part(entranceHull,x,height*.052,face+17,span*.94,height*.87,96,steel);
+                        part(plate,x,height*.018,face+58,frameWidth*.65,frameHeight*.79,23,core);
+                        if(panelLayout){
+                            for(const [geometry,dx,dy,w,h,depth,key,roll=0,glow=0] of panelLayout){
+                                const z=face+76+(key==='accent'?14:key==='core'?11:0);
+                                part(geometry,x+dx*span,dy*height,z,w*span,Math.min(h*height,268),depth,
+                                    facility[key],{roll:roll*mirror,glow});
+                            }
+                        }else if(facility.face==='transfer'){
+                            const lean=mirror*.13;
+                            part(plate,x,height*.09,face+68,span*.54,Math.min(height*.42,210),34,core,{roll:lean});
+                            for(const level of [-.15,.14]){
+                                part(box,x,height*level,face+83,span*.46,10,9,steel,{roll:lean});
+                                part(box,x,height*level,face+89,span*.37,5,6,accent,{roll:lean,glow:.68});
+                            }
+                            part(box,x,height*.002,face+91,span*.34,8,9,0x85ddd9,{roll:lean,glow:.57});
+                        }else if(facility.face==='vents'){
+                            const length=span*.55;
+                            for(const level of [-.11,-.055,0,.055,.11])
+                                part(box,x,height*(.07+level),face+70,length,7,18,steel,{roll:mirror*.10});
+                            part(box,x-span*.30,height*.074,face+69,5,height*.28,9,accent,{glow:.52});
+                        }else if(facility.face==='optics'){
+                            const lens=Math.min(175,span*.57,height*.28);
+                            part(collar,x,height*.056,face+66,lens,lens,36,steel);
+                            part(collar,x,height*.056,face+82,lens*.72,lens*.72,26,core);
+                            part(collar,x,height*.056,face+94,lens*.35,lens*.35,9,accent,{glow:.62});
+                            for(const end of [-1,1]){
+                                part(box,x+end*lens*.34,height*.056,face+83,5,lens*.57,12,accent,
+                                    {roll:end*.23,glow:.44});
+                            }
+                        }else if(facility.face==='buttress'){
+                            const rake=Math.min(.12,span*.22/frameHeight);
+                            for(const end of [-1,1]){
+                                part(shield,x+end*span*.25,height*.071,face+64,span*.15,frameHeight*.82,44,steel,
+                                    {roll:end*rake});
+                            }
+                            part(box,x,height*.203,face+70,span*.37,7,6,accent,{glow:.55});
+                        }else{
+                            const tilt=kind==='power'?mirror*.14:0;
+                            for(const level of [-.09,.04,.17]){
+                                part(plate,x,height*level,face+69,span*.59,20,23,steel,{roll:tilt});
+                                part(box,x,height*level,face+82,span*.50,4,7,accent,{roll:tilt,glow:.57});
+                            }
+                        }
+                    }
+                    // The interior dressing is inset against the solid boundary of each mouth.
+                    const openings=openingsAt.get(routeProgress)||[];
+                    const primary=kind==='viaduct'&&openings.length===2?0xe8af72:accent;
+                    for(const [branch,opening] of openings.entries()){
+                        const guide=branch===1?(alternateSignal[kind]??accent):primary;
+                        for(const side of [-1,1]){
+                            const wall=solid.laneX-side*halfX;
+                            if(Math.abs(opening.x+side*opening.hx-wall)>.5)continue;
+                            const x=wall-solid.laneX+side*4,y=opening.y-solid.laneY;
+                            if((panelLayout||kind==='observatory')&&openings.length>1)
+                                part(box,x+side*7,y,face+5,8,Math.min(136,opening.hy*1.58),8,guide,{glow:.62});
+                            const pitch=face*.61,yaw=-side*Math.PI/2;
+                            const panelHeight=Math.min(114,opening.hy*.96);
+                            for(const z of [-pitch,0,pitch]){
+                                part(plate,x,y,z,pitch*.79,panelHeight,9,core,{yaw});
+                                part(plate,x-side*2,y-panelHeight*.29,z,pitch*.65,14,7,steel,{yaw});
+                                part(box,x-side*4,y+panelHeight*.23,z,pitch*.49,4,5,guide,{yaw,glow:.48});
+                            }
+                        }
+                    }
+                }
+                box.dispose();plate.dispose();shield.dispose();collar.dispose();
+                for(const hull of entranceHulls.values())hull.dispose();
+                const material=new THREE.MeshStandardMaterial({
+                    vertexColors:true,map:architectureSurfaces.metal,roughness:.67,metalness:.25
+                });
+                material.onBeforeCompile=shader=>{
+                    shader.vertexShader=shader.vertexShader
+                        .replace('#include <common>','#include <common>\n attribute float facadePower; varying float vFacadePower;')
+                        .replace('#include <begin_vertex>','#include <begin_vertex>\n vFacadePower=facadePower;');
+                    shader.fragmentShader=shader.fragmentShader
+                        .replace('#include <common>','#include <common>\n varying float vFacadePower;')
+                        .replace('#include <emissivemap_fragment>',
+                            '#include <emissivemap_fragment>\n totalEmissiveRadiance += vColor.rgb * vFacadePower;');
+                };
+                for(const [section,{positions,normals,uvs,colors,powers}] of batches){
+                    const geometry=new THREE.BufferGeometry();
+                    geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+                    geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));
+                    geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+                    geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+                    geometry.setAttribute('facadePower',new THREE.Float32BufferAttribute(powers,1));
+                    const facade=new THREE.Mesh(geometry,material);
+                    facade.name='MAP2_PASSAGE_FACADE_PANELS';
+                    section.add(facade);
+                }
+            }
+
+
+            function finishDistricts(from,to){
+                // Put each retained pickup on its new flyable centreline.
+                for(const item of map2Items){
+                    if(item.routeProgress<from||item.routeProgress>=to)continue;
+                    const point=map2ThroughRouteTargetAt(item.routeProgress);
+                    item.laneX=point.x;item.laneY=point.y;
+                    item.mesh.position.copy(makeCourseLocalGroup(item.routeProgress,point.x,point.y).position);
+                }
+                map2ContactIndex=null;
+                Object.assign(window.starbladeMap2Layout,{
+                    structures:map2Obstacles.length,gates:map2Gates.length,
+                    openings:map2Gates.reduce((sum,g)=>sum+g.openings.length,0)
+                });
+            }
+            queueMicrotask(()=>queueMicrotask(()=>queueMicrotask(()=>{
+                map2SealWideUrbanEscapePaths();
+                clearDistrict(firstTechnicalStart,96250);
+                buildTransferDistrict();
+                buildIndustrialWorks();
+                clearDistrict(MAP2_SPEEDWAY.to,MAP2_DISTANCE);
+                buildFinalCity();
+                buildPassageFacades();
+                buildOrbitalTerminals();
+                finishDistricts(MAP2_SPEEDWAY.to,MAP2_DISTANCE);
+                finishDistricts(firstTechnicalStart,96250);
+            })));
 
             window.starbladeMap2Layout={distance:MAP2_DISTANCE,actualArc:map2RouteCurve.getLength(),
                 map1Arc:RACE_ROUTE_TOTAL_ARC_LENGTH,segments:MAP2_SEGMENTS,structures:map2Obstacles.length,
@@ -19095,7 +21072,10 @@
             const a=anchors[hi-1],b=anchors[hi];
             const t=THREE.MathUtils.clamp((d-a.distance)/Math.max(1,b.distance-a.distance),0,1);
             const smooth=t*t*(3-2*t);
-            const module=route?.modules?.find(m=>d>=m.entrance.distance&&d<=m.exit.distance)||null;
+            const finalCity=d>=MAP2_SPEEDWAY.to&&(a.kind||b.kind);
+            const module=finalCity
+                ? (a.moduleId&&a.moduleId===b.moduleId?{id:a.moduleId,kind:a.kind}:null)
+                : route?.modules?.find(m=>d>=m.entrance.distance&&d<=m.exit.distance)||null;
             return {
                 distance:d,
                 x:THREE.MathUtils.lerp(a.x,b.x,smooth),
@@ -19123,7 +21103,16 @@
             return 'BALANCED';
         }
 
+        let map2TransferFork=null;
+        const map2WorksForks=new Map();
         function map2GapComplexAt(distance){
+            if(map2WorksForks.size&&((distance>=45000&&distance<96250)||distance>=MAP2_SPEEDWAY.to)){
+                for(const fork of map2WorksForks.values())
+                    if(distance>=fork.from&&distance<=fork.to)return fork;
+                return null;
+            }
+            if(map2TransferFork&&distance>=35000&&distance<45000)
+                return distance>=map2TransferFork.from&&distance<=map2TransferFork.to?map2TransferFork:null;
             const sys=window.starbladeMap2PlayablePassages;
             return sys?.complexes?.find(c=>distance>=c.from&&distance<=c.to)||
                 window.starbladeMap2FullGapSystem?.extraComplexes?.find(c=>distance>=c.from&&distance<=c.to)||null;
@@ -19254,14 +21243,9 @@
             if(ship.shield<before)p.hits++;
             return true;
         }
-        function map2PatrolTick(dt){
-            if(!map2Active())return;
-            const fired=map2PatrolStep(state,dt,true);
-            for(const r of racers)map2PatrolStep(r,dt,false);
-            const p=state.map2Patrol;
-            const visible=state.running&&!state.finished&&!state.playerDNF&&map2Segment(state.routeProgress).kind==='TECH';
+        function map2PreparePatrolVisual(){
             const v=map2PatrolVisual;
-            if(visible&&!v.ship){
+            if(!v.ship){
                 v.ship=createEnemyFighterMesh(true,false);
                 v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(1.2);
                 const patrolBeaconMat=new THREE.MeshBasicMaterial({color:0xff9b63});
@@ -19282,7 +21266,17 @@
                     color:0xffb06a,transparent:true,opacity:.30,depthWrite:false,depthTest:false
                 }));
                 v.search.name='MAP2_PATROL_SEARCHLIGHT';v.search.frustumCulled=false;scene.add(v.search);
+                v.ship.visible=v.beam.visible=v.search.visible=false;
             }
+        }
+        function map2PatrolTick(dt){
+            if(!map2Active())return;
+            const fired=map2PatrolStep(state,dt,true);
+            for(const r of racers)map2PatrolStep(r,dt,false);
+            const p=state.map2Patrol;
+            const visible=state.running&&!state.finished&&!state.playerDNF&&map2Segment(state.routeProgress).kind==='TECH';
+            const v=map2PatrolVisual;
+            if(visible)map2PreparePatrolVisual();
             if(v.ship){
                 v.ship.visible=visible;
                 v.flash=fired?MAP2_PATROL.beamSeconds:Math.max(0,v.flash-dt);
@@ -19391,15 +21385,49 @@
         function map2UpdateVisibility(progress){
             map2CourseGroup.visible=map2Active();
             if(!map2Active())return;
+            const windowStart=progress-2400,windowEnd=progress+9000;
             for(const g of map2Sections){
                 const from=g.userData.architectureFrom??g.userData.from;
                 const to=g.userData.architectureTo??g.userData.to;
-                // MAP2-41: keep the neighboring city in view including the closed-loop seam.
-                // Same seam-safe visibility window, without per-section array/closure allocation.
-                const visibleAt=p=>to>=p-2400&&from<=p+9000;
-                g.visible=visibleAt(progress)||visibleAt(progress-MAP2_DISTANCE)||visibleAt(progress+MAP2_DISTANCE);
+                g.visible=(to>=windowStart&&from<=windowEnd)||
+                    (to>=windowStart-MAP2_DISTANCE&&from<=windowEnd-MAP2_DISTANCE)||
+                    (to>=windowStart+MAP2_DISTANCE&&from<=windowEnd+MAP2_DISTANCE);
             }
-            finishGateGroup.visible=progress>=MAP2_DISTANCE-4000;
+            finishGateGroup.visible=false;
+            map2FinishPortal.visible=progress>=MAP2_DISTANCE-4000;
+        }
+
+        function map2WarmCourseGpu(){
+            // Use the race's own meshes, lighting and output encoding so the first
+            // view of a district can reuse the same GPU buffers and shader programs.
+            const target=new THREE.WebGLRenderTarget(1,1);
+            target.texture.encoding=renderer.outputEncoding;
+            const previousTarget=renderer.getRenderTarget();
+            map2PreparePatrolVisual();
+            const {ship,beam,search}=map2PatrolVisual;
+            const show=[...map2Sections,map2FinishPortal,ship,beam,search].filter(object=>!object.visible);
+            const uncull=[];
+            try{
+                for(const object of show)object.visible=true;
+                scene.traverseVisible(object=>{
+                    if((object.isMesh||object.isLine||object.isPoints||object.isSprite)&&object.frustumCulled){
+                        object.frustumCulled=false;
+                        uncull.push(object);
+                    }
+                });
+                renderer.setRenderTarget(target);
+                // Technical sections include the patrol's point light. Open
+                // sections use the same course materials without that light.
+                renderRaceFrame();
+                ship.visible=beam.visible=search.visible=false;
+                renderRaceFrame();
+                renderer.readRenderTargetPixels(target,0,0,1,1,new Uint8Array(4));
+            }finally{
+                renderer.setRenderTarget(previousTarget);
+                for(const object of uncull)object.frustumCulled=true;
+                for(const object of show)object.visible=false;
+                target.dispose();
+            }
         }
 
         function resetItemAndBarrierCourse() {
@@ -23407,7 +25435,10 @@
             return severity;
         }
         function map2PilotPlan(ship,gate,maxLateralSpeed){
-            const turn=map2TurnSeverity(ship.routeProgress,ship.currentSpeed);
+            // On the open apron the same bend has more room to carry speed.
+            // The standard corner limits return progressively on the approach.
+            const turn=map2TurnSeverity(ship.routeProgress,ship.currentSpeed) /
+                (1+map2SpeedwayWidth(ship.routeProgress));
             const cautious=ship.profile==='CAUTIOUS',aggressive=ship.profile==='AGGRESSIVE';
             const turnBrake=turn>(cautious?.16:aggressive?.23:.19);
             const turnLimit=turnBrake?RACE_SPEEDS.BRAKE:turn>(cautious?.07:aggressive?.12:.095)?RACE_SPEEDS.NORMAL:Infinity;
@@ -23417,9 +25448,14 @@
                 const next=map2Gates.find(g=>g.distance>gate.distance);
                 const peers=racers.filter(p=>p!==ship&&!p.finished&&!p.dnf&&Math.abs(p.routeProgress-ship.routeProgress)<550);
                 const index=Number.isFinite(ship.hunterPilotIndex)?ship.hunterPilotIndex:0;
+                const fork=gate===map2TransferFork?.gate?map2TransferFork:map2WorksForks.get(gate);
+                const transferPassage=fork?map2GapChoosePassage(ship,fork):null;
                 gate.openings.forEach((opening,openingIndex)=>{
-                    const mx=Math.max(0,opening.hx-ship.radius-13);
-                    const my=Math.max(0,opening.hy-ship.radius-13);
+                    if(transferPassage&&fork.passages[openingIndex]!==transferPassage)return;
+                    // Keep a steering reserve on long occupied factory passages.
+                    const margin=gate.transferHall ? .62 : 1;
+                    const mx=Math.max(0,opening.hx-ship.radius-13)*margin;
+                    const my=Math.max(0,opening.hy-ship.radius-13)*margin;
                     // Candidate lanes are genuinely inside the aperture. Keep a committed
                     // choice until the rear of the structure is cleared.
                     const slots=[[0,0],[-.80,0],[.80,0],[0,-.82],[0,.82],[-.64,-.68],[.64,-.68],[-.64,.68],[.64,.68]];
@@ -23459,10 +25495,16 @@
             const achievable=Math.max(0,time-.26)*maxLateralSpeed*.67;
             const outside=Math.abs(ship.laneX-p.x)>p.hx-ship.radius-8||
                 Math.abs(ship.laneY-p.y)>p.hy-ship.radius-8;
-            const shouldBrake=entry>0&&error>Math.max(24,achievable+12)&&(outside||error>65);
+            // A reserved slot spreads traffic across a gallery. Once both the ship and
+            // its projected position fit, the slot offset alone should not demand braking.
+            const coastTime=Math.min(.48,Math.max(0,gap+gate.depth/2)/Math.max(1,ship.currentSpeed));
+            const alignedInGallery=gate.finalCity&&entry<700&&!outside&&
+                Math.abs(ship.laneX+ship.vx*coastTime-p.x)<p.hx-ship.radius-15&&
+                Math.abs(ship.laneY+ship.vy*coastTime-p.y)<p.hy-ship.radius-15;
+            const shouldBrake=!alignedInGallery&&entry>0&&error>Math.max(24,achievable+12)&&(outside||error>65);
             const gateLimit=shouldBrake?RACE_SPEEDS.BRAKE:
-                entry<650&&entry>0&&error>30?RACE_SPEEDS.NORMAL:Infinity;
-            return {turn,turnBrake,turnLimit,gateLimit,gatePlan:{
+                !alignedInGallery&&entry<650&&entry>0&&error>30?RACE_SPEEDS.NORMAL:Infinity;
+            return {turn,turnBrake,turnLimit,gateLimit,alignedInGallery,gatePlan:{
                 x:c.x,y:c.y,gap,entry,lateralError:error,shouldBrake,opening:p,openingIndex:c.openingIndex
             }};
         }
@@ -24375,7 +26417,9 @@
                         const limit = BOUNDARY_RULES.maxRadius*getCorridorRadiusAt(ship.routeProgress)/state.tubeRadius;
                         const xx = ship.laneX + nx * push * sign;
                         const yy = ship.laneY + ny * push * sign;
-                        const mag = Math.hypot(xx, yy);
+                        const onSpeedway=map2Active()&&ship.routeProgress>=MAP2_SPEEDWAY.from&&ship.routeProgress<MAP2_SPEEDWAY.to;
+                        const lateralScale=onSpeedway?map2LateralScale(ship.routeProgress):1;
+                        const mag = Math.hypot(xx/lateralScale, yy);
                         ship.laneX = mag > limit ? xx * limit / mag : xx;
                         ship.laneY = mag > limit ? yy * limit / mag : yy;
                         if (ship.player) {
@@ -24482,7 +26526,7 @@
                 return evaluatePlanetaryBoundary(laneX,laneY,wingHalfSpan,roll,routeProgress);
             const wingCos = Math.cos(roll) * wingHalfSpan;
             const wingSin = Math.sin(roll) * wingHalfSpan;
-            const lateralScale=map2Active()?2:1; // MAP2-41: lateral width only; keep patrol altitude
+            const lateralScale=map2Active()?map2LateralScale(routeProgress):1;
             const left = Math.hypot((laneX - wingCos)/lateralScale, laneY - wingSin);
             const right = Math.hypot((laneX + wingCos)/lateralScale, laneY + wingSin);
             const radial = Math.hypot(laneX/lateralScale, laneY);
@@ -24526,7 +26570,7 @@
 
         function clampToSoftBoundary(ship) {
             // Koridor fiziksel olarak 360; merkez 394.6'ya kadar çıkabilir.
-            const lateralScale=map2Active()?2:1;
+            const lateralScale=map2Active()?map2LateralScale(ship.routeProgress):1;
             const radius = Math.hypot(ship.laneX/lateralScale, ship.laneY);
             const limit=state.activeMap===MAP_MODES.MAP4 ?
                 map4BoundaryProfile(ship.routeProgress).maxRadius :
@@ -24567,7 +26611,8 @@
             // Normal ivmelenme ve sınıra bağlı hedef hız aynı geçişte hesaplanır.
             // 5000 km/s boost dışarıda kademeli yavaşlar; hasar artık çok daha yumuşak.
             const frictionTarget = desiredSpeed * f.factor;
-            ship.currentSpeed += (frictionTarget - ship.currentSpeed) * Math.min(1, 5*dt);
+            const response=1-Math.pow(1-Math.min(1,5*dt),raceFlightScale());
+            ship.currentSpeed += (frictionTarget - ship.currentSpeed) * response;
             if (!f.level) return;
             ship.currentSpeed = Math.max(0, ship.currentSpeed);
             if (ship.powerShieldTimer <= 0 && f.damagePerSecond > 0) {
@@ -24667,6 +26712,8 @@
                 // Clock/physics cannot advance past 120; crossing times stay interpolated.
                 dt = Math.min(dt, Math.max(0, MAP4_RACE_RULES.realTimeLimit-state.raceTime));
             }
+            // Keep clocks and energy in real seconds while preserving steering room per metre.
+            const flightScale=raceFlightScale(),flightDt=dt*flightScale;
             const prevRaceTime = state.raceTime;
             const prevPlayerFrameProgress = state.routeProgress;
             const prevPlayerCourse = {routeProgress:state.routeProgress,laneX:state.laneX,laneY:state.laneY};
@@ -24763,8 +26810,8 @@
                 if(state.activeMap===MAP_MODES.MAP4&&state.h4Power.driftTimer>0){
                     moveX*=1.36;moveY*=1.24;
                 }
-                state.laneX += moveX * dt;
-                state.laneY += moveY * dt;
+                state.laneX += moveX * flightDt;
+                state.laneY += moveY * flightDt;
 
                 // Kanat sınır teması ve orantılı taşma payı. Hız cezasını
                 // ilerleme hesabından önce uygula; yüksek FPS/farklı dt'de adil kalır.
@@ -25423,9 +27470,11 @@
                 }
 
                 // D — Taktiksel Boost, Fren ve Enerji Kararları (Kontrollü Durum Geçişleri)
-                r.boostDecisionTimer -= dt;
+                r.boostDecisionTimer -= flightDt;
                 const severeAsteroidDanger = !!(!gatePlan && r.avoidAsteroid && minTimeToImpact < 0.36);
-                const nearWall = Math.hypot(r.laneX, r.laneY) > getCorridorRadiusAt(r.routeProgress) * 0.77;
+                const onSpeedway=map2Pilot&&r.routeProgress>=MAP2_SPEEDWAY.from&&r.routeProgress<MAP2_SPEEDWAY.to;
+                const clearanceX=onSpeedway?r.laneX/map2LateralScale(r.routeProgress):r.laneX;
+                const nearWall = Math.hypot(clearanceX, r.laneY) > getCorridorRadiusAt(r.routeProgress) * 0.77;
 
                 // Enerji alt sınırın altına düştüğünde boost zorunlu olarak kapanır
                 if (r.energy <= 4 || r.energy <= boostStopEnergy) {
@@ -25487,7 +27536,7 @@
                 // MAP2: anticipate turns and misaligned openings before spending boost energy.
                 if(map2Pilot){
                     let cap=Math.min(map2Pilot.turnLimit,map2Pilot.gateLimit??Infinity);
-                    if(map2BuildingPlan){
+                    if(map2BuildingPlan&&!map2Pilot.alignedInGallery){
                         const buildingError=Math.hypot(
                             map2BuildingPlan.x-r.laneX,
                             map2BuildingPlan.y-r.laneY
@@ -25704,12 +27753,12 @@
 
                 const prevVx = r.vx || 0;
                 const prevVy = r.vy || 0;
-                const steerFollow = Math.min(1, 3.2 * dt);
+                const steerFollow = 1-Math.pow(1-Math.min(1,3.2*dt),flightScale);
                 r.vx = prevVx + (desiredVx - prevVx) * steerFollow;
                 r.vy = prevVy + (desiredVy - prevVy) * steerFollow;
 
-                r.laneX += r.vx * dt;
-                r.laneY += r.vy * dt;
+                r.laneX += r.vx * flightDt;
+                r.laneY += r.vy * flightDt;
 
                 // Rakipler de oyuncuyla aynı kalkan/sürtünme fiziğini kullanır.
                 // AI hedefleri merkezde tercih etmeye devam eder ama kenara kaçabilir.
@@ -25901,10 +27950,10 @@
                     impacts: laserImpacts.length, activeLasers: playerLasers.length
                 };
                 window.starbladeRaceTelemetry={raceTime:state.raceTime,
-                    player:{progress:state.routeProgress, speed:state.currentSpeed*SPEED_DISPLAY_SCALE,
+                    player:{progress:state.routeProgress, speed:displayRaceSpeed(state.currentSpeed),
                         energy:state.energy, shield:state.shield, draftEnergy:state.draftEnergyEarned||0},
                     rivals:racers.map(r=>({name:r.name,profile:r.profile,progress:r.routeProgress,
-                        speed:r.currentSpeed*SPEED_DISPLAY_SCALE,energy:r.energy,shield:r.shield,
+                        speed:displayRaceSpeed(r.currentSpeed),energy:r.energy,shield:r.shield,
                         draftEnergy:r.draftEnergyEarned||0,stats:{...r.aiStats},dnf:r.dnf,finished:r.finished}))};
             }
 
@@ -26257,7 +28306,7 @@
                     fxCtx.font = 'bold 10px Orbitron, monospace';
                     fxCtx.fillStyle = '#00f3ff';
                     fxCtx.textAlign = 'center';
-                    fxCtx.fillText(`${r.name} • ${Math.round(r.currentSpeed * SPEED_DISPLAY_SCALE)}${r.isBoosting ? ' BOOST' : ''}`, 0, -20);
+                    fxCtx.fillText(`${r.name} • ${Math.round(displayRaceSpeed(r.currentSpeed))}${r.isBoosting ? ' BOOST' : ''}`, 0, -20);
                     fxCtx.restore();
                 }
             });
@@ -26431,7 +28480,9 @@
             const entry=Math.max(0,Math.round(gate.distance-gate.depth/2-progress));
             const aligned=best.excessX===0&&best.excessY===0;
             const side=gate.openings.length>1?
-                (best.openingIndex===0?'SOL AÇIKLIK':'SAĞ AÇIKLIK'):'SANAYİ GEÇİDİ';
+                (gate.openings[0].x===gate.openings[1].x
+                    ? (best.openingIndex===0?'ALT YÜKLEME KATI':'ÜST YÜKLEME KATI')
+                    : (best.openingIndex===0?'SOL AÇIKLIK':'SAĞ AÇIKLIK')):'SANAYİ GEÇİDİ';
             const moves=[];
             if(best.excessX>0)moves.push(best.dx<0?'SOLA':'SAĞA');
             if(best.excessY>0)moves.push(best.dy<0?'ALÇAL':'YÜKSEL');
@@ -26447,7 +28498,7 @@
             const nextTick = Math.floor(state.raceTime * 8); // 125 ms, no costly DOM update every frame.
             if (nextTick !== state.hudWarningTick) {
                 state.hudWarningTick = nextTick;
-                const gate=upcomingWreckGate(state.routeProgress,2400);
+                const gate=upcomingWreckGate(state.routeProgress,2400*raceFlightScale());
                 if(map2Active()){
                     state.hudWarning=map2PlayerApertureCue(gate,state.routeProgress,state.laneX,state.laneY);
                 }else state.hudWarning = computeRaceHudWarning(state.routeProgress, state.laneX,
@@ -26760,7 +28811,7 @@
             document.getElementById('stage-text').textContent = `SECTOR ${state.currentSector} / 5`;
             document.getElementById('combo-text').textContent = `x${state.combo.toFixed(1)}`;
             document.getElementById('speed-text').textContent = Math.round(
-                state.currentSpeed*SPEED_DISPLAY_SCALE*map4SpeedFactor(state.routeProgress)*
+                displayRaceSpeed(state.currentSpeed)*map4SpeedFactor(state.routeProgress)*
                 h4IndustrialAdvanceMultiplier(state.routeProgress,state));
             h4PowerHud();
             const energyText = document.getElementById('energy-text');
@@ -26805,7 +28856,7 @@
             }
             const fastestActiveRival = racers.filter(r => !r.finished && !r.dnf).reduce((max, r) => Math.max(max, r.currentSpeed), 0);
             document.getElementById('rival-speed-text').textContent = fastestActiveRival > 0 ?
-                Math.round(fastestActiveRival*SPEED_DISPLAY_SCALE*
+                Math.round(displayRaceSpeed(fastestActiveRival)*
                     map4SpeedFactor(state.routeProgress)) : '—';
             // AI-30: Read-only weapon telemetry for reproducible manual game tests.
             window.starbladeWeaponTelemetry = {
@@ -27775,7 +29826,38 @@
             applyPlanetaryEnvironment();
         }
         document.getElementById('menu-btn').addEventListener('click',returnToMapSelection);
-        document.getElementById('start-btn').addEventListener('click', startGame);
+        async function requestRaceStart(){
+            if(!map2Active()||map2CourseGpuReady){
+                startGame();
+                return;
+            }
+            if(map2CourseWarming)return;
+            sound.init();
+            map2CourseWarming=true;
+            const launch=document.getElementById('start-btn');
+            launch.disabled=true;
+            launch.textContent='HARİTA HAZIRLANIYOR…';
+            try{
+                // Let the browser paint the preparation state before the first GPU draw.
+                await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+                if(!map2Active()||state.running)return;
+                startGame();
+                try{
+                    map2WarmCourseGpu();
+                    map2CourseGpuReady=!renderer.getContext().isContextLost();
+                }catch(error){
+                    console.warn('Map 2 GPU preparation failed:',error);
+                }
+                lastTime=performance.now();
+            }finally{
+                map2CourseWarming=false;
+                if(map2Active()){
+                    launch.disabled=false;
+                    launch.textContent='YARIŞI BAŞLAT';
+                }
+            }
+        }
+        document.getElementById('start-btn').addEventListener('click',requestRaceStart);
         document.getElementById('restart-btn').addEventListener('click', startGame);
         document.getElementById('resume-btn').addEventListener('click', () => setFlightPaused(false));
         // UIUX-08: pause actions use the existing simulation and reset functions.
@@ -27828,6 +29910,31 @@
             }
         });
 
+        function renderRaceFrame(){
+            if(!map2Active()||!scene.autoUpdate){
+                renderer.render(scene,camera);
+                return;
+            }
+            // Three r128 traverses invisible branches during matrix updates.
+            // Limit race rendering to live roots and the already visible Map 2 chunks.
+            scene.updateWorldMatrix(false,false);
+            for(const object of scene.children){
+                if(!object.visible)continue;
+                if(object===map2CourseGroup){
+                    object.updateWorldMatrix(false,false);
+                    for(const chunk of object.children){
+                        if(chunk.visible)chunk.updateMatrixWorld(true);
+                    }
+                }else object.updateMatrixWorld(true);
+            }
+            scene.autoUpdate=false;
+            try{
+                renderer.render(scene,camera);
+            }finally{
+                scene.autoUpdate=true;
+            }
+        }
+
         let lastTime = performance.now();
         function animate(now) {
             requestAnimationFrame(animate);
@@ -27853,7 +29960,7 @@
                     h4UpdateGfx04D(dt,now*.001);
             }
             h4Gfx09PostFrame();
-            renderer.render(scene, camera);
+            renderRaceFrame();
             h4Gfx10RecordFrame(rawFrameMs);
         }
 
