@@ -1,0 +1,21 @@
+name: Assemble byte-exact Codex STARBLADE ZIP
+on:
+  push:
+    branches:
+      - codex-import-2026-11-26
+    paths:
+      - .github/workflows/codex-import-assembler.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Verify and assemble exact ZIP contents
+        run: python3 scripts/codex-import-assembler.py
