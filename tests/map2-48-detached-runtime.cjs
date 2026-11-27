@@ -81,6 +81,23 @@ const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
   assert.equal(data.map4Enabled,false);
   assert.deepEqual(errors,[],'No JavaScript errors during detached load');
 
+  if(data.visualFingerprint.hash!==data.originalFingerprint.hash){
+    const compressed=fs.readFileSync(path.join(__dirname,'map2-48-evidence','baseline-visual-rows.json.gz'));
+    const originalRows=JSON.parse(zlib.gunzipSync(compressed).toString('utf8'));
+    const changes=[];
+    for(let i=0;i<Math.max(originalRows.length,actualRows.length);i++){
+      if(originalRows[i]!==actualRows[i]){
+        changes.push({i,original:originalRows[i]?.slice(0,430),
+          actual:actualRows[i]?.slice(0,430)});
+        if(changes.length>=15)break;
+      }
+    }
+    console.log('MAP2-48 FIRST VISUAL DIFFERENCES '+JSON.stringify(changes));
+  }
+  assert.deepEqual(data.visualFingerprint,data.originalFingerprint,
+    'Every building mesh, transform, material and instanced facade must match the untouched Map2');
+
+
   await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.activeMap==='map2',null,{timeout:120000});
   assert.equal(await page.evaluate(()=>planetaryWorldRegions.length),0);
@@ -105,21 +122,6 @@ const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
      timeout:120000,animations:'disabled'});
   }
   await page.close(); // Free Chromium / WebGL resources before the original 4-zone build.
-  if(data.visualFingerprint.hash!==data.originalFingerprint.hash){
-    const compressed=fs.readFileSync(path.join(__dirname,'map2-48-evidence','baseline-visual-rows.json.gz'));
-    const originalRows=JSON.parse(zlib.gunzipSync(compressed).toString('utf8'));
-    const changes=[];
-    for(let i=0;i<Math.max(originalRows.length,actualRows.length);i++){
-      if(originalRows[i]!==actualRows[i]){
-        changes.push({i,original:originalRows[i]?.slice(0,430),
-          actual:actualRows[i]?.slice(0,430)});
-        if(changes.length>=15)break;
-      }
-    }
-    console.log('MAP2-48 FIRST VISUAL DIFFERENCES '+JSON.stringify(changes));
-  }
-  assert.deepEqual(data.visualFingerprint,data.originalFingerprint,
-    'Every building mesh, transform, material and instanced facade must match the untouched Map2');
   console.log('MAP2-48 VISUAL PARITY '+JSON.stringify(data.visualFingerprint));
   console.log('PASS MAP2-48 independent full-runtime Map2 / Map4 not constructed');
  }finally{await browser.close();}
