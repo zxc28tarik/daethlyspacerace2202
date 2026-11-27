@@ -4,7 +4,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright');
 const html=fs.readFileSync('index.html','utf8');
-for(const m of html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi))
+for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   if(m[1].trim())new vm.Script(m[1]);
 for(const removed of ['MAP2_OVERHEAD_PATROL','map2PatrolStep','map2PatrolTick','map2PatrolWarning','map2PreparePatrolVisual','DEVRİYE ATEŞİ','hava devriyesi'])
   assert(!html.includes(removed),'patrol source still present: '+removed);
