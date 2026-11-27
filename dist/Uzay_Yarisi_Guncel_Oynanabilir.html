@@ -20432,9 +20432,8 @@
                             map2VisualStageStats.signals++;
                         }
                     }
-                    // MAP2-11: the KEEP IT LOW ceiling is communicated by the world,
-                    // not another HUD panel. Sparse amber service rails sit exactly
-                    // around the 220 flight ceiling while the safe openings stay cyan.
+                    // MAP2: amber industrial service rails mark the roofline as scenery;
+                    // cyan opening lights show the traversable architecture. No altitude punishment.
                     if(cell%2===0){
                         for(const side of [-1,1]){
                             addVisualBlock(d+145,side*418,220,76,8,250,map2VisualMats.signalWarm,
@@ -24964,124 +24963,11 @@
             };
         }
 
-        // MAP2-04/07: altitude patrol. Gameplay damage stays fixed; MAP2-07 adds readable approach/lock/breakaway motion.
-        const MAP2_PATROL=Object.freeze({ceiling:220,lockSeconds:.85,approachSeconds:.42,shotInterval:.7,damage:12,beamSeconds:.13});
-        const map2PatrolVisual={ship:null,beam:null,search:null,flash:0,breakaway:0,side:1,approach:0};
+        // MAP2: overhead patrol and altitude-fire rule retired for the current race design.
+        // A lightweight reset retains compatibility with map transitions and restarts.
         function map2PatrolReset(){
             state.map2Patrol=null;
-            map2PatrolVisual.flash=0;map2PatrolVisual.breakaway=0;map2PatrolVisual.side=1;map2PatrolVisual.approach=0;
-            if(map2PatrolVisual.ship)map2PatrolVisual.ship.visible=false;
-            if(map2PatrolVisual.beam)map2PatrolVisual.beam.visible=false;
-            if(map2PatrolVisual.search)map2PatrolVisual.search.visible=false;
             window.starbladeMap2Patrol=null;
-        }
-        function map2PatrolStep(ship,dt,isPlayer){
-            const p=ship.map2Patrol||(ship.map2Patrol={lock:0,shots:0,hits:0,active:false});
-            const exposed=map2Active()&&!ship.finished&&!ship.dnf&&!(isPlayer&&state.playerDNF)&&
-                map2Segment(ship.routeProgress).kind==='TECH'&&ship.laneY>MAP2_PATROL.ceiling;
-            p.active=exposed;
-            if(!exposed){p.lock=0;return false;}
-            p.lock+=Math.max(0,dt);
-            if(p.lock+1e-9<MAP2_PATROL.lockSeconds)return false;
-            p.lock=Math.max(0,p.lock-MAP2_PATROL.shotInterval);p.shots++;
-            const before=ship.shield;
-            if(isPlayer)applyPlayerDamage(MAP2_PATROL.damage);
-            else if(!(ship.powerShieldTimer>0)&&!(ship.barrelRollTimer>0)){
-                ship.shield=Math.max(0,ship.shield-MAP2_PATROL.damage);
-                if(ship.shield<=0){ship.dnf=true;ship.currentSpeed=0;ship.isBoosting=false;ship.isBraking=false;}
-            }
-            if(ship.shield<before)p.hits++;
-            return true;
-        }
-        function map2PreparePatrolVisual(){
-            const v=map2PatrolVisual;
-            if(!v.ship){
-                v.ship=createEnemyFighterMesh(true,false);
-                v.ship.name='MAP2_OVERHEAD_PATROL';v.ship.scale.setScalar(1.2);
-                const patrolBeaconMat=new THREE.MeshBasicMaterial({color:0xff9b63});
-                for(const bx of [-2.7,2.7]){
-                    const beacon=new THREE.Mesh(new THREE.SphereGeometry(.55,8,6),patrolBeaconMat);
-                    beacon.position.set(bx,.25,-.45);beacon.name='MAP2_PATROL_BEACON';v.ship.add(beacon);
-                }
-                const patrolGlow=new THREE.PointLight(0xff8c58,.85,42);
-                patrolGlow.position.set(0,1.2,.4);patrolGlow.name='MAP2_PATROL_GLOW';v.ship.add(patrolGlow);
-                scene.add(v.ship);
-                const geo=new THREE.BufferGeometry();
-                geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
-                v.beam=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xff593c,transparent:true,opacity:.95,depthWrite:false}));
-                v.beam.name='MAP2_PATROL_LASER';v.beam.frustumCulled=false;scene.add(v.beam);
-                const searchGeo=new THREE.BufferGeometry();
-                searchGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
-                v.search=new THREE.Line(searchGeo,new THREE.LineBasicMaterial({
-                    color:0xffb06a,transparent:true,opacity:.30,depthWrite:false,depthTest:false
-                }));
-                v.search.name='MAP2_PATROL_SEARCHLIGHT';v.search.frustumCulled=false;scene.add(v.search);
-                v.ship.visible=v.beam.visible=v.search.visible=false;
-            }
-        }
-        function map2PatrolTick(dt){
-            if(!map2Active())return;
-            const fired=map2PatrolStep(state,dt,true);
-            for(const r of racers)map2PatrolStep(r,dt,false);
-            const p=state.map2Patrol;
-            const visible=state.running&&!state.finished&&!state.playerDNF&&map2Segment(state.routeProgress).kind==='TECH';
-            const v=map2PatrolVisual;
-            if(visible)map2PreparePatrolVisual();
-            if(v.ship){
-                v.ship.visible=visible;
-                v.flash=fired?MAP2_PATROL.beamSeconds:Math.max(0,v.flash-dt);
-                if(fired){v.breakaway=.34;v.side=(p.shots%2)?1:-1;}
-                else v.breakaway=Math.max(0,v.breakaway-dt);
-                v.beam.visible=visible&&v.flash>0;
-                if(v.search)v.search.visible=false;
-                if(visible){
-                    const active=!!p.active;
-                    const lockRatio=active?Math.min(1,p.lock/MAP2_PATROL.lockSeconds):0;
-                    const targetApproach=active?Math.min(1,lockRatio+(p.shots>0?.18:0)):0;
-                    v.approach+=(targetApproach-v.approach)*Math.min(1,dt*(active?5.5:2.2));
-                    const strike=v.breakaway>0?Math.sin((v.breakaway/.34)*Math.PI):0;
-                    const ahead=155-v.approach*35+strike*55;
-                    const f=getRaceFrameAtDistance(Math.min(MAP2_DISTANCE,state.routeProgress+ahead));
-                    const sweep=Math.sin(state.raceTime*.85)*(active?28:82);
-                    const attackSide=v.side*(55+80*strike);
-                    const x=state.laneX*(.25+.25*v.approach)+sweep*(1-v.approach*.55)+
-                        attackSide*(v.approach*.35+strike*.65);
-                    const altitude=285-v.approach*20+strike*55;
-                    v.ship.position.copy(f.center).addScaledVector(f.right,x).addScaledVector(f.up,altitude);
-                    const pf=getRaceFrameAtDistance(state.routeProgress);
-                    // MAP2-11: target the exact rendered player position instead of
-                    // reconstructing it separately from route coordinates.
-                    const target=state.pos.clone();
-                    const aim=target.clone().addScaledVector(pf.up,active?0:55);
-                    v.ship.lookAt(aim);
-                    if(v.search&&active&&!v.beam.visible){
-                        v.search.visible=true;
-                        v.search.material.opacity=.16+.30*lockRatio;
-                        const s=v.search.geometry.attributes.position;
-                        s.setXYZ(0,v.ship.position.x,v.ship.position.y,v.ship.position.z);
-                        s.setXYZ(1,target.x,target.y,target.z);s.needsUpdate=true;
-                    }
-                    if(v.beam.visible){
-                        const a=v.beam.geometry.attributes.position;
-                        a.setXYZ(0,v.ship.position.x,v.ship.position.y,v.ship.position.z);
-                        a.setXYZ(1,target.x,target.y,target.z);a.needsUpdate=true;
-                    }
-                }else{
-                    v.approach=0;v.breakaway=0;
-                }
-            }
-            const phase=!p.active?'patrol':p.shots>0?'attack':p.lock<MAP2_PATROL.approachSeconds?'approach':'lock';
-            window.starbladeMap2Patrol={active:p.active,lock:p.lock,shots:p.shots,hits:p.hits,visible,
-                ceiling:MAP2_PATROL.ceiling,approach:v.approach,breakaway:v.breakaway,
-                searching:!!(v.search&&v.search.visible),phase};
-        }
-        function map2PatrolWarning(){
-            if(!map2Active()||state.finished||state.playerDNF||map2Segment(state.routeProgress).kind!=='TECH'||
-                state.laneY<=MAP2_PATROL.ceiling)return null;
-            const p=state.map2Patrol,lock=p?p.lock:0,shots=p?p.shots:0;
-            if(shots>0)return {tone:'urgent',title:'DEVRİYE ATEŞİ · ALÇAL',detail:'Yapıların üstünde kalma · açıklıklardan geç'};
-            if(lock<MAP2_PATROL.approachSeconds)return {tone:'caution',title:'DEVRİYE YAKLAŞIYOR · ALÇAL',detail:'Çatı çizgisinin altına in · açıklığa yönel'};
-            return {tone:'urgent',title:'DEVRİYE KİLİDİ · ALÇAL',detail:'Ateş açmadan önce çatı çizgisinin altına in'};
         }
 
         // MAP2-45: progress-indexed static collision broadphase. The swept
@@ -25153,9 +25039,7 @@
             const target=new THREE.WebGLRenderTarget(1,1);
             target.texture.encoding=renderer.outputEncoding;
             const previousTarget=renderer.getRenderTarget();
-            map2PreparePatrolVisual();
-            const {ship,beam,search}=map2PatrolVisual;
-            const show=[...map2Sections,map2FinishPortal,ship,beam,search].filter(object=>!object.visible);
+            const show=[...map2Sections,map2FinishPortal].filter(object=>!object.visible);
             const uncull=[];
             try{
                 for(const object of show)object.visible=true;
@@ -25166,10 +25050,7 @@
                     }
                 });
                 renderer.setRenderTarget(target);
-                // Technical sections include the patrol's point light. Open
-                // sections use the same course materials without that light.
-                renderRaceFrame();
-                ship.visible=beam.visible=search.visible=false;
+                // Warm the course geometry and materials only; no patrol shader or light.
                 renderRaceFrame();
                 renderer.readRenderTargetPixels(target,0,0,1,1,new Uint8Array(4));
             }finally{
@@ -31674,7 +31555,6 @@
             });
 
             if (!state.running) return; // Metal enkaz teması sonucu DNF sonrası istatistikleri değiştirme.
-            if(map2Active())map2PatrolTick(dt);
             if(!state.running)return;
 
             // Dairesel bonus toplayıcılar yok; yakın geçiş ve sektör süreleri korunur.
@@ -32252,8 +32132,6 @@
         }
         function updateRaceHudWarning() {
             if (state.finished || state.playerDNF) return null;
-            const patrolWarning=map2PatrolWarning();
-            if(patrolWarning)return patrolWarning;
             const nextTick = Math.floor(state.raceTime * 8); // 125 ms, no costly DOM update every frame.
             if (nextTick !== state.hudWarningTick) {
                 state.hudWarningTick = nextTick;
@@ -32414,7 +32292,7 @@
 
         /* UIUX-04: concise briefing data is display-only; control bindings stay original. */
         const uiQuickBriefings=Object.freeze({
-            map2:{code:'GÖREV 02 · KEEP IT LOW',type:'TEKNİK YARIŞ / 175 KM',title:'SANAYİ İÇİNDEN GEÇ.',objective:'Dar açıklıklardan alçak geç; üstte devriye ateşi var. İki açık hız bölgesinde tam gaz.',stats:[['175 KM','PARKUR'],['1 TUR','KAPALI PİST'],['5 RAKİP','YARIŞ']],controls:['FARE / A-D · YÖN','SHIFT / W · BOOST','S · FREN'],pause:'KEEP IT LOW · YAPI GEÇİŞLERİ · SİLAH KAPALI'},
+            map2:{code:'GÖREV 02 · KEEP IT LOW',type:'TEKNİK YARIŞ / 175 KM',title:'SANAYİ İÇİNDEN GEÇ.',objective:'Fabrikaların içinden ve alternatif açıklıklardan geç. Dar geçişlerde frenle; iki açık hız bölgesinde tam gaz.',stats:[['175 KM','PARKUR'],['1 TUR','KAPALI PİST'],['5 RAKİP','YARIŞ']],controls:['FARE / A-D · YÖN','SHIFT / W · BOOST','S · FREN'],pause:'KEEP IT LOW · YAPI GEÇİŞLERİ · SİLAH KAPALI'},
             map1:{
                 code:'GÖREV 01 · HIZ YARIŞI',type:'YARIŞ / 50 KM',
                 title:'6 PİLOT. BİRİNCİLİĞİ AL.',
@@ -32462,7 +32340,7 @@
             displayedStep:-1,displayedPhase:-1
         };
         const uiFirstFlightSteps={
-            map2:[['ALÇAK UÇ','Yapıların üstünde devriye ateşi var; boşluklardan geç.'],['FREN VE BOOST','Dar geçiş öncesi hızını ayarla.'],['TAM GAZ','Açık hız kesimlerini değerlendir.']],
+            map2:[['GEÇİT SEÇ','Yapıların gerçek açıklıklarını takip et; sağ veya sol alternatifleri değerlendir.'],['FREN VE BOOST','Dar geçiş öncesi hızını ayarla.'],['TAM GAZ','Açık hız kesimlerini değerlendir.']],
             map1:[
                 ['YÖNÜ KONTROL ET','Fareyle yön ver. A / D veya yön tuşlarıyla şeridini değiştir.'],
                 ['HIZINI YÖNET','SHIFT / W boost tüketir. S frendir; enerjiyi düz bölümlerde koru.'],
@@ -33234,10 +33112,6 @@
             uiFirstFlightHide();
             cancelCenterAnnouncement();
             state.running = false;
-            if(map2Active()){
-                if(map2PatrolVisual.ship)map2PatrolVisual.ship.visible=false;
-                if(map2PatrolVisual.beam)map2PatrolVisual.beam.visible=false;
-            }
             sound.updateEngine(0, false);
             const centerBox = document.getElementById('center-msg');
             centerBox.style.opacity = '0';
@@ -33457,7 +33331,7 @@
             const status = document.getElementById('map-selection-status');
             status.textContent = !ready ? 'Harita henüz oynanabilir değil.'
                 : isMap4 ? 'Harita 4: dört aşama, 60 sn avcı arenası, uzaya yükseliş ve 4–5 dk hedef.'
-                : map2Active()?'Harita 2: 175 km, tek tur, sanayi geçişleri ve hava devriyesi.':'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
+                : map2Active()?'Harita 2: 175 km, tek tur, sanayi geçişleri ve alternatif açıklıklar.':'Harita 1 tamamlandı: saf hız yarışını başlatabilirsiniz.';
             status.className = ready ? 'text-xs text-emerald-300 mt-2' : 'text-xs text-amber-300 mt-2';
         }
         document.getElementById('map-choice-1').addEventListener('click', () => selectMap(MAP_MODES.MAP1));
