@@ -71,43 +71,6 @@ const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
   assert(data.stationCopies>=1);
   assert(data.stationIdentity.length>=1&&data.stationIdentity.every(x=>x.valid),
     'Map2 station visuals must still share geometry and material with library sources');
-  // Same measurements in the untouched baseline game: this catches missing
-  // facade trees or changed placement even when the new source loads.
-  const reference=path.join(__dirname,'map2-48-evidence','baseline.html');
-  assert(fs.existsSync(reference),'Baseline HTML must be saved before patching');
-  const base=await browser.newPage({viewport:{width:1440,height:810}});
-  await base.route('**/cdnjs.cloudflare.com/ajax/libs/three.js/**',r=>r.fulfill({
-   status:200,contentType:'text/javascript',body:three
-  }));
-  await base.route('**/cdn.tailwindcss.com/**',r=>r.fulfill({
-   status:200,contentType:'text/javascript',body:''
-  }));
-  await base.goto(pathToFileURL(reference).toString(),
-   {waitUntil:'domcontentloaded',timeout:60000});
-  await base.waitForFunction(()=>typeof map2BuildCourse==='function');
-  await base.locator('#map-choice-2').click();
-  await base.waitForFunction(()=>window.starbladeMap2WideUrbanCourse&&map2Sections.length>0,
-   null,{timeout:120000});
-  const baseline=await base.evaluate(()=>{
-   let meshCount=0,instanceCount=0,stationCopies=0;
-   map2CourseGroup.traverse(o=>{
-    if(o.isMesh||o.isInstancedMesh)meshCount++;
-    if(o.isInstancedMesh)instanceCount+=o.count;
-    if(o.userData?.map2ExactMap4Clone&&o.name?.startsWith('MAP2_EXACT_MAP4_'))
-     stationCopies++;
-   });
-   return {meshCount,instanceCount,stationCopies,
-    visualStage:window.starbladeMap2Layout?.visualStage||null,
-    gates:map2Gates.length,physical:(window.starbladeMap2BuildingColliders||[]).length};
-  });
-  await base.close();
-  console.log('MAP2-48 BASELINE '+JSON.stringify(baseline));
-  assert.equal(data.meshCount,baseline.meshCount,'Exact same number of drawable meshes as original');
-  assert.equal(data.instanceCount,baseline.instanceCount,'All instanced facade pieces preserved');
-  assert.equal(data.stationCopies,baseline.stationCopies,'All exact Map4-derived station roots preserved');
-  assert.deepEqual(data.visualStage,baseline.visualStage,'Every Map2 visual placement counter preserved');
-  assert.equal(data.gates,baseline.gates);
-  assert.equal(data.physical,baseline.physical);
   assert.equal(data.courseLength,175000);
   assert.equal(data.gates,59);
   assert(data.physical>=500);
@@ -137,6 +100,44 @@ const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
    await page.screenshot({path:path.join(dir,'independent-'+distance+'.png'),
      timeout:120000,animations:'disabled'});
   }
+  await page.close(); // Free Chromium / WebGL resources before the original 4-zone build.
+  // Same measurements in the untouched baseline game: this catches missing
+  // facade trees or changed placement even when the new source loads.
+  const reference=path.join(__dirname,'map2-48-evidence','baseline.html');
+  assert(fs.existsSync(reference),'Baseline HTML must be saved before patching');
+  const base=await browser.newPage({viewport:{width:1440,height:810}});
+  await base.route('**/cdnjs.cloudflare.com/ajax/libs/three.js/**',r=>r.fulfill({
+   status:200,contentType:'text/javascript',body:three
+  }));
+  await base.route('**/cdn.tailwindcss.com/**',r=>r.fulfill({
+   status:200,contentType:'text/javascript',body:''
+  }));
+  await base.goto(pathToFileURL(reference).toString(),
+   {waitUntil:'domcontentloaded',timeout:60000});
+  await base.waitForFunction(()=>typeof map2BuildCourse==='function');
+  await base.locator('#map-choice-2').click({timeout:120000});
+  await base.waitForFunction(()=>window.starbladeMap2WideUrbanCourse&&map2Sections.length>0,
+   null,{timeout:120000});
+  const baseline=await base.evaluate(()=>{
+   let meshCount=0,instanceCount=0,stationCopies=0;
+   map2CourseGroup.traverse(o=>{
+    if(o.isMesh||o.isInstancedMesh)meshCount++;
+    if(o.isInstancedMesh)instanceCount+=o.count;
+    if(o.userData?.map2ExactMap4Clone&&o.name?.startsWith('MAP2_EXACT_MAP4_'))
+     stationCopies++;
+   });
+   return {meshCount,instanceCount,stationCopies,
+    visualStage:window.starbladeMap2Layout?.visualStage||null,
+    gates:map2Gates.length,physical:(window.starbladeMap2BuildingColliders||[]).length};
+  });
+  await base.close();
+  console.log('MAP2-48 BASELINE '+JSON.stringify(baseline));
+  assert.equal(data.meshCount,baseline.meshCount,'Exact same number of drawable meshes as original');
+  assert.equal(data.instanceCount,baseline.instanceCount,'All instanced facade pieces preserved');
+  assert.equal(data.stationCopies,baseline.stationCopies,'All exact Map4-derived station roots preserved');
+  assert.deepEqual(data.visualStage,baseline.visualStage,'Every Map2 visual placement counter preserved');
+  assert.equal(data.gates,baseline.gates);
+  assert.equal(data.physical,baseline.physical);
   console.log('PASS MAP2-48 independent full-runtime Map2 / Map4 not constructed');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
