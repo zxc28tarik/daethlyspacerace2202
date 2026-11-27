@@ -33,6 +33,10 @@ try{
       patrolModel:!!scene.getObjectByName('MAP2_OVERHEAD_PATROL'),
       message:notice?.title||null,
       map2ShieldMultiplier:MAP2_TEST_SHIELD_MULTIPLIER,
+      gateCount:map2Gates.length,
+      alternativeGates:map2Gates.filter(g=>g.openings.length>1).length,
+      transferBranches:map2TransferFork?.passages?.length||0,
+      worksForks:map2WorksForks.size,
       racers:racers.length
     };
   });
@@ -41,6 +45,10 @@ try{
   assert.equal(result.patrolModel,false);
   assert(!/DEVRİYE|ATEŞİ|HAVA UYARISI/.test(result.message||''));
   assert.equal(result.racers,5);
+  assert(result.gateCount>50);
+  assert(result.alternativeGates>0,'parallel factory openings must still exist');
+  assert(result.transferBranches>=2,'long pressure-transfer alternatives must still exist');
+  assert(result.worksForks>0,'industrial works alternatives must still exist');
   assert.deepEqual(errors,[]);
   console.log('PASS MAP2-07 overhead patrol removal',JSON.stringify(result));
 }finally{await browser.close();}
