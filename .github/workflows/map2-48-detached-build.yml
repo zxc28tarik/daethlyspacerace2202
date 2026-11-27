@@ -29,6 +29,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Snapshot the current finished visual sources
         run: node tests/map2-48-export-source-library.cjs
+      - name: Retain untouched game HTML as structural baseline
+        run: cp index.html tests/map2-48-evidence/baseline.html
       - name: Install self-contained Map2 asset snapshot in both game HTMLs
         run: python3 tools/map2-48-embed-library.py
       - name: Verify Map2 independent loader with Map4 never constructed
