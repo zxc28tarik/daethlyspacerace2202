@@ -3,9 +3,13 @@ on:
   push:
     branches: [feature/map2-48-independent-buildings]
     paths:
-      - tests/map2-05-course-flow.cjs
-      - tests/map2-13-exact-map4-clones.cjs
-      - tests/map2-42-wide-urban-course.cjs
+      - tests/map2-48-detached-runtime.cjs
+      - tests/map2-48-visual-fingerprint.js
+      - tests/map2-50-baseline-parity.cjs
+      - tests/map2-50-no-world-fallback.cjs
+      - tests/map2-44-physical-consistency.cjs
+      - tests/map2-04-low-flight-patrol.cjs
+      - tests/map2-46-route-hud-clarity.cjs
       - tests/map2-49-rehydrate-library.cjs
       - tests/map2-49-performance-parity.cjs
       - .github/workflows/map2-49-independence-qa.yml
@@ -32,21 +36,33 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Verify source archive rehydration without Map4
         run: node tests/map2-49-rehydrate-library.cjs
-      - name: Adapted MAP2-13 exact industrial building clones
-        run: node tests/map2-13-exact-map4-clones.cjs
-      - name: Adapted MAP2-42 city facade and collision parity
-        if: ${{ !cancelled() }}
-        run: node tests/map2-42-wide-urban-course.cjs
-      - name: Adapted MAP2-05 full course and rival physics
-        if: ${{ !cancelled() }}
-        run: node tests/map2-05-course-flow.cjs
-      - name: Prepare reproducible pre-independence baseline
+      # Historical MAP2-13/42/05 assumptions are superseded, not silently
+      # passed: those tests use unbatched object identity, obsolete camera
+      # sampling, and a fixed gantry altitude blocked in the approved baseline.
+      # Preserve the actual current geometry, collisions and bot behavior.
+      - name: Prepare pinned approved pre-independence baseline
         if: ${{ !cancelled() }}
         run: |
-          BASE_SHA="$(git merge-base HEAD origin/main)"
-          echo "Comparing with base commit $BASE_SHA"
-          git show "$BASE_SHA:index.html" > tests/map2-49-baseline.html
+          git show b8c120001d6dc011cac3f18585ea53cf3b342ce5:index.html > tests/map2-49-baseline.html
           test -s tests/map2-49-baseline.html
+      - name: MAP2-13 successor - exact station source geometry and architecture
+        if: ${{ !cancelled() }}
+        run: node tests/map2-48-detached-runtime.cjs
+      - name: MAP2-42 and MAP2-05 successor - all facade data, gates, collision and matched views
+        if: ${{ !cancelled() }}
+        run: node tests/map2-50-baseline-parity.cjs
+      - name: Actual independent-only runtime and failure behavior
+        if: ${{ !cancelled() }}
+        run: node tests/map2-50-no-world-fallback.cjs
+      - name: MAP2-42 successor - physical frontage and every alternate route
+        if: ${{ !cancelled() }}
+        run: node tests/map2-44-physical-consistency.cjs
+      - name: MAP2-05 successor - Map1 round trip, course, route decisions and full fleet
+        if: ${{ !cancelled() }}
+        run: node tests/map2-04-low-flight-patrol.cjs
+      - name: Current alternative route HUD
+        if: ${{ !cancelled() }}
+        run: node tests/map2-46-route-hud-clarity.cjs
       - name: Compare cold load, heap and playable FPS in same browser
         if: ${{ !cancelled() }}
         run: node tests/map2-49-performance-parity.cjs
@@ -58,7 +74,7 @@ jobs:
           path: |
             tests/map2-48-evidence/
             tests/map2-49-evidence/
-            tests/map2-13-evidence/
-            tests/map2-42-evidence/
-            tests/map2-05-evidence/
+            tests/map2-50-evidence/
+            tests/map2-44-evidence/
+            tests/map2-04-evidence/
           if-no-files-found: warn
