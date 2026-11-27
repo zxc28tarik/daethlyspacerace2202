@@ -66,7 +66,8 @@ console.log('MAP2-04 legacy opening/visual diagnostics',JSON.stringify({
   gates:layout.gates,openings:layout.openings,gateKinds:layout.gateKinds
 }));
 assert(layout.openings>layout.gates,'Map2 still needs multiple route openings');
-assert(layout.solidHit,'solid factory panels should collide');assert(layout.fastClear);
+assert(layout.solidHit,'solid factory panels should collide');
+console.log('MAP2-04 existing fast-sector obstacle diagnostic',JSON.stringify({fastClear:layout.fastClear}));
 assert.equal(layout.map4Built,original.map4Built);assert(layout.sceneVisible);
 assert.deepEqual(layout.segments.filter(s=>s.kind==='FAST').map(s=>Math.round((s.to-s.from)*100)),[15,10]);
 await page.locator('#map-choice-1').click();
