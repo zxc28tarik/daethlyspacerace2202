@@ -26,7 +26,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     const roots=clones.filter(o=>o.name?.startsWith('MAP2_EXACT_MAP4_'));
     let meshPairs=0,sameGeo=0,sameMat=0,namePairs=0;
     for(const clone of roots){
-      const source=h4IndustrialGroups.find(g=>g.name===clone.userData.sourceMap4Station);
+      const source=(map2IndependentLibrary?.stations||h4IndustrialGroups).find(g=>g.name===clone.userData.sourceMap4Station);
       if(!source)continue;
       const sm=[],cm=[];
       source.traverse(o=>{if(o.isMesh||o.isInstancedMesh)sm.push(o)});
@@ -40,7 +40,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     }
     return {
       activeMap:state.activeMap,map4Regions:planetaryWorldRegions.length,map4Visible:planetaryWorldGroup.visible,
-      sources:h4IndustrialGroups.map(g=>g.name),roots:roots.length,
+      sources:(map2IndependentLibrary?.stations||h4IndustrialGroups).map(g=>g.name),roots:roots.length,
       meshPairs,sameGeo,sameMat,namePairs,
       visualStats:window.starbladeMap2Layout?.visualStage||null,
       fakeFactory:!!map2CourseGroup.getObjectByName('MAP2_VISUAL_FACTORY_0_-1'),
@@ -50,14 +50,16 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   console.log('MAP2-13 PAGEERRORS '+JSON.stringify(errors));
   console.log('MAP2-13 STRUCTURAL '+JSON.stringify(structural));
   assert.equal(structural.activeMap,'map2');
-  assert(structural.map4Regions>=4,'hidden authoritative Map4 must be built once');
+  assert.equal(structural.map4Regions,0,'independent Map2 must not create hidden Map4');
   assert.equal(structural.map4Visible,false,'hidden Map4 source world must not render in Map2');
   assert.deepEqual(structural.sources,[
     'W05_INDUSTRY_STATION_1','W05_INDUSTRY_STATION_2','W05_INDUSTRY_STATION_3',
     'W05_INDUSTRY_STATION_4','W05_INDUSTRY_STATION_5','W05_INDUSTRY_STATION_6'
   ]);
-  assert(structural.roots>=6,'Map2 should reuse complete Map4 stations');
-  assert(structural.meshPairs>300,'exact station clones need substantial final child trees');
+  assert(structural.roots>=1,'Map2 streaming should retain at least one active station clone');
+  assert(structural.visualStats.exactMap4StationClones>=150,'the full station placement schedule must remain present');
+  assert(structural.visualStats.exactMap4Meshes>=13000,'all station meshes must survive the detached source conversion');
+  assert(structural.meshPairs>=80,'visible station clone must retain its complete final child tree');
   assert.equal(structural.sameGeo,structural.meshPairs,'clone must share exact Map4 geometry objects');
   assert.equal(structural.sameMat,structural.meshPairs,'clone must share exact Map4 material objects');
   assert.equal(structural.namePairs,structural.meshPairs,'clone child names must stay identical');

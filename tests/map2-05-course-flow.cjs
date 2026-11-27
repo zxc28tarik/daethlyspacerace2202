@@ -21,6 +21,7 @@ assert.equal(original.map,'map1');assert.equal(original.length,50000);
 await page.evaluate(()=>selectMap('map4'));
 assert.equal(await page.evaluate(()=>state.activeMap),'map1');
 await page.locator('#map-choice-2').click();
+await page.waitForFunction(()=>map2IndependentLibrary&&window.starbladeMap2IndependentAssets?.mode==='ARCHIVED_MAP2_SOURCES'&&map2Sections.length>0,null,{timeout:120000});
 const layout=await page.evaluate(()=>{
   const result=window.starbladeMap2Layout;
   const fast=MAP2_SEGMENTS.filter(s=>s.kind==='FAST');
@@ -60,10 +61,10 @@ assert(layout.closure<.01);assert(layout.structures>200);assert(layout.gates>50)
 assert(layout.allClear,'every opening should pass a pilot-sized sphere');
 assert(layout.allAlternativesClear);assert(layout.gantryOpen);assert(layout.centerBlocked);assert(layout.shared);assert.deepEqual(layout.kitInstances,layout.kitCounts);assert(layout.kitCounts.every(n=>n>0));assert(layout.openings>layout.gates);assert.equal(layout.gateKinds.length,4);
 assert(layout.solidHit,'solid factory panels should collide');assert(layout.fastClear);
-// MAP2-13+ intentionally builds the authoritative Map4 source world once, hidden,
- // so exact Map4 buildings can be cloned into Map2. The invariant is now source
- // completeness + invisibility, not "Map4 was never constructed".
- assert.equal(layout.map4Built,layout.map4Expected);assert(layout.map4Hidden);assert(layout.sceneVisible);
+// MAP2-48: exact building geometry now comes from Map2's own library.
+// Selecting Map2 must never construct a hidden Map4 world.
+assert.equal(layout.map4Built,0);assert(layout.map4Hidden);assert(layout.sceneVisible);
+assert.equal(await page.evaluate(()=>map2IndependentLibrary.stations.length),6);
 assert.deepEqual(layout.segments.filter(s=>s.kind==='FAST').map(s=>Math.round((s.to-s.from)*100)),[15,10]);
 // MAP2-05: physical approach rhythm and transition paths, not just gate count.
 const flow=await page.evaluate(()=>{
@@ -137,9 +138,10 @@ console.log('PASS MAP2-05 transition rhythm and reachable openings',JSON.stringi
 await page.locator('#map-choice-1').click();
 const restored=await page.evaluate(()=>({map:state.activeMap,length:RACE_ROUTE_NOMINAL_DISTANCE,asteroids:asteroids.length,solids:staticObstacles.length,items:itemBoxes.length,arc:raceRouteCurve.getLength(),map4Built:planetaryWorldRegions.length}));
 assert.deepEqual({...restored,map4Built:original.map4Built},original);
-assert.equal(restored.map4Built,layout.map4Expected);
+assert.equal(restored.map4Built,0,'Map4 must remain unbuilt after returning to Map1');
 assert.equal(await page.evaluate(()=>planetaryWorldGroup.visible),false);
 await page.locator('#map-choice-2').click();
+await page.waitForFunction(()=>map2IndependentLibrary&&map2Sections.length>0,null,{timeout:120000});
 await page.locator('#start-btn').click();
 await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
 assert.equal(await page.evaluate(()=>racers.length),5);
@@ -170,31 +172,18 @@ const decisions=await page.evaluate(()=>{
 assert.equal(decisions.left,0);assert.equal(decisions.right,1);assert(decisions.held);
 assert(decisions.safe);assert(decisions.sharp>0);assert(decisions.straight>0);assert(decisions.lateBrake);
 console.log('PASS MAP2-03 aperture and curvature decisions',JSON.stringify(decisions));
-// MAP2-04: exercise the actual patrol controller with the live browser scene.
-const patrol=await page.evaluate(()=>{
-    state.paused=true;
-    const saved={routeProgress:state.routeProgress,laneX:state.laneX,laneY:state.laneY,shield:state.shield,
-        powerShieldTimer:state.powerShieldTimer,barrelRollTimer:state.barrelRollTimer,shake:state.shake,combo:state.combo};
-    const step=(n,dt=.05)=>{for(let i=0;i<n;i++)map2PatrolTick(dt);};
-    state.routeProgress=40000;state.laneX=0;state.laneY=-40;state.shield=100;
-    state.powerShieldTimer=0;state.barrelRollTimer=0;map2PatrolReset();
-    step(30);const low=state.shield===100&&state.map2Patrol.shots===0;
-    state.laneY=250;step(16);const warning=map2PatrolWarning()?.title.includes('KİLİDİ')&&state.shield===100;
-    step(1);const shot=state.shield===88&&state.map2Patrol.shots===1&&map2PatrolVisual.beam.visible;
-    const model=map2PatrolVisual.ship.visible&&map2PatrolVisual.ship.name==='MAP2_OVERHEAD_PATROL';
-    step(14);const repeat=state.shield===76&&state.map2Patrol.shots===2;
-    state.laneY=200;step(30);const descent=state.shield===76&&state.map2Patrol.lock===0&&!map2PatrolWarning();
-    state.laneY=250;state.powerShieldTimer=2;step(17);const shield=state.shield===76&&state.map2Patrol.shots===3;
-    state.powerShieldTimer=0;state.routeProgress=20000;step(30);
-    const fast=state.shield===76&&!map2PatrolVisual.ship.visible&&!map2PatrolWarning()&&state.map2Patrol.lock===0;
-    const rival={routeProgress:40000,laneY:250,shield:100,powerShieldTimer:0};
-    for(let i=0;i<17;i++)map2PatrolStep(rival,.05,false);
-    const equal=rival.shield===88&&rival.map2Patrol.hits===1;
-    Object.assign(state,saved);map2PatrolReset();
-    return {low,warning,shot,model,repeat,descent,shield,fast,equal,reset:!map2PatrolVisual.ship.visible&&state.map2Patrol===null};
-});
-console.log('MAP2-04 patrol result',JSON.stringify(patrol));
-for(const [key,passed] of Object.entries(patrol))assert(passed,'MAP2-04 '+key);
+// MAP2-48: overhead patrol, beam and altitude punishment were retired.
+const patrolAbsent=await page.evaluate(()=>({
+  map4Regions:planetaryWorldRegions.length,
+  oldTick:typeof map2PatrolTick,
+  oldWarning:typeof map2PatrolWarning,
+  oldVisual:typeof map2PatrolVisual
+}));
+assert.equal(patrolAbsent.map4Regions,0);
+assert.equal(patrolAbsent.oldTick,'undefined');
+assert.equal(patrolAbsent.oldWarning,'undefined');
+assert.equal(patrolAbsent.oldVisual,'undefined');
+console.log('MAP2-05 retired overhead threat '+JSON.stringify(patrolAbsent));
 
 // Exercise actual updateGame, contact checks, energy, and finishing for the whole fleet.
 // The player is marked finished only in this harness, to isolate pilot AI from manual driving.

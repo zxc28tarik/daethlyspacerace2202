@@ -28,7 +28,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
    map2CourseGroup.traverse(o=>{
     if(!o.userData?.map2WideUrbanFrontage||!o.isInstancedMesh)return;
     visualBatches++;
-    const original=h4City02DistrictGroup.getObjectByName(o.name.replace('MAP2_WIDE_URBAN_FRONTAGE_',''));
+    const original=(map2IndependentLibrary?.city||h4City02DistrictGroup).getObjectByName(o.name.replace('MAP2_WIDE_URBAN_FRONTAGE_',''));
     if(!original||original.geometry!==o.geometry||original.material!==o.material)wrongSource++;
    });
 
@@ -71,7 +71,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     skippedForRoute:sys.skippedForRoute,movedOutward:sys.movedOutward,sides,
     minInnerEdge:Math.min(...innerEdges),maxInnerEdge:Math.max(...innerEdges),
     worldFrontage:world.frontage.length,lateralScale:world.lateralScale,
-    map4Hidden:!planetaryWorldGroup.visible
+    map4Hidden:!planetaryWorldGroup.visible,map4WorldRegions:planetaryWorldRegions.length
    };
   });
 
@@ -89,6 +89,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(info.sides.left>70&&info.sides.right>70);
   assert(info.minInnerEdge<500&&info.maxInnerEdge<560,'frontage should visually define the widened corridor');
   assert(info.worldFrontage>1500&&info.lateralScale===2&&info.map4Hidden);
+  assert.equal(info.map4WorldRegions,0,'Map2 frontage must not initialize Map4 world');
   for(const d of [39000,69000,90000,122000,151000,169000]){
    await page.evaluate(d=>{
     const q=starbladeMap2BuildingPassageAt(d);
