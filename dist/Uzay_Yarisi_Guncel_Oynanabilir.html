@@ -30347,6 +30347,14 @@
             }
         }
 
+        // MAP2-TEST15: player-only 15x effective shield; URL opt-out map2TestShield=off.
+        const MAP2_TEST_SHIELD_MULTIPLIER =
+            new URLSearchParams(window.location.search).get('map2TestShield') === 'off' ? 1 : 15;
+        function map2PlayerShieldDamage(amount) {
+            return map2Active() ? amount / MAP2_TEST_SHIELD_MULTIPLIER : amount;
+        }
+        window.starbladeMap2TestShieldMultiplier = MAP2_TEST_SHIELD_MULTIPLIER;
+
         function applyBoundaryFriction(ship, desiredSpeed, dt, isPlayer) {
             if (ship.finished || ship.dnf || (isPlayer && state.playerDNF)) return;
             clampToSoftBoundary(ship);
@@ -30367,8 +30375,9 @@
             ship.currentSpeed = Math.max(0, ship.currentSpeed);
             if (ship.powerShieldTimer <= 0 && f.damagePerSecond > 0) {
                 const damage = f.damagePerSecond * dt;
-                ship.shield = Math.max(0, ship.shield - damage);
-                ship.boundaryDamageTotal = (ship.boundaryDamageTotal || 0) + damage;
+                const receivedDamage = isPlayer ? map2PlayerShieldDamage(damage) : damage;
+                ship.shield = Math.max(0, ship.shield - receivedDamage);
+                ship.boundaryDamageTotal = (ship.boundaryDamageTotal || 0) + receivedDamage;
                 if(isPlayer&&state.activeMap===MAP_MODES.MAP4)
                     state.h4Power.lastDamageAt=state.raceTime;
                 if (isPlayer && ship.shield <= 0) {
@@ -30412,7 +30421,7 @@
                 );
                 return;
             }
-            state.shield = Math.max(0, state.shield - amount);
+            state.shield = Math.max(0, state.shield - map2PlayerShieldDamage(amount));
             if(state.activeMap===MAP_MODES.MAP4)
                 state.h4Power.lastDamageAt=state.raceTime;
             state.shake = 1.4;
@@ -32695,7 +32704,9 @@
             document.getElementById('race-time-text').textContent = formatRaceTime(displayedTime);
 
             const shieldPct = Math.round(state.shield);
-            document.getElementById('shield-text').textContent = `${shieldPct}%`;
+            document.getElementById('shield-text').textContent =
+                map2Active() && MAP2_TEST_SHIELD_MULTIPLIER > 1
+                    ? `${shieldPct}% ×15 TEST` : `${shieldPct}%`;
             document.getElementById('shield-bar').style.width = `${shieldPct}%`;
             document.getElementById('energy-bar').style.width = `${Math.round(state.energy)}%`;
 

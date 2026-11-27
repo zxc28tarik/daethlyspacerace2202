@@ -1,0 +1,68 @@
+name: MAP2 Test Player Shield x15 — Build and Check
+on:
+  push:
+    branches:
+      - feature/map2-test-player-shield15
+    paths:
+      - .github/workflows/map2-test-shield15-apply.yml
+permissions:
+  contents: write
+jobs:
+  shield-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply player-only MAP2 durability multiplier
+        run: python3 tools/map2-test-shield15.py
+      - name: Check source syntax and all damage paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          game=Path('index.html').read_text(encoding='utf-8')
+          parts=re.findall(r'<script(?:\s+[^>]*)?>([\s\S]*?)</script>',game)
+          Path('/tmp/map2-test-shield15.js').write_text(max(parts,key=len),encoding='utf-8')
+          assert game.count('map2PlayerShieldDamage(')==3
+          assert 'const receivedDamage = isPlayer ? map2PlayerShieldDamage(damage) : damage;' in game
+          assert 'state.shield = Math.max(0, state.shield - map2PlayerShieldDamage(amount));' in game
+          assert 'shield: 100,' in game
+          assert "map2TestShield') === 'off' ? 1 : 15" in game
+          PY
+          node --check /tmp/map2-test-shield15.js
+      - name: Test actual damage helper for player in each map
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm'),assert=require('assert');
+          const src=fs.readFileSync('/tmp/map2-test-shield15.js','utf8');
+          const found=src.match(/function map2PlayerShieldDamage\(amount\)\s*\{[\s\S]*?\}/);
+          assert(found,'Missing damage helper');
+          for(const map of ['map1','map2','map4']){
+            for(const multiplier of [1,15]){
+              const context={};
+              vm.runInNewContext('const MAP2_TEST_SHIELD_MULTIPLIER='+multiplier+'; function map2Active(){return '+String(map==='map2')+';} '+found[0]+';result=map2PlayerShieldDamage(30);',context);
+              const expected=map==='map2'&&multiplier===15?2:30;
+              assert.strictEqual(context.result,expected,map+' x'+multiplier);
+            }
+          }
+          console.log('PASS: MAP2 player 15x, map1/map4 unchanged, toggle off restores normal.');
+          NODE
+      - name: Build current downloadable single-file game
+        run: |
+          npm install --no-save three@0.128.0 tailwindcss@3.4.17
+          node tools/build-gfx01-bundle.cjs
+          test -s dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+      - name: Commit exact tested source and built game
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html dist/Uzay_Yarisi_Guncel_Oynanabilir.html dist/gfx01-build-manifest.json
+          git diff --cached --stat
+          git diff --cached --quiet && { echo "ERROR: no changes"; exit 1; }
+          git commit -m "MAP2 TEST15: 15x player shield effective durability"
+          git push origin HEAD:feature/map2-test-player-shield15
