@@ -1,0 +1,60 @@
+name: MAP2-49 independent buildings regression and performance
+on:
+  push:
+    branches: [feature/map2-48-independent-buildings]
+    paths:
+      - tests/map2-05-course-flow.cjs
+      - tests/map2-13-exact-map4-clones.cjs
+      - tests/map2-42-wide-urban-course.cjs
+      - tests/map2-49-rehydrate-library.cjs
+      - tests/map2-49-performance-parity.cjs
+      - .github/workflows/map2-49-independence-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: map2-49-independent-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  map2-independent-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser QA dependencies
+        run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify source archive rehydration without Map4
+        run: node tests/map2-49-rehydrate-library.cjs
+      - name: Adapted MAP2-13 exact industrial building clones
+        run: node tests/map2-13-exact-map4-clones.cjs
+      - name: Adapted MAP2-42 city facade and collision parity
+        run: node tests/map2-42-wide-urban-course.cjs
+      - name: Adapted MAP2-05 full course and rival physics
+        run: node tests/map2-05-course-flow.cjs
+      - name: Prepare reproducible pre-independence baseline
+        run: |
+          BASE_SHA="$(git merge-base HEAD origin/main)"
+          echo "Comparing with base commit $BASE_SHA"
+          git show "$BASE_SHA:index.html" > tests/map2-49-baseline.html
+          test -s tests/map2-49-baseline.html
+      - name: Compare cold load, heap and playable FPS in same browser
+        run: node tests/map2-49-performance-parity.cjs
+      - name: Save MAP2-49 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map2-49-independent-parity-results
+          path: |
+            tests/map2-48-evidence/
+            tests/map2-49-evidence/
+            tests/map2-13-evidence/
+            tests/map2-42-evidence/
+            tests/map2-05-evidence/
+          if-no-files-found: warn
