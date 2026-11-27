@@ -26,8 +26,8 @@ runtime = r"""
             if(map2IndependentLibrary)return map2IndependentLibrary;
             if(map2IndependentLoadPromise)return map2IndependentLoadPromise;
             map2IndependentLoadPromise=(async()=>{
-                const content=document.getElementById('map2-48-gzip-archive')?.textContent?.trim();
-                const manifestContent=document.getElementById('map2-48-source-manifest')?.textContent;
+                const content=document.getElementById('map2-48-gzip-archive')?.content?.textContent?.trim();
+                const manifestContent=document.getElementById('map2-48-source-manifest')?.content?.textContent;
                 if(!content||!manifestContent)
                     throw new Error('MAP2-48 embedded asset snapshot missing');
                 if(typeof DecompressionStream!=='function')
