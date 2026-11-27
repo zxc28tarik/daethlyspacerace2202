@@ -3,6 +3,8 @@ on:
   push:
     branches: [feature/map2-48-independent-buildings]
     paths:
+      - tests/map2-48-export-source-library.cjs
+      - tests/map2-48-visual-fingerprint.js
       - tools/map2-48-embed-library.py
       - tests/map2-48-detached-runtime.cjs
       - .github/workflows/map2-48-detached-build.yml
