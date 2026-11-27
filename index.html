@@ -14002,6 +14002,11 @@
         renderer.domElement.addEventListener('webglcontextrestored',()=>{map2CourseGpuReady=false;});
         const map2VisualStageStats={deckSlabs:0,sideBlocks:0,stacks:0,trusses:0,fastMarkers:0,pipeRuns:0,tanks:0,roofUnits:0,catwalks:0,signals:0,gateDetails:0,chokeWalls:0,turnFrames:0,silhouetteTowers:0,rooflineRails:0,safeApertureLights:0,exactMap4StationClones:0,exactMap4Meshes:0,exactMap4CityDistrictClones:0,exactMap4CityMeshes:0,exactMap4LandmarkClones:0,exactMap4LandmarkMeshes:0,exactMap4CorridorClusters:0,exactMap4CorridorMeshes:0,exactMap4IndustrialVisualParts:0,exactMap4IndustrialVisualMeshes:0,map4BuildingColliders:0,map4BuildingColliderBins:0,map4BuildingCenterBlocks:0,map4BuildingSideBlocks:0,map4BuildingOverheads:0,routeBuildingGroups:0,routeBuildingShells:0,routeBuildingApertures:0,routeBuildingShifted:0,routeBuildingMaxShift:0,routeBuildingFramedApertures:0,chainCompactedGroups:0,chainLongitudinalMoves:0,chainMaxShift:0,chainMaxGapBefore:0,chainMaxGapAfter:0,authoredSequences:0,sequenceReorderedGroups:0,sequenceLaneSwings:0,sequenceVerticalSwings:0,transitionBuildingClones:0,transitionBuildingKnots:0,transitionMaxGapBefore:0,transitionMaxGapAfter:0,architecturalAlignedGroups:0,architecturalYawTurns:0,architecturalMaxYawDeg:0,architecturalFacingPairs:0,canyonLinkedTransitions:0,canyonShiftedTransitions:0,canyonMaxLaneShift:0,canyonPredictedMaxJumpBefore:0,canyonPredictedMaxJumpAfter:0,throughBuildingModules:0,throughBuildingAnchors:0,throughBuildingFramedAnchors:0,throughBuildingDeepModules:0,throughBuildingMaxDepth:0,throughBuildingRouteKnots:0,throughBuildingLegacySafetyRejects:0,throughBuildingRetiredLegacyObstacles:0,longChainBridgeClones:0,longChainBridgeModules:0,longChainBridgeAnchors:0,longChainCoveragePct:0,longChainLongestSpan:0,longChainMaxGapAfter:0,longChainBadLinksAfter:0,legacyRoadTurnsRetired:0,legacyRoadMeshesHidden:0,legacyApertureGuidesHidden:0,legacyRoadObstaclesBefore:0,legacyRoadObstaclesAfter:0,legacyRoadGateObstaclesPreserved:0};
         const MAP2_CITY_PANORAMA_URL = "assets/map2-city-panorama.jpg";
+        // MAP2-VIS01/02: optional, purely cosmetic pass. Disabled view exactly
+        // retains the pre-pass atlas, model details, and instance color tints.
+        const MAP2_VISUAL_POLISH = new URLSearchParams(window.location.search)
+            .get('map2VisualPolish') !== 'off';
+        window.starbladeMap2VisualPolishEnabled=MAP2_VISUAL_POLISH;
         function buildMap2CityPanorama() {
             const material = new THREE.ShaderMaterial({
                 side: THREE.BackSide,
@@ -14084,6 +14089,25 @@
                 ctx.fillStyle='#a09aa9';
                 for(const [x,y] of [[14,13],[245,18],[34,105],[120,105],[15,198],[235,167],[143,235]])
                     ctx.fillRect(x,y,5,2);
+                if(MAP2_VISUAL_POLISH){
+                    // Engraved flush seams rather than additional 3D objects.
+                    ctx.save();
+                    ctx.strokeStyle='rgba(38,43,60,.28)';ctx.lineWidth=1.15;
+                    for(const x of [21,81,146,213]){
+                        ctx.beginPath();ctx.moveTo(x,3);ctx.lineTo(x-7,56);
+                        ctx.lineTo(x-18,110);ctx.stroke();
+                    }
+                    ctx.strokeStyle='rgba(246,239,241,.25)';
+                    for(const [x,y,w] of [[12,140,55],[112,140,85],[20,238,64],[140,238,91]]){
+                        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y);ctx.stroke();
+                    }
+                    for(let row=0;row<5;row++)for(let col=0;col<4;col++){
+                        const x=18+col*63+(row%2)*7,y=18+row*51;
+                        ctx.fillStyle='rgba(35,41,57,.38)';ctx.fillRect(x,y,3,3);
+                        ctx.fillStyle='rgba(242,235,238,.40)';ctx.fillRect(x+4,y,2,2);
+                    }
+                    ctx.restore();
+                }
             });
             const systems=texture(ctx=>{
                 ctx.fillStyle='#1c2031';ctx.fillRect(0,0,256,256);
@@ -14105,6 +14129,21 @@
                 shape(ctx,[[125,126],[131,131],[131,201],[125,204],[120,199],[120,134]],'#59a491');
                 shape(ctx,[[28,221],[91,221],[102,232],[47,232]],'#a57259');
                 shape(ctx,[[166,226],[224,226],[215,231],[163,231]],'#dca276');
+                if(MAP2_VISUAL_POLISH){
+                    // No animated lights, extra materials or draw calls.
+                    ctx.save();
+                    ctx.fillStyle='rgba(9,14,26,.66)';
+                    for(const x of [36,62,167,193])for(let i=0;i<5;i++){
+                        ctx.fillRect(x,138+i*14,15,3);
+                    }
+                    ctx.strokeStyle='rgba(119,166,176,.50)';ctx.lineWidth=2;
+                    ctx.strokeRect(20,17,215,220);
+                    ctx.fillStyle='rgba(110,211,208,.78)';
+                    for(const x of [54,76,98,161,183])ctx.fillRect(x,104,9,2);
+                    ctx.fillStyle='rgba(231,169,112,.75)';
+                    for(const x of [44,179])ctx.fillRect(x,218,18,3);
+                    ctx.restore();
+                }
             });
             return {metal,systems};
         }
@@ -14170,8 +14209,20 @@
             const ctx=canvas.getContext('2d');
             ctx.fillStyle='#e1dce2';
             ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.globalAlpha=.36;
+            ctx.globalAlpha=MAP2_VISUAL_POLISH?.45:.36;
             ctx.drawImage(panel,0,0);
+            if(MAP2_VISUAL_POLISH){
+                // Hand-drawn bay joints live inside the existing 256px texture.
+                ctx.globalAlpha=1;
+                ctx.strokeStyle='rgba(42,48,63,.17)';ctx.lineWidth=2;
+                for(const y of [44,118,192]){
+                    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();
+                }
+                ctx.strokeStyle='rgba(251,248,248,.18)';ctx.lineWidth=1;
+                for(const y of [46,120,194]){
+                    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();
+                }
+            }
             const skin=new THREE.CanvasTexture(canvas);
             skin.anisotropy=surfaces.metal.anisotropy;
             const material=new THREE.MeshStandardMaterial({
@@ -14237,6 +14288,21 @@
                     const glassY=kind==='cargo' ? .36 : .32;
                     block(.447,glassY,0,.018,.021,.57,steel);
                     block(.458,glassY,0,.013,.012,.49,accent);
+                    if(MAP2_VISUAL_POLISH){
+                        // Merged into the original instanced silhouette mesh.
+                        // The modules are decorative, without physics colliders.
+                        const bays=kind==='cooling'||kind==='power'?5:
+                            kind==='forge'||kind==='cargo'?4:3;
+                        for(let i=0;i<bays;i++){
+                            const y=.24+i*(.50/Math.max(1,bays-1));
+                            const plate=kind==='forge'?0x8c6d63:steel;
+                            block(-.463,y,0,.012,.013,.61,plate);
+                        }
+                        for(const z of [-.32,.32]){
+                            block(-.462,.48,z,.014,.47,.014,core);
+                        }
+                        block(.464,.18,0,.012,.010,.63,accent);
+                    }
                 });
                 return [kind,part];
             }));
@@ -19109,6 +19175,12 @@
                         const wrappedD=boundary===MAP2_DISTANCE&&d<730?d+MAP2_DISTANCE:d;
                         const blend=THREE.MathUtils.smoothstep(wrappedD,boundary-730,boundary+730);
                         const tint=districtTints[approach].clone().lerp(districtTints[departure],blend);
+                        if(MAP2_VISUAL_POLISH){
+                            // A/B-compatible deterministic block variation; same geometry,
+                            // same material, same instance count and same collision data.
+                            const step=(i*13+row*5+(side>0?3:0))%7;
+                            tint.multiplyScalar(1+(step-3)*.013);
+                        }
                         let facade;
                         if(kind==='arrival'){
                             const variation=i%7===0?2:Number(i%4===1);
