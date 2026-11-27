@@ -94,7 +94,9 @@ function median(values){const a=[...values].sort((x,y)=>x-y);return (a[(a.length
     medianMenuTimeMs:median(arr.map(x=>x.menuTimeMs)),
     medianCourseTimeMs:median(arr.map(x=>x.courseTimeMs)),
     medianPlayableTimeMs:median(arr.map(x=>x.playableTimeMs)),
-    medianFps:median(arr.map(x=>x.fps)),
+    medianFps:median(arr.map(x=>x.fps.fps)),
+    minSampledFrames:Math.min(...arr.map(x=>x.fps.sampledFrames)),
+    fpsReliable:arr.every(x=>x.fps.sampledFrames>=30),
     medianHeapBytes:arr.every(x=>x.jsHeapBytes!=null)?median(arr.map(x=>x.jsHeapBytes)):null,
     map4WorldRegions:arr[0].map4WorldRegions,meshes:arr[0].meshes,instances:arr[0].instances
    };
