@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "gameSource": "index.html",
   "buildFile": "Uzay_Yarisi_Guncel_Oynanabilir.html",
-  "buildSha256": "7795b84b623cf5760fc5e447c26314e944398333259d23db681960f9d7102b3e",
-  "bundleBytes": 9219242,
+  "buildSha256": "0646ba92f889532bc71f939b513ac5916840b5c205851dbb3a464a5fc1c582e1",
+  "bundleBytes": 9219941,
   "assets": {
     "canyon_arch": {
       "mime": "model/gltf-binary",
