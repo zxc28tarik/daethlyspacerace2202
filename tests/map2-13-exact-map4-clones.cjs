@@ -26,7 +26,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     const roots=clones.filter(o=>o.name?.startsWith('MAP2_EXACT_MAP4_'));
     let meshPairs=0,sameGeo=0,sameMat=0,namePairs=0;
     for(const clone of roots){
-      const source=h4IndustrialGroups.find(g=>g.name===clone.userData.sourceMap4Station);
+      const source=(map2IndependentLibrary?.stations||h4IndustrialGroups).find(g=>g.name===clone.userData.sourceMap4Station);
       if(!source)continue;
       const sm=[],cm=[];
       source.traverse(o=>{if(o.isMesh||o.isInstancedMesh)sm.push(o)});
@@ -40,7 +40,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     }
     return {
       activeMap:state.activeMap,map4Regions:planetaryWorldRegions.length,map4Visible:planetaryWorldGroup.visible,
-      sources:h4IndustrialGroups.map(g=>g.name),roots:roots.length,
+      sources:(map2IndependentLibrary?.stations||h4IndustrialGroups).map(g=>g.name),roots:roots.length,
       meshPairs,sameGeo,sameMat,namePairs,
       visualStats:window.starbladeMap2Layout?.visualStage||null,
       fakeFactory:!!map2CourseGroup.getObjectByName('MAP2_VISUAL_FACTORY_0_-1'),
@@ -50,7 +50,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   console.log('MAP2-13 PAGEERRORS '+JSON.stringify(errors));
   console.log('MAP2-13 STRUCTURAL '+JSON.stringify(structural));
   assert.equal(structural.activeMap,'map2');
-  assert(structural.map4Regions>=4,'hidden authoritative Map4 must be built once');
+  assert.equal(structural.map4Regions,0,'independent Map2 must not create hidden Map4');
   assert.equal(structural.map4Visible,false,'hidden Map4 source world must not render in Map2');
   assert.deepEqual(structural.sources,[
     'W05_INDUSTRY_STATION_1','W05_INDUSTRY_STATION_2','W05_INDUSTRY_STATION_3',
