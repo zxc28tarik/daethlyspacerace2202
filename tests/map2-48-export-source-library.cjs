@@ -35,6 +35,7 @@ const {chromium}=require('playwright');
     await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&
       window.starbladeMap2WideUrbanCourse,null,{timeout:90000});
 
+    await page.addScriptTag({path:path.join(__dirname,'map2-48-visual-fingerprint.js')});
     const payload=await page.evaluate(()=>{
       state.paused=true;
       scene.updateMatrixWorld(true);
@@ -139,6 +140,7 @@ const {chromium}=require('playwright');
         map2GateCount:map2Gates.length,
         map2PhysicalCount:(window.starbladeMap2BuildingColliders||[]).length,
         map2Sections:map2Sections.length,
+        visualFingerprint:window.map2VisualFingerprint(),
         sourceIds:manifest.map(x=>x.id)
       };
       if(!meta.visualSourceMap4Hidden)throw new Error('Map4 must remain hidden');
