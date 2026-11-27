@@ -1,6 +1,6 @@
 'use strict';
 // MAP2-48 runtime acceptance test: no Map4 region/world creation for Map2.
-const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('node:path');
+const fs=require('node:fs'),assert=require('node:assert/strict'),path=require('node:path'),zlib=require('node:zlib');
 const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
 (async()=>{
  const browser=await chromium.launch({headless:true,args:[
@@ -60,6 +60,7 @@ const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
     map4Enabled:MAP_AVAILABLE[MAP_MODES.MAP4]
    };
   });
+  const actualRows=await page.evaluate(()=>window.map2VisualFingerprint(true).rows);
   console.log('MAP2-48 DETACHED '+JSON.stringify(data));
   assert.equal(data.activeMap,'map2');
   assert.equal(data.map4Regions,0,'Map4 world must not exist for Map2');
@@ -104,6 +105,19 @@ const {pathToFileURL}=require('node:url'),{chromium}=require('playwright');
      timeout:120000,animations:'disabled'});
   }
   await page.close(); // Free Chromium / WebGL resources before the original 4-zone build.
+  if(data.visualFingerprint.hash!==data.originalFingerprint.hash){
+    const compressed=fs.readFileSync(path.join(__dirname,'map2-48-evidence','baseline-visual-rows.json.gz'));
+    const originalRows=JSON.parse(zlib.gunzipSync(compressed).toString('utf8'));
+    const changes=[];
+    for(let i=0;i<Math.max(originalRows.length,actualRows.length);i++){
+      if(originalRows[i]!==actualRows[i]){
+        changes.push({i,original:originalRows[i]?.slice(0,430),
+          actual:actualRows[i]?.slice(0,430)});
+        if(changes.length>=15)break;
+      }
+    }
+    console.log('MAP2-48 FIRST VISUAL DIFFERENCES '+JSON.stringify(changes));
+  }
   assert.deepEqual(data.visualFingerprint,data.originalFingerprint,
     'Every building mesh, transform, material and instanced facade must match the untouched Map2');
   console.log('MAP2-48 VISUAL PARITY '+JSON.stringify(data.visualFingerprint));
