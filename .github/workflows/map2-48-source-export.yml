@@ -25,8 +25,20 @@ jobs:
         run: npm install --no-save playwright@1.56.1 three@0.128.0
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Export Map2 building source library and verify round trip
+      - name: Determine current Map2 asset mode
+        id: assets
+        run: |
+          if grep -q 'id="map2-48-gzip-archive"' index.html; then
+            echo "detached=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "detached=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Export original Map2 source library and verify round trip
+        if: ${{ steps.assets.outputs.detached == 'false' }}
         run: node tests/map2-48-export-source-library.cjs
+      - name: Recheck detached Map2 source instead of rebuilding absent Map4
+        if: ${{ steps.assets.outputs.detached == 'true' }}
+        run: node tests/map2-48-detached-runtime.cjs
       - name: Preserve archive and dependency audit
         uses: actions/upload-artifact@v4
         if: always()
