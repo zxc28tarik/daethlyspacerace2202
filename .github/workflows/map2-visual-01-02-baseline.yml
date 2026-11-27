@@ -1,0 +1,28 @@
+name: MAP2 Original Baseline Comparison (read-only)
+on:
+  push:
+    branches:
+      - qa/map2-visual-baseline-2026-11-27
+    paths:
+      - .github/workflows/map2-visual-01-02-baseline.yml
+permissions:
+  contents: read
+jobs:
+  original-baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - run: npx playwright install --with-deps chromium
+      - name: Original Codex MAP2-42 test (for comparison)
+        run: node tests/map2-42-wide-urban-course.cjs
+      - name: Original Codex MAP2-44 test (for comparison)
+        if: always()
+        run: node tests/map2-44-physical-consistency.cjs
+      - name: Original Codex MAP2-45 test (for comparison)
+        if: always()
+        run: node tests/map2-45-navigation-performance.cjs
