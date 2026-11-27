@@ -68,11 +68,13 @@ console.log('MAP2-04 legacy opening/visual diagnostics',JSON.stringify({
 assert(layout.openings>layout.gates,'Map2 still needs multiple route openings');
 assert(layout.solidHit,'solid factory panels should collide');
 console.log('MAP2-04 existing fast-sector obstacle diagnostic',JSON.stringify({fastClear:layout.fastClear}));
-console.log('MAP2-04 cached Map4 resource diagnostic',JSON.stringify({before:original.map4Built,afterMap2:layout.map4Built}));\nassert(layout.sceneVisible);
+console.log('MAP2-04 cached Map4 resource diagnostic',JSON.stringify({before:original.map4Built,afterMap2:layout.map4Built}));
+assert(layout.sceneVisible);
 assert.deepEqual(layout.segments.filter(s=>s.kind==='FAST').map(s=>Math.round((s.to-s.from)*100)),[15,10]);
 await page.locator('#map-choice-1').click();
 const restored=await page.evaluate(()=>({map:state.activeMap,length:RACE_ROUTE_NOMINAL_DISTANCE,asteroids:asteroids.length,solids:staticObstacles.length,items:itemBoxes.length,arc:raceRouteCurve.getLength(),map4Built:planetaryWorldRegions.length}));
-assert.deepEqual({...restored,map4Built:original.map4Built},original);\nconsole.log('MAP2-04 map switch restore diagnostic',JSON.stringify({map4BuiltBefore:original.map4Built,map4BuiltAfter:restored.map4Built}));
+assert.deepEqual({...restored,map4Built:original.map4Built},original);
+console.log('MAP2-04 map switch restore diagnostic',JSON.stringify({map4BuiltBefore:original.map4Built,map4BuiltAfter:restored.map4Built}));
 await page.locator('#map-choice-2').click();
 await page.locator('#start-btn').click();
 await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
