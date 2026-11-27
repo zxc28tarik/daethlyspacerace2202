@@ -2,7 +2,7 @@ name: MAP2-46 alternate-route HUD clarity
 on:
   push:
     branches:
-      - feature/map2-route-hud-clarity-2026-11-27
+      - main
   pull_request:
     branches:
       - main
