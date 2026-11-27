@@ -1,0 +1,35 @@
+name: MAP2 VIS01-02 Regression Acceptance
+on:
+  push:
+    branches:
+      - feature/map2-visual-01-02-reversible
+    paths:
+      - .github/workflows/map2-visual-01-02-regression.yml
+permissions:
+  contents: read
+jobs:
+  visual-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - run: npx playwright install --with-deps chromium
+      - name: MAP2-42 urban frontage and gap regression
+        run: node tests/map2-42-wide-urban-course.cjs
+      - name: MAP2-44 physics / architectural aperture regression
+        run: node tests/map2-44-physical-consistency.cjs
+      - name: MAP2-45 camera-index navigation regression
+        run: node tests/map2-45-navigation-performance.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-vis01-02-regression-evidence
+          path: |
+            tests/map2-42-evidence/
+            tests/map2-44-evidence/
+            tests/map2-45-evidence/
+          if-no-files-found: ignore
