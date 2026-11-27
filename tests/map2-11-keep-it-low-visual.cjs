@@ -14,7 +14,7 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   await page.route('**/cdnjs.cloudflare.com/ajax/libs/three.js/**',r=>r.fulfill({status:200,contentType:'text/javascript',body:three}));
   await page.route('**/cdn.tailwindcss.com/**',r=>r.fulfill({status:200,contentType:'text/javascript',body:''}));
   await page.goto(pathToFileURL(path.resolve('index.html')).toString(),{waitUntil:'domcontentloaded',timeout:60000});
-  await page.waitForFunction(()=>typeof map2PatrolTick==='function'&&typeof map2BuildCourse==='function');
+  await page.waitForFunction(()=>typeof map2BuildCourse==='function');
   assert(await page.locator('#map-choice-4').isDisabled(),'Map4 must remain locked');
   await page.locator('#map-choice-2').click();await page.locator('#start-btn').click();
   await page.waitForFunction(()=>state.running&&state.activeMap==='map2'&&state.raceTime>.2,null,{timeout:30000});
@@ -91,95 +91,36 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
   assert(lowVisual.safeOnscreen>0,'safe aperture lights should be visible near gate');
   await page.screenshot({path:path.join(evidence,'01-low-safe-corridor.png')});
 
-  const patrol=await page.evaluate(()=>{
-    const step=(n,dt=.05)=>{for(let i=0;i<n;i++)map2PatrolTick(dt);};
-    state.paused=true;state.routeProgress=40000;state.laneX=20;state.laneY=180;state.shield=100;
-    state.powerShieldTimer=0;state.barrelRollTimer=0;map2PatrolReset();step(6);
-    const low={search:!!map2PatrolVisual.search?.visible,beam:!!map2PatrolVisual.beam?.visible,shield:state.shield};
-    state.laneY=250;step(4);
-    const exposed={search:!!map2PatrolVisual.search?.visible,beam:!!map2PatrolVisual.beam?.visible,
-      searching:window.starbladeMap2Patrol.searching,phase:window.starbladeMap2Patrol.phase,shield:state.shield};
-    step(8);
-    const locked={search:!!map2PatrolVisual.search?.visible,beam:!!map2PatrolVisual.beam?.visible,
-      searching:window.starbladeMap2Patrol.searching,phase:window.starbladeMap2Patrol.phase,shield:state.shield};
-    step(6);
-    const fired={search:!!map2PatrolVisual.search?.visible,beam:!!map2PatrolVisual.beam?.visible,
-      searching:window.starbladeMap2Patrol.searching,phase:window.starbladeMap2Patrol.phase,shield:state.shield};
-    state.laneY=180;step(3);
-    const recovered={search:!!map2PatrolVisual.search?.visible,searching:window.starbladeMap2Patrol.searching};
-    return {cfg:{ceiling:MAP2_PATROL.ceiling,lockSeconds:MAP2_PATROL.lockSeconds,approachSeconds:MAP2_PATROL.approachSeconds,
-      shotInterval:MAP2_PATROL.shotInterval,damage:MAP2_PATROL.damage},low,exposed,locked,fired,recovered};
-  });
-  assert.deepEqual(patrol.cfg,{ceiling:220,lockSeconds:.85,approachSeconds:.42,shotInterval:.7,damage:12});
-  assert.equal(patrol.low.search,false);assert.equal(patrol.low.shield,100);
-  assert.equal(patrol.exposed.search,true);assert.equal(patrol.exposed.searching,true);assert.equal(patrol.exposed.beam,false);
-  assert(['approach','lock'].includes(patrol.exposed.phase));assert.equal(patrol.exposed.shield,100);
-  assert.equal(patrol.locked.search,true);assert.equal(patrol.locked.beam,false);assert.equal(patrol.locked.shield,100);
-  assert.equal(patrol.fired.beam,true);assert.equal(patrol.fired.search,false);assert.equal(patrol.fired.shield,88);
-  assert.equal(patrol.recovered.search,false);assert.equal(patrol.recovered.searching,false);
-
   await settle(40000,250);
-  await page.evaluate(()=>{state.paused=true;map2PatrolReset();for(let i=0;i<6;i++)map2PatrolTick(.05);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);});
-  const approachShot=await page.evaluate(()=>{
-    const ship=map2PatrolVisual.ship.position.clone().project(camera);
-    const a=map2PatrolVisual.search.geometry.attributes.position;
-    const start=new THREE.Vector3(a.getX(0),a.getY(0),a.getZ(0)).project(camera);
-    const end=new THREE.Vector3(a.getX(1),a.getY(1),a.getZ(1)).project(camera);
-    const player=playerRig.position.clone().project(camera);
-    const box=new THREE.Box3().setFromObject(map2PatrolVisual.ship),pts=[];
-    for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])
-      pts.push(new THREE.Vector3(x,y,z).project(camera));
-    const bbox={w:Math.max(...pts.map(p=>p.x))-Math.min(...pts.map(p=>p.x)),
-      h:Math.max(...pts.map(p=>p.y))-Math.min(...pts.map(p=>p.y))};
-    const beacons=[];
-    map2PatrolVisual.ship.traverse(o=>{
-      if(o.name!=='MAP2_PATROL_BEACON')return;
-      const p=new THREE.Vector3();o.getWorldPosition(p);p.project(camera);
-      beacons.push({x:p.x,y:p.y,z:p.z});
-    });
-    return {search:map2PatrolVisual.search?.visible===true,phase:window.starbladeMap2Patrol?.phase,
-      warning:map2PatrolWarning()?.title||null,depthTest:map2PatrolVisual.search.material.depthTest,
-      renderScale:map2PatrolVisual.ship.scale.x,
-      lineLength:Math.hypot(start.x-end.x,start.y-end.y),bbox,beacons,
-      ship:{x:ship.x,y:ship.y,z:ship.z},player:{x:player.x,y:player.y,z:player.z},
-      start:{x:start.x,y:start.y,z:start.z},end:{x:end.x,y:end.y,z:end.z}};
+  const patrolRetired=await page.evaluate(()=>{
+    state.paused=true;
+    state.routeProgress=40000;
+    state.laneY=300;
+    const warning=updateRaceHudWarning();
+    return {fighter:!!scene.getObjectByName('MAP2_OVERHEAD_PATROL'),
+      statePatrol:state.map2Patrol,telemetry:window.starbladeMap2Patrol,
+      airWarning:!!warning&&/DEVRİYE|HAVA UYARISI/.test(warning.title)};
   });
-  assert.equal(approachShot.search,true);assert(approachShot.warning?.includes('YAKLAŞIYOR'));
-  assert.equal(approachShot.depthTest,false,'searchlight must remain readable against roof geometry');
-  assert(Math.abs(approachShot.ship.x)<1&&Math.abs(approachShot.ship.y)<1&&approachShot.ship.z>=-1&&approachShot.ship.z<=1,
-    'patrol fighter must actually be inside the camera frame during approach');
-  assert(Math.abs(approachShot.start.x)<1.05&&Math.abs(approachShot.start.y)<1.05,
-    'searchlight origin must be in frame');
-  assert(Math.abs(approachShot.end.x)<1.05&&Math.abs(approachShot.end.y)<1.05,
-    'searchlight target must be in frame');
-  assert(Math.abs(approachShot.end.x-approachShot.player.x)<.015&&Math.abs(approachShot.end.y-approachShot.player.y)<.015,
-    'searchlight must terminate on the actually rendered player craft');
-  assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)>.055,
-    'patrol fighter must be large enough to read on screen');
-  assert(Math.max(approachShot.bbox.w,approachShot.bbox.h)<.35,
-    'patrol fighter must not dominate the whole race view');
-  assert(approachShot.renderScale>=1.1&&approachShot.renderScale<=1.3,
-    'patrol render scale must remain in the readable visual-only range');
-  assert(approachShot.lineLength>.20,'searchlight must create a readable visual connection to the player');
-  assert(approachShot.ship.y+approachShot.bbox.h/2<1.02,'patrol fighter should not be clipped above the frame');
-  assert.equal(approachShot.beacons.length,2,'patrol needs two readable wing beacons');
-  assert(approachShot.beacons.every(b=>Math.abs(b.x)<1&&Math.abs(b.y)<1&&b.z>=-1&&b.z<=1),
-    'both patrol wing beacons must be visible in the camera frame');
-  await page.screenshot({path:path.join(evidence,'02-exposed-patrol-search.png')});
+  assert.equal(patrolRetired.fighter,false);
+  assert.equal(patrolRetired.statePatrol,null);
+  assert.equal(patrolRetired.telemetry,null);
+  assert.equal(patrolRetired.airWarning,false);
+  await page.screenshot({path:path.join(evidence,'02-high-altitude-no-patrol.png')});
 
   await settle(12000,300);
   const fast=await page.evaluate(()=>{
-    map2PatrolTick(.1);
     const guide=document.getElementById('ui-first-flight');
-    return {seg:map2Segment(state.routeProgress).kind,search:!!map2PatrolVisual.search?.visible,warning:map2PatrolWarning(),
+    return {seg:map2Segment(state.routeProgress).kind,warning:updateRaceHudWarning(),
+      patrolTelemetry:window.starbladeMap2Patrol,
       guideHidden:guide.classList.contains('hidden'),
       guideTitle:document.getElementById('ui-first-flight-title')?.textContent||''};
   });
-  assert.equal(fast.seg,'FAST');assert.equal(fast.search,false);assert.equal(fast.warning,null);
+  assert.equal(fast.seg,'FAST');assert.equal(fast.patrolTelemetry,null);
+  assert(!fast.warning||!/DEVRİYE|HAVA UYARISI/.test(fast.warning.title));
   if(!fast.guideHidden)assert.notEqual(fast.guideTitle,'ALÇAK UÇ','FAST guidance must not show a low-flight threat');
   await page.screenshot({path:path.join(evidence,'03-fast-no-roofline-threat.png')});
 
   assert.deepEqual(errors,[]);
-  console.log('PASS MAP2-11 KEEP IT LOW visual language '+JSON.stringify({layout:layout.visualStage,lowVisual,patrol,approachShot,fast}));
+  console.log('PASS MAP2-11 KEEP IT LOW visual language '+JSON.stringify({layout:layout.visualStage,lowVisual,patrolRetired,fast}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
