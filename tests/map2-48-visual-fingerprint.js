@@ -21,7 +21,7 @@ window.map2VisualFingerprint=(full=false)=>{
     if(!o.isMesh&&!o.isInstancedMesh)return;
     // Map1 reward boxes are procedurally spun/positioned per race, even
     // while Map2 is active. They are not architectural facade data.
-    if(o.name==='MAP1_ORIGINAL_REWARD_BOX')return;
+    if(o.name.startsWith('MAP1_ORIGINAL_REWARD_'))return;
     meshes++;
     const geo=o.geometry,attr=geo?.attributes?.position;
     let bounds='';
