@@ -153,6 +153,9 @@ const {chromium}=require('playwright');
     assert(payload.meta.map2PhysicalCount>150,'Map2 physical buildings must remain intact');
     assert.deepEqual(errors,[]);
 
+    const originalRows=await page.evaluate(()=>window.map2VisualFingerprint(true).rows);
+    fs.writeFileSync(path.join(dir,'baseline-visual-rows.json.gz'),
+      zlib.gzipSync(Buffer.from(JSON.stringify(originalRows)),{level:9}));
     const packed=Buffer.from(payload.json,'utf8');
     const compressed=zlib.gzipSync(packed,{level:9});
     const manifest={...payload.meta,
