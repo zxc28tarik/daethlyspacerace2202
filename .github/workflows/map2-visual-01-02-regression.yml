@@ -21,8 +21,10 @@ jobs:
       - name: MAP2-42 urban frontage and gap regression
         run: node tests/map2-42-wide-urban-course.cjs
       - name: MAP2-44 physics / architectural aperture regression
+        if: always()
         run: node tests/map2-44-physical-consistency.cjs
       - name: MAP2-45 camera-index navigation regression
+        if: always()
         run: node tests/map2-45-navigation-performance.cjs
       - uses: actions/upload-artifact@v4
         if: always()
