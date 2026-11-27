@@ -1,7 +1,7 @@
 'use strict';
 // Deterministic gameplay-independent geometric fingerprint. Used by both
 // the original game export and the Map2-owned detached asset test.
-window.map2VisualFingerprint=()=>{
+window.map2VisualFingerprint=(full=false)=>{
   map2CourseGroup.updateMatrixWorld(true);
   const rounded=v=>Number.isFinite(v)?Math.round(v*1000)/1000:String(v);
   const matInfo=m=>{
@@ -59,5 +59,5 @@ window.map2VisualFingerprint=()=>{
       hash=Math.imul((hash^row.charCodeAt(i))>>>0,16777619)>>>0;
     hash=Math.imul((hash^10)>>>0,16777619)>>>0;
   }
-  return {meshes,instances,hash:hash.toString(16).padStart(8,'0')};
+  return {meshes,instances,hash:hash.toString(16).padStart(8,'0'),...(full?{rows}: {})};
 };
