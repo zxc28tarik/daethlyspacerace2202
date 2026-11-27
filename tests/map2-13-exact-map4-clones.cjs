@@ -56,8 +56,10 @@ for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))if(m[
     'W05_INDUSTRY_STATION_1','W05_INDUSTRY_STATION_2','W05_INDUSTRY_STATION_3',
     'W05_INDUSTRY_STATION_4','W05_INDUSTRY_STATION_5','W05_INDUSTRY_STATION_6'
   ]);
-  assert(structural.roots>=6,'Map2 should reuse complete Map4 stations');
-  assert(structural.meshPairs>300,'exact station clones need substantial final child trees');
+  assert(structural.roots>=1,'Map2 streaming should retain at least one active station clone');
+  assert(structural.visualStats.exactMap4StationClones>=150,'the full station placement schedule must remain present');
+  assert(structural.visualStats.exactMap4Meshes>=13000,'all station meshes must survive the detached source conversion');
+  assert(structural.meshPairs>=80,'visible station clone must retain its complete final child tree');
   assert.equal(structural.sameGeo,structural.meshPairs,'clone must share exact Map4 geometry objects');
   assert.equal(structural.sameMat,structural.meshPairs,'clone must share exact Map4 material objects');
   assert.equal(structural.namePairs,structural.meshPairs,'clone child names must stay identical');
