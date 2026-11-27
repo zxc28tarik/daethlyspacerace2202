@@ -1,0 +1,39 @@
+name: MAP2-48 independent visual source export
+on:
+  push:
+    branches: [feature/map2-48-independent-buildings]
+    paths:
+      - tests/map2-48-export-source-library.cjs
+      - .github/workflows/map2-48-source-export.yml
+      - index.html
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: map2-48-export-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install game browser test dependencies
+        run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Export Map2 building source library and verify round trip
+        run: node tests/map2-48-export-source-library.cjs
+      - name: Preserve archive and dependency audit
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map2-48-source-library-and-manifest
+          path: tests/map2-48-evidence/
+          if-no-files-found: warn
+      - name: Confirm unchanged Map2 building and collision contract
+        if: ${{ success() }}
+        run: node tests/map2-44-physical-consistency.cjs
