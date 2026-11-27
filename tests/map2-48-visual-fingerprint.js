@@ -19,6 +19,9 @@ window.map2VisualFingerprint=(full=false)=>{
   const rows=[];let meshes=0,instances=0;
   map2CourseGroup.traverse(o=>{
     if(!o.isMesh&&!o.isInstancedMesh)return;
+    // Map1 reward boxes are procedurally spun/positioned per race, even
+    // while Map2 is active. They are not architectural facade data.
+    if(o.name==='MAP1_ORIGINAL_REWARD_BOX')return;
     meshes++;
     const geo=o.geometry,attr=geo?.attributes?.position;
     let bounds='';
