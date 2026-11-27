@@ -16923,10 +16923,10 @@
                 };
                 return map2IndependentLibrary;
             })().catch(error=>{
-                // Preserve emergency playability on unsupported browsers.
-                // The MAP2-48 regression test REJECTS this fallback.
-                console.error('MAP2-48 independent asset load failed:',error);
-                window.starbladeMap2IndependentAssets={mode:'FALLBACK_TO_MAP4',error:String(error)};
+                // MAP2-50: reject missing independent sources; never construct Map4.
+                console.error('MAP2 independent asset load failed:',error);
+                window.starbladeMap2IndependentAssets={mode:'MAP2_ASSET_LOAD_FAILED',error:String(error)};
+                map2IndependentLoadPromise=null;
                 return null;
             });
             return map2IndependentLoadPromise;
@@ -16935,18 +16935,8 @@
         function applyPlanetaryEnvironment() {
             const active=state.activeMap===MAP_MODES.MAP4;
             if(map2Active()){
-                if(map2IndependentLibrary){
-                    // No Map4 world, arena, atmosphere, effect or collision build.
-                    map2BuildCourse();
-                }else{
-                    // Emergency fallback for unsupported browsers.
-                    const previousMap=state.activeMap,previousPhase=state.map4Phase;
-                    state.activeMap=MAP_MODES.MAP4;state.map4Phase=3;
-                    buildPlanetaryWorld();
-                    state.activeMap=previousMap;state.map4Phase=previousPhase;
-                    planetaryWorldGroup.visible=false;
-                    map2BuildCourse();
-                }
+                if(!map2IndependentLibrary)throw new Error('Map2 independent assets not loaded');
+                map2BuildCourse();
             }
             if(active)buildPlanetaryWorld();
             planetaryWorldGroup.visible=active;
@@ -18332,7 +18322,7 @@
             // MAP2-13: exact copies of the FINAL Map4 W05 industrial stations.
             // h4IndustrialGroups are built by Map4 itself, then clone(true) preserves
             // their complete child tree, geometry and material references.
-            const map2ExactMap4Sources=(map2IndependentLibrary?.stations||h4IndustrialGroups).slice(0,6);
+            const map2ExactMap4Sources=map2IndependentLibrary.stations.slice(0,6);
             if(map2ExactMap4Sources.length!==6)
                 throw new Error('MAP2-13 requires six final Map4 industrial station groups');
             const map2FrameMatrix=(d,side=0,up=0)=>{
@@ -18402,7 +18392,7 @@
             // architectural detail. We clone the complete group, then strip only its
             // Map4 collision metadata so Map2 gameplay remains controlled by Map2.
             const map2CloneExactMap4CityDistrict=(d,side=0,up=0)=>{
-                const source=map2IndependentLibrary?.city||h4City02DistrictGroup;
+                const source=map2IndependentLibrary.city;
                 if(!source||source.name!=='MAP4_CITY02_REAL_URBAN_DISTRICT')
                     throw new Error('MAP2-15 requires final Map4 urban district source');
                 const sourceAt=MAP4_CITY_ARENA.centerProgress;
@@ -18452,7 +18442,7 @@
                 return meshes;
             };
             const map2CloneExactMap4Landmark=(sourceName,d,side=0,up=0)=>{
-                const entry=(map2IndependentLibrary?.landmarks||h4WorldLandmarks).find(x=>x.group&&x.group.name===sourceName);
+                const entry=map2IndependentLibrary.landmarks.find(x=>x.group&&x.group.name===sourceName);
                 if(!entry)throw new Error('MAP2-16 missing Map4 landmark '+sourceName);
                 const clone=entry.group.clone(true);
                 clone.name='MAP2_EXACT_MAP4_LANDMARK_'+sourceName+'_AT_'+Math.round(d);
@@ -18472,7 +18462,7 @@
                 return clone;
             };
             const map2CloneExactMap4FinalCorridor=(d,side=0,up=0)=>{
-                const sources=(map2IndependentLibrary?.finalCorridors||planetaryWorldRegions[3].children).filter(o=>
+                const sources=map2IndependentLibrary.finalCorridors.filter(o=>
                     o.name==='MAP4_GFX07_CORRIDOR_STRUCTURE');
                 if(sources.length<20)
                     throw new Error('MAP2-16 requires final Map4 corridor structures');
@@ -18563,7 +18553,7 @@
                 return candidates[0];
             };
             const map2CloneExactMap4IndustrialVisualParts=()=>{
-                const source=(map2IndependentLibrary?.industrialVisuals?[map2IndependentLibrary.industrialVisuals]:planetaryWorldRegions[2].children).find(o=>
+                const source=[map2IndependentLibrary.industrialVisuals].find(o=>
                     o.name==='MAP4_GFX04_INDUSTRIAL_STRUCTURE_VISUALS');
                 if(!source)throw new Error('MAP2-17 missing 985-mesh Map4 industrial visual source');
 
@@ -22782,7 +22772,7 @@
                 }
                 // Keep the approved frontage footprints and use them to scale the two
                 // new visual building families. The dimensions also drive turn clearance.
-                const footprints=(map2IndependentLibrary?.city||h4City02DistrictGroup).children
+                const footprints=(map2IndependentLibrary.city).children
                     .filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
                     .map(m=>m.scale);
                 if(!footprints.length)throw new Error('Map2 city frontage requires building footprints');
@@ -22971,7 +22961,7 @@
             const map2BuildWideUrbanCourse=()=>{
                 const world=window.starbladeMap2WorldCity;
                 if(!world)throw new Error('MAP2-42 requires MAP2-41 world city');
-                const source=map2IndependentLibrary?.city||h4City02DistrictGroup;
+                const source=map2IndependentLibrary.city;
                 const prototypes=source.children
                     .filter(m=>m.isMesh&&/^H4_CITY02_PHYSICAL_BUILDING_/.test(m.name))
                     .map(m=>({body:m,crown:source.getObjectByName(
@@ -33392,8 +33382,13 @@
                 const launch=document.getElementById('start-btn');
                 launch.disabled=true;
                 launch.textContent='BİNALAR HAZIRLANIYOR…';
-                await map2LoadIndependentLibrary();
+                const library=await map2LoadIndependentLibrary();
                 if(state.activeMap!==mapId||state.running)return;
+                if(!library){
+                    launch.disabled=true;
+                    launch.textContent='HARİTA 2 AÇILAMADI — TARAYICIYI GÜNCELLE';
+                    return;
+                }
             }
             applyPlanetaryEnvironment();
             const ready = MAP_AVAILABLE[mapId] === true;
