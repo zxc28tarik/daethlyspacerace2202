@@ -1,11 +1,11 @@
 # Harita 2 — KEEP IT LOW | Onaylı demo tasarım kararları
 
-Tarih: 24 Kasım 2026. Durum: Kullanıcı tasarım yönünü onayladı; uygulama henüz başlamadı. Bu belge Harita 2 için birincil tasarım referansıdır. Önceki düz rota, iki tur ve dekor ağırlıklı yerleşim önerilerinin yerine geçer.
+Tarih: 24 Kasım 2026. Son karar güncellemesi: 27 Kasım 2026. Bu belge Harita 2 için birincil tasarım referansıdır. Önceki düz rota, iki tur, dekor ağırlıklı yerleşim ve devriye tehdidi önerilerinin yerine geçer.
 
 ## 1. Demo kapsamı ve amaç
 - Harita 4 mevcut haliyle tamamlanmaktan uzak ve iş gücü ihtiyacı yüksek. Demo önceliğinde Harita 4 yerine daha hızlı tamamlanabilir, Harita 1 tabanlı ikinci yarış sunulacak.
 - Harita 4 silinmeyecek, üzerine yazılmayacak; sonraki geliştirmeler için korunacak. Sanayi, şehir, fabrika, makine, rafineri, platform, boru ve benzeri mevcut modelleri yeniden kullanılacak.
-- Yeni harita adı/görevi: KEEP IT LOW. Ana deneyim yarış, hassas uçuş, risk ve alçak irtifa. Oyuncu silahları kapalı; serbest çatışma arenası, bekleme, boss ve büyük yeni savaş sistemi yok. Tek devriye tehdidi yarış kuralını destekler.
+- Yeni harita adı/görevi: KEEP IT LOW. Ana deneyim yarış, hassas uçuş, risk ve alçak irtifa. Oyuncu silahları kapalı; serbest çatışma arenası, bekleme, boss, büyük yeni savaş sistemi ve tepeden saldıran devriye düşmanı yok.
 - İlk hedef kaba ama baştan sona oynanabilir pist; sanat cilası sonra. Mevcut varlıkları kullanarak hızlı üretim hedeflenir; 1–2 saatlik ilk yerleşim fikri bir süre garantisi değildir.
 
 ## 2. Geometri ve mesafe (kilitli)
@@ -26,12 +26,12 @@ Tarih: 24 Kasım 2026. Durum: Kullanıcı tasarım yönünü onayladı; uygulama
 - Önce tüm loop ve mevcut varlıkların kaba yerleşimi, sonra boşluklar, açıklıklar, viraj çevresi, çarpışmalar, aralıklar ve zorluk. Sırf daha güzel model yapmak için zaman harcanmayacak.
 - Her teknik engel için erişilebilir en az bir geçiş; oyuncu ve bot için gemi boyutu + güvenlik payı, yüksek hızda tunneling önleme ve önden okunabilir girişler. Katı yapılarda üstten/yan dışından kestirme ile yarış mesafesi atlanmamalı.
 
-## 4. KEEP IT LOW devriye kuralı
-- Oyuncu yapılar içinden/arasından alçak uçtuğunda güvende. Yapıların üzerine/izin verilen yüksekliğin üstüne çıkarak engelleri atlamaya çalışırsa bir devriye uçağı hedef alıp ateş eder.
-- Uygulama önerisi: sınır yaklaşımında sade uyarı; sınır üstünde kısa tolerans, hedef alma ve görünür ateş/hasar; güvenli irtifaya dönüldüğünde saldırı kesilir. Eşik, tolerans, hasar ve cooldown testle ayarlanacak, henüz kilitli sayısal değer yok.
-- Devriye vurulması gereken boss/rakip değil, alçak uçuşu teşvik eden hareketli tehdit. Oyuncunun silah açmasına veya arena savaşına gerek yok.
-- Adil kural: rakip yarışçılara da aynı irtifa tehlikesi ve geçiş kısıtları uygulanır. Botlar güvenli irtifada kalmalı, kestirmemeli; her botun ilerlemesi gerçek rota mesafesine dayanmalı.
-- Gerekirse sıralı kontrol noktaları/koridor ilerlemesi ile tur ve kestirme kontrolü; ekstra görünür HUD kalabalığı yok.
+## 4. KEEP IT LOW — 27 Kasım 2026 güncel kural
+- Harita 2'de tepeden saldıran devriye uçağı, devriye kilidi, devriye lazeri/ateşi ve irtifaya bağlı kalkan hasarı kullanılmayacak.
+- "DEVRİYE YAKLAŞIYOR", "DEVRİYE KİLİDİ" ve "DEVRİYE ATEŞİ" gibi devriye HUD uyarıları Harita 2'de gösterilmeyecek.
+- KEEP IT LOW kimliği artık yapay bir hava cezasından değil; fiziksel bina geçitleri, dar açıklıklar, keskin dönüşler, rota seçimi ve yarış çizgisinden doğacak.
+- Oyuncu ve botlar aynı gerçek bina çarpışmalarına ve rota mesafesine tabidir; üstten/yan dışından kestirme yarış ilerlemesini atlatmamalıdır.
+- Harita 2 HUD'ı sade kalacak. Çoklu geçitlerde oyuncuya açık biçimde "ALTERNATİF ROTA" ve seçilen geçit yönü gösterilecek; eski genel "ENKAZ GEÇİDİ / DEBRIS ZONE" dili Harita 2 için kullanılmayacak.
 
 ## 5. Yeniden kullanılacak sistemler
 - Harita 1 yarış motoru, uçuş/rail kontrolleri, eşit temel hız, rakip pilot profilleri ve sollama, boost/fren/enerji, mevcut mor ödül kutuları, çarpışma temeli, sıralama ve podyum/sonuç akışı.
@@ -45,7 +45,7 @@ Tarih: 24 Kasım 2026. Durum: Kullanıcı tasarım yönünü onayladı; uygulama
 2. Kapalı, tek turluk 3–4x rota; mesafe tabanlı %70/%15/%10/%5 segmentler; başlangıç ve bitiş kapanışının tutarlılığı. Tam gaz kesimleri gerçekten açık.
 3. Mevcut şehir ve sanayi modellerini teknik kesimlerin içine yerleştir; virajların iki yanındaki yapılar, gerçek iç geçişler ve boşlukları oluştur.
 4. Çarpışma, kamera, okunabilirlik, bot geçiş hedefleri, geçiş güvenliği ve sıralama. Tek turda doğru sonuç.
-5. Devriye uçağı + yükseklik cezası, geri alçalınca saldırının kesilmesi; botlar dahil adil uygulama.
+5. Alternatif geçitlerin oyuncu tarafından erken okunması; HUD yönlendirmesinin gerçek fiziksel açıklıklarla ve botların kullanabildiği rota kollarıyla tutarlı olması.
 6. Boost/enerji ve fren dengesi; risk/ödül, tam gaz bölümleri, yarış temposu ve farklı pilot davranışları.
 7. Menü/podyum/arka plan ve görsel cila. Gerçek tarayıcıda Harita 2 baştan sona oynanış, botların finişi, yeniden başlatma, Harita 1/4 regresyonu ve WebGL performans testi. Geçişler test edilmeden tamamlandı denmeyecek.
 8. Oyuncuya test için güncel doğrudan sohbetten indirilebilir web HTML dosyası sağlanması hedeflenir. GitHub indirme bağlantısı, istenen sohbet eki yerine geçmez; dosya aktarımı başarısız olursa dürüstçe belirtilir.
@@ -54,7 +54,14 @@ Tarih: 24 Kasım 2026. Durum: Kullanıcı tasarım yönünü onayladı; uygulama
 Yeni savaş modu, karmaşık çatışma AI'sı, yeni uçuş motoru, boss, kariyer, ekonomi, çok oyunculu, Harita 4'ün tamamlanması, sıfırdan kapsamlı model üretimi. Harita 1 ile aynı çekirdek; ikinci haritanın farkı fiziksel sanayi engelleri, keskin virajlar, alçak irtifa ve iki tam gaz kesimidir.
 
 ## 8. Öncelik
-Bir sonraki geliştirme paketi MAP2-01: kapalı pist + mevcut model yerleşimi + temel uçulabilirlik. Sonraki paketler geçiş/çarpışma, bot uyarlaması, devriye ve demo cilası. Bu belge uygulanmış kod iddiası değildir.
+Güncel öncelik: geçiş/çarpışma doğrulaması, alternatif rota okunabilirliği, botların 175 km'lik yarışı tamamlaması, tam gaz sektörlerinin gerçekten açık kalması ve demo cilası. Devriye sistemi kapsam dışına çıkarılmıştır.
 
 ## 9. Ek kullanıcı kararı — 24 Kasım 2026
 Harita 4 silinmeyecek veya bozulmayacak. Demo sürümünde yalnızca seçimi ve başlatılması geçici olarak kapalı tutulacak. `DEMO_MAP4_ENABLED=false` ile geri alınabilir erişim kapısı kullanılacak. MAP2-01 ayrı dalda; Harita 4'ün özgün işlevleri ve varlıkları korunacak.
+
+
+## 10. Ek kullanıcı kararı — 27 Kasım 2026
+- Harita 2 hava devriyesi ve ona bağlı saldırı/hasar/uyarı sistemi kaldırıldı.
+- Harita 1 ve Harita 4 bu karardan etkilenmeyecek.
+- 15× oyuncu test kalkanı geçici Harita 2 test aracı olarak korunuyor.
+- Mevcut alternatif rota geometrileri ve bot rota seçimi korunuyor; sonraki çalışma oyuncunun bu ayrımları daha erken ve daha açık okuyabilmesine odaklanıyor.

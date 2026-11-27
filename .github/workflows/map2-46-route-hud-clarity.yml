@@ -1,0 +1,22 @@
+name: MAP2-46 alternate-route HUD clarity
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  route-hud:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify Map2 alternate-route HUD in both playable HTML builds
+        run: node tests/map2-46-route-hud-clarity.cjs
