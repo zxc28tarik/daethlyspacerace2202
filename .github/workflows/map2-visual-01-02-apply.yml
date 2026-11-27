@@ -1,0 +1,49 @@
+name: MAP2 VIS01-02 Visual-only Reversible Build
+on:
+  push:
+    branches:
+      - feature/map2-visual-01-02-reversible
+    paths:
+      - .github/workflows/map2-visual-01-02-apply.yml
+permissions:
+  contents: write
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply MAP2 cosmetic-only patch
+        run: python3 tools/map2-visual-01-02-patch.py
+      - name: Verify JavaScript syntax and visual opt-out
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          src=Path("index.html").read_text(encoding="utf-8")
+          blocks=re.findall(r'<script(?:\s+[^>]*)?>([\s\S]*?)</script>',src)
+          Path("/tmp/map2-game.js").write_text(max(blocks,key=len),encoding="utf-8")
+          assert "map2VisualPolish') !== 'off'" in src
+          assert src.count("MAP2_VISUAL_POLISH") >= 5
+          PY
+          node --check /tmp/map2-game.js
+      - name: Build single HTML from same source
+        run: |
+          npm install --no-save three@0.128.0 tailwindcss@3.4.17
+          node tools/build-gfx01-bundle.cjs
+          test -s dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+      - name: Commit cosmetic source and rebuilt HTML
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html dist/Uzay_Yarisi_Guncel_Oynanabilir.html dist/gfx01-build-manifest.json
+          git diff --cached --stat
+          git diff --cached --quiet && { echo "No cosmetic changes"; exit 1; }
+          git commit -m "MAP2 VIS01/02: reversible facade detail and district variety"
+          git push origin HEAD:feature/map2-visual-01-02-reversible
