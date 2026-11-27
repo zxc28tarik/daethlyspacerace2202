@@ -1,0 +1,76 @@
+name: MAP2-50 final source independence and matched baseline
+on:
+  push:
+    branches: [feature/map2-48-independent-buildings]
+    paths:
+      - tools/map2-50-remove-world-fallback.py
+      - tests/map2-50-*.cjs
+      - .github/workflows/map2-50-final-independence.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: map2-50-independence
+  cancel-in-progress: true
+jobs:
+  final-independent-map2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --no-save playwright@1.56.1 three@0.128.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Recover original approved pre-detachment baseline
+        run: |
+          git show b8c120001d6dc011cac3f18585ea53cf3b342ce5:index.html > map2-50-baseline.html
+          test -s map2-50-baseline.html
+      - name: Stage final independent-only runtime for both HTMLs
+        run: python3 tools/map2-50-remove-world-fallback.py
+      - name: Verify embedded archive unchanged and reproducible
+        run: node tests/map2-49-rehydrate-library.cjs
+      - name: Missing archive and unsupported browser fail closed
+        if: ${{ !cancelled() }}
+        run: node tests/map2-50-no-world-fallback.cjs
+      - name: Compare exact architecture and collisions across eight matched views
+        if: ${{ !cancelled() }}
+        env:
+          MAP2_BASELINE_HTML: map2-50-baseline.html
+        run: node tests/map2-50-baseline-parity.cjs
+      - name: Full independent visual fingerprint
+        if: ${{ !cancelled() }}
+        run: node tests/map2-48-detached-runtime.cjs
+      - name: Physical building shell and alternative route regression
+        if: ${{ !cancelled() }}
+        run: node tests/map2-44-physical-consistency.cjs
+      - name: Full course and five rivals
+        if: ${{ !cancelled() }}
+        run: node tests/map2-04-low-flight-patrol.cjs
+      - name: Alternative route HUD
+        if: ${{ !cancelled() }}
+        run: node tests/map2-46-route-hud-clarity.cjs
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map2-50-independent-evidence
+          path: |
+            tests/map2-50-evidence/
+            tests/map2-48-evidence/
+            tests/map2-44-evidence/
+            tests/map2-04-evidence/
+          if-no-files-found: warn
+      - name: Save verified final runtime only if every test passed
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+          git diff --cached --quiet || git commit -m "MAP2-50: fully detach Map2 runtime from hidden Map4 source world"
+          git push origin HEAD:feature/map2-48-independent-buildings
