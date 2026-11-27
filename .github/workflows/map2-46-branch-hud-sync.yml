@@ -1,0 +1,31 @@
+name: MAP2-46 branch HUD sync
+on:
+  push:
+    branches:
+      - feature/map2-route-hud-clarity-2026-11-27
+permissions:
+  contents: write
+jobs:
+  sync-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/map2-route-hud-clarity-2026-11-27
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Sync standalone playable HTML
+        run: python3 tools/map2-46-sync-route-hud.py
+      - name: Verify both playable HTML builds
+        run: node tests/map2-46-route-hud-clarity.cjs
+      - name: Commit standalone HTML sync
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/Uzay_Yarisi_Guncel_Oynanabilir.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "MAP2-46: sync standalone playable HTML"
+          git push
