@@ -35,16 +35,20 @@ jobs:
       - name: Adapted MAP2-13 exact industrial building clones
         run: node tests/map2-13-exact-map4-clones.cjs
       - name: Adapted MAP2-42 city facade and collision parity
+        if: ${{ !cancelled() }}
         run: node tests/map2-42-wide-urban-course.cjs
       - name: Adapted MAP2-05 full course and rival physics
+        if: ${{ !cancelled() }}
         run: node tests/map2-05-course-flow.cjs
       - name: Prepare reproducible pre-independence baseline
+        if: ${{ !cancelled() }}
         run: |
           BASE_SHA="$(git merge-base HEAD origin/main)"
           echo "Comparing with base commit $BASE_SHA"
           git show "$BASE_SHA:index.html" > tests/map2-49-baseline.html
           test -s tests/map2-49-baseline.html
       - name: Compare cold load, heap and playable FPS in same browser
+        if: ${{ !cancelled() }}
         run: node tests/map2-49-performance-parity.cjs
       - name: Save MAP2-49 evidence
         if: always()
