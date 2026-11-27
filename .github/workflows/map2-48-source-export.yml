@@ -4,6 +4,7 @@ on:
     branches: [feature/map2-48-independent-buildings]
     paths:
       - tests/map2-48-export-source-library.cjs
+      - tests/map2-49-rehydrate-library.cjs
       - .github/workflows/map2-48-source-export.yml
       - index.html
   workflow_dispatch:
@@ -38,7 +39,9 @@ jobs:
         run: node tests/map2-48-export-source-library.cjs
       - name: Recheck detached Map2 source instead of rebuilding absent Map4
         if: ${{ steps.assets.outputs.detached == 'true' }}
-        run: node tests/map2-48-detached-runtime.cjs
+        run: |
+          node tests/map2-49-rehydrate-library.cjs
+          node tests/map2-48-detached-runtime.cjs
       - name: Preserve archive and dependency audit
         uses: actions/upload-artifact@v4
         if: always()
