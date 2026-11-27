@@ -95,31 +95,20 @@ const decisions=await page.evaluate(()=>{
 assert.equal(decisions.left,0);assert.equal(decisions.right,1);assert(decisions.held);
 assert(decisions.safe);assert(decisions.sharp>0);assert(decisions.straight>0);assert(decisions.lateBrake);
 console.log('PASS MAP2-03 aperture and curvature decisions',JSON.stringify(decisions));
-// MAP2-04: exercise the actual patrol controller with the live browser scene.
-const patrol=await page.evaluate(()=>{
-    state.paused=true;
-    const saved={routeProgress:state.routeProgress,laneX:state.laneX,laneY:state.laneY,shield:state.shield,
-        powerShieldTimer:state.powerShieldTimer,barrelRollTimer:state.barrelRollTimer,shake:state.shake,combo:state.combo};
-    const step=(n,dt=.05)=>{for(let i=0;i<n;i++)map2PatrolTick(dt);};
-    state.routeProgress=40000;state.laneX=0;state.laneY=-40;state.shield=100;
-    state.powerShieldTimer=0;state.barrelRollTimer=0;map2PatrolReset();
-    step(30);const low=state.shield===100&&state.map2Patrol.shots===0;
-    state.laneY=250;step(16);const warning=map2PatrolWarning()?.title.includes('KİLİDİ')&&state.shield===100;
-    step(1);const shot=state.shield===88&&state.map2Patrol.shots===1&&map2PatrolVisual.beam.visible;
-    const model=map2PatrolVisual.ship.visible&&map2PatrolVisual.ship.name==='MAP2_OVERHEAD_PATROL';
-    step(14);const repeat=state.shield===76&&state.map2Patrol.shots===2;
-    state.laneY=200;step(30);const descent=state.shield===76&&state.map2Patrol.lock===0&&!map2PatrolWarning();
-    state.laneY=250;state.powerShieldTimer=2;step(17);const shield=state.shield===76&&state.map2Patrol.shots===3;
-    state.powerShieldTimer=0;state.routeProgress=20000;step(30);
-    const fast=state.shield===76&&!map2PatrolVisual.ship.visible&&!map2PatrolWarning()&&state.map2Patrol.lock===0;
-    const rival={routeProgress:40000,laneY:250,shield:100,powerShieldTimer:0};
-    for(let i=0;i<17;i++)map2PatrolStep(rival,.05,false);
-    const equal=rival.shield===88&&rival.map2Patrol.hits===1;
-    Object.assign(state,saved);map2PatrolReset();
-    return {low,warning,shot,model,repeat,descent,shield,fast,equal,reset:!map2PatrolVisual.ship.visible&&state.map2Patrol===null};
+// MAP2-04 retired: high flight must not create an overhead fighter, warn or deal patrol damage.
+const retired=await page.evaluate(()=>{
+  state.paused=true;state.routeProgress=40000;state.laneY=350;
+  const notice=updateRaceHudWarning();
+  return {fighter:!!scene.getObjectByName('MAP2_OVERHEAD_PATROL'),
+    patrolTelemetry:window.starbladeMap2Patrol,
+    activePatrol:state.map2Patrol,
+    hasAirWarning:!!notice&&/DEVRİYE|ALÇAL.*ÇATI/.test(notice.title+' '+notice.detail)};
 });
-console.log('MAP2-04 patrol result',JSON.stringify(patrol));
-for(const [key,passed] of Object.entries(patrol))assert(passed,'MAP2-04 '+key);
+assert.equal(retired.fighter,false);
+assert.equal(retired.patrolTelemetry,null);
+assert.equal(retired.activePatrol,null);
+assert.equal(retired.hasAirWarning,false);
+console.log('PASS MAP2-04 overhead patrol and altitude alerts retired',JSON.stringify(retired));
 
 // Exercise actual updateGame, contact checks, energy, and finishing for the whole fleet.
 // The player is marked finished only in this harness, to isolate pilot AI from manual driving.
